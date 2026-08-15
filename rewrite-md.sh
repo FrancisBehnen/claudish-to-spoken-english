@@ -36,7 +36,7 @@
 #   CLAUDISH_MD_PROMPT_FILE <path>    file holding a replacement Markdown prompt
 #                                     (whole prompt, not merged; empty or
 #                                     unreadable -> built-in default)
-#   CLAUDISH_PROVIDER  ollama|anthropic|openai  which LLM serves rewrites (default
+#   CLAUDISH_PROVIDER  ollama|anthropic|openai|claude-cli  which LLM serves rewrites (default
 #                                     ollama; keys, base URLs, and per-provider model
 #                                     defaults are documented in providers.sh)
 #   CLAUDISH_MODEL     <model>        overrides the provider's default model

@@ -34,7 +34,8 @@
 #   CLAUDISH_PROMPT_FILE <path>       file holding a replacement rewrite prompt
 #                                          (whole prompt, not merged; empty or
 #                                          unreadable -> built-in default)
-#   CLAUDISH_PROVIDER  ollama|anthropic|openai  which LLM serves rewrites
+#   CLAUDISH_PROVIDER  ollama|anthropic|openai|claude-cli
+#                                          which LLM serves rewrites
 #                                           (default ollama; keys, base URLs,
 #                                           and per-provider model defaults
 #                                           are documented in providers.sh)
