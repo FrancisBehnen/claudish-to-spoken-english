@@ -1,0 +1,5 @@
+The dependency chain is what makes this slow:
+```
+ollama → mlx-c → mlx → python@3.14 → openssl@3, sqlite, xz, zstd
+```
+Every step is built from source at a custom prefix, so the whole install takes about 45 minutes rather than the usual few seconds.

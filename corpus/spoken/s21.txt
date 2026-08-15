@@ -1,0 +1,1 @@
+The server is listening on port 8080. The queue held 1234 items, the token cap is 4096, and the file was 1080 lines long.

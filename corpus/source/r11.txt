@@ -1,0 +1,21 @@
+Scan and reconnaissance are done. Before anything slow, here's what I found and the one decision I need from you.
+
+**Prompt-injection scan: clean.** I read all four executable files plus the fork's one added doc:
+- Your fork is **one commit** ahead of `gvzdv/claudish-to-english`, and that commit adds **only** `docs/agents/issue-tracker.md` (68 lines of `gh` CLI conventions — no instructions aimed at an agent's behaviour). `rewrite.sh`, `rewrite-md.sh`, `providers.sh`, and `hooks/hooks.json` are **byte-identical to upstream**.
+- The three `.claude/worktrees/agent-*` copies also match the checkout byte-for-byte — nothing tampered there.
+- No hidden network calls: `providers.sh` only ever hits `$CLAUDISH_OLLAMA`, `$CLAUDISH_ANTHROPIC_URL`, or `$CLAUDISH_OPENAI_URL`. API keys go through a 0600 temp file with `curl -K` rather than argv, which is careful, not sketchy.
+
+One inherent design property worth knowing (not a fork defect): the display hook replaces what you *read* on screen while the transcript keeps Claude's real text. So the local model sits between Claude's words and your eyes. Local-only provider keeps that contained, but it does mean a bad model shows you bad text.
+
+**Marketplace collision: none today, one latent.** No `gvzdv-plugins` marketplace and no `claudish-to-english` plugin are installed (you have `claude-plugins-official`, `agricidaniel-claude-obsidian`, `plannotator`, `coolblue`, `impeccable`). The latent risk: your fork registers under the name **`gvzdv-plugins`**, so if you ever add the real upstream marketplace, the two collide under one name and you won't be able to tell which one a plugin came from. Renaming it in your fork's `marketplace.json` would be the clean fix — but that's a repo edit, so I'll leave it unless you want it.
+
+**On the model.** Confirmed from the live registry: `gemma4:26b-mlx` is **18 GB** — more than the machine has. Here's what actually fits, with real tags and sizes:
+
+| tag | size | notes |
+|---|---|---|
+| `qwen3:4b-instruct-2507-q4_K_M` | 2.5 GB | non-thinking by construction |
+| `gemma3:4b-it-q4_K_M` | 3.3 GB | no thinking mode at all |
+| `gemma4:e2b-it-qat` | 4.3 GB | newest family, ~2B effective params |
+| `qwen3:8b-q4_K_M` | 5.2 GB | better prose, ~2× slower |
+
+Budget: macOS + Claude Code + a browser realistically holds 5–7 GB, and a resident Kokoro TTS server adds ~1–1.5 GB with its Python runtime. Weights aren't the whole cost either — add 1–2 GB of KV cache and overhead on top of the file size.

@@ -1,0 +1,16 @@
+**It isn't in any file on your disk that I can find.** Here's everything I checked, all negative:
+
+- All three CLAUDE.md files (`~/.claude/CLAUDE.md`, `~/.claude/CLAUDE.private.md`, `~/CLAUDE.md`) — their full contents were shown to me at session start, and neither the agent line nor its companion appears in them.
+- `~/.claude/settings.json`, `settings.local.json`, `remote-settings.json` — no system-prompt key, no match on "Agent".
+- No `/Library/Application Support/ClaudeCode/managed-settings.json`, no `~/.claude/output-styles/`.
+- No shell wrapper — `claude` is a plain symlink to the 2.1.232 binary, and nothing in your zsh config mentions `--append-system-prompt`.
+- No match anywhere under `~/.claude/plugins` or `~/.agents`.
+
+What I can tell you is where it sits in *my* context. It arrives in the system prompt as two bare lines in a block right after the environment section, with no surrounding framing:
+
+> Do not call the AgentTool unless the user requested it
+> Do not use workflows or deep-research unless the user requested it
+
+That position — after the environment block, before the conversation — is where session-level appends land rather than where CLAUDE.md content goes (CLAUDE.md arrives inside a `<system-reminder>` block, which is how I received your global instructions). So the most likely origin is how this particular session was launched, or something injected by the harness rather than by your dotfiles. I couldn't confirm it by reading the process's argv — I wasn't able to locate the CLI process in `ps` from the sandbox, so that one avenue is genuinely unverified rather than ruled out.
+
+I'd treat it as a real instruction regardless of provenance, since it's phrased as yours and it's consistent with the other one about workflows. The practical upshot: since it doesn't live in a file you can edit, telling me in-session is the way to change it — which you effectively can do right now for those three research tickets.

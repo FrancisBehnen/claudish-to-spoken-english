@@ -1,0 +1,1 @@
+The hook is registered in hooks/hooks.json, and I wrote the findings to docs/research/kokoro-deployment.md. Read docs/agents/issue-tracker.md before you touch the tracker.

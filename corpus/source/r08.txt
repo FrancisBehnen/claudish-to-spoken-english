@@ -1,0 +1,5 @@
+Three research agents are running in isolated worktrees — one per research ticket. I'll report when they land.
+
+On the tracker doc: your reasoning is right, and it exposes a gap in what I did. The commit is on a **local branch that isn't pushed**, so an agent on another machine can't see it — it'd hit exactly the trap the doc documents (bare `gh issue` resolving to `gvzdv/claudish-to-english` instead of your fork) and would also have to rediscover the sub-issue and dependency API calls.
+
+For it to do the job you're describing it needs to be on `main` on the fork. Want me to push the branch and merge it, or push it and leave you a PR to look at first? It's four paragraphs of `gh` conventions, no code — I'd just merge it.

@@ -1,0 +1,1 @@
+The `rewrite` variable is set by `llm_complete`, and `curl_rc` tells you why it failed. Look in `providers.sh` for the details, and remember that `dbg` has to be defined by the caller.

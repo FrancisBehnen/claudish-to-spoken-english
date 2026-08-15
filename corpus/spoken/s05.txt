@@ -1,0 +1,5 @@
+Do it in this order:
+1. Pull the model first, because nothing works without it.
+2. Start the server and wait for it to answer.
+3. Run the hook and watch the log.
+Step 2 is the slow one.

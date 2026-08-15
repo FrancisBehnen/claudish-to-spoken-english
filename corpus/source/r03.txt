@@ -1,0 +1,3 @@
+That's the whole chain proven except the weights themselves. Note `curl_rc=0` with `resp_bytes=59`: ollama was **reached**, parsed the request, resolved the tag from `settings.json`, and reported only that the weights are missing. Fail-open held and the original text survived intact.
+
+Cleaning up my test artifacts:

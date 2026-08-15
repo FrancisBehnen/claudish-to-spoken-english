@@ -1,0 +1,1 @@
+I piped it through jq, ran npm install, then did a cd into the directory and read the rest from stdin. The sh script did the rest, and git tracked none of it.

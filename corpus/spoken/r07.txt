@@ -1,0 +1,12 @@
+Installing ollama with Homebrew will take way longer than usual. Here's why:
+
+Your Homebrew is at `~/homebrew` instead of the standard location. When Homebrew is in a custom place, it can't use prebuilt binaries. It has to build everything from the source code instead.
+
+Ollama needs a lot of dependencies:
+```
+ollama → mlx-c → mlx → python@3.14 → openssl@3, sqlite, xz, zstd, …
+```
+
+It's been running for about 11 minutes and is currently building python@3.14. Still to go: mlx (the big one that uses C++ and Metal), mlx-c, and then ollama. Overall, expect 45–90 minutes because your CPU will be working the whole time.
+
+The build is still going. I haven't stopped it.

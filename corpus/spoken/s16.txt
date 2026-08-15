@@ -1,0 +1,1 @@
+Set CLAUDISH_ENABLED=0 to turn the whole thing off. It reported curl_rc=28, which means the request timed out, and http=429 would have meant something different.

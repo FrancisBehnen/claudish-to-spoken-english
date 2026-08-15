@@ -1,0 +1,1 @@
+The permission lives in the settings file, and the timeout lives in the hook itself. Nothing about this message is unusual. It is ordinary explanatory prose with no code, no paths and no numbers in it at all, which makes it the control for everything else in this set.

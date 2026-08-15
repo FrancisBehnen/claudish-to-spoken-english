@@ -1,0 +1,3 @@
+Stage 1 works fine. The first chunk went through quietly. The last chunk rebuilt both changes (`chunks=2`, `prose_len=298`) before sending. Buffering, the length gate, the separator, and `displayContent` all work.
+
+Now for stage 2, which doesn't use much bandwidth. This tests the real provider path against a live ollama setup where the model is intentionally missing:

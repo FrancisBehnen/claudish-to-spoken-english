@@ -1,0 +1,1 @@
+This message sits deliberately just under the two hundred character floor, so the hook leaves it alone and never asks the model for a rewrite. Nothing written here should ever reach the speech path, because a message this short is dropped.

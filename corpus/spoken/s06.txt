@@ -1,0 +1,7 @@
+The design note puts it plainly:
+> speech is fired detached and can never block emit
+Here is how the three providers compare:
+| provider | default model | needs a key |
+| --- | --- | --- |
+| ollama | gemma4:26b-mlx | no |
+| anthropic | claude-haiku-4-5 | yes |

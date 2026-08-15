@@ -1,0 +1,6 @@
+# What changed
+I moved the retry logic out of the hook.
+## Why it matters
+The old path could stall the whole message.
+### One caveat
+The timeout is still 45 seconds, so a slow provider still costs you a wait.

@@ -1,0 +1,5 @@
+Merged to `main` as a fast-forward and pushed — `docs/agents/issue-tracker.md` is now on the fork, and the local branch is gone.
+
+Same gap applies to the research output, incidentally: I told each agent to commit to a local `research/*` branch and not push. When they land I'll show you the findings, and pushing those branches is a one-liner if you want them visible off-machine too.
+
+Charting is complete: map, ten wired tickets, four on the frontier, tracker doc published, research in flight. Next session works a single ticket.

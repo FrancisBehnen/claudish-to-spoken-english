@@ -1,0 +1,1 @@
+The pull actually **failed** — `connection reset by peer`, and `ollama list` is empty. The exit code was 0 only because I piped through `tr`/`tail`. Let me check the network before retrying, because the address it dialled from looks notable.

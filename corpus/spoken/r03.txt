@@ -1,0 +1,3 @@
+I've proven almost everything in the chain except the weights. The curl command worked (code 0) and got back 59 bytes: ollama was reached, it understood the request, looked up the tag from settings.json, and said the weights are missing. The fail-open safety worked and kept the original text safe.
+
+Now I'm cleaning up my test files.

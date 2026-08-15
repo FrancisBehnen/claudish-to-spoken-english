@@ -1,0 +1,15 @@
+A sibling Claude session named **`setup`** is now running in a pane split to the right of this one, working in the same directory. It's already picked up the task.
+
+What I found while briefing it — the dependency picture is smaller than you'd expect in one way and worse in another:
+
+- **`jq` and `curl` are already there.** Those are the only two the hook itself needs.
+- **ollama isn't installed at all** — not "installed but stopped", which is what I assumed earlier and had written on the map. Corrected there now.
+- **The default model can't run on this machine.** The README defaults to `gemma4:26b-mlx` at roughly 17 GB, and you have 16 GB total. It isn't tight, it's impossible. Choosing a model that fits is the first thing the setup session will bring to you, and I told it to leave real headroom rather than filling the machine, since ollama will eventually be sharing it with a resident Kokoro server.
+
+That last point feeds back into the map, so I added it to the Notes: the 1.5 GB Kokoro footprint rule we set in Round 3 is a much more consequential threshold on a 16 GB machine that also has to hold an LLM than it looked when we set it.
+
+Two follow-ups:
+
+**The map is currently lying about ticket #7.** [Corpus: real rewrites plus a synthetic hazard set](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/7) sits on the frontier, but half of it — capturing ~12 real rewrites from live sessions — can't be done until this setup lands. Want me to add the setup as a task ticket and wire it as a blocker for #7? That's the honest shape, and it'd stop a future session claiming #7 and immediately getting stuck.
+
+**Your usage is at 91% of the 7-day window**, per the sibling's status line. I've started four sessions on your behalf in this turn (three research agents plus this one). Worth knowing before the model download and setup work adds more — say the word if you'd rather I hold the research agents' follow-up work until the window rolls over.

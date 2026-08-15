@@ -1,0 +1,1 @@
+Compare a & b, then mail it to user@example.com with a + sign in the subject. The backup runs at 3:45, and the SHA-256 checksum matched the published one.

@@ -1,0 +1,7 @@
+The provisioning run settled every open question about footprint.
+Resident memory plateaued at about 665 MB under sustained load.
+It dropped to roughly 380 MB shortly after going idle.
+Genuinely idle, it sat as low as 28 MB with no measurable CPU.
+Memory stopped growing by the fifth repetition and did not leak.
+It survived two sleep and wake cycles without leaking either.
+The only cost was the first synthesis after a wake, at 4.9 seconds.

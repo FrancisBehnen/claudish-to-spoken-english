@@ -1,0 +1,1 @@
+Batching made the visible rewrite 64% slower. The 3rd attempt returned HTTP 429, the cache hit rate was 50%, and the whole run cost $4.50.

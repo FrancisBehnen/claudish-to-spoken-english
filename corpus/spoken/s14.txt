@@ -1,0 +1,1 @@
+The bug is at providers.sh:129, right in the retry branch. Only tests/test_rewrite.py::test_short is failing, and rewrite.sh:170 is where the prompt is built.

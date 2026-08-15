@@ -1,0 +1,1 @@
+The JSON came back over HTTP from the API. The TTS worker does its own G2P, the ONNX runtime handles the rest, and the CLI never sees a URL.

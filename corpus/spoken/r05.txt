@@ -1,0 +1,10 @@
+I'm missing the setup here. You mention `--bare` and hook recursion, but I don't see the earlier context about what you're building.
+
+Can you fill me in on:
+
+1. **What project/code are you working on?** (What does the tool do?)
+2. **What's the hook recursion problem** you're trying to solve?
+3. **What flags do exist**, and what do they do?
+4. **When you say "measure the real cost" — cost of what?** Are you talking about performance impact, implementation complexity, or something else?
+
+Once I understand the full picture, I can help you figure out whether there's a way forward that works with OAuth/keychain auth instead of `--bare`.

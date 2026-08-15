@@ -1,0 +1,3 @@
+Every flag I need exists. One finding that changes the design, though: **`--bare` is disqualified.** It's the obvious way to avoid hook recursion, but its docs say *"Anthropic auth is strictly `ANTHROPIC_API_KEY` or apiKeyHelper — OAuth and keychain are never read."* That's exactly the auth path your subscription uses, so `--bare` would defeat the entire point.
+
+Let me measure the real cost before writing code:

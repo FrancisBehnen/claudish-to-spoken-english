@@ -1,0 +1,3 @@
+I'll push each research branch as soon as each agent finishes. I also saved a setting so future sessions will push agent artifacts instead of leaving them as local commits.
+
+I'm waiting for the three research agents to finish. I'll share their findings when they report back.

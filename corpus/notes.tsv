@@ -1,0 +1,49 @@
+id	origin	note
+r01	transcript 62d419ff:163dfa7c 2026-08-15T09:43:59Z	ollama pull failed, connection reset, model list still empty
+r02	transcript d51e4ee0:2fcff9dc 2026-08-14T19:30:01Z	agreeing to push each research branch as its agent lands
+r03	transcript 62d419ff:90f30f28 2026-08-15T09:46:17Z	reading curl_rc and resp_bytes to prove where the ollama call died
+r04	transcript 62d419ff:9ff001d4 2026-08-15T09:45:53Z	stage 1 of the buffer-to-final chunk reconstruction verified
+r05	transcript d51e4ee0:7bf03f54 2026-08-14T19:44:36Z	why --bare is disqualified for the claude-cli provider
+r06	transcript d51e4ee0:33da1536 2026-08-14T19:29:18Z	fast-forward merge of the issue-tracker doc onto the fork
+r07	transcript 62d419ff:ef8c3dae 2026-08-14T19:50:55Z	why brew install ollama compiles from source at a custom prefix
+r08	transcript d51e4ee0:ee2b1a86 2026-08-14T19:28:35Z	three research agents running in isolated worktrees
+r09	transcript d51e4ee0:4b9fefa7 2026-08-14T19:35:15Z	a sibling session in a split pane picking up the setup work
+r10	transcript d51e4ee0:5035dfab 2026-08-14T19:25:17Z	negative search result: the setting is in no file on disk
+r11	transcript 62d419ff:6fe9decd 2026-08-14T19:37:16Z	prompt-injection scan clean, plus the one decision needed
+r12	transcript d51e4ee0:ffbbe32e 2026-08-14T19:10:08Z	turning a conditional question into a research ticket with a decision rule
+s01	hand-authored	asterisk markers: inline **bold**, *starred*, and the sentence-initial **Done.** case that tags differently
+s02	hand-authored	# / ## / ### heading markers, each voiced as "hash" up to espeak's $max3
+s03	hand-authored	inline backticks around identifiers, which survive as curly-quote prosody
+s04	hand-authored	a - bulleted list, which is also one generation per line via the \n+ split
+s05	hand-authored	an ordered 1. 2. 3. list, where the marker is read as "one."
+s06	hand-authored	> blockquote line plus a | pipe table, both reported silent
+s07	hand-authored	a fenced code block mid-prose, fences voiced as three curly quotes each side
+s08	hand-authored	bare filenames with extensions, including rewrite-md.sh where espeak plants a full stop
+s09	hand-authored	control: the five bare extensions measured phoneme-identical in both frontends
+s10	hand-authored	multi-segment relative paths, one spoken "slash" per separator
+s11	hand-authored	absolute paths with a leading /, spoken inconsistently by misaki
+s12	hand-authored	~/ paths spoken as "tilde slash"; also carries the espeak "lives" defect
+s13	hand-authored	leading bare-dot directories such as .claude/settings.json
+s14	hand-authored	file:line references and a :: test id, both landing as pause phonemes
+s15	hand-authored	SCREAMING_SNAKE_CASE env vars, misaki's worst measured case
+s16	hand-authored	control: NAME=0 assignment form, measured identical in both frontends
+s17	hand-authored	snake_case, camelCase, kebab-case and getUserById word-boundary handling
+s18	hand-authored	all-caps acronyms, spelled out by misaki and said as words by espeak
+s19	hand-authored	vowel-less short commands that espeak spells letter by letter
+s20	hand-authored	git short hashes read as a mix of digits and letter names
+s21	hand-authored	bare 4-digit non-year numbers, which misaki reads with the year rule
+s22	hand-authored	thousands separators, where espeak drops the word "thousand"
+s23	hand-authored	version strings, where espeak plants a full stop between components
+s24	hand-authored	decimals with a multiplier and unit suffixes, where espeak loses "point"
+s25	hand-authored	controls: percentages, currency, ordinals and a 3-digit HTTP status
+s26	hand-authored	URLs, the noisiest single class, read out character-class by character-class
+s27	hand-authored	emoji read by full Unicode name, plus the plugin's own box-drawing divider
+s28	hand-authored	short flags, where misaki injects a literal ) before a single letter, and long flags as the control
+s29	hand-authored	clock times, SHA-256 style hyphen-numbers, and the & @ + symbols
+s30	hand-authored	prose control with no code tokens at all; also the espeak "lives" defect
+s31	hand-authored	the [text](/phonemes/) inline override, the only hook that survives an HTTP transport
+s32	hand-authored	length probe: prose_len 199, one under the CLAUDISH_MIN_CHARS default of 200
+s33	hand-authored	length probe: prose_len 201, one over the CLAUDISH_MIN_CHARS default of 200
+s34	hand-authored	single line of 1313 bytes, punctuated: exceeds the 510-phoneme budget and seams at sentence boundaries
+s35	hand-authored	single line of 1281 bytes with no punctuation at all: seams land on arbitrary word boundaries
+s36	hand-authored	contrast to s34: same total length spread over 7 short lines, so the \n+ split pre-empts the chunker

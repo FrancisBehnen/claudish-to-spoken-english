@@ -1,0 +1,3 @@
+Stage 1 is clean: chunk 0 passed through silently, and the final chunk reconstructed **both** deltas (`chunks=2`, `prose_len=298`) before emitting. Buffering, the length gate, the separator and `displayContent` all work.
+
+Now the part of stage 2 that costs no bandwidth — the real provider path against live ollama, with the model deliberately absent:

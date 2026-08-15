@@ -1,0 +1,17 @@
+A sibling Claude session is running in a split pane to the right. It's working on the same task and already found some things:
+
+**What's installed:**
+- jq and curl are ready. Those are the only two the hook needs.
+- ollama is not installed at all.
+
+**The model problem:**
+- The default model is gemma4:26b-mlx, which is about 17 GB.
+- Your machine has 16 GB total. It won't fit.
+- You need to pick a smaller model. The setup session will help you choose one.
+- Your Kokoro server also needs space (1.5 GB). So you need real headroom left.
+
+**Two things to decide:**
+
+1. **Ticket #7** — [Corpus: real rewrites plus a synthetic hazard set](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/7) is partially blocked. Half of it can't be done until setup is done. Should I make setup a task ticket and mark it as a blocker for #7? That's more honest about what's actually stopping the work.
+
+2. **Your account usage** — You're at 91% of your 7-day window. I've started four sessions for you in this turn (three research agents plus this one). The model download and setup will use more. Want me to hold the research agents' follow-up work until your window resets?

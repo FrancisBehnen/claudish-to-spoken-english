@@ -1,0 +1,19 @@
+Q5 is genuinely conditional on a fact neither of us has — that becomes a research ticket on the map with an explicit decision rule, so I need the rule's threshold from you.
+
+Round 3:
+
+❓ **Q11** - **What makes the server "low strain", and who starts it?**: Two halves. First the threshold: an 82M-param model is small in itself, but a resident FastAPI + torch process carries runtime overhead well beyond the weights — I'd expect somewhere between several hundred MB and ~2GB resident, which is the number the research ticket has to pin down. Propose the rule as: **idle resident memory ≤ 1.5 GB, ≈0% idle CPU, and it survives sleep/wake** → server; anything worse → `kokoro-tts` CLI with a pinned venv. Second half, and it only exists on the server branch: does the server run always (a launchd agent), or does the hook **lazily start it** on first use and leave it running, or do you start it by hand when you want speech?
+
+➡️ The 1.5 GB / idle-CPU rule as stated, and **lazy start from the hook**. A launchd agent means a permanently resident ~1GB process for a feature that's off by default — that's exactly the "strain" you're guarding against. Manual start means you'll forget and get silence with no explanation. Lazy start pays the cold start once per boot, on a path that's already asynchronous and detached, so it costs you nothing visible.
+
+❓ **Q12** - **What if synthesis blows past 3 seconds?**: A long rewrite, a cold model load, or a busy machine can put audio well past your tolerance. Options: (a) **speak it anyway** up to a hard timeout — late audio is still information; (b) **drop it** past 3s — if it's late it's noise, and you've already read the screen; (c) **speak only the first N sentences** so it starts on time and truncates.
+
+➡️ (a) with a hard ceiling around 30s. You'll be doing something else while it renders — that's the entire point of audio — so "late" is much less costly here than on screen. And Q8's preemption already handles the real failure mode: if a newer message shows up, the stale one gets killed before it ever plays.
+
+❓ **Q13** - **How does markdown become speech?**: The rewrite is markdown prose — `**bold**`, bullets, headers, inline backticks, file paths like `rewrite.sh`, env vars like `CLAUDISH_MIN_CHARS`, URLs. Fed raw to Kokoro, those come out as noise (asterisks read aloud, `CLAUDISH_MIN_CHARS` as one unpronounceable word). Three approaches: (a) a **deterministic bash sanitizer** — strip markdown syntax, drop code blocks per Q3, expand or soften identifiers; (b) a **second LLM call** producing a purpose-built spoken variant; (c) **change the rewrite prompt** so its single output is already speech-shaped.
+
+➡️ (a). (b) doubles the latency you just capped at 3s and doubles the token cost per message. (c) is the dangerous one — it degrades the on-screen rewrite, which is the feature that already works and the reason you have this repo. Sanitizing stays in the speech path where it belongs. How far the sanitizer goes on identifiers (does `rewrite.sh` become "rewrite dot S H", or just get read as-is?) I'd settle with a prototype you listen to, rather than by argument.
+
+❓ **Q14** - **Does it ever speak something that wasn't a successful rewrite?**: Two existing paths produce no rewrite. First, **fail-open** — provider down, timeout, empty response — where Claude's original Claudish stays on screen. Second, the **`MIN_CHARS` gate**: anything under 200 characters of prose is deliberately never rewritten, so short messages like "Done — tests pass" never see the LLM at all.
+
+➡️ Silent on both. Speaking raw Claudish defeats the purpose — unreadable text is also unlistenable text, more so. And for sub-200-character messages, reading the screen is faster than waiting for audio; if you find yourself wanting those spoken, it's a one-line threshold change later, and a separate `CLAUDISH_SPEAK_MIN_CHARS` would let it diverge from the rewrite gate.

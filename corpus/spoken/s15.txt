@@ -1,0 +1,1 @@
+Raise CLAUDISH_MIN_CHARS if short replies are getting spoken. CLAUDISH_SPEAK_OFF_FILE points at the runtime off switch, ANTHROPIC_API_KEY is read only as a fallback, and MAX_RETRIES is ignored entirely.

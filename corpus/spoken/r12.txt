@@ -1,0 +1,15 @@
+**Q11** - **What makes the server "low strain", and who starts it?**: Two parts. First, the limit: an 82M-parameter model is small, but FastAPI + torch running takes a lot of memory. I'd guess 200 MB to 2 GB resident. This needs research to find the exact number. Here's the rule: **if the server uses ≤ 1.5 GB idle memory, nearly 0% CPU, and works after sleep/wake → use the server. Otherwise → use the `kokoro-tts` command line tool with a pinned Python environment.** Second part: does the server run always (like a launchd agent), does the hook start it the first time you use it and leave it running, or do you start it yourself?
+
+➡️ Use the 1.5 GB / idle CPU rule. **Have the hook start it lazily.** A launchd agent means a permanent ~1GB process for a feature that's off by default. That wastes memory. Manual start means you'll forget and get silence. Lazy start pays the startup cost once per boot, and it happens in the background, so you don't notice it.
+
+**Q12** - **What if synthesis takes longer than 3 seconds?**: Rewriting text, loading the model, or a slow machine can make audio take too long. Should you: (a) **play it anyway** up to a hard limit; (b) **skip it** if it's late; (c) **speak only the first few sentences**?
+
+➡️ (a) with a hard limit around 30 seconds. You'll be doing other work while it renders. That's the whole point. So late audio is less of a problem than on screen. Q8's preemption already handles the real issue: if a new message shows up, the old one gets stopped before it plays.
+
+**Q13** - **How does markdown become speech?**: The rewrite is markdown — `**bold**`, bullet points, headers, backticks, file paths like `rewrite.sh`, variables like `CLAUDISH_MIN_CHARS`. Fed to Kokoro as-is, that sounds like noise (asterisks read aloud, `CLAUDISH_MIN_CHARS` as one bad word). Three options: (a) a **simple bash script** to strip markdown and fix weird words; (b) **another AI call** to make speech-friendly text; (c) **change the rewrite prompt** so it outputs speech-ready text.
+
+➡️ (a). Option (b) doubles the time and cost. Option (c) breaks the on-screen rewrite, which already works. Cleaning happens in the speech path. For identifiers like `rewrite.sh` — whether it becomes "rewrite dot S H" or stays as-is — test with a prototype and listen to pick.
+
+**Q14** - **Does it ever speak something that wasn't a successful rewrite?**: Two paths produce no rewrite. First, **provider fails** — Anthropic is down, timeout, empty response — the original Claudish stays. Second, the **`MIN_CHARS` gate** — text under 200 characters never goes to the AI.
+
+➡️ Stay silent on both. Speaking raw Claudish defeats the point — unreadable text is also unlistenable. For short messages, reading the screen is faster. If you want those spoken later, change the threshold. Use a separate `CLAUDISH_SPEAK_MIN_CHARS` setting if it needs to differ from the rewrite gate.

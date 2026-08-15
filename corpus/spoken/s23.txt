@@ -1,0 +1,1 @@
+This is v0.3.0, and torch 2.13.0 never got installed. Pin Python 3.12, because 3.14.6 is not supported and misaki 0.9.4 refuses to build against it.

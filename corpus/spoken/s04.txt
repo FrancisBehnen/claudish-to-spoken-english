@@ -1,0 +1,5 @@
+Three things changed here:
+- the timeout is now 45 seconds instead of 30
+- the off file moved to a new path under your home directory
+- the warning only fires once per session
+Nothing else about the hook moved.

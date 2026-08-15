@@ -1,0 +1,1 @@
+The virtual environment lives in ~/.local/share/kokoro/venv. Speech is off right now because ~/.claude/claudish-off exists, and the plugin cache is under ~/Code/claudish-to-spoken-english.

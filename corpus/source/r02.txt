@@ -1,0 +1,3 @@
+Will do — I'll push each `research/*` branch as its agent lands, and I've saved the underlying preference so future sessions push agent artifacts rather than leaving them committed locally.
+
+Waiting on the three research agents now; I'll surface the findings when they report.

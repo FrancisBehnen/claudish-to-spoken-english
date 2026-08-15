@@ -1,0 +1,18 @@
+I scanned the code and checked everything. Here's what I found and one thing I need you to decide.
+
+**Security check: looks good.** I read all the executable files and the one new doc your fork added. Your fork is one commit ahead of `gvzdv/claudish-to-english`, and it only adds `docs/agents/issue-tracker.md` (68 lines about `gh` CLI — nothing that tells an agent what to do). The files `rewrite.sh`, `rewrite-md.sh`, `providers.sh`, and `hooks/hooks.json` are exactly the same as upstream. The three `.claude/worktrees/agent-*` copies match too. No sketchy network calls: `providers.sh` only talks to `$CLAUDISH_OLLAMA`, `$CLAUDISH_ANTHROPIC_URL`, or `$CLAUDISH_OPENAI_URL`. API keys go into a temporary file with `curl -K` instead of being typed on the command line — that's the safe way to do it.
+
+One thing to know: the display hook changes what you see on screen, but Claude's real words stay in the transcript. The local model sits between Claude and your eyes. If you use a local-only provider, that stays private. But a bad model will show you bad text.
+
+**Plugins: no collision yet, one possible later.** You don't have `gvzdv-plugins` marketplace or `claudish-to-english` plugin installed right now. You have `claude-plugins-official`, `agricidaniel-claude-obsidian`, `plannotator`, `coolblue`, and `impeccable`. Here's the risk: your fork is named **`gvzdv-plugins`**, so if you add the real upstream marketplace later, both will have the same name. You won't be able to tell which plugin came from which one. You could fix this by renaming it in your fork's `marketplace.json` — but that means editing the repo, so I'm leaving it unless you want me to change it.
+
+**About the model.** I checked the registry. `gemma4:26b-mlx` is 18 GB — your machine doesn't have that much space. Here are models that will actually fit:
+
+| tag | size | notes |
+|---|---|---|
+| `qwen3:4b-instruct-2507-q4_K_M` | 2.5 GB | no thinking mode |
+| `gemma3:4b-it-q4_K_M` | 3.3 GB | no thinking mode |
+| `gemma4:e2b-it-qat` | 4.3 GB | newest, about 2B actual parameters |
+| `qwen3:8b-q4_K_M` | 5.2 GB | better writing, about 2× slower |
+
+Your machine can realistically hold 5–7 GB with macOS, Claude Code, and a browser all running. Add another 1–1.5 GB if you're also running Kokoro TTS. The file size isn't the whole story — add 1–2 GB more for KV cache and other overhead on top.

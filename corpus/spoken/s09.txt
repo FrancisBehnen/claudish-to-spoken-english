@@ -1,0 +1,1 @@
+It handles .sh, .py, .md, .json and .wav files.

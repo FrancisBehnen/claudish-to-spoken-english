@@ -1,0 +1,1 @@
+I renamed rewrite-md.sh but left README.md alone. The change to rewrite.sh is small, providers.sh is untouched, and CHANGELOG.md now mentions both.

@@ -1,0 +1,1 @@
+This message sits deliberately just over the two hundred character floor, so the hook does ask the model for a rewrite. Something written here should reach the speech path, because a message this long is kept. The speech path will see it soon.

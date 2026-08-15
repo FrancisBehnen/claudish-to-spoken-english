@@ -1,0 +1,1 @@
+The source is at https://github.com/hexgrad/kokoro and the model config is at https://huggingface.co/hexgrad/Kokoro-82M/raw/main/config.json. The local server answers on http://localhost:11434 unless you point it somewhere else.

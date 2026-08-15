@@ -1,0 +1,11 @@
+`brew install ollama` is going to take far longer than it normally would, and the reason is worth knowing.
+
+Your Homebrew prefix is `~/homebrew`, not `/opt/homebrew`. Bottles (prebuilt binaries) are compiled against the standard prefix, so at a custom prefix Homebrew falls back to **building dependencies from source**. And ollama's dependency chain is not small:
+
+```
+ollama → mlx-c → mlx → python@3.14 → openssl@3, sqlite, xz, zstd, …
+```
+
+It has been running ~11 minutes and is currently compiling **python@3.14**. Still ahead: `mlx` (a large C++/Metal build — the heavy one), then `mlx-c`, then ollama. Realistically **45–90 minutes** of CPU-pinning compilation.
+
+The build is still running; I haven't touched it.

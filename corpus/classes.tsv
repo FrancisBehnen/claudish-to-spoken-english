@@ -1,0 +1,51 @@
+class	description
+MD-ASTERISK	`*` / `**` are voiced as "asterisk", and non-deterministically so — the count flips with the surrounding sentence. Frontend-independent. text-handling §1, programming-text §6
+MD-HASH	`#` heading markers are voiced as "hash", once per `#` up to espeak's $max3. Frontend-independent. text-handling §1, programming-text §6
+MD-UNDERSCORE	`_italics_` comes out clean; `_` is in SUBTOKEN_JUNKS. Control. text-handling §1
+MD-BACKTICK	Backticks become curly-quote prosody, not words. Deferred to the ear test. text-handling §1 and "what needs an ear test" item 1
+MD-FENCE	A ``` fence becomes three curly quotes on each side. text-handling §1
+MD-BULLET	A `-` bullet is either an em-dash pause or silent, depending on the spaCy tag. text-handling §1
+MD-ORDERED	An ordered-list `1.` marker is read as "one." text-handling §1
+MD-BLOCKQUOTE	`>` is silent (tagged XX). Control. text-handling §1
+MD-PIPE	`|` is silent. Control. text-handling §1
+ID-SCREAM	SCREAMING_SNAKE_CASE: misaki spells unknown all-caps segments letter by letter and glues them together (14 letter names, no gaps, for CLAUDISH_MIN_CHARS); espeak splits into words but spells some segments. text-handling §2, programming-text §3
+ID-SNAKE	snake_case: misaki concatenates the parts with no gap, espeak splits them. text-handling §2, programming-text §3
+ID-CAMEL	camelCase / getUserById: same split-versus-concatenate difference; indistinguishable from snake_case by ear in both. text-handling §2, programming-text §3
+ID-KEBAB	kebab-case is run together in both frontends. programming-text §3
+ID-ACRONYM	All-caps acronyms are spelled out by misaki (J-S-O-N) and said as words by espeak ("jason"). text-handling §2, programming-text §3
+ID-VOWELLESS	Vowel-less short words (npm, cd, jq, stdin, sh) are spelled letter by letter. text-handling §2
+ID-ASSIGN	`NAME=0` routes misaki through its own espeak fallback, making the two frontends identical. Control. programming-text §3
+ID-SHA	A git short hash is read as a mix of digits and letter names. text-handling §2
+PATH-EXT	`name.ext`: espeak keeps a literal `.` that reaches the model as a sentence-final mark, planting a full stop mid-sentence. text-handling §3, programming-text §1
+PATH-EXTBARE	The bare extensions .sh .py .md .json .wav are phoneme-identical in both frontends. Control. programming-text §1
+PATH-SLASH	Each `/` in a path is voiced as "slash". text-handling §3, programming-text §1
+PATH-ABS	A leading `/` is spoken by espeak but dropped by misaki in some contexts — same character, three observed outcomes. programming-text §1
+PATH-TILDE	A leading `~/` is voiced as "tilde slash", which is at best noise. text-handling §3, programming-text §1
+PATH-DOTDIR	A leading bare `.` on a dotfile directory. programming-text §1 appendix
+PATH-LINEREF	`file.sh:129` — the `:` lands as a punctuation phoneme, i.e. a pause inside a reference. programming-text §1
+PATH-DBLCOLON	`::` survives as two colon phonemes, a double pause. programming-text §1
+PATH-HYPHEN-EXT	`rewrite-md.sh` — espeak plants a full stop before `.sh` where misaki does not. programming-text §1
+NUM-4DIGIT	A bare 4-digit number takes misaki's unconditional year rule (8080 becomes "eighty eighty"); espeak does not have the rule. MISAKI-SPECIFIC. text-handling §4, programming-text §4
+NUM-THOUSANDS	`1,234` reads correctly on misaki but loses the word "thousand" on espeak, so text-handling's comma fix backfires on the chosen frontend. text-handling §4, programming-text §4
+NUM-VERSION	Version strings are digit-by-digit with no "point" in both, and espeak plants a full stop between every component — a possible 510-phoneme seam inside a version number. text-handling §4, programming-text §5
+NUM-DECIMAL	`0.24x` keeps "point" on misaki and loses it on espeak, which inserts a stop instead. programming-text §4
+NUM-UNIT	A unit suffix is pluralised onto the number (`1.5s` becomes "one point fives"). text-handling §4
+NUM-PERCENT	Percentages are handled correctly. Control. text-handling §4
+NUM-CURRENCY	Currency including cents is handled correctly. Control. text-handling §4
+NUM-ORDINAL	Ordinals are handled correctly. Control. text-handling §4
+NUM-STATUS	A 3-digit status like 404 or 429 reads correctly as a cardinal. Control. text-handling §4
+NUM-TIME	`3:45` puts a colon phoneme between the parts. text-handling §4
+NUM-HYPHEN	`SHA-256` reads as "two fifty six" on misaki and "two hundred fifty six" on espeak. programming-text §4
+URL	URLs are read out in full, character class by character class, with `:` `?` `.` landing as pauses. The noisiest single class, identical in both frontends. text-handling §4, programming-text §6
+EMOJI	espeak reads emoji by full Unicode name — ✅ becomes "white heavy check mark". Frontend-independent. text-handling §4, programming-text §6
+GLYPH	Box-drawing characters, as used in the plugin's own on-screen divider. Not measured in either doc; carried defensively because the divider sits immediately above the rewrite.
+FLAG-SHORT	A bare `-p` makes misaki emit a literal `)` phoneme, which is in the model vocab. espeak is clean. programming-text §7 item 1
+FLAG-LONG	`--max-time 30` comes out clean in both. Control. text-handling §1, programming-text §3
+SYM	`&` `@` `+` are voiced correctly as "and", "at", "plus". Control. text-handling §4
+PROSE-LIVES	espeak reads the verb "lives" as `laɪvz`. Ordinary prose, the clearest single-word wrongness measured, and the espeak path has NO override mechanism for it. programming-text §7 item 2
+OVERRIDE	The `[text](/phonemes/)` inline override — the only one of the three pronunciation hooks that survives an HTTP transport. text-handling §5
+LEN-UNDER	Below the CLAUDISH_MIN_CHARS default of 200 prose characters, so the rewrite hook never calls the model and nothing can be spoken. rewrite.sh:147
+LEN-OVER	At or just above the 200-character gate, so a rewrite is produced. rewrite.sh:147
+CHUNK-510-PUNCT	One line long enough to exceed the 510-phoneme budget, with terminal punctuation, so waterfall_last places seams at sentence boundaries. text-handling §6
+CHUNK-510-NOPUNCT	One line long enough to exceed the budget with no punctuation at all, so seams land on arbitrary word boundaries. text-handling §6
+SPLIT-NEWLINE	More than one line, so KPipeline's `\n+` split makes each line its own generation with its own prosody contour and a hard seam at playback. text-handling §6

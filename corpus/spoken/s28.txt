@@ -1,0 +1,1 @@
+I passed --max-time 30 and -p to curl. Use -R to name the repo, add --strict-mcp-config so no servers load, and -q if you want it quiet.

@@ -1,0 +1,1 @@
+I made the **bold** change you asked for and left the *starred* note where it was. **Done.** The _underscored_ heading is still there, and nothing else in the file moved.
