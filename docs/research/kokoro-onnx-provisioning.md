@@ -241,14 +241,57 @@ afplay ~/.local/share/kokoro/bench-misaki.wav    # misaki G2P
 
 ---
 
+## Sleep/wake: survives, with one slow utterance on the way back
+
+Measured 2026-08-15 by leaving a resident worker running across two real sleep cycles, synthesizing
+every 20 s and appending an fsync'd line per beat to `~/.local/share/kokoro/sleepwake.log`. Sleep
+boundaries come from `pmset -g log`, not from guesswork:
+
+| | |
+|---|---|
+| 14:01:07 → 14:01:19 | `Entering Sleep state due to 'Software Sleep'` → `Wake from Deep Idle` — **12 s** |
+| 14:01:25 → 14:01:48 | `Entering Sleep state due to 'Clamshell Sleep'` → `DarkWake to FullWake` — **~23 s** |
+
+The heartbeat log across that window:
+
+```
+beat  5  14:00:50  gap= 21.4s  synth=1.003s  rss= 428.1 MB
+beat  6  14:01:21  gap= 31.1s  synth=4.899s  rss= 320.7 MB   <- first synth after wake
+beat  7  14:02:02  gap= 41.6s  synth=2.090s  rss= 394.9 MB
+beat  8  14:02:25  gap= 22.1s  synth=0.921s  rss= 410.6 MB   <- fully recovered
+...
+beat 19  14:06:17  gap= 21.1s  synth=0.988s  rss= 414.6 MB
+```
+
+**It survives.** No wedge, no raised exception, no lost state — 26 beats total, and it kept
+synthesizing correct audio for four minutes after the second wake.
+
+**It does not leak across sleep.** Steady state was 424–428 MB before, 411–415 MB after. Slightly
+*lower*, not higher.
+
+**But the first synthesis after a wake costs ~4.9 s** — 5× the normal ~0.95 s — with a second beat at
+2.09 s before it settles. That is the ONNX arena being paged back in. Design consequence: either the
+worker does a throwaway warm-up synthesis when it notices a long gap, or the **first** thing spoken
+after you open the lid arrives several seconds late. Since speech is detached and off the
+`MessageDisplay` critical path, the latter is tolerable — but it should be a decision, not a surprise.
+
+A related freebie, from `ps` sampling between beats: an **idle** worker's resident set falls much
+further than the earlier 380 MB figure suggested — as low as **~28 MB** while sitting between
+heartbeats, because macOS compresses and reclaims the arena aggressively. The RSS numbers above are
+all measured immediately *after* a synthesis, which is the honest high reading.
+
+### Still untested: hibernation, which is a different mechanism
+
+Both sleeps above were `Deep Idle` — suspend-to-RAM, nothing written to disk. This machine is
+configured `standby 1` / `hibernatemode 3`, so a **longer** sleep writes memory to disk and restores
+it, which is a materially bigger perturbation of a ~400 MB resident set than what was tested here.
+Worth an opportunistic lid-closed-overnight check; not worth blocking on, since the failure mode it
+would reveal is a slow or failed first utterance on a detached path, not a stalled hook.
+
 ## Not measured
 
-- **Sleep/wake survival.** The gate asks for it; it requires actually sleeping the Mac, which was not
-  done mid-session. **Still open**, and it matters only for the resident-worker shape — a
-  per-message process is immune by construction.
-- **The FastAPI/torch server's footprint.** Declined for bandwidth. The gate's server-vs-CLI branch
-  is therefore still undecided on its own terms, though the ONNX numbers make the memory case for a
-  resident process much stronger than it looked.
+- **The FastAPI/torch server's footprint.** Declined — and now declined *on evidence* rather than
+  merely on bandwidth. See [Why the server branch was closed](#why-the-server-branch-was-closed).
 - **Any judgement about how it SOUNDS.** Two wavs exist and are playable; nobody has listened yet.
   Voice choice, prosody, and whether misaki's phonemes actually sound better than espeak's are
   [#9](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/9)'s business.
@@ -260,6 +303,43 @@ afplay ~/.local/share/kokoro/bench-misaki.wav    # misaki G2P
   dependencies.
 - **Idle RSS and idle CPU for the misaki variant** specifically. Only the espeak worker was idled.
   Expect ~+115 MB by analogy with the loaded figures, but that is inference, not measurement.
+
+## Why the server branch was closed
+
+The gate in [#5](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/5) was designed to
+choose between a resident **HTTP server** and a per-message **CLI** by measuring the server. That
+measurement was never taken, and it is now being **declined on evidence** rather than left dangling.
+
+**What it would have cost.** Resolved 2026-08-15 with `uv pip compile` against Python 3.11, then
+priced from PyPI metadata by picking the one wheel a cp311/macOS-arm64 install would fetch, and
+skipping wheels already unpacked in the local `uv` cache:
+
+| | Wheels | Weights | Repo clone | **Total** |
+|---|---|---|---|---|
+| `remsky/Kokoro-FastAPI`, as it pins itself | 181.2 MiB | 312.1 MiB | 73.3 MiB | **≈ 566 MiB** |
+| `kokoro` pip only, torch unpinned (screening) | 19.1 MiB | 312.1 MiB | — | **≈ 332 MiB** |
+
+Two details worth keeping:
+
+- **Kokoro-FastAPI pins `torch==2.8.0`** (`cpu` extra), while `kokoro` itself leaves torch
+  **unpinned**. A torch 2.13.0 wheel is already in this machine's `uv` cache, so it helps the
+  screening route and does nothing at all for the real server.
+- Kokoro-FastAPI also pins `misaki[en,ja,ko,zh]`, dragging in ~31 MiB of Japanese/Korean/Chinese G2P
+  (`jieba`, `pypinyin-dict`, `nltk`, `pyopenjtalk`) that an English-only rewrite will never call.
+
+**Why it is not worth spending.** The gate existed to answer one question — *is a resident TTS process
+affordable on 16 GB?* — and the ONNX measurements answer it with room to spare: ~665 MB under
+sustained load, ~380 MB shortly after idling, as low as ~28 MB when genuinely idle, 0.0 % idle CPU, no
+leak, and it survives sleep. A torch server would have to win on some *other* axis to justify 566 MiB
+of bandwidth plus torch's permanent ~500 MB on disk and a much larger resident set. Its one concrete
+advantage over this path is server-side chunking against the 510-phoneme limit — real, but a bounded
+amount of code written once, against a limit whose behaviour
+[#3](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/3) already documented.
+
+If the number is ever wanted rather than the argument, the 332 MiB screening route is the way to buy
+it: the torch path's footprint is dominated by torch plus the 312 MiB model, and FastAPI/uvicorn add
+tens of MB — so a resident `KModel` measuring above ~1.5 GB would rule the server out without ever
+installing it.
 
 ## Reproducing
 
