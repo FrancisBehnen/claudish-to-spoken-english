@@ -9,9 +9,17 @@ Assembled 2026-08-15.
 listened to while building this. The hazard classes are taken from the two measured research docs;
 this directory only assembles text that contains them.
 
-**48 items: 12 real, 36 synthetic.** Each half covers the other's blind spot, which is measurable
-rather than rhetorical — **22 of the 50 hazard classes appear in no real item at all** (see
+**50 items: 12 real, 38 synthetic.** Each half covers the other's blind spot, which is measurable
+rather than rhetorical — **23 of the 52 hazard classes appear in no real item at all** (see
 [Coverage](#coverage)). A dozen real messages really would have missed them.
+
+> **Corrected 2026-08-15.** The chunking items and their explanation were first written against
+> `kokoro-text-handling.md`, which measures **`KPipeline`** — the torch/`hexgrad-kokoro` path. The
+> project settled on **espeak via `kokoro-onnx`**, a different codebase, and
+> [`espeak-sanitizer-rules.md`](../docs/research/espeak-sanitizer-rules.md) is authoritative for
+> chunking. The `\n+` boundary claim was wrong on the chosen path; see
+> [Chunking](#chunking-s34-s38). Items `s37` and `s38` were added for the crash shape that omission
+> had left uncovered.
 
 ---
 
@@ -21,12 +29,12 @@ rather than rhetorical — **22 of the 50 hazard classes appear in no real item 
 corpus/
   README.md        this file
   manifest.tsv     one row per item: id, kind, measurements, hazard classes, origin, note
-  classes.tsv      the 50 hazard classes and what each one names, with doc citations
+  classes.tsv      the 52 hazard classes and what each one names, with doc citations
   notes.tsv        hand-maintained per-item origin and intent (input to manifest.tsv)
   capture-log.tsv  one row per subscription rewrite call actually spent
-  spoken/          THE CORPUS: 48 plain-text files, the text a speech path would say
+  spoken/          THE CORPUS: 50 plain-text files, the text a speech path would say
     r01.txt .. r12.txt   real  — the plain-English rewrite of a real assistant message
-    s01.txt .. s36.txt   synthetic — hand-authored, one or a few hazard classes each
+    s01.txt .. s38.txt   synthetic — hand-authored, one or a few hazard classes each
   source/          the real assistant messages the rNN rewrites were produced from
     r01.txt .. r12.txt
   bin/             the scripts that built and verify all of the above
@@ -125,7 +133,7 @@ table's 22 empty real-item classes meaningful.
 
 ## The synthetic half
 
-36 hand-authored items, `s01`–`s36`, each targeting one or a few named hazard classes so that every
+38 hand-authored items, `s01`–`s38`, each targeting one or a few named hazard classes so that every
 class is present at least once regardless of what the real messages happened to contain. Per-item
 intent is the `note` column of `manifest.tsv` (maintained in `notes.tsv`).
 
@@ -135,41 +143,81 @@ the `.txt` files and re-run `bin/build-manifest.sh`.
 Grouped roughly: `s01`–`s07` markdown syntax, `s08`–`s14` paths and code locations, `s15`–`s20`
 identifiers, `s21`–`s25` numbers, `s26`–`s29` URLs, emoji, glyphs, flags and symbols, `s30` a
 prose-only control, `s31` the inline phoneme override, `s32`–`s33` the 200-character gate, and
-`s34`–`s36` the three chunking cases.
+`s34`–`s38` the five chunking cases.
 
 Several items are deliberately **controls** — classes both research docs found already correct
 (`s09` bare extensions, `s16` the `NAME=0` form, `s25` percentages and currency, the `FLAG-LONG` half
 of `s28`, `s30` plain prose). A corpus that only contains known-bad tokens can confirm a sanitizer but
 never refute one.
 
-`s34`, `s35` and `s36` are the chunking set, and the distinction between them is load-bearing:
-`KPipeline` splits on `\n+` **before** anything else, so only a **single long line** can reach the
-510-phoneme chunker at all. `s34` is 1313 bytes on one punctuated line (seams should fall at sentence
-boundaries), `s35` is 1281 bytes on one line with no punctuation whatsoever (seams fall on arbitrary
-word boundaries), and `s36` spreads comparable content over 7 short lines so the newline split
-pre-empts the chunker entirely. The ~1 phoneme per character ratio these lengths rely on is from
-`kokoro-text-handling.md` §6, where a 1296-character paragraph produced 3 chunks of 431 phonemes.
+### Chunking (`s34`–`s38`)
+
+Authority for this section is
+[`espeak-sanitizer-rules.md`](../docs/research/espeak-sanitizer-rules.md) §10 and §11, the only
+research measured against **`kokoro-onnx`** — the frontend the project settled on. Three facts drive
+all five items:
+
+- **`Kokoro.create()` splits on `. , ! ? ;` and nothing else** (`_split_phonemes`,
+  `kokoro_onnx/__init__.py:136-168`). `:` and `—` are in the vocab and reach the model but are **not**
+  boundaries, so a lead-in colon does not create one.
+- **`\n` is not in `DEFAULT_VOCAB` and is silently deleted.** It is neither a boundary nor a pause,
+  and `\n\n` collapses to nothing as well. Lines fuse into one run (words do not glue together —
+  espeak inserts a space — but there is no seam).
+- **A run reaching 510 phonemes raises**, not truncates: `IndexError: index 510 is out of bounds for
+  axis 0 with size 510`, an off-by-one in `_create_audio`. **509 phonemes is the last safe batch.**
+
+So the risk metric is the **longest run containing no `. , ! ? ;`, measured after newlines are
+deleted** — reported as `max_run` in `manifest.tsv`. At the measured ~1.02 phonemes per input
+character, the danger point is a run of roughly 500 characters.
+
+| item | shape | `max_run` | expected on `kokoro-onnx` |
+| --- | --- | --- | --- |
+| `s34` | 1313 B, one line, fully punctuated | 104 | needs several batches, **splits cleanly** |
+| `s35` | 1281 B, one line, no `. , ! ? ;` at all | 1280 | **raises `IndexError`** |
+| `s36` | 7 short lines, each ending in a full stop | 64 | safe — the **stops** make the boundaries, not the newlines |
+| `s37` | 9-line bullet list, no terminal punctuation, lead-in colon | 644 | **raises `IndexError`** — the realistic crash shape |
+| `s38` | 4-line bullet list, no terminal punctuation, short | 102 | safe — control isolating shape from length |
+
+`s37` is the item that matters most, because it is the shape a real rewrite takes when it emits
+bullets without full stops: the newlines vanish, the bullets fuse into one 644-character run, and
+there is no boundary anywhere in it. `s38` proves the shape alone is not the fault — the same
+structure at 102 characters is fine. `s36` and `s38` together isolate the two variables.
+
+**Superseded:** an earlier version of this section claimed only a single long line could reach the
+chunker, because `KPipeline` splits on `\n+` first. That is true of the **torch** path and false here;
+`kokoro-onnx` has no such split. The `\n+` split is why `SPLIT-NEWLINE` is now documented as buying
+nothing rather than as free pipelining.
 
 ## Coverage
 
-50 hazard classes, taken from
+52 hazard classes, taken from
 [`docs/research/kokoro-text-handling.md`](../docs/research/kokoro-text-handling.md) (#3, misaki, from
-source plus a real G2P run) and
+source plus a real G2P run),
 [`docs/research/kokoro-programming-text-audio.md`](../docs/research/kokoro-programming-text-audio.md)
-(#10, both frontends on the installed ONNX path). `classes.tsv` holds the definition and the section
-citation for each. **Every class has at least one item; there are no gaps.**
+(#10, both frontends on the installed ONNX path) and
+[`docs/research/espeak-sanitizer-rules.md`](../docs/research/espeak-sanitizer-rules.md) (#8, measured
+against `kokoro-onnx` with the real model loaded — **authoritative wherever the three disagree**,
+because it is the only one measuring the frontend that ships). `classes.tsv` holds the definition and
+the section citation for each. **Every class has at least one item; there are no gaps.**
 
 Regenerate this table with `bin/coverage.sh`, which reads the class list from `classes.tsv` rather
 than from the items, so a class nobody covers still gets a row.
 
-Two things to read out of it. **22 classes have zero real items** — every one of those would have
-been missed by a real-messages-only corpus. And the classes with the *most* real items
-(`MD-BACKTICK` 9, `PATH-SLASH` 7, `MD-ASTERISK` 6, `PATH-EXT` and `NUM-UNIT` 5 each, plus
-`SPLIT-NEWLINE` in 11 of 12) are a frequency signal the synthetic half cannot give: those are what
-real rewrites are actually full of, and they should be weighted accordingly when the sanitizer is
-specified in #8. Note in particular that **backticks survive the rewrite** — the model was asked for
-plain English and kept them anyway — so the ear test on backtick prosody
-(`kokoro-text-handling.md` "what needs an ear test" item 1) is not a corner case.
+Three things to read out of it.
+
+**23 classes have zero real items** — every one would have been missed by a real-messages-only corpus.
+
+**The classes with the *most* real items are a frequency signal the synthetic half cannot give:**
+`MD-BACKTICK` 9, `CHUNK-510-PUNCT` 8, `PATH-SLASH` 7, `MD-ASTERISK` 6, `PATH-EXT` and `NUM-UNIT` 5
+each. Those are what real rewrites are actually full of and should be weighted accordingly in #8. Note
+in particular that **backticks survive the rewrite** — the model was asked for plain English and kept
+them anyway — so the ear test on backtick prosody is not a corner case.
+
+**No real item would crash, but the margin is thinner than it looks.** Real `max_run` values top out
+at **251** (`r10`), against a ~500-character danger point — so all 12 are safe, and 8 of them are long
+enough to need batching and get it. But `r09` already carries `CHUNK-LIST-SAFE`: a real rewrite does
+emit bullet lines without terminal punctuation, and it is short only by luck. The crash shape is one
+longer bullet list away, which is exactly why `s37` had to be added rather than assumed absent.
 
 | class | real | synthetic | items |
 | --- | --- | --- | --- |
@@ -178,7 +226,7 @@ plain English and kept them anyway — so the ear test on backtick prosody
 | `MD-UNDERSCORE` | 2 | 3 | r11, r12, s01, s15, s31 |
 | `MD-BACKTICK` | 9 | 2 | r01, r04, r05, r06, r07, r08, r10, r11, r12, s03, s07 |
 | `MD-FENCE` | 1 | 1 | r07, s07 |
-| `MD-BULLET` | 2 | 1 | r09, r10, s04 |
+| `MD-BULLET` | 2 | 3 | r09, r10, s04, s37, s38 |
 | `MD-ORDERED` | 2 | 1 | r05, r09, s05 |
 | `MD-BLOCKQUOTE` | 1 | 1 | r10, s06 |
 | `MD-PIPE` | 1 | 1 | r11, s06 |
@@ -218,17 +266,25 @@ plain English and kept them anyway — so the ear test on backtick prosody
 | `SYM` | 1 | 1 | r12, s29 |
 | `PROSE-LIVES` | 0 | 3 | s12, s13, s30 |
 | `OVERRIDE` | 0 | 1 | s31 |
-| `LEN-UNDER` | 0 | 29 | s01, s02, s03, s04, s05, s07, s08, s09, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19, s20, s21, s22, s23, s24, s25, s27, s28, s29, s31, s32 |
+| `LEN-UNDER` | 0 | 30 | s01, s02, s03, s04, s05, s07, s08, s09, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19, s20, s21, s22, s23, s24, s25, s27, s28, s29, s31, s32, s38 |
 | `LEN-OVER` | 2 | 4 | r01, r02, s06, s26, s30, s33 |
-| `CHUNK-510-PUNCT` | 2 | 1 | r11, r12, s34 |
+| `CHUNK-510-PUNCT` | 8 | 1 | r05, r06, r07, r08, r09, r10, r11, r12, s34 |
 | `CHUNK-510-NOPUNCT` | 0 | 1 | s35 |
-| `SPLIT-NEWLINE` | 11 | 6 | r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, s02, s04, s05, s06, s07, s36 |
+| `CHUNK-LIST-NOPUNCT` | 0 | 1 | s37 |
+| `CHUNK-LIST-SAFE` | 1 | 2 | r09, s04, s38 |
+| `SPLIT-NEWLINE` | 11 | 8 | r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, s02, s04, s05, s06, s07, s36, s37, s38 |
 
 ### What the coverage table does not tell you
 
 - **It is a textual detector, not a phonemiser.** `bin/detect-hazards.sh` answers "does this item
   contain a token of class X". It says nothing about what any frontend does with it, and it cannot,
   because it never runs a G2P.
+- **`max_run` is a character count standing in for a phoneme count, and it can under-protect.** The
+  ~1.02 phonemes per character ratio is measured on ordinary prose; dense token-heavy text runs
+  higher, and an all-caps identifier spelled letter by letter is far worse. So a run can cross 510
+  phonemes at well under 500 characters. The detector therefore flags at **400**, the same
+  conservative bound `espeak-sanitizer-rules.md` §10 rule A recommends — but only a real phonemiser
+  can settle any specific item, and the `CHUNK-*` classes are candidates rather than verdicts.
 - **Frontend-specific classes are marked in `classes.tsv`, not in the table.** `NUM-4DIGIT` and
   `ID-SCREAM` are misaki problems that espeak does not have, and `NUM-THOUSANDS` is the case where
   #3's recommended fix makes the chosen espeak frontend *worse*. Since #1 settled on espeak, coverage

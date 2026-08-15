@@ -19,8 +19,8 @@ trap 'rm -f "$TMP" 2>/dev/null' EXIT
 bash "$HERE/detect-hazards.sh" "$CORPUS"/spoken/*.txt > "$TMP" || exit 1
 
 {
-  printf 'id\tkind\tprose_len\tbytes\tlines\thazard_classes\torigin\tnote\n'
-  while IFS=$'\t' read -r id prose_len bytes lines hazards; do
+  printf 'id\tkind\tprose_len\tbytes\tlines\tmax_run\thazard_classes\torigin\tnote\n'
+  while IFS=$'\t' read -r id prose_len bytes lines max_run hazards; do
     case "$id" in
       r*) kind=real ;;
       s*) kind=synthetic ;;
@@ -31,8 +31,8 @@ bash "$HERE/detect-hazards.sh" "$CORPUS"/spoken/*.txt > "$TMP" || exit 1
     origin="${meta%%$'\t'*}"
     note="${meta#*$'\t'}"
     [ -n "$meta" ] || { origin="MISSING-FROM-notes.tsv"; note=""; }
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-      "$id" "$kind" "$prose_len" "$bytes" "$lines" "$hazards" "$origin" "$note"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "$id" "$kind" "$prose_len" "$bytes" "$lines" "$max_run" "$hazards" "$origin" "$note"
   done < "$TMP"
 } > "$OUT"
 

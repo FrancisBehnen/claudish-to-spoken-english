@@ -1,0 +1,9 @@
+Here is everything that changed in this pass:
+- the retry logic moved out of the hook and into the provider layer where it belongs
+- the timeout is now a watchdog that sends TERM and then KILL rather than a bare wait
+- the off switch is checked fresh on every message instead of once at launch
+- the notice fires only once per session and never suppresses any content
+- the buffers are swept opportunistically rather than on a timer
+- the recursion guard is an environment variable that both hooks read early
+- the message travels on standard input so its length is never capped
+- nothing in the fail open path can swallow or stall the assistant answer

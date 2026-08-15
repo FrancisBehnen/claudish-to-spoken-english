@@ -14,7 +14,7 @@ r12	transcript d51e4ee0:ffbbe32e 2026-08-14T19:10:08Z	turning a conditional ques
 s01	hand-authored	asterisk markers: inline **bold**, *starred*, and the sentence-initial **Done.** case that tags differently
 s02	hand-authored	# / ## / ### heading markers, each voiced as "hash" up to espeak's $max3
 s03	hand-authored	inline backticks around identifiers, which survive as curly-quote prosody
-s04	hand-authored	a - bulleted list, which is also one generation per line via the \n+ split
+s04	hand-authored	a - bulleted list; its lines carry no terminal punctuation, but the fused run is short enough to be safe
 s05	hand-authored	an ordered 1. 2. 3. list, where the marker is read as "one."
 s06	hand-authored	> blockquote line plus a | pipe table, both reported silent
 s07	hand-authored	a fenced code block mid-prose, fences voiced as three curly quotes each side
@@ -44,6 +44,8 @@ s30	hand-authored	prose control with no code tokens at all; also the espeak "liv
 s31	hand-authored	the [text](/phonemes/) inline override, the only hook that survives an HTTP transport
 s32	hand-authored	length probe: prose_len 199, one under the CLAUDISH_MIN_CHARS default of 200
 s33	hand-authored	length probe: prose_len 201, one over the CLAUDISH_MIN_CHARS default of 200
-s34	hand-authored	single line of 1313 bytes, punctuated: exceeds the 510-phoneme budget and seams at sentence boundaries
-s35	hand-authored	single line of 1281 bytes with no punctuation at all: seams land on arbitrary word boundaries
-s36	hand-authored	contrast to s34: same total length spread over 7 short lines, so the \n+ split pre-empts the chunker
+s34	hand-authored	1313 bytes needing several batches, but no run between . , ! ? ; exceeds 104 chars, so _split_phonemes splits it cleanly
+s35	hand-authored	single line of 1281 bytes with no . , ! ? ; anywhere: one 1280-char run, which raises IndexError on kokoro-onnx
+s36	hand-authored	contrast to s34 and s37: 7 short lines that each END IN A FULL STOP, so the boundaries come from the stops, not from the newlines the tokenizer deletes
+s37	hand-authored	the realistic crash shape: a multi-line bullet list with no terminal punctuation on any line, fusing into one 644-char run because \n is deleted; the lead-in colon is deliberately not a boundary
+s38	hand-authored	control for s37: identical shape, no terminal punctuation, but a 102-char fused run that is safely under budget

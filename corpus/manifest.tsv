@@ -1,49 +1,51 @@
-id	kind	prose_len	bytes	lines	hazard_classes	origin	note
-r01	real	223	270	0	MD-BACKTICK,LEN-OVER	transcript 62d419ff:163dfa7c 2026-08-15T09:43:59Z	ollama pull failed, connection reset, model list still empty
-r02	real	228	275	2	LEN-OVER,SPLIT-NEWLINE	transcript d51e4ee0:2fcff9dc 2026-08-14T19:30:01Z	agreeing to push each research branch as its agent lands
-r03	real	277	334	2	PATH-EXT,NUM-UNIT,SPLIT-NEWLINE	transcript 62d419ff:90f30f28 2026-08-15T09:46:17Z	reading curl_rc and resp_bytes to prove where the ollama call died
-r04	real	313	369	2	MD-BACKTICK,ID-SNAKE,ID-CAMEL,ID-ASSIGN,SPLIT-NEWLINE	transcript 62d419ff:9ff001d4 2026-08-15T09:45:53Z	stage 1 of the buffer-to-final chunk reconstruction verified
-r05	real	531	641	9	MD-ASTERISK,MD-BACKTICK,MD-ORDERED,PATH-SLASH,SPLIT-NEWLINE	transcript d51e4ee0:7bf03f54 2026-08-14T19:44:36Z	why --bare is disqualified for the claude-cli provider
-r06	real	507	611	4	MD-ASTERISK,MD-BACKTICK,PATH-EXT,PATH-SLASH,PATH-HYPHEN-EXT,SPLIT-NEWLINE	transcript d51e4ee0:33da1536 2026-08-14T19:29:18Z	fast-forward merge of the issue-tracker doc onto the fork
-r07	real	492	681	11	MD-BACKTICK,MD-FENCE,PATH-TILDE,NUM-UNIT,SPLIT-NEWLINE	transcript 62d419ff:ef8c3dae 2026-08-14T19:50:55Z	why brew install ollama compiles from source at a custom prefix
-r08	real	641	788	4	MD-BACKTICK,ID-ACRONYM,PATH-SLASH,SPLIT-NEWLINE	transcript d51e4ee0:ee2b1a86 2026-08-14T19:28:35Z	three research agents running in isolated worktrees
-r09	real	973	1180	16	MD-ASTERISK,MD-BULLET,MD-ORDERED,ID-CAMEL,ID-VOWELLESS,PATH-SLASH,NUM-UNIT,NUM-PERCENT,URL,SPLIT-NEWLINE	transcript d51e4ee0:4b9fefa7 2026-08-14T19:35:15Z	a sibling session in a split pane picking up the setup work
-r10	real	1328	1576	15	MD-ASTERISK,MD-BACKTICK,MD-BULLET,MD-BLOCKQUOTE,ID-CAMEL,ID-ACRONYM,PATH-EXT,PATH-SLASH,PATH-TILDE,NUM-VERSION,SPLIT-NEWLINE	transcript d51e4ee0:5035dfab 2026-08-14T19:25:17Z	negative search result: the setting is in no file on disk
-r11	real	1999	2387	17	MD-ASTERISK,MD-UNDERSCORE,MD-BACKTICK,MD-PIPE,ID-SCREAM,ID-ACRONYM,ID-VOWELLESS,PATH-EXT,PATH-SLASH,PATH-HYPHEN-EXT,NUM-4DIGIT,NUM-UNIT,CHUNK-510-PUNCT,SPLIT-NEWLINE	transcript 62d419ff:6fe9decd 2026-08-14T19:37:16Z	prompt-injection scan clean, plus the one decision needed
-r12	real	2434	2933	14	MD-ASTERISK,MD-UNDERSCORE,MD-BACKTICK,ID-SCREAM,ID-VOWELLESS,PATH-EXT,PATH-SLASH,NUM-UNIT,NUM-PERCENT,EMOJI,SYM,CHUNK-510-PUNCT,SPLIT-NEWLINE	transcript d51e4ee0:ffbbe32e 2026-08-14T19:10:08Z	turning a conditional question into a research ticket with a decision rule
-s01	synthetic	141	171	1	MD-ASTERISK,MD-UNDERSCORE,LEN-UNDER	hand-authored	asterisk markers: inline **bold**, *starred*, and the sentence-initial **Done.** case that tags differently
-s02	synthetic	167	209	6	MD-HASH,NUM-UNIT,LEN-UNDER,SPLIT-NEWLINE	hand-authored	# / ## / ### heading markers, each voiced as "hash" up to espeak's $max3
-s03	synthetic	154	185	1	MD-BACKTICK,ID-SNAKE,ID-VOWELLESS,PATH-EXT,LEN-UNDER	hand-authored	inline backticks around identifiers, which survive as curly-quote prosody
-s04	synthetic	170	211	5	MD-BULLET,NUM-UNIT,LEN-UNDER,SPLIT-NEWLINE	hand-authored	a - bulleted list, which is also one generation per line via the \n+ split
-s05	synthetic	147	186	5	MD-ORDERED,LEN-UNDER,SPLIT-NEWLINE	hand-authored	an ordered 1. 2. 3. list, where the marker is read as "one."
-s06	synthetic	207	261	7	MD-BLOCKQUOTE,MD-PIPE,LEN-OVER,SPLIT-NEWLINE	hand-authored	> blockquote line plus a | pipe table, both reported silent
-s07	synthetic	145	258	5	MD-BACKTICK,MD-FENCE,NUM-UNIT,LEN-UNDER,SPLIT-NEWLINE	hand-authored	a fenced code block mid-prose, fences voiced as three curly quotes each side
-s08	synthetic	127	148	1	ID-VOWELLESS,PATH-EXT,PATH-HYPHEN-EXT,LEN-UNDER	hand-authored	bare filenames with extensions, including rewrite-md.sh where espeak plants a full stop
-s09	synthetic	39	48	1	ID-VOWELLESS,PATH-EXTBARE,LEN-UNDER	hand-authored	control: the five bare extensions measured phoneme-identical in both frontends
-s10	synthetic	152	172	1	PATH-EXT,PATH-SLASH,PATH-HYPHEN-EXT,LEN-UNDER	hand-authored	multi-segment relative paths, one spoken "slash" per separator
-s11	synthetic	127	144	1	PATH-EXT,PATH-SLASH,PATH-ABS,LEN-UNDER	hand-authored	absolute paths with a leading /, spoken inconsistently by misaki
-s12	synthetic	168	189	1	PATH-SLASH,PATH-TILDE,PROSE-LIVES,LEN-UNDER	hand-authored	~/ paths spoken as "tilde slash"; also carries the espeak "lives" defect
-s13	synthetic	126	145	1	PATH-EXT,PATH-SLASH,PATH-DOTDIR,PROSE-LIVES,LEN-UNDER	hand-authored	leading bare-dot directories such as .claude/settings.json
-s14	synthetic	137	159	1	ID-SNAKE,ID-VOWELLESS,PATH-EXT,PATH-SLASH,PATH-LINEREF,PATH-DBLCOLON,LEN-UNDER	hand-authored	file:line references and a :: test id, both landing as pause phonemes
-s15	synthetic	176	203	1	MD-UNDERSCORE,ID-SCREAM,LEN-UNDER	hand-authored	SCREAMING_SNAKE_CASE env vars, misaki's worst measured case
-s16	synthetic	138	162	1	ID-SCREAM,ID-SNAKE,ID-ASSIGN,NUM-STATUS,LEN-UNDER	hand-authored	control: NAME=0 assignment form, measured identical in both frontends
-s17	synthetic	122	144	1	ID-SNAKE,ID-CAMEL,ID-KEBAB,LEN-UNDER	hand-authored	snake_case, camelCase, kebab-case and getUserById word-boundary handling
-s18	synthetic	112	141	1	ID-ACRONYM,LEN-UNDER	hand-authored	all-caps acronyms, spelled out by misaki and said as words by espeak
-s19	synthetic	126	159	1	ID-VOWELLESS,LEN-UNDER	hand-authored	vowel-less short commands that espeak spells letter by letter
-s20	synthetic	129	153	1	ID-SHA,LEN-UNDER	hand-authored	git short hashes read as a mix of digits and letter names
-s21	synthetic	98	122	1	NUM-4DIGIT,LEN-UNDER	hand-authored	bare 4-digit non-year numbers, which misaki reads with the year rule
-s22	synthetic	100	122	1	NUM-THOUSANDS,NUM-UNIT,LEN-UNDER	hand-authored	thousands separators, where espeak drops the word "thousand"
-s23	synthetic	124	149	1	NUM-VERSION,LEN-UNDER	hand-authored	version strings, where espeak plants a full stop between components
-s24	synthetic	121	151	1	NUM-DECIMAL,NUM-UNIT,LEN-UNDER	hand-authored	decimals with a multiplier and unit suffixes, where espeak loses "point"
-s25	synthetic	114	139	1	ID-ACRONYM,NUM-PERCENT,NUM-CURRENCY,NUM-ORDINAL,NUM-STATUS,LEN-UNDER	hand-authored	controls: percentages, currency, ordinals and a 3-digit HTTP status
-s26	synthetic	205	229	1	PATH-EXT,PATH-SLASH,URL,LEN-OVER	hand-authored	URLs, the noisiest single class, read out character-class by character-class
-s27	synthetic	196	225	1	EMOJI,GLYPH,LEN-UNDER	hand-authored	emoji read by full Unicode name, plus the plugin's own box-drawing divider
-s28	synthetic	110	137	1	FLAG-SHORT,FLAG-LONG,LEN-UNDER	hand-authored	short flags, where misaki injects a literal ) before a single letter, and long flags as the control
-s29	synthetic	126	155	1	NUM-TIME,NUM-HYPHEN,SYM,LEN-UNDER	hand-authored	clock times, SHA-256 style hyphen-numbers, and the & @ + symbols
-s30	synthetic	220	269	1	PROSE-LIVES,LEN-OVER	hand-authored	prose control with no code tokens at all; also the espeak "lives" defect
-s31	synthetic	146	166	1	MD-UNDERSCORE,ID-SCREAM,OVERRIDE,LEN-UNDER	hand-authored	the [text](/phonemes/) inline override, the only hook that survives an HTTP transport
-s32	synthetic	199	240	1	LEN-UNDER	hand-authored	length probe: prose_len 199, one under the CLAUDISH_MIN_CHARS default of 200
-s33	synthetic	201	244	1	LEN-OVER	hand-authored	length probe: prose_len 201, one over the CLAUDISH_MIN_CHARS default of 200
-s34	synthetic	1077	1313	1	CHUNK-510-PUNCT	hand-authored	single line of 1313 bytes, punctuated: exceeds the 510-phoneme budget and seams at sentence boundaries
-s35	synthetic	1048	1281	1	CHUNK-510-NOPUNCT	hand-authored	single line of 1281 bytes with no punctuation at all: seams land on arbitrary word boundaries
-s36	synthetic	367	443	7	NUM-UNIT,SPLIT-NEWLINE	hand-authored	contrast to s34: same total length spread over 7 short lines, so the \n+ split pre-empts the chunker
+id	kind	prose_len	bytes	lines	max_run	hazard_classes	origin	note
+r01	real	223	270	0	89	MD-BACKTICK,LEN-OVER	transcript 62d419ff:163dfa7c 2026-08-15T09:43:59Z	ollama pull failed, connection reset, model list still empty
+r02	real	228	275	2	109	LEN-OVER,SPLIT-NEWLINE	transcript d51e4ee0:2fcff9dc 2026-08-14T19:30:01Z	agreeing to push each research branch as its agent lands
+r03	real	277	334	2	75	PATH-EXT,NUM-UNIT,SPLIT-NEWLINE	transcript 62d419ff:90f30f28 2026-08-15T09:46:17Z	reading curl_rc and resp_bytes to prove where the ollama call died
+r04	real	313	369	2	104	MD-BACKTICK,ID-SNAKE,ID-CAMEL,ID-ASSIGN,SPLIT-NEWLINE	transcript 62d419ff:9ff001d4 2026-08-15T09:45:53Z	stage 1 of the buffer-to-final chunk reconstruction verified
+r05	real	531	641	9	112	MD-ASTERISK,MD-BACKTICK,MD-ORDERED,PATH-SLASH,CHUNK-510-PUNCT,SPLIT-NEWLINE	transcript d51e4ee0:7bf03f54 2026-08-14T19:44:36Z	why --bare is disqualified for the claude-cli provider
+r06	real	507	611	4	133	MD-ASTERISK,MD-BACKTICK,PATH-EXT,PATH-SLASH,PATH-HYPHEN-EXT,CHUNK-510-PUNCT,SPLIT-NEWLINE	transcript d51e4ee0:33da1536 2026-08-14T19:29:18Z	fast-forward merge of the issue-tracker doc onto the fork
+r07	real	492	681	11	80	MD-BACKTICK,MD-FENCE,PATH-TILDE,NUM-UNIT,CHUNK-510-PUNCT,SPLIT-NEWLINE	transcript 62d419ff:ef8c3dae 2026-08-14T19:50:55Z	why brew install ollama compiles from source at a custom prefix
+r08	real	641	788	4	137	MD-BACKTICK,ID-ACRONYM,PATH-SLASH,CHUNK-510-PUNCT,SPLIT-NEWLINE	transcript d51e4ee0:ee2b1a86 2026-08-14T19:28:35Z	three research agents running in isolated worktrees
+r09	real	973	1180	16	105	MD-ASTERISK,MD-BULLET,MD-ORDERED,ID-CAMEL,ID-VOWELLESS,PATH-SLASH,NUM-UNIT,NUM-PERCENT,URL,CHUNK-510-PUNCT,CHUNK-LIST-SAFE,SPLIT-NEWLINE	transcript d51e4ee0:4b9fefa7 2026-08-14T19:35:15Z	a sibling session in a split pane picking up the setup work
+r10	real	1328	1576	15	251	MD-ASTERISK,MD-BACKTICK,MD-BULLET,MD-BLOCKQUOTE,ID-CAMEL,ID-ACRONYM,PATH-EXT,PATH-SLASH,PATH-TILDE,NUM-VERSION,CHUNK-510-PUNCT,SPLIT-NEWLINE	transcript d51e4ee0:5035dfab 2026-08-14T19:25:17Z	negative search result: the setting is in no file on disk
+r11	real	1999	2387	17	125	MD-ASTERISK,MD-UNDERSCORE,MD-BACKTICK,MD-PIPE,ID-SCREAM,ID-ACRONYM,ID-VOWELLESS,PATH-EXT,PATH-SLASH,PATH-HYPHEN-EXT,NUM-4DIGIT,NUM-UNIT,CHUNK-510-PUNCT,SPLIT-NEWLINE	transcript 62d419ff:6fe9decd 2026-08-14T19:37:16Z	prompt-injection scan clean, plus the one decision needed
+r12	real	2434	2933	14	104	MD-ASTERISK,MD-UNDERSCORE,MD-BACKTICK,ID-SCREAM,ID-VOWELLESS,PATH-EXT,PATH-SLASH,NUM-UNIT,NUM-PERCENT,EMOJI,SYM,CHUNK-510-PUNCT,SPLIT-NEWLINE	transcript d51e4ee0:ffbbe32e 2026-08-14T19:10:08Z	turning a conditional question into a research ticket with a decision rule
+s01	synthetic	141	171	1	81	MD-ASTERISK,MD-UNDERSCORE,LEN-UNDER	hand-authored	asterisk markers: inline **bold**, *starred*, and the sentence-initial **Done.** case that tags differently
+s02	synthetic	167	209	6	59	MD-HASH,NUM-UNIT,LEN-UNDER,SPLIT-NEWLINE	hand-authored	# / ## / ### heading markers, each voiced as "hash" up to espeak's $max3
+s03	synthetic	154	185	1	56	MD-BACKTICK,ID-SNAKE,ID-VOWELLESS,PATH-EXT,LEN-UNDER	hand-authored	inline backticks around identifiers, which survive as curly-quote prosody
+s04	synthetic	170	211	5	205	MD-BULLET,NUM-UNIT,LEN-UNDER,CHUNK-LIST-SAFE,SPLIT-NEWLINE	hand-authored	a - bulleted list; its lines carry no terminal punctuation, but the fused run is short enough to be safe
+s05	synthetic	147	186	5	43	MD-ORDERED,LEN-UNDER,SPLIT-NEWLINE	hand-authored	an ordered 1. 2. 3. list, where the marker is read as "one."
+s06	synthetic	207	261	7	254	MD-BLOCKQUOTE,MD-PIPE,LEN-OVER,SPLIT-NEWLINE	hand-authored	> blockquote line plus a | pipe table, both reported silent
+s07	synthetic	145	258	5	85	MD-BACKTICK,MD-FENCE,NUM-UNIT,LEN-UNDER,SPLIT-NEWLINE	hand-authored	a fenced code block mid-prose, fences voiced as three curly quotes each side
+s08	synthetic	127	148	1	22	ID-VOWELLESS,PATH-EXT,PATH-HYPHEN-EXT,LEN-UNDER	hand-authored	bare filenames with extensions, including rewrite-md.sh where espeak plants a full stop
+s09	synthetic	39	48	1	11	ID-VOWELLESS,PATH-EXTBARE,LEN-UNDER	hand-authored	control: the five bare extensions measured phoneme-identical in both frontends
+s10	synthetic	152	172	1	60	PATH-EXT,PATH-SLASH,PATH-HYPHEN-EXT,LEN-UNDER	hand-authored	multi-segment relative paths, one spoken "slash" per separator
+s11	synthetic	127	144	1	48	PATH-EXT,PATH-SLASH,PATH-ABS,LEN-UNDER	hand-authored	absolute paths with a leading /, spoken inconsistently by misaki
+s12	synthetic	168	189	1	64	PATH-SLASH,PATH-TILDE,PROSE-LIVES,LEN-UNDER	hand-authored	~/ paths spoken as "tilde slash"; also carries the espeak "lives" defect
+s13	synthetic	126	145	1	31	PATH-EXT,PATH-SLASH,PATH-DOTDIR,PROSE-LIVES,LEN-UNDER	hand-authored	leading bare-dot directories such as .claude/settings.json
+s14	synthetic	137	159	1	35	ID-SNAKE,ID-VOWELLESS,PATH-EXT,PATH-SLASH,PATH-LINEREF,PATH-DBLCOLON,LEN-UNDER	hand-authored	file:line references and a :: test id, both landing as pause phonemes
+s15	synthetic	176	203	1	60	MD-UNDERSCORE,ID-SCREAM,LEN-UNDER	hand-authored	SCREAMING_SNAKE_CASE env vars, misaki's worst measured case
+s16	synthetic	138	162	1	50	ID-SCREAM,ID-SNAKE,ID-ASSIGN,NUM-STATUS,LEN-UNDER	hand-authored	control: NAME=0 assignment form, measured identical in both frontends
+s17	synthetic	122	144	1	44	ID-SNAKE,ID-CAMEL,ID-KEBAB,LEN-UNDER	hand-authored	snake_case, camelCase, kebab-case and getUserById word-boundary handling
+s18	synthetic	112	141	1	41	ID-ACRONYM,LEN-UNDER	hand-authored	all-caps acronyms, spelled out by misaki and said as words by espeak
+s19	synthetic	126	159	1	62	ID-VOWELLESS,LEN-UNDER	hand-authored	vowel-less short commands that espeak spells letter by letter
+s20	synthetic	129	153	1	67	ID-SHA,LEN-UNDER	hand-authored	git short hashes read as a mix of digits and letter names
+s21	synthetic	98	122	1	36	NUM-4DIGIT,LEN-UNDER	hand-authored	bare 4-digit non-year numbers, which misaki reads with the year rule
+s22	synthetic	100	122	1	31	NUM-THOUSANDS,NUM-UNIT,LEN-UNDER	hand-authored	thousands separators, where espeak drops the word "thousand"
+s23	synthetic	124	149	1	31	NUM-VERSION,LEN-UNDER	hand-authored	version strings, where espeak plants a full stop between components
+s24	synthetic	121	151	1	39	NUM-DECIMAL,NUM-UNIT,LEN-UNDER	hand-authored	decimals with a multiplier and unit suffixes, where espeak loses "point"
+s25	synthetic	114	139	1	44	ID-ACRONYM,NUM-PERCENT,NUM-CURRENCY,NUM-ORDINAL,NUM-STATUS,LEN-UNDER	hand-authored	controls: percentages, currency, ordinals and a 3-digit HTTP status
+s26	synthetic	205	229	1	86	PATH-EXT,PATH-SLASH,URL,LEN-OVER	hand-authored	URLs, the noisiest single class, read out character-class by character-class
+s27	synthetic	196	225	1	148	EMOJI,GLYPH,LEN-UNDER	hand-authored	emoji read by full Unicode name, plus the plugin's own box-drawing divider
+s28	synthetic	110	137	1	43	FLAG-SHORT,FLAG-LONG,LEN-UNDER	hand-authored	short flags, where misaki injects a literal ) before a single letter, and long flags as the control
+s29	synthetic	126	155	1	51	NUM-TIME,NUM-HYPHEN,SYM,LEN-UNDER	hand-authored	clock times, SHA-256 style hyphen-numbers, and the & @ + symbols
+s30	synthetic	220	269	1	59	PROSE-LIVES,LEN-OVER	hand-authored	prose control with no code tokens at all; also the espeak "lives" defect
+s31	synthetic	146	166	1	86	MD-UNDERSCORE,ID-SCREAM,OVERRIDE,LEN-UNDER	hand-authored	the [text](/phonemes/) inline override, the only hook that survives an HTTP transport
+s32	synthetic	199	240	1	73	LEN-UNDER	hand-authored	length probe: prose_len 199, one under the CLAUDISH_MIN_CHARS default of 200
+s33	synthetic	201	244	1	72	LEN-OVER	hand-authored	length probe: prose_len 201, one over the CLAUDISH_MIN_CHARS default of 200
+s34	synthetic	1077	1313	1	104	CHUNK-510-PUNCT	hand-authored	1313 bytes needing several batches, but no run between . , ! ? ; exceeds 104 chars, so _split_phonemes splits it cleanly
+s35	synthetic	1048	1281	1	1280	CHUNK-510-NOPUNCT	hand-authored	single line of 1281 bytes with no . , ! ? ; anywhere: one 1280-char run, which raises IndexError on kokoro-onnx
+s36	synthetic	367	443	7	64	NUM-UNIT,SPLIT-NEWLINE	hand-authored	contrast to s34 and s37: 7 short lines that each END IN A FULL STOP, so the boundaries come from the stops, not from the newlines the tokenizer deletes
+s37	synthetic	531	653	9	644	MD-BULLET,CHUNK-LIST-NOPUNCT,SPLIT-NEWLINE	hand-authored	the realistic crash shape: a multi-line bullet list with no terminal punctuation on any line, fusing into one 644-char run because \n is deleted; the lead-in colon is deliberately not a boundary
+s38	synthetic	85	106	4	102	MD-BULLET,LEN-UNDER,CHUNK-LIST-SAFE,SPLIT-NEWLINE	hand-authored	control for s37: identical shape, no terminal punctuation, but a 102-char fused run that is safely under budget

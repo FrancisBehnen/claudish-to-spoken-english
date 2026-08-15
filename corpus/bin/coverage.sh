@@ -24,7 +24,7 @@ while IFS=$'\t' read -r cls _desc; do
   # inside some future ID-SNAKE-CASE.
   items="$(awk -F'\t' -v c="$cls" '
     NR > 1 {
-      n = split($6, a, ",")
+      n = split($7, a, ",")
       for (i = 1; i <= n; i++) if (a[i] == c) { printf "%s ", $1 }
     }' "$MAN")"
   items="${items% }"

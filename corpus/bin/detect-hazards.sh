@@ -7,13 +7,18 @@
 # item contain a token of class X", which is exactly what coverage means here.
 # It cannot and does not say how anything sounds.
 #
-# Class ids and the behaviour each one names are defined in corpus/README.md,
-# sourced from docs/research/kokoro-text-handling.md (#3) and
-# docs/research/kokoro-programming-text-audio.md (#10).
+# Class ids and the behaviour each one names are defined in corpus/classes.tsv,
+# sourced from docs/research/kokoro-text-handling.md (#3),
+# docs/research/kokoro-programming-text-audio.md (#10) and
+# docs/research/espeak-sanitizer-rules.md (#8) — the last of which is
+# authoritative for chunking, because it is the only one measured against
+# kokoro-onnx, the frontend the project actually settled on.
 #
 # Usage: detect-hazards.sh <file>...          # one row per file
 #        detect-hazards.sh corpus/spoken/*.txt
-# Output: <id>\t<prose_len>\t<bytes>\t<lines>\t<comma separated class ids>
+# Output: <id>\t<prose_len>\t<bytes>\t<lines>\t<max_run>\t<comma separated class ids>
+# where max_run is the longest run of characters containing no `. , ! ? ;`
+# after newlines are removed — the measurement the chunking classes turn on.
 # ---------------------------------------------------------------------------
 set -uo pipefail
 
@@ -87,13 +92,39 @@ for f in "$@"; do
   # --- length and chunking ------------------------------------------------
   [ "$prose_len" -lt 200 ] && add LEN-UNDER
   [ "$prose_len" -ge 200 ] && [ "$prose_len" -le 260 ] && add LEN-OVER
-  # A single line longer than ~520 characters exceeds the 510-phoneme budget
-  # (measured at roughly one phoneme per character, kokoro-text-handling.md §6)
-  # and is the only way to reach the chunker: KPipeline splits on \n+ first.
-  if awk 'length($0) > 520 {found=1} END{exit !found}' "$f"; then
-    if grep -qE '[.!?]' "$f"; then add CHUNK-510-PUNCT; else add CHUNK-510-NOPUNCT; fi
+
+  # The real risk metric on kokoro-onnx is the longest run with no `. , ! ? ;`
+  # in it, measured AFTER deleting newlines -- because `\n` is not in
+  # DEFAULT_VOCAB and is silently dropped, so lines fuse into one run
+  # (espeak-sanitizer-rules.md §11). `_split_phonemes` splits on `. , ! ? ;`
+  # ONLY; `:` and `—` reach the model but are not boundaries. A run that
+  # phonemises to >=510 raises IndexError, and 509 is the last safe batch
+  # (§10). English prose measures ~1.02 phonemes per input character.
+  #
+  # 400 is used as the threshold rather than ~500 because a character count is
+  # a HEURISTIC that can under-protect: dense token-heavy text phonemises to
+  # well over 1 phoneme per character (an identifier spelled letter by letter
+  # is the worst case), so a run can cross 510 phonemes at fewer than 500
+  # characters. 400 is the same conservative bound §10's rule A recommends.
+  # Only a real phonemiser can settle a specific item; this flags candidates.
+  max_run="$(tr -d '\n' < "$f" | tr '.,!?;' '\n' | awk '{ if (length($0) > m) m = length($0) } END { print m + 0 }')"
+
+  if [ "$max_run" -ge 400 ]; then
+    # Over budget with no boundary to back off to: create() raises.
+    if [ "$lines" -gt 1 ]; then add CHUNK-LIST-NOPUNCT; else add CHUNK-510-NOPUNCT; fi
+  else
+    # Under budget per run. If the whole item is nonetheless long enough to
+    # need splitting, it is the case that splits CLEANLY.
+    [ "$bytes" -gt 520 ] && add CHUNK-510-PUNCT
+    # Multi-line with unpunctuated lines, but short enough to be safe: the
+    # control that separates the shape from the length.
+    if [ "$lines" -gt 1 ] \
+       && [ "$(grep -cE '^[[:space:]]*[-*][^.,!?;]*$' "$f")" -ge 2 ]; then
+      add CHUNK-LIST-SAFE
+    fi
   fi
+
   [ "$lines" -gt 1 ] && add SPLIT-NEWLINE
 
-  printf '%s\t%s\t%s\t%s\t%s\n' "$id" "$prose_len" "$bytes" "$lines" "${h%,}"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$id" "$prose_len" "$bytes" "$lines" "$max_run" "${h%,}"
 done

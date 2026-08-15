@@ -1,0 +1,4 @@
+Three things changed:
+- the retry logic moved
+- the timeout got a watchdog
+- the off switch is read fresh
