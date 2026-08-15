@@ -1,2 +1,7 @@
 .DS_Store
 *.plain.md
+
+# Scratch worktrees created for background agent sessions — see
+# docs/agents/issue-tracker.md. Their branches are the durable artifact,
+# not these checkouts.
+.claude/worktrees/
