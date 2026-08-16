@@ -161,7 +161,7 @@ macOS, so the harness gives the player `audio_duration * 2 + 10` seconds, then `
 ## Sanitizers
 
 A sanitizer is a function `(text, opts) -> text` in `sanitizers.py`, registered with a decorator.
-**Adding a third is writing one function** — no other file changes:
+**Adding one more is writing one function** — no other file changes:
 
 ```py
 @sanitizer("mine", "what it does in one line")
@@ -180,6 +180,9 @@ same item twice, back to back, plays both, and puts them on adjacent rows of the
 | `none` | passthrough. The control — a corpus that only ever runs through a sanitizer can confirm one but never refute it. |
 | `candidate` | rules **A–K** from the research doc's candidate list. |
 | `crashguard` | rules **B + A** only: the two that decide whether `create()` raises, and nothing else. Isolates the crash question from the prosody question. |
+| `base` + 19 axis variants | added for [#8](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/8). `base` is `candidate` with one *named* default per open axis; each variant moves **exactly one** axis (`tick-*`, `lb-*`, `path-*`, `md-*`, `scream-*`, `url-*`, `cb-*`). See [`docs/decisions/sanitizer-audition.md`](../docs/decisions/sanitizer-audition.md). |
+
+**23 sanitizers are registered**; `bench/bench --list-sanitizers` is the authoritative list.
 
 ### `candidate` is a candidate, not a decision
 
