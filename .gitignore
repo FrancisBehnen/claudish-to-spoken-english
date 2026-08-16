@@ -1,6 +1,14 @@
 .DS_Store
 *.plain.md
 
+# Bench harness output. Wavs are ~2.5 MB each and this repo has no LFS, so
+# they live under ~/.local/share/kokoro/bench/ by default -- this is the
+# backstop for anyone who points --out-dir at the checkout.
+*.wav
+bench/out/
+__pycache__/
+*.pyc
+
 # Scratch worktrees created for background agent sessions — see
 # docs/agents/issue-tracker.md. Their branches are the durable artifact,
 # not these checkouts.

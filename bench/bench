@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Bench harness launcher: finds the Kokoro venv and runs bench.py in it.
+#
+# The venv is the one docs/research/kokoro-onnx-provisioning.md provisions
+# (Python 3.11.8, kokoro-onnx, no torch). Override with KOKORO_ROOT.
+set -euo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+KOKORO_ROOT="${KOKORO_ROOT:-$HOME/.local/share/kokoro}"
+PY="$KOKORO_ROOT/venv/bin/python"
+
+if [[ ! -x "$PY" ]]; then
+  echo "bench: no Kokoro venv at $PY" >&2
+  echo "bench: see docs/research/kokoro-onnx-provisioning.md 'Install, verbatim'" >&2
+  echo "bench: or set KOKORO_ROOT to where yours lives" >&2
+  exit 127
+fi
+
+export KOKORO_ROOT
+exec "$PY" "$HERE/bench.py" "$@"
