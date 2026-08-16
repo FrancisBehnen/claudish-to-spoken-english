@@ -1,0 +1,1 @@
+Torch-free: **238 MB**, and it installed from cache in 0s. Now the spaCy model and the ONNX weights.
