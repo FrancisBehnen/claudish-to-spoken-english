@@ -11,6 +11,11 @@ explicit that the list is input to #8, not #8's answer. Nobody has listened to
 any of it. Rule L (the `lives` -> `livz` respelling) is gated behind
 ``--respell`` because the doc says its trigger condition is not established.
 Rule M is a prohibition, not a transformation, so there is no code for it.
+
+The bottom half of this file is the **#8 audition set**: a `base` reference
+plus one variant per open axis of #8, so each axis can be heard as an A/B.
+Those are not decisions either -- they are the alternatives, built so that a
+listener can pick one. See `docs/decisions/sanitizer-audition.md`.
 """
 
 from __future__ import annotations
@@ -114,10 +119,23 @@ _URL_RE = re.compile(
       | \b[\w-]+(?:\.[\w-]+)*\.""" + _TLD + r"""/\S*
     )"""
 )
+# `\S+` runs to whitespace, so a URL ending a sentence takes the full stop
+# with it -- which silently deletes a chunk boundary, the one thing rule B
+# and rule A exist to create. Handed back before the substitution. (Found
+# while building the #8 audition: `s26` lost a sentence boundary under
+# `candidate`. The rule's own worked example keeps its full stop, so this is
+# the rule doing what it was written to do.)
+_URL_TRAIL = ".,;:!?)\"'"
 
 
 def rule_I_urls(text: str, replacement: str) -> str:
-    return _URL_RE.sub(replacement, text)
+    return _URL_RE.sub(
+        lambda m: replacement + _url_trail(m.group(0)), text
+    )
+
+
+def _url_trail(u: str) -> str:
+    return u[len(u.rstrip(_URL_TRAIL)):]
 
 
 # Rule C.
@@ -290,3 +308,375 @@ def san_crashguard(text: str, opts: Opts) -> str:
     text = rule_B_newlines_to_punct(text, opts.boundary)
     text = rule_A_guarantee_boundary(text, opts.max_run, opts.boundary)
     return text.strip()
+
+
+# ==========================================================================
+# The #8 audition set: one variant per open axis
+# ==========================================================================
+#
+# STILL NOT A DECISION. #8 is decided by ear and nothing in this file has
+# been listened to. These variants exist so that each open axis of #8 can be
+# HEARD as an A/B against a fixed reference, instead of argued about.
+#
+# `base` is that reference: rule-for-rule the same pipeline as `candidate`,
+# with one named choice per open axis. Every other variant below changes
+# EXACTLY ONE of those choices, so the pair (`base`, `variant`) isolates the
+# axis. `none` stays the control for all of them.
+#
+# The open axes, and `base`'s default for each:
+#
+#   markdown   strip  -- rules C + D
+#   urls       link   -- rule I, replace with "a link"
+#   scream     lower  -- rule J, lowercase `_`-joined identifiers
+#   paths      asis   -- no path rule at all: espeak says every "slash"
+#   code       read   -- fenced blocks are read out; the fence is silent
+#   ticks      keep   -- backticks left in place (espeak emits nothing for them)
+#   boundary   "."    -- what rules B and A insert
+#
+# Adding one more is still a one-function job: a new field value, a helper
+# branch, and one decorated line.
+
+
+@dataclass
+class Axes:
+    """One choice per open axis of #8. Defaults are `base`."""
+
+    markdown: str = "strip"  # strip | swallow | strip-plus
+    urls: str = "link"  # link | full | domain
+    scream: str = "lower"  # lower | asis | spell | drop
+    paths: str = "asis"  # asis | nolead | basename | shorten | expand
+    code: str = "read"  # read | long | count | short | silent
+    ticks: str = "keep"  # keep | strip | pause
+    boundary: str = ""  # "" -> opts.boundary
+
+
+# --- code blocks (settled: skipped and announced; the WORDING is open) -----
+
+_NUMWORD = {
+    1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six",
+    7: "seven", 8: "eight", 9: "nine", 10: "ten", 11: "eleven", 12: "twelve",
+    13: "thirteen", 14: "fourteen", 15: "fifteen", 16: "sixteen",
+    17: "seventeen", 18: "eighteen", 19: "nineteen", 20: "twenty",
+}
+
+
+def _numword(n: int) -> str:
+    # Spelled out so the announcement carries no NUM-UNIT hazard of its own.
+    return _NUMWORD.get(n, str(n))
+
+
+_FENCE_RE = re.compile(r"(?ms)^[ \t]*```[^\n]*\n(?P<body>.*?)^[ \t]*```[ \t]*$")
+
+
+def rule_N_code_block(text: str, mode: str) -> str:
+    """Replace a fenced block with an announcement. `read` leaves it alone.
+
+    `silent` emits a bare `.` -- kokoro-onnx has no pause primitive other than
+    punctuation, so "nothing but a pause" IS a full stop with no words.
+    """
+    if mode == "read":
+        return text
+
+    def repl(m: re.Match) -> str:
+        n = len([ln for ln in m.group("body").splitlines() if ln.strip()])
+        if mode == "silent":
+            return "."
+        if mode == "short":
+            return "Code block."
+        plural = "line" if n == 1 else "lines"
+        if mode == "count":
+            return f"Code block, {_numword(n)} {plural}."
+        return f"Then a {_numword(n)} line code block."
+
+    return _FENCE_RE.sub(repl, text)
+
+
+# --- backticks (MD-BACKTICK: 9 of 12 real items) --------------------------
+
+_TICK_SPAN_RE = re.compile(r"`([^`\n]+)`")
+
+
+def rule_T_ticks(text: str, mode: str) -> str:
+    """espeak emits NOTHING for a backtick, so this axis is about the words
+    around it. `strip` removes the character (expected: a measured no-op).
+    `pause` sets the span off with the chunker's own boundary character."""
+    if mode == "keep":
+        return text
+    if mode == "strip":
+        return text.replace("`", "")
+    # The trailing comma is decided per span, so nothing has to be tidied up
+    # globally afterwards -- a blanket ", X" -> "X" tidy would eat the real
+    # commas in ".sh, .py, .md".
+    def repl(m: re.Match) -> str:
+        before = m.string[m.start() - 1: m.start()]
+        follows = m.string[m.end():m.end() + 1]
+        head = "" if before in ("", "\n", "(", "[", "{") else ", "
+        tail = "" if follows in ".,;:!?)]" else ", "
+        return head + m.group(1) + tail
+
+    text = _TICK_SPAN_RE.sub(repl, text).replace("`", "")
+    text = re.sub(r",[ \t]*,", ",", text)
+    return re.sub(r"(?m)^[ \t]*,[ \t]*", "", text)
+
+
+# --- paths (PATH-SLASH 7 real, PATH-EXT 5 real) ---------------------------
+
+_SEG = r"\.?[\w-]+(?:\.[\w-]+)*"
+_PATH_RE = re.compile(
+    r"(?<![\w/~.@-])(?P<lead>~/|\.{1,2}/|/)?(?P<body>(?:" + _SEG + r"/)+" + _SEG + r")"
+)
+# Extensions seen in the corpus. Deliberately a list, not `\w+`: a bare
+# `\w+\.\w+` would eat "docs. Read" and every ordinary sentence.
+_EXTS = (
+    "sh|py|md|json|jsonl|txt|log|tsv|csv|yaml|yml|toml|wav|onnx|bin|"
+    "ts|js|html|xml|cfg|ini|lock|sql"
+)
+_BARE_EXT_RE = re.compile(r"\b([\w-]+)\.(" + _EXTS + r")\b")
+
+
+def _spell_ext(seg: str) -> str:
+    m = re.fullmatch(r"(.+)\.(" + _EXTS + r")", seg)
+    if not m:
+        return seg
+    return f"{m.group(1)} dot {' '.join(m.group(2).upper())}"
+
+
+def rule_P_paths(text: str, mode: str) -> str:
+    """`asis` is no rule at all. The others reshape a multi-segment path."""
+    if mode == "asis":
+        return text
+
+    def repl(m: re.Match) -> str:
+        segs = m.group("body").split("/")
+        if mode == "nolead":  # drop `~/`, `/`, `./` and a leading bare dot
+            segs[0] = segs[0].lstrip(".") or segs[0]
+            return "/".join(segs)
+        if mode == "basename":
+            return segs[-1]
+        if mode == "shorten":
+            return "/".join(segs[-2:])
+        lead = m.group("lead") or ""  # expand: keep every segment
+        return lead + " slash ".join(_spell_ext(s) for s in segs)
+
+    out = _PATH_RE.sub(repl, text)
+    if mode == "expand":  # bare `name.ext` in prose carries PATH-EXT too
+        out = _BARE_EXT_RE.sub(lambda m: _spell_ext(m.group(0)), out)
+    return out
+
+
+# --- SCREAMING_SNAKE_CASE (rule J is the `lower` arm) ---------------------
+
+
+def rule_J_scream(text: str, mode: str) -> str:
+    """Narrowed to `_`-joined tokens exactly as rule J is, because #1 records
+    that widening it regresses `SHA-256` to "shah" and `RAM` to "ram"."""
+    if mode == "asis":
+        return text
+
+    def repl(m: re.Match) -> str:
+        tok = m.group(0)
+        if tok == tok.lower():
+            return tok
+        if mode == "lower":
+            return tok.lower()
+        if mode == "spell":  # letters as separate tokens, `_` -> a comma
+            return ", ".join(" ".join(seg.upper()) for seg in tok.split("_"))
+        return ""  # drop
+
+    # No tidy-up beyond the double space the deletion leaves, which the
+    # pipeline collapses anyway: a "drop the space before punctuation" pass
+    # also fires on ordinary text like "It handles .sh, .py, .md".
+    return _SNAKE_RE.sub(repl, text)
+
+
+# --- URLs (rule I is the `link` arm) --------------------------------------
+
+
+def rule_I_domain(text: str) -> str:
+    def repl(m: re.Match) -> str:
+        raw = m.group(0)
+        u = re.sub(r"(?i)^https?://", "", raw)
+        u = re.sub(r"(?i)^www\.", "", u)
+        host = u.split("/")[0].split(":")[0].rstrip(_URL_TRAIL)
+        # Same trailing-punctuation hand-back as rule I: a URL that closes a
+        # sentence or a markdown link must not take the mark with it.
+        return host.replace(".", " dot ") + _url_trail(raw)
+
+    return _URL_RE.sub(repl, text)
+
+
+# --- markdown beyond C and D ----------------------------------------------
+
+
+def rule_MD_extra(text: str) -> str:
+    """Subtractive only. Every character removed here is measured SILENT
+    already (MD-UNDERSCORE / MD-BULLET / MD-BLOCKQUOTE / MD-PIPE controls),
+    so the listening question is whether removing them changes anything."""
+    text = re.sub(r"(?m)^[ \t]*>[ \t]?", "", text)  # blockquote markers
+    text = re.sub(r"(?m)^[ \t]*[-+][ \t]+", "", text)  # `-` bullets
+    text = re.sub(r"(?m)^[ \t]*\d+\.[ \t]+", "", text)  # ordered markers
+    text = text.replace("|", " ")  # table pipes
+    # `_italic_` only -- a blanket `_` strip would silently defeat the
+    # SCREAMING_SNAKE axis by dissolving every `_`-joined identifier.
+    return re.sub(r"(?<![\w])_([^_\n]+)_(?![\w])", r"\1", text)
+
+
+# --- the parameterised pipeline -------------------------------------------
+
+
+def _pipeline(text: str, opts: Opts, ax: Axes) -> str:
+    b = ax.boundary or opts.boundary
+    text = rule_H_strip_emoji(text)
+    text = rule_N_code_block(text, ax.code)  # before D: kills `#` inside code
+    if ax.urls == "link":
+        text = rule_I_urls(text, opts.url_replacement)
+    elif ax.urls == "domain":
+        text = rule_I_domain(text)
+    if ax.markdown in ("strip", "strip-plus"):
+        text = rule_C_strip_asterisks(text)
+        text = rule_D_strip_heading_marks(text)
+    if ax.markdown == "strip-plus":
+        text = rule_MD_extra(text)
+    text = rule_T_ticks(text, ax.ticks)
+    text = rule_B_newlines_to_punct(text, b)
+    text = rule_P_paths(text, ax.paths)
+    text = rule_G_strip_thousands(text)
+    text = rule_K_currency(text)
+    text = rule_E_version_dots(text)
+    text = rule_F_decimal_point(text)
+    text = rule_J_scream(text, ax.scream)
+    if opts.respell:
+        text = rule_L_respell(text)
+    text = rule_A_guarantee_boundary(text, opts.max_run, b)
+    return re.sub(r"[ \t]{2,}", " ", text).strip()
+
+
+_BASE_RULES = """the #8 reference point: candidate's rules, one choice per open axis
+  markdown strip   C + D
+  urls     link    I
+  scream   lower   J
+  paths    asis    no path rule
+  code     read    fenced blocks read out
+  ticks    keep    backticks left in place
+  boundary '.'     what B and A insert"""
+
+
+@sanitizer("base", "reference: candidate's rules, the default on every open axis", _BASE_RULES)
+def san_base(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes())
+
+
+# --- axis 1: backtick prosody (MD-BACKTICK, 9 of 12 real items) -----------
+
+
+@sanitizer("tick-strip", "base, but the backtick characters are removed")
+def san_tick_strip(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(ticks="strip"))
+
+
+@sanitizer("tick-pause", "base, but each `span` is set off with commas")
+def san_tick_pause(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(ticks="pause"))
+
+
+# --- axis 2: the line-break replacement (rule B) --------------------------
+
+
+@sanitizer("lb-period", "base with '.' as the line-break replacement (same as base)")
+def san_lb_period(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(boundary="."))
+
+
+@sanitizer("lb-comma", "base with ',' as the line-break replacement")
+def san_lb_comma(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(boundary=","))
+
+
+# --- axis 3: paths (PATH-SLASH 7 real, PATH-EXT 5 real) -------------------
+
+
+@sanitizer("path-nolead", "base, but a leading '~/', '/', './' or '.' is dropped")
+def san_path_nolead(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(paths="nolead"))
+
+
+@sanitizer("path-basename", "base, but a path is reduced to its last segment")
+def san_path_basename(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(paths="basename"))
+
+
+@sanitizer("path-shorten", "base, but a path is reduced to its last two segments")
+def san_path_shorten(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(paths="shorten"))
+
+
+@sanitizer("path-expand", "base, but separators become ' slash ' and '.md' becomes ' dot M D'")
+def san_path_expand(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(paths="expand"))
+
+
+# --- axis 4: markdown, swallowed or stripped (MD-ASTERISK, 6 real) --------
+
+
+@sanitizer("md-swallow", "base minus C and D: '*' and '#' reach espeak")
+def san_md_swallow(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(markdown="swallow"))
+
+
+@sanitizer("md-strip-plus", "base plus the already-silent markdown: bullets, '>', '|', '_italic_'")
+def san_md_strip_plus(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(markdown="strip-plus"))
+
+
+# --- axis 5: SCREAMING_SNAKE_CASE (ID-SCREAM) -----------------------------
+
+
+@sanitizer("scream-asis", "base minus J: SCREAMING_SNAKE_CASE reaches espeak uppercase")
+def san_scream_asis(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(scream="asis"))
+
+
+@sanitizer("scream-spell", "base, but the identifier is spelled letter by letter")
+def san_scream_spell(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(scream="spell"))
+
+
+@sanitizer("scream-drop", "base, but the identifier is deleted from the sentence")
+def san_scream_drop(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(scream="drop"))
+
+
+# --- axis 6: URLs ---------------------------------------------------------
+
+
+@sanitizer("url-full", "base minus I: the URL is read out in full")
+def san_url_full(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(urls="full"))
+
+
+@sanitizer("url-domain", "base, but a URL becomes its host: 'github dot com'")
+def san_url_domain(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(urls="domain"))
+
+
+# --- axis 7: how a skipped code block is announced ------------------------
+
+
+@sanitizer("cb-long", "code block -> 'Then an N line code block.'")
+def san_cb_long(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(code="long"))
+
+
+@sanitizer("cb-count", "code block -> 'Code block, N lines.'")
+def san_cb_count(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(code="count"))
+
+
+@sanitizer("cb-short", "code block -> 'Code block.'")
+def san_cb_short(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(code="short"))
+
+
+@sanitizer("cb-silent", "code block -> a bare '.', i.e. nothing but a pause")
+def san_cb_silent(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(code="silent"))
