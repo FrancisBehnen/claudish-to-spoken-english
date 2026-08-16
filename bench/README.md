@@ -27,11 +27,18 @@ bench/bench notes.txt --voice af_bella                # any text file
 
 ```
 bench/
-  bench           launcher: finds the Kokoro venv, execs bench.py in it
-  bench.py        the harness: timing, synthesis, playback, reporting
-  sanitizers.py   the pluggable sanitizer registry
-  README.md       this file
+  bench              launcher: finds the Kokoro venv, execs bench.py in it
+  bench.py           the harness: timing, synthesis, playback, reporting
+  sanitizers.py      the pluggable sanitizer registry
+  first-sentence.py  a sibling: TTFA for sentence one alone, for #9
+  README.md          this file
 ```
+
+`first-sentence.py` imports `sanitizers.py` and edits nothing. It answers the question `bench.py`
+raises but cannot answer — what a *pipelined* worker's TTFA would be — by synthesizing only sentence
+one and timing it with the same four-phase definition. Run it in the venv directly
+(`~/.local/share/kokoro/venv/bin/python bench/first-sentence.py --stream --whole`); results in
+[`docs/decisions/voice-and-pipelining.md`](../docs/decisions/voice-and-pipelining.md).
 
 Requires the Kokoro install that
 [`docs/research/kokoro-onnx-provisioning.md`](../docs/research/kokoro-onnx-provisioning.md)
