@@ -1,0 +1,1 @@
+RSS **plateaus at ~665 MB** after rep 5 — it doesn't leak. The 934 MB earlier was the high-water mark including transients. Now the misaki variant.

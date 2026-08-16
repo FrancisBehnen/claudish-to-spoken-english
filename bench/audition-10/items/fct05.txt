@@ -1,0 +1,1 @@
+Service is up on `127.0.0.1:11434` and registered with launchd for login autostart. Now pulling the model (2.5 GB).

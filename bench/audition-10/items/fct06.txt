@@ -1,0 +1,1 @@
+Idle CPU is **0.0%**, and idle RSS actually *falls* to ~380–470 MB as pages get reclaimed. Let me verify the wavs are real audio, then write it up.

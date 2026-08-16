@@ -1,0 +1,3 @@
+Delegation noted — I'll route the substantive work to subagents from here.
+
+Setting up the sleep/wake test. The key design point: everything lands in a log file on disk, so the evidence survives even if my session is disrupted by the sleep.

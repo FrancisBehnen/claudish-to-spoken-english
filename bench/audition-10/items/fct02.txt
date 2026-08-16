@@ -1,0 +1,1 @@
+Both wavs are valid 24 kHz mono audio. Writing the provisioning record.

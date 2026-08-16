@@ -1,0 +1,1 @@
+All clean and all merged. Removing the worktrees (branches stay intact) and stopping the scratch dir from showing up as untracked.

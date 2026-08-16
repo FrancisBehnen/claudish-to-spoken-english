@@ -1,0 +1,1 @@
+Found the bug in my own check: `uv pip compile` seeds **metadata** (`.msgpack`/`.http`) into that cache dir, and I was counting those as cached wheels. Only extension-less entries are real unpacked wheels. Fixing and re-running.
