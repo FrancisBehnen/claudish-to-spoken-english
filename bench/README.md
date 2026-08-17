@@ -31,6 +31,7 @@ bench/
   bench.py           the harness: timing, synthesis, playback, reporting
   sanitizers.py      the pluggable sanitizer registry
   first-sentence.py  a sibling: TTFA for sentence one alone, for #9
+  audition-page.py   builds the local listening page for #8, #9 and #10
   README.md          this file
 ```
 
@@ -39,6 +40,24 @@ raises but cannot answer — what a *pipelined* worker's TTFA would be — by sy
 one and timing it with the same four-phase definition. Run it in the venv directly
 (`~/.local/share/kokoro/venv/bin/python bench/first-sentence.py --stream --whole`); results in
 [`docs/decisions/voice-and-pipelining.md`](../docs/decisions/voice-and-pipelining.md).
+
+`audition-page.py` also imports `sanitizers.py` and edits nothing. It synthesizes nothing either —
+it globs the wavs `bench.py` already wrote and builds one self-contained HTML page for listening to
+them and recording a verdict per pair:
+
+```bash
+python3 bench/audition-page.py                       # re-execs itself into the venv
+open ~/.local/share/kokoro/bench/audition.html
+```
+
+The page is written **beside** `audition-8/`, `audition-9/` and `audition-10/` so every `<audio src>`
+is a relative sibling and it works from a `file://` URL with no server; if a browser refuses, the
+page carries the `python3 -m http.server` fallback. Everything on it is derived — the pairs from the
+wavs on disk, the pronounced text from running the real sanitizer over the real corpus file, the
+durations from the wav headers, each variant's description from the registry — so a variant
+synthesized later shows up on a re-run with no edit here. Verdicts live in `localStorage` and export
+as TSV or Markdown from a textarea. **It is not committed** (~200 KB, and it is a throwaway
+instrument for one listening session); the generator is.
 
 Requires the Kokoro install that
 [`docs/research/kokoro-onnx-provisioning.md`](../docs/research/kokoro-onnx-provisioning.md)
