@@ -3,7 +3,9 @@
 The audio [#8](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/8) is decided from.
 Built 2026-08-16 against the corpus from
 [#7](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/7) and the harness from
-[#6](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/6).
+[#6](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/6). **Extended 2026-08-17**:
+axis 7 had no multi-line code block to audition, so corpus items `s39` and `s40` were authored and ten
+wavs added — 88 in all.
 
 **This document decides nothing, and it contains no claim about how anything sounds.** Every "what it
 does" below is a text diff, a phoneme count or a duration; every "what to listen for" is a question,
@@ -85,7 +87,7 @@ rewrites** carry the hazard.
 | 4 | markdown: swallowed or stripped | `MD-ASTERISK` 6 | ~4 |
 | 5 | `SCREAMING_SNAKE_CASE` | `ID-SCREAM` 2 | ~4 |
 | 6 | URLs | `URL` 1 | ~3 |
-| 7 | how a skipped code block is announced | `MD-FENCE` 1 | ~4 |
+| 7 | how a skipped code block is announced | `MD-FENCE` 1, `MD-FENCE-MULTI` **0** | ~8 |
 
 If there is time for one axis only, it is axis 1. If there is time for two, add axis 2 — it is the one
 that can crash `create()`.
@@ -408,21 +410,30 @@ full it is 416 phonemes / 24.4s; as "a link" 132 / 7.4s; as domains 167 / 9.7s. 
 ## Axis 7 — how a skipped code block is announced
 
 That code blocks are skipped and announced is **settled**; the wording is open. `MD-FENCE` is in 1 of
-12 real rewrites.
+12 real rewrites, and `MD-FENCE-MULTI` — a fence body of more than one line — is in **none** of them.
 
 | variant | what the transformation does |
 | --- | --- |
 | `none` | control — the fence characters are silent, the code is read out |
 | `base` | the same: no code-block rule at all |
-| `cb-long` | `Then a one line code block.` |
-| `cb-count` | `Code block, one line.` |
+| `cb-long` | `Then a twelve line code block.` — the count is of non-blank body lines, so the number is per item |
+| `cb-count` | `Code block, twelve lines.` |
 | `cb-short` | `Code block.` |
 | `cb-silent` | a bare `.` — nothing but a pause. kokoro-onnx has no pause primitive other than punctuation, so "a pause" *is* a full stop with no words |
 
 | item | what it carries | wavs |
 | --- | --- | --- |
-| `r07` | real, 669 ch: a dependency chain in a fenced block, mid-message | `r07.none` · `r07.base` · `r07.cb-long` · `r07.cb-count` · `r07.cb-short` · `r07.cb-silent` |
-| `s07` | the same block shape in 250 characters | `s07.base` · `s07.cb-long` · `s07.cb-count` · `s07.cb-short` · `s07.cb-silent` |
+| `r07` | real, 669 ch: a **one-line** dependency chain in a fenced block, mid-message | `r07.none` · `r07.base` · `r07.cb-long` · `r07.cb-count` · `r07.cb-short` · `r07.cb-silent` |
+| `s07` | the same one-line shape in 250 characters | `s07.base` · `s07.cb-long` · `s07.cb-count` · `s07.cb-short` · `s07.cb-silent` |
+| `s39` | **a 12-line block** — a shell function after a colon lead-in, 185 characters of carrier prose. Authored 2026-08-17 for this axis | `s39.base` · `s39.cb-long` · `s39.cb-count` · `s39.cb-short` · `s39.cb-silent` |
+| `s40` | **the same carrier with a 3-line block** — the control that isolates the number from everything else. Authored with `s39` | `s40.base` · `s40.cb-long` · `s40.cb-count` · `s40.cb-short` · `s40.cb-silent` |
+
+**`s39` and `s40` are the pair the count wording turns on, and they exist because it could not be heard
+otherwise.** Until 2026-08-17 every fence in the corpus held a single line, so all four wordings said
+"one line" and the ticket's own "twelve-line code block" example had no material behind it. The two are
+held still in everything but the block: same carrier shape, same subject, same language, a colon
+lead-in in both. `r07` and `s07` stay in the set because the one-line block is the case the real corpus
+actually contains.
 
 What `r07` becomes around the block:
 
@@ -434,33 +445,73 @@ cb-short   … Ollama needs a lot of dependencies:. Code block. It's been runnin
 cb-silent  … Ollama needs a lot of dependencies:. . It's been running …
 ```
 
-**Measured before you listen:** on `s07` the one-line block is **179 phonemes — 10 of its 21 seconds**
-(382 / 20.9s read out, 203 / 10.9s silent). The four wordings are 30 phonemes apart end to end
-(`cb-silent` 203, `cb-short` 215, `cb-count` 227, `cb-long` 233), so the choice between them costs
-about a second. Also worth knowing: `r07.base` — the block read out — has a largest batch of **509**,
-which is `_split_phonemes`' packing ceiling; every skipping variant drops it to 436–467.
+What `s39` becomes — the twelve-line case:
+
+```
+base       … over there:. ```. split_on_budget() {. local text="${1}". local budget="${2:-400}". local out="". while [ "${#text}" -gt "$budget" ]. do. local head="${text:0:budget}". out="$out$head. ". text="${text:budget}". done. printf '%s%s' "$out" "$text". }. ```. The sanitizer already does …
+cb-long    … over there:. Then a twelve line code block. The sanitizer already does …
+cb-count   … over there:. Code block, twelve lines. The sanitizer already does …
+cb-short   … over there:. Code block. The sanitizer already does …
+cb-silent  … over there:. . The sanitizer already does …
+```
+
+and `s40`, whose only job is to move the number:
+
+```
+cb-long    … already a helper:. Then a three line code block. Nothing else has to change …
+cb-count   … already a helper:. Code block, three lines. Nothing else has to change …
+```
+
+**Measured before you listen:**
+
+- **What the block costs when it is read out.** On `s39`, 414 phonemes — **22 of its 35 seconds** (652 /
+  34.6s under `base`, 238 / 12.8s under `cb-silent`). On `s40`, 172 phonemes, 9 of 20 seconds (376 /
+  20.3s against 204 / 11.4s). On `s07`, 179 phonemes, 10 of 21 seconds (382 / 20.9s against 203 /
+  10.9s).
+- **The count word is nearly free.** `cb-count` against `cb-short` is 15 phonemes on `s39` and 14 on
+  `s40` — about a second either way (14.7s vs 13.6s; 13.2s vs 12.2s). The four wordings span 32
+  phonemes end to end on `s39` (238 / 250 / 265 / 270), 31 on `s40` (204 / 216 / 230 / 235) and 30 on
+  `s07` (203 / 215 / 227 / 233).
+- **Skipping the block takes `s39` from two batches to one.** `s39.base` is 652 phonemes in two
+  batches, largest 455; every skipping variant fits in a single batch of 238–270. `r07` needs two
+  batches in every variant, and `r07.base` — the block read out — is at **509**, `_split_phonemes`'
+  packing ceiling, which its skipping variants drop to 436–467.
+- **A long block is not a crash on its own.** `s39`'s `max_run` is **215**: the twelve lines fuse into
+  one 215-character run when the newlines are deleted, well under the corpus detector's 400-character
+  flag. The crash shape needs `s37`'s length, which is axis 2's business, not this axis's.
 
 **What to listen for**
 
-1. `base` is the "don't skip it" control: the arrows, `python@3 point 14` and `openssl@3` read out in
-   full. Confirm the skip is worth doing before choosing how to word it.
-2. The lead-in is `dependencies:` — the sentence already promises something. Does `cb-silent` leave
-   that promise dangling, or is the pause enough?
-3. `cb-long` is a full sentence with a verb-less subject ("Then a one line code block"); `cb-count` and
-   `cb-short` are fragments. Which one survives being heard twenty times a day?
-4. Whether the **line count** earns its words at all — that is `cb-count` against `cb-short`.
+1. `base` is the "don't skip it" control. On `s39` that is twelve lines of shell read aloud — braces,
+   `${2:-400}`, `"${#text}"` — for 22 of 35 seconds; on `r07` it is the arrows, `python@3 point 14` and
+   `openssl@3` in full. Confirm the skip is worth doing before choosing how to word it.
+2. **`s39` against `s40` is the count on its own.** `Code block, twelve lines.` and `Code block, three
+   lines.` sit in the same carrier and the only thing that moved is the number. Does twelve tell you
+   something three does not, or is any number the same information?
+3. Whether the **line count** earns its words at all — `cb-count` against `cb-short`, on both new items.
+   It costs about a second.
+4. `cb-long` is a full sentence with a verb-less subject ("Then a twelve line code block"); `cb-count`
+   and `cb-short` are fragments. Which one survives being heard twenty times a day?
+5. The lead-in is a colon in every item — `dependencies:` in `r07`, `over there:` in `s39` — so the
+   sentence already promises something. Does `cb-silent` leave that promise dangling, or is the pause
+   enough? `s39` is the harder case, because what was promised is twelve lines long.
+6. Whether a **one**-line block wants different wording from a twelve-line one: `s07` or `r07` against
+   `s39`, where `cb-long` is "Then a one line code block" against "Then a twelve line code block".
 
-**Limitation, stated rather than papered over:** neither corpus item has a *multi-line* fenced block.
-Both `r07` and `s07` hold a single line, so every wording here says "one line" and the ticket's
-"twelve-line code block" case cannot be heard from this corpus without inventing text. The count
-mechanism is implemented and counts non-blank lines; only the corpus is short.
+**The gap this section used to record is closed.** It previously stated that neither corpus item had a
+multi-line fenced block, so every wording said "one line". `s39` and `s40` were authored for exactly
+that, `MD-FENCE-MULTI` was added to `corpus/classes.tsv` so the coverage table can show the absence
+next time, and the ten new wavs are in the same directory as the rest of this audition.
 
 ---
 
 ## What this audition cannot settle
 
 - **Anything about how any of it sounds.** Nothing here was played back while it was built.
-- **The multi-line code block** (above).
+- **Whether the corpus's *other* shapes are the ones that matter.** The multi-line code block was
+  missing until 2026-08-17 and axis 7 was unjudgeable because of it; nothing rules out a second
+  omission of the same kind. `corpus/classes.tsv` is the only place that can surface one, and it is
+  hand-maintained.
 - **Rule L, the `lives` respelling.** It stays gated behind `--respell`, its trigger condition is still
   unestablished, and it still mis-fires on "the lives of others". No variant includes it, so no wav
   here is affected by it — but the defect is in the audio: `s12`, in the path axis, carries
@@ -573,3 +624,13 @@ length of the audio. No timing column: see above.
 | 7 code blocks | `s07` | `cb-count` | `s07.cb-count.af_heart.wav` | 199 | 227 | 1 | 227 | 12.6 |
 | 7 code blocks | `s07` | `cb-short` | `s07.cb-short.af_heart.wav` | 189 | 215 | 1 | 215 | 11.9 |
 | 7 code blocks | `s07` | `cb-silent` | `s07.cb-silent.af_heart.wav` | 179 | 203 | 1 | 202 | 10.9 |
+| 7 code blocks | `s39` | `base` | `s39.base.af_heart.wav` | 471 | 652 | 2 | 455 | 34.6 |
+| 7 code blocks | `s39` | `cb-long` | `s39.cb-long.af_heart.wav` | 260 | 270 | 1 | 270 | 15.0 |
+| 7 code blocks | `s39` | `cb-count` | `s39.cb-count.af_heart.wav` | 255 | 265 | 1 | 265 | 14.7 |
+| 7 code blocks | `s39` | `cb-short` | `s39.cb-short.af_heart.wav` | 241 | 250 | 1 | 250 | 13.6 |
+| 7 code blocks | `s39` | `cb-silent` | `s39.cb-silent.af_heart.wav` | 231 | 238 | 1 | 237 | 12.8 |
+| 7 code blocks | `s40` | `base` | `s40.base.af_heart.wav` | 299 | 376 | 1 | 376 | 20.3 |
+| 7 code blocks | `s40` | `cb-long` | `s40.cb-long.af_heart.wav` | 223 | 235 | 1 | 235 | 13.3 |
+| 7 code blocks | `s40` | `cb-count` | `s40.cb-count.af_heart.wav` | 218 | 230 | 1 | 230 | 13.2 |
+| 7 code blocks | `s40` | `cb-short` | `s40.cb-short.af_heart.wav` | 205 | 216 | 1 | 216 | 12.2 |
+| 7 code blocks | `s40` | `cb-silent` | `s40.cb-silent.af_heart.wav` | 195 | 204 | 1 | 203 | 11.4 |

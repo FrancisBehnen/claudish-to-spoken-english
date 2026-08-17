@@ -1,0 +1,7 @@
+The same guard is much shorter when the sanitizer owns it, because the boundary insert is already a helper:
+```
+text="$(strip_markdown "$text")"
+text="$(insert_boundaries "$text" 400)"
+printf '%s' "$text"
+```
+Nothing else has to change, and the worker keeps handing whole utterances to Kokoro.

@@ -4,6 +4,7 @@ MD-HASH	`#` heading markers are voiced as "hash", once per `#` up to espeak's $m
 MD-UNDERSCORE	`_italics_` comes out clean; `_` is in SUBTOKEN_JUNKS. Control. text-handling §1
 MD-BACKTICK	Backticks become curly-quote prosody, not words. Deferred to the ear test. text-handling §1 and "what needs an ear test" item 1
 MD-FENCE	A ``` fence becomes three curly quotes on each side. text-handling §1
+MD-FENCE-MULTI	A fenced block whose body holds more than one non-blank line. Not a separate phoneme hazard — the fence sounds the same either way, see MD-FENCE — but the announcement that replaces a skipped block carries a LINE COUNT, so a one-line block and a twelve-line block are different inputs to that wording. Carried so the coverage table can show the absence, which is how #8's axis 7 came to be built entirely against one-line blocks. espeak-sanitizer rule N, decisions/sanitizer-audition.md axis 7
 MD-BULLET	A `-` bullet is either an em-dash pause or silent, depending on the spaCy tag. text-handling §1
 MD-ORDERED	An ordered-list `1.` marker is read as "one." text-handling §1
 MD-BLOCKQUOTE	`>` is silent (tagged XX). Control. text-handling §1

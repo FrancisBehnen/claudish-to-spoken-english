@@ -40,6 +40,16 @@ for f in "$@"; do
   grep -qE '_[A-Za-z][A-Za-z ]*_'         "$f" && add MD-UNDERSCORE
   grep -q '`'                             "$f" && add MD-BACKTICK
   grep -q '```'                           "$f" && add MD-FENCE
+  # A fence whose BODY holds more than one non-blank line. Same phonemes as any
+  # other fence; the difference is that the announcement replacing a skipped
+  # block carries a line count (bench/sanitizers.py rule_N_code_block), so the
+  # count word cannot be judged from a corpus of one-line blocks.
+  awk '
+    /^[ \t]*```/ { if (inb) { if (n >= 2) found = 1; inb = 0; n = 0 } \
+                   else { inb = 1; n = 0 } ; next }
+    inb && NF > 0 { n++ }
+    END { exit(found ? 0 : 1) }
+  ' "$f" && add MD-FENCE-MULTI
   grep -qE '^[[:space:]]*- '              "$f" && add MD-BULLET
   grep -qE '^[[:space:]]*[0-9]+\. '       "$f" && add MD-ORDERED
   grep -qE '^[[:space:]]*> '              "$f" && add MD-BLOCKQUOTE

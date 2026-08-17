@@ -9,8 +9,8 @@ Assembled 2026-08-15.
 listened to while building this. The hazard classes are taken from the two measured research docs;
 this directory only assembles text that contains them.
 
-**50 items: 12 real, 38 synthetic.** Each half covers the other's blind spot, which is measurable
-rather than rhetorical — **23 of the 52 hazard classes appear in no real item at all** (see
+**52 items: 12 real, 40 synthetic.** Each half covers the other's blind spot, which is measurable
+rather than rhetorical — **24 of the 53 hazard classes appear in no real item at all** (see
 [Coverage](#coverage)). A dozen real messages really would have missed them.
 
 > **Corrected 2026-08-15.** The chunking items and their explanation were first written against
@@ -21,6 +21,11 @@ rather than rhetorical — **23 of the 52 hazard classes appear in no real item 
 > [Chunking](#chunking-s34-s38). Items `s37` and `s38` were added for the crash shape that omission
 > had left uncovered.
 
+> **Extended 2026-08-17.** Items `s39` and `s40` and the class `MD-FENCE-MULTI` were added because
+> every fence in the corpus held a **one-line** body, which made
+> [#8](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/8)'s code-block wording axis
+> unjudgeable — see [Multi-line code blocks](#multi-line-code-blocks-s39-s40).
+
 ---
 
 ## Layout
@@ -29,12 +34,12 @@ rather than rhetorical — **23 of the 52 hazard classes appear in no real item 
 corpus/
   README.md        this file
   manifest.tsv     one row per item: id, kind, measurements, hazard classes, origin, note
-  classes.tsv      the 52 hazard classes and what each one names, with doc citations
+  classes.tsv      the 53 hazard classes and what each one names, with doc citations
   notes.tsv        hand-maintained per-item origin and intent (input to manifest.tsv)
   capture-log.tsv  one row per subscription rewrite call actually spent
-  spoken/          THE CORPUS: 50 plain-text files, the text a speech path would say
+  spoken/          THE CORPUS: 52 plain-text files, the text a speech path would say
     r01.txt .. r12.txt   real  — the plain-English rewrite of a real assistant message
-    s01.txt .. s38.txt   synthetic — hand-authored, one or a few hazard classes each
+    s01.txt .. s40.txt   synthetic — hand-authored, one or a few hazard classes each
   source/          the real assistant messages the rNN rewrites were produced from
     r01.txt .. r12.txt
   bin/             the scripts that built and verify all of the above
@@ -129,11 +134,11 @@ the timestamp. All 12 come from two prior working sessions on this repo
 built this corpus. They were picked for a realistic spread of length (prose_len 204 → 3309 on the
 source side) and for resembling what the plugin actually rewrites, **not** for hazard coverage; that
 is the synthetic half's job, and keeping the selection independent of it is what makes the coverage
-table's 22 empty real-item classes meaningful.
+table's 24 empty real-item classes meaningful.
 
 ## The synthetic half
 
-38 hand-authored items, `s01`–`s38`, each targeting one or a few named hazard classes so that every
+40 hand-authored items, `s01`–`s40`, each targeting one or a few named hazard classes so that every
 class is present at least once regardless of what the real messages happened to contain. Per-item
 intent is the `note` column of `manifest.tsv` (maintained in `notes.tsv`).
 
@@ -142,8 +147,8 @@ the `.txt` files and re-run `bin/build-manifest.sh`.
 
 Grouped roughly: `s01`–`s07` markdown syntax, `s08`–`s14` paths and code locations, `s15`–`s20`
 identifiers, `s21`–`s25` numbers, `s26`–`s29` URLs, emoji, glyphs, flags and symbols, `s30` a
-prose-only control, `s31` the inline phoneme override, `s32`–`s33` the 200-character gate, and
-`s34`–`s38` the five chunking cases.
+prose-only control, `s31` the inline phoneme override, `s32`–`s33` the 200-character gate,
+`s34`–`s38` the five chunking cases, and `s39`–`s40` the two multi-line fenced code blocks.
 
 Several items are deliberately **controls** — classes both research docs found already correct
 (`s09` bare extensions, `s16` the `NAME=0` form, `s25` percentages and currency, the `FLAG-LONG` half
@@ -188,9 +193,56 @@ chunker, because `KPipeline` splits on `\n+` first. That is true of the **torch*
 `kokoro-onnx` has no such split. The `\n+` split is why `SPLIT-NEWLINE` is now documented as buying
 nothing rather than as free pipelining.
 
+### Multi-line code blocks (`s39`–`s40`)
+
+Added 2026-08-17 for [#8](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/8)
+axis 7, *how a skipped code block is announced*. That a block is skipped and announced is settled; the
+wording is not, and the candidate wordings differ mainly in whether they say a **line count**
+(`rule_N_code_block` in `bench/sanitizers.py`). The corpus could not judge that. `r07` and `s07` were
+the only items with a fence and **both bodies are one line**, so every wording said "one line" and the
+ticket's own "twelve-line code block" example had nothing behind it.
+
+| item | fence body | `max_run` | what the count wording says |
+| --- | --- | --- | --- |
+| `s39` | **12** non-blank lines — a shell function, in a paragraph that proposes moving the chunk guard into the worker | 215 | `twelve` |
+| `s40` | **3** non-blank lines — the same guard expressed as sanitizer calls, in the same carrier | 171 | `three` |
+
+They are a pair for the reason `s36` and `s38` are a pair: everything but the one variable is held
+still. Same carrier prose, same subject, same block language — so `Code block, twelve lines.` against
+`Code block, three lines.` moves the number word and nothing else, and either can be set against
+`Code block.` to ask whether the count earns its words at all. Both blocks sit mid-paragraph after a
+colon lead-in, which is how `r07` really emits one.
+
+**Both are safely under the chunk budget, and that is itself a finding.** A 12-line shell block fuses
+into a 215-character run once the newlines are deleted — well short of the detector's 400-character
+flag and of the ~500-character danger point (see [Chunking](#chunking-s34-s38)). The crash shape does
+not come free with a long code block; it needs `s37`'s length. Neither item carries
+`CHUNK-LIST-NOPUNCT`, and both `notes.tsv` rows record the `max_run` so that is not a surprise later.
+
+### Why `MD-FENCE-MULTI` is a class
+
+`MD-FENCE` names a phoneme fact — three backticks become three curly quotes on each side — and that
+fact is identical for a one-line body and a twelve-line one. On the taxonomy's own terms the
+distinction therefore does not belong in it, and the honest alternative was to add nothing and let
+`manifest.tsv` speak.
+
+It was added anyway, for one reason: **the coverage table is how this corpus checks itself, and it
+read `MD-FENCE 1 real, 1 synthetic` while being unable to answer the only question axis 7 asks.** The
+gap was invisible in the one place built to make gaps visible. A class costs one row here and one
+`awk` in `bin/detect-hazards.sh`; not seeing the gap cost an audition axis.
+
+The alternative was rejected on measurement, not taste: `manifest.tsv`'s `lines` column counts the
+whole item, not the fence body — `s07` is 5 lines with a one-line block — so nothing derivable from
+the manifest separated the two shapes.
+
+Two caveats kept explicit. The class carries **no doc citation**, because neither research doc
+measures it; `GLYPH` is the precedent for carrying a class defensively rather than because a doc
+measured it. And it is **not a claim about sound** — it says a fence body holds more than one non-blank
+line, which is exactly the input `rule_N_code_block` counts and pluralises.
+
 ## Coverage
 
-52 hazard classes, taken from
+53 hazard classes, taken from
 [`docs/research/kokoro-text-handling.md`](../docs/research/kokoro-text-handling.md) (#3, misaki, from
 source plus a real G2P run),
 [`docs/research/kokoro-programming-text-audio.md`](../docs/research/kokoro-programming-text-audio.md)
@@ -205,7 +257,7 @@ than from the items, so a class nobody covers still gets a row.
 
 Three things to read out of it.
 
-**23 classes have zero real items** — every one would have been missed by a real-messages-only corpus.
+**24 classes have zero real items** — every one would have been missed by a real-messages-only corpus.
 
 **The classes with the *most* real items are a frequency signal the synthetic half cannot give:**
 `MD-BACKTICK` 9, `CHUNK-510-PUNCT` 8, `PATH-SLASH` 7, `MD-ASTERISK` 6, `PATH-EXT` and `NUM-UNIT` 5
@@ -223,15 +275,16 @@ longer bullet list away, which is exactly why `s37` had to be added rather than 
 | --- | --- | --- | --- |
 | `MD-ASTERISK` | 6 | 1 | r05, r06, r09, r10, r11, r12, s01 |
 | `MD-HASH` | 0 | 1 | s02 |
-| `MD-UNDERSCORE` | 2 | 3 | r11, r12, s01, s15, s31 |
-| `MD-BACKTICK` | 9 | 2 | r01, r04, r05, r06, r07, r08, r10, r11, r12, s03, s07 |
-| `MD-FENCE` | 1 | 1 | r07, s07 |
+| `MD-UNDERSCORE` | 2 | 4 | r11, r12, s01, s15, s31, s39 |
+| `MD-BACKTICK` | 9 | 4 | r01, r04, r05, r06, r07, r08, r10, r11, r12, s03, s07, s39, s40 |
+| `MD-FENCE` | 1 | 3 | r07, s07, s39, s40 |
+| `MD-FENCE-MULTI` | 0 | 2 | s39, s40 |
 | `MD-BULLET` | 2 | 3 | r09, r10, s04, s37, s38 |
 | `MD-ORDERED` | 2 | 1 | r05, r09, s05 |
 | `MD-BLOCKQUOTE` | 1 | 1 | r10, s06 |
 | `MD-PIPE` | 1 | 1 | r11, s06 |
 | `ID-SCREAM` | 2 | 3 | r11, r12, s15, s16, s31 |
-| `ID-SNAKE` | 1 | 4 | r04, s03, s14, s16, s17 |
+| `ID-SNAKE` | 1 | 6 | r04, s03, s14, s16, s17, s39, s40 |
 | `ID-CAMEL` | 3 | 1 | r04, r09, r10, s17 |
 | `ID-KEBAB` | 0 | 1 | s17 |
 | `ID-ACRONYM` | 3 | 2 | r08, r10, r11, s18, s25 |
@@ -266,13 +319,13 @@ longer bullet list away, which is exactly why `s37` had to be added rather than 
 | `SYM` | 1 | 1 | r12, s29 |
 | `PROSE-LIVES` | 0 | 3 | s12, s13, s30 |
 | `OVERRIDE` | 0 | 1 | s31 |
-| `LEN-UNDER` | 0 | 30 | s01, s02, s03, s04, s05, s07, s08, s09, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19, s20, s21, s22, s23, s24, s25, s27, s28, s29, s31, s32, s38 |
+| `LEN-UNDER` | 0 | 32 | s01, s02, s03, s04, s05, s07, s08, s09, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19, s20, s21, s22, s23, s24, s25, s27, s28, s29, s31, s32, s38, s39, s40 |
 | `LEN-OVER` | 2 | 4 | r01, r02, s06, s26, s30, s33 |
 | `CHUNK-510-PUNCT` | 8 | 1 | r05, r06, r07, r08, r09, r10, r11, r12, s34 |
 | `CHUNK-510-NOPUNCT` | 0 | 1 | s35 |
 | `CHUNK-LIST-NOPUNCT` | 0 | 1 | s37 |
 | `CHUNK-LIST-SAFE` | 1 | 2 | r09, s04, s38 |
-| `SPLIT-NEWLINE` | 11 | 8 | r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, s02, s04, s05, s06, s07, s36, s37, s38 |
+| `SPLIT-NEWLINE` | 11 | 10 | r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12, s02, s04, s05, s06, s07, s36, s37, s38, s39, s40 |
 
 ### What the coverage table does not tell you
 
@@ -292,7 +345,8 @@ longer bullet list away, which is exactly why `s37` had to be added rather than 
 - **`GLYPH` is carried defensively and is not in either research doc.** Box-drawing characters were
   never measured. The class exists because the plugin's own on-screen divider is made of them and
   sits immediately above the rewrite.
-- **No claim is made that these 50 classes are exhaustive.** They are the classes the two docs name.
+- **No claim is made that these 53 classes are exhaustive.** They are the classes the two docs name,
+  plus `GLYPH` and `MD-FENCE-MULTI`, which are carried defensively.
   `kokoro-programming-text-audio.md` is explicit that its espeak column is "observations on these 48
   tokens", not a specification.
 

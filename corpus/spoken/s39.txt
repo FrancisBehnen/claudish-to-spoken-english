@@ -1,0 +1,16 @@
+The chunk guard could live in the worker instead of the sanitizer, but this is what it looks like over there:
+```
+split_on_budget() {
+  local text="${1}"
+  local budget="${2:-400}"
+  local out=""
+  while [ "${#text}" -gt "$budget" ]
+  do
+    local head="${text:0:budget}"
+    out="$out$head. "
+    text="${text:budget}"
+  done
+  printf '%s%s' "$out" "$text"
+}
+```
+The sanitizer already does the same thing in one pass over the text, which is the argument for leaving it where it is.
