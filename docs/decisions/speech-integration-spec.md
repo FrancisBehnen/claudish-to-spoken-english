@@ -46,8 +46,17 @@ own decision doc. What they changed, in the order the sections appear:
 | [`worker-residency.md`](worker-residency.md) | §10.5 **closes** — a lazy, self-electing, per-session resident worker, with the first TTFA ever measured from a hook. §10.6 gains the two clauses that make its own rule true | three measurements the mechanism's correctness clauses rest on are **[inferred]**: preemption, the lock protocol under N racers, and the bench-to-hook gap |
 | [`stop-hook-block-mechanics.md`](stop-hook-block-mechanics.md) | §5's cap is **nine invocations**, and nine is never an utterance count | `async: true`, `SubagentStop`, a raised cap, and two blocking hooks at once |
 
-**Read §13 for the lock's own status.** Three rows closed, three opened, and the honest answer to
-*"can #11 lock?"* is stated there rather than implied here.
+**Read §13 for the lock's own status.** **Six rows closed — 1, 2, 3, 4, 7 and 16 — and eight opened,
+17 through 24**, verified against the table rather than carried over from an earlier draft: `main`'s
+copy of this document has no row above 16 at all **[repo]**. The honest answer to *"can #11 lock?"* is
+stated there rather than implied here, and **the count going up is not a regression** — the closed rows
+were decisions nobody had made, the new ones are verifications of mechanisms that now exist on paper.
+Three of the eight block shipping (17, 20, 21).
+
+> **This sentence read *"three rows closed, three opened"* until review caught it.** It understated the
+> closures by half and the openings by more than half, while sitting three paragraphs above the table
+> that contradicts it. **Worth noticing as a class of defect rather than a typo**: a summary written
+> before the table it summarises, and then not re-derived from it.
 
 ---
 
@@ -238,19 +247,41 @@ standing leak today. **[repo]**
 it with no new cleanup code:
 
 ```
-$BUF_ROOT/<session_id>/speak/          # depth-2 dir -> swept by rewrite.sh:117 after 30 min idle
-$BUF_ROOT/<session_id>/speak/rewrite   # the finished rewrite, exactly as emitted, no separator
-$BUF_ROOT/<session_id>/speak/source    # sha256 of the trimmed ORIGINAL assistant text
-$BUF_ROOT/<session_id>/speak/prompt_id # the prompt_id, IF MessageDisplay carries one (see 3.2)
+$BUF_ROOT/<session_id>/speak/            # depth-2 dir -> swept by rewrite.sh:117 after 30 min idle
+$BUF_ROOT/<session_id>/speak/rw.<hash>   # the rewrite for the source text whose sha256 is <hash>
+$BUF_ROOT/<session_id>/speak/prompt_id   # DIAGNOSTIC ONLY, off the correctness path (see 3.2)
 ```
+
+**`rw.<hash>` is content-addressed and there is no `source` file.** The name carries the whole handoff
+key: `<hash>` is the `sha256( trim( original text ) )` of §3.2, so **the path itself is the proof that
+this rewrite belongs to that source text.** Two earlier drafts of this section instead published the
+hash into a mutable `speak/source` and tried to order the reads around it; both were wrong, and §3.1's
+"How the publish is installed" below is written so that its correctness argument does not mention read
+order at all.
 
 `speak.sh` writes two more files into the same directory — `spoken` (the dedup hash, §5.1) and `pid`
 (the preemption PID, §10.6). **Both hooks write into one depth-2 directory**, which is what keeps the
 whole feature inside a single sweep-reclaimed path.
 
-**Lifecycle: one `speak/` per session, overwritten in place on every rewritten message.** Not one per
-message — a per-message file would reproduce exactly the pile-up `emit()`'s comment warns about.
-`speak.sh` never deletes it; the existing sweep does.
+**Lifecycle: one `speak/` per session; one `rw.<hash>` per distinct rewritten message, never
+overwritten with different provenance.** This is a change from an earlier draft that kept a single
+`speak/rewrite` overwritten in place, and the reason for the change is in the install block below:
+**a reused path is what made the mixed-generation race possible.** `speak.sh` never deletes anything;
+the existing sweep does.
+
+**What that costs, priced rather than waved past, because §3.1 rejected per-message files once
+already.** `emit()`'s comment warns that per-message files *"would pile up in TMPDIR one per assistant
+message"* — and that warning is about loose files at `$BUF_ROOT`'s **top level**, which the sweep
+never reclaims (`$BUF_ROOT/$sid.notified` is the standing example). **These files are different in
+kind: they live inside the depth-2 directory the sweep `rm -rf`s wholesale**, so the accumulation is
+bounded by one session rather than unbounded in time. A rewrite is a few hundred to a couple of
+thousand bytes, so a long session holds well under a megabyte **[inferred]**.
+
+**The producer does NOT prune older generations, and that is a decision rather than an omission.** It
+could unlink every `rw.*` but its own; it must not. A consumer still inside §3.5.1's bounded wait for
+an older hash would then get `ENOENT`, wait to its deadline and go **silent** — safe under §3.2's
+posture, but a real utterance lost to save a few kilobytes the sweep reclaims anyway. **The sweep is
+the reclamation.**
 
 **Publication point.** `rewrite.sh` obtains `$rewrite` before it builds `$out` at `:235`. The publish
 is a **separate write** placed there, not a reuse of `$out`: `emit()` reads and then `rm -f`s its
@@ -260,38 +291,61 @@ path — the display hook's fail-open contract outranks the speech feature absol
 behind `CLAUDISH_SPEAK`, normatively — §11.** A disabled user does not pay for the hash, the `mkdir` or
 the renames below.
 
-**How the publish is installed, and this is normative — ordering the consumer's reads is not enough.**
-The publish writes two files (three with `prompt_id`), and §3.2's whole guarantee rests on a consumer
-that sees a matching `source` also seeing the `rewrite` that belongs to it. Nothing about two separate
-`>` redirections gives that. **If `source` lands first, the worker matches the expected hash and then
-reads the *previous* turn's `rewrite` — which is precisely the failure §3.2's content hash exists to
-prevent, reintroduced one layer down.** So:
+**The plugin's global switches need no separate check here, and that is a property of the placement
+rather than luck.** `:100`'s `[ "$ENABLED" = "1" ] || pass_through` — which is `CLAUDISH_ENABLED` and
+the `~/.claude/claudish-off` flag file, `rewrite.sh:57` and `:61` — sits far above `:235`, so a hook
+that reaches the publish point has already passed both **[repo]**. **`speak.sh` gets no such
+inheritance**: it is a different process on a different event and must test them itself, which it did
+not until review — §10.3 steps 0a–0b.
 
-1. **Every file is installed by temp-file rename, never written in place.** Write to a unique temp name
-   **inside the same speak directory** — `rename(2)` is atomic only within a filesystem, and the depth-2
-   speak dir is the one place both hooks already share — then `rename` it onto its final name. **This is
-   the same primitive §10.5 clause 1 uses for the job drop**, for the same reason, and it is the idiom
-   this project already reaches for.
-2. **`source` is written LAST, and it is the commit marker.** Order: `rewrite`, then `prompt_id`, then
-   `source`. `source` is the only file §3.2 keys on, so **until `source` names the new hash the entire
-   publish is invisible to the consumer**, and once it does, the matching `rewrite` is already in place.
-   A publisher that dies part-way leaves the *old* `source` standing, so the half-written publish reads
-   as "not yet published" rather than as a match against the wrong text. **Fail-open falls out of the
-   ordering instead of needing a clause of its own.**
-3. **A match is not durable, because `speak/rewrite` is one path reused for every message.** There is
-   one `speak/` per session (the lifecycle above), so a *later* turn's publish **replaces** `rewrite`.
-   Point 1 means that replacement is never *torn* — a reader holding the old file keeps reading a whole,
-   consistent old version — but it does not stop the reader from getting the **wrong generation**: a
-   newer publish can land between the consumer's `source` read and its `rewrite` read. The commit-marker
-   order fixes the *stale-rewrite* direction; it cannot fix this one. **The consumer therefore reads as a seqlock: read `source`, read
-   `rewrite`, re-read `source`, and accept the text only if the second `source` read is byte-identical
-   to the first.** If it changed, a newer turn overtook this one — restart the compare (§3.5.1 clause 2)
-   or abandon the wait (§3.5.1 clause 5), both of which the wait already does. **This is what "the
-   worker re-verifies" in §3.5.1 clause 1 means, stated as a protocol rather than as a reassurance.**
+**How the publish is installed, and this is normative. THIRD ITERATION — the first two were both
+wrong, and the shape of the error is the reason this one is built differently.** The history matters
+because it is the argument for the design:
 
-**All three points are [inferred]** — reasoned from the rename semantics and this file's own lifecycle,
-not run. Nothing has published anything, so nothing has raced it. §13 row 17 is where the build-and-watch
-that retires it lives.
+| draft | mechanism | how it failed |
+| --- | --- | --- |
+| 1 | two plain writes, `rewrite` and `source`, unordered | `source` could land first, so a consumer matched the expected hash and read the **previous** turn's rewrite |
+| 2 | rename-install, `source` written last as a commit marker, consumer re-reads `source` after `rewrite` | **still accepts a mixed generation.** From `source=A, rewrite=A`: publisher B renames `rewrite=B`, and before it commits `source=B` a consumer for A reads `source=A`, reads `rewrite=B`, re-reads `source=A` — unmoved — and accepts B. **A re-read cannot detect a change that has not been published yet**, which is the flaw in calling it a seqlock: a real seqlock needs the writer to invalidate *before* touching the data, and this writer only ever published *after* |
+| 3 | **content-addressed immutable generation file, below** | correctness does not depend on read order, so there is no ordering left to get wrong |
+
+**Two ordering-based attempts have now failed review, so the third does not order anything.**
+
+1. **The rewrite is written to a path named by the hash of its own source text.** Write to a unique
+   temp name **inside the same speak directory** — `rename(2)` is atomic only within a filesystem, and
+   the depth-2 speak dir is the one place both hooks already share — then `rename` it onto
+   `speak/rw.<sha256( trim( original text ) )>`. **This is the same primitive §10.5 clause 1 uses for
+   the job drop**, and it is the idiom this project already reaches for.
+2. **There is no commit marker, because there is nothing to commit *to*.** The consumer already knows
+   the hash it wants: the hook computes it from `last_assistant_message` and the job carries it
+   (§3.5.1 clause 1). So the consumer's test is `[[ -f speak/rw.<expected> ]]` and its read is that
+   file — **it never reads a mutable file, compares two reads, or observes any other generation.**
+3. **The correctness argument, stated without reference to read order.** A file at `rw.<H>` can only
+   have been installed by a publisher that computed `H` over the text it rewrote, so **its contents are
+   a rewrite of exactly that text.** The path is a function of provenance, so it is never reused for a
+   different generation: **the mixed-generation state draft 2 admitted cannot be named**, and a
+   consumer for `H` cannot reach a rewrite for any other hash even in principle. The rename makes
+   appearance atomic, so no partial file is ever visible.
+4. **Where "immutable" is loose, said plainly rather than glossed.** The *path-to-provenance* mapping is
+   immutable; the bytes are not guaranteed unique. The same source text can be rewritten twice — an
+   identical message on two turns, or a retry — and the LLM is not deterministic, so the second install
+   may differ in wording. **Both are valid rewrites of that source text**, which is precisely what §3.2
+   guarantees, so which one a consumer gets is immaterial; and rename-install means it gets one of them
+   whole. **This is the one property a reader should check against intent**, because "immutable" would
+   otherwise be read as "byte-stable".
+5. **Fail-open still falls out of the structure.** A publisher that dies before its rename leaves no
+   `rw.<H>` at all, so the turn reads as "not yet published" and §3.5.1's wait handles it — the same
+   branch as a rewrite that timed out. A half-written temp file is never at a name anything looks up.
+
+**What this removes, and it is the point.** `speak/source` is **gone from the correctness path and
+from the file layout**. Draft 2 left it standing as the thing consumers keyed on; keeping a mutable,
+reused, hash-bearing file in the design after two ordering failures is how a fourth iteration of this
+defect would arrive. `prompt_id` stays, marked diagnostic, and **nothing keys on it** — §3.2 already
+declined it as the key and §13 row 4 records why.
+
+**All of this is [inferred]** — reasoned from `rename(2)` semantics and this file's own lifecycle, not
+run. Nothing has published anything, so nothing has raced it. §13 row 17 is where the build-and-watch
+that retires it lives, and its closing condition now names the property to check: **that no consumer
+ever opens a path it did not compute from its own expected hash.**
 
 **Only successful rewrites are published.** The below-threshold branch (`:147`), the notice branch
 (`:210-225`) and every `pass_through` publish nothing. A stale `speak/` from an earlier message is
@@ -321,13 +375,19 @@ rewrite is worse than silence: it is a confident, fluent statement about the wro
 **The key is `sha256( trim( text ) )` on the source text.** Measured, not assumed:
 
 ```
-rewrite.sh publishes:  sha256( trim( assembled original text ) )   -> speak/source
-speak.sh  computes:    sha256( trim( last_assistant_message ) )
-match -> speak speak/rewrite.   mismatch or missing -> §3.5, and §3.5.1's bounded wait
+rewrite.sh publishes:  the rewrite -> speak/rw.<sha256( trim( assembled original text ) )>
+speak.sh  computes:    H = sha256( trim( last_assistant_message ) )
+speak/rw.<H> exists -> speak it.   absent -> §3.5, and §3.5.1's bounded wait
 ```
 
 A hash, not the text, so nothing large is stored or compared. `trim` on both sides because the harness
 itself trims (`…trim() || undefined`, **[bin]**).
+
+**The key is unchanged by §3.1's third draft; only the file layout is.** The hash is still
+`sha256( trim( source ) )` and it is still the only thing that authorises speech. What changed is that
+the hash is now the rewrite's **filename** rather than the contents of a separate `speak/source`, which
+turns "compare two files and hope the order held" into "open the one path your own hash names".
+**§3.2's decision is untouched; §3.1 stopped implementing it unsafely.**
 
 **The match rate is 35 of 35 — 100%, byte-identical, not merely trim-equal.** Measured 2026-08-25 on
 2.1.245 by instrumenting both sides of one driven session: 35 `Stop` payloads against 35
@@ -550,7 +610,7 @@ the two hooks agree about the threshold without coordinating.
 
 | buffer | prose_len | hazards | action |
 | --- | --- | --- | --- |
-| **hit** (§3.2 match) | any | any | speak `speak/rewrite` — sanitized, pipelined |
+| **hit** (§3.2 match — `speak/rw.<H>` exists) | any | any | speak that file — sanitized, pipelined |
 | miss | `< MIN_CHARS` | none disqualifying | speak `last_assistant_message` **raw** — sanitized, pipelined |
 | miss | `< MIN_CHARS` | ≥ 1 disqualifying | **silent** |
 | miss | `≥ MIN_CHARS` | any | **BOUNDED WAIT (§3.5.1)**, then: publish arrives and matches → speak it; deadline passes → **silent** |
@@ -655,7 +715,7 @@ message**: on the *Clocks* turn the slow-published buffer still read `# The Hist
 
 | repair | verdict |
 | --- | --- |
-| **a bounded wait in the speech path** for a matching `speak/source` | **ADOPTED — the only one the measurement unconditionally supports.** It is the only option that does not depend on winning a race. Its cost is real and is priced below. |
+| **a bounded wait in the speech path** for `speak/rw.<H>` to appear | **ADOPTED — the only one the measurement unconditionally supports.** It is the only option that does not depend on winning a race. Its cost is real and is priced below. |
 | `rewrite.sh` publishes the **original hash** immediately at the final chunk, the rewrite later | **a race, not a fix — but a winnable one.** Lost 27 of 30 as instrumented. The budget is now known: get the bytes on disk **within ~20 ms of hook entry**, which means writing the delta concatenation *before* any metadata parsing. Permitted as an **optimisation** (it converts a wait into no wait on the turns it wins) and **forbidden as the mechanism**, because it can never be better than a race. |
 | **move speech off `Stop`** onto whatever fires after the display hook completes | **unevaluated, and the measurement neither helps nor hurts it. No such event was found.** `MessageDisplay` firing per chunk makes "after the display hook completes" a per-chunk notion, so this needs an event that exists before it can be scored. Not adopted, and not refuted either. |
 
@@ -677,21 +737,23 @@ one. Not adopted.
 1. **The job carries an expectation, not a filename.** The hook writes a job to a temp name and
    renames it onto `$BUF_ROOT/<session_id>/speak/job` (§10.5 clause 1). The job carries: the hook's own
    **fire time**; the **expected source hash** `sha256( trim( last_assistant_message ) )`; and the
-   **mode** — `buffered` (speak `speak/rewrite` once `speak/source` equals the expected hash) or `raw`
+   **mode** — `buffered` (speak `speak/rw.<expected hash>` once it appears) or `raw`
    (speak this text, included inline, no wait). Rows one and four of §3.5's table are therefore the
    *same* job shape, differing only in how long the wait turns out to be — which is a simplification,
-   not an extra case: even on a buffer **hit** the worker re-verifies, because `speak/rewrite` is
-   overwritten in place and could move between the hook's read and the worker's.
-2. **What it waits on: `speak/source` holding the expected hash. Nothing else.** Not "the buffer
-   changed", not a timestamp, not `prompt_id`. Re-read `speak/source` on each wake and compare; read
-   `speak/rewrite` **only after** a match, and only in that order — the reverse order can read a
-   rewrite that belongs to a source it has not yet seen. **Then re-read `speak/source` once more and
-   accept the text only if it has not moved** (§3.1's seqlock, point 3).
-   - **This clause is sound only because the producer is ordered too, and that half lives in §3.1
-     rather than here.** Ordering the consumer's reads is worthless against a producer that writes
-     `source` before `rewrite`: the worker would match the expected hash and read the previous turn's
-     text. §3.1 now makes `source` a commit marker written last, with every file installed by
-     temp-file rename. **Neither half is sufficient alone**, which is why each names the other.
+   not an extra case: on a buffer **hit** the worker simply finds the file already there, and it opens
+   the same content-addressed path either way, so there is nothing to re-verify (§3.1 draft 3).
+2. **What it waits on: `speak/rw.<expected hash>` coming into existence. Nothing else.** Not "the
+   buffer changed", not a timestamp, not `prompt_id`, and **not a mutable `speak/source`** — that file
+   no longer exists (§3.1). On each wake, `stat` the one path the job's expected hash names; if it is
+   there, read it and speak. **There is no compare, no read ordering and no re-read**, because the path
+   the worker opens is computed from the hash it is waiting for and can hold nothing else.
+   - **Two earlier drafts of this clause DID order reads, and both were wrong.** Draft 1 read a mutable
+     `source` and could speak the previous turn's rewrite; draft 2 added a re-read of `source` and still
+     accepted a mixed generation, because a publisher can install the next `rewrite` before committing
+     the next `source`, and **a re-read cannot detect a change that has not been published yet**. §3.1
+     carries the table. **The lesson recorded here rather than only there: this clause should be
+     suspected first if the wait ever speaks the wrong turn, and any future version of it that
+     reintroduces a comparison between two files is reintroducing the bug.**
 3. **The ceiling is derived from the thing it is waiting for, and no new knob ships.** The publish is
    bounded by `rewrite.sh`'s own LLM budget: `LLM_TIMEOUT="${CLAUDISH_TIMEOUT:-45}"` (`rewrite.sh:65`),
    enforced by `_llm_run_bounded`'s TERM → `sleep 2` → KILL (`providers.sh:146-172`) and by
@@ -1609,7 +1671,8 @@ its override per backend** rather than assuming "unset is safe".
 | `speak.sh` (plugin root, beside `rewrite.sh`) | new | the `Stop` hook. Bash, `curl`/`jq` idiom, no `set` options (§5). |
 | `$HOME/.claude/claudish-speak-off` | user | runtime mute flag; existence is the whole signal |
 | `$BUF_ROOT/<session_id>/speak/` | `rewrite.sh` and `speak.sh` write, the worker reads and writes | §3.1. Depth-2 directory so `rewrite.sh:117`'s existing sweep reclaims it. **Everything below lives in this one directory**, which is what keeps the whole feature inside a single sweep-reclaimed path. |
-| `$BUF_ROOT/<session_id>/speak/{rewrite,source,prompt_id}` | `rewrite.sh` writes, **behind `CLAUDISH_SPEAK`** (§11) | §3.1. **Each is installed by temp-file rename inside this same directory, never written in place, and `source` is written LAST as the commit marker** — so a consumer that sees a matching `source` is guaranteed the matching `rewrite` is already there. The consumer still re-reads `source` after `rewrite` (§3.1 point 3), because `rewrite` is overwritten in place once per session. |
+| `$BUF_ROOT/<session_id>/speak/rw.<hash>` | `rewrite.sh` writes, **behind `CLAUDISH_ENABLED`, the global off-file, and `CLAUDISH_SPEAK`** (§10.3, §11) | §3.1. **Content-addressed: `<hash>` is `sha256( trim( original text ) )`, so the path is the proof of provenance.** Installed by temp-file rename inside this directory. **Never overwritten with different provenance, and there is no `speak/source`** — a consumer opens the single path its own expected hash names and compares nothing. Not pruned by the producer; the sweep reclaims the directory. |
+| `$BUF_ROOT/<session_id>/speak/prompt_id` | `rewrite.sh` writes, same gates | §3.1. **Diagnostic only — nothing keys on it** (§3.2, §13 row 4). |
 | `$BUF_ROOT/<session_id>/speak/job` | `speak.sh` writes by atomic rename; the **worker** claims by renaming it to `job.taken.<pid>` | §3.5.1 clause 1, §10.5 clause 1. Carries the fire time, the expected source hash, and the mode. A read-then-unlink of `job` would lose a job renamed in between, irrecoverably. |
 | `$BUF_ROOT/<session_id>/speak/worker.lock/` and `worker.lock/pid` | the **worker** writes | §10.5 clause 2. The `mkdir` is the election; the pid inside it is what `kill -0` checks. A lock with no `pid` yet is **initializing**, not stale. |
 | `$BUF_ROOT/<session_id>/speak/spoken` | the **worker** writes, at the moment text goes to synthesis | dedup hash (§5.1, as amended by §3.5.1 clause 6) |
@@ -1624,6 +1687,10 @@ care which, only that drift is impossible by inspection.
 
 Specified as an order because the cheap rejections must precede everything, for §11's reason.
 
+0a. **`CLAUDISH_ENABLED` is not `0`, else `exit 0`** — the plugin's **master** switch
+   (`rewrite.sh:57`). **Before reading stdin.**
+0b. **The global off-file `${CLAUDISH_OFF_FILE:-$HOME/.claude/claudish-off}` does not exist, else
+   `exit 0`** (`rewrite.sh:61`).
 1. `CLAUDISH_SPEAK` is `1`, else `exit 0`. **Before reading stdin.**
 2. `CLAUDISH_SPEAK_OFF_FILE` does not exist, else `exit 0`.
 3. `jq` present, else `exit 0`.
@@ -1632,9 +1699,10 @@ Specified as an order because the cheap rejections must precede everything, for 
    step 8b instead, on the text.
 6. `background_tasks` has no `status: "running"` entry, else `exit 0` (§8).
 7. `last_assistant_message` present and non-empty, else `exit 0` (§2).
-8. **Classify via §3.5's decision table** — compute `prose_len`, hash `last_assistant_message`, compare
-   against `speak/source`, and run the eight-class hazard gate if the buffer missed and `prose_len` is
-   below `MIN_CHARS`. `exit 0` if the table says silent.
+8. **Classify via §3.5's decision table** — compute `prose_len`, compute
+   `H = sha256( trim( last_assistant_message ) )`, test `[[ -f speak/rw.<H> ]]`, and run the eight-class
+   hazard gate if the buffer missed and `prose_len` is below `MIN_CHARS`. `exit 0` if the table says
+   silent. **The hit test is an existence check on one computed path, not a read-and-compare** (§3.1).
 8b. **~~Dedup on the resolved text~~ — MOVED.** On the waiting row the resolved text is not known here,
    so the hook cannot hash it. The dedup check against `speak/spoken` happens in the worker, at the
    moment text goes to synthesis (§5.1 as amended, §3.5.1 clause 6). **Nothing in the hook reads or
@@ -1646,12 +1714,31 @@ Specified as an order because the cheap rejections must precede everything, for 
    **without waiting for anything**: not for the worker, not for synthesis, not for the wait, not for
    playback.
 
-Steps 1–2 are the whole of the off-by-default guarantee (§11), and step 9 is the whole of the
-non-blocking guarantee (§6). **Measured at 0.063–0.219 s, median 0.086 s, for the whole sequence**
-**[hook]**.
+**Steps 0a–0b are the whole of the *global* disable guarantee, and steps 1–2 the whole of the
+off-by-default guarantee (§11)**; step 9 is the whole of the non-blocking guarantee (§6). **Measured at
+0.063–0.219 s, median 0.086 s, for the whole sequence** **[hook]** — a figure taken before steps 0a–0b
+existed, and two more env-and-`stat` tests do not move it out of that range.
 
-**Steps 1–2 must precede step 3, and the ordering is load-bearing rather than stylistic.** Putting the
-enable check after `jq` would make a speech-disabled user's turn depend on `jq` being installed and
+> **Steps 0a and 0b were MISSING and that was a real hole, found in review.** `speak.sh` checked only
+> the two speech-specific gates, so **a user who had switched the whole plugin off with
+> `CLAUDISH_ENABLED=0` or a `~/.claude/claudish-off` file would still hear audio** — §10.8 promises
+> *"`claudish-off` stops both"* and nothing implemented it. `rewrite.sh` returning early at `:100`
+> does not help: `speak.sh` is a **separate process on a separate event**, and the two share no state
+> but these files. **The raw path is what makes it bite.** §3.3 speaks the raw text below
+> `CLAUDISH_MIN_CHARS` without needing any publish at all, so the master switch being off removes the
+> *rewrite* the speech path would have waited for but not the speech: the hook would still elect a
+> worker, still load a ~340 MB model, and still speak. **This is the same family as the
+> `CLAUDISH_SPEAK` gap §11 fixed one round earlier, one level up** — that one was speech-specific,
+> this one is the master switch.
+>
+> **`CLAUDISH_ENABLED` is read from the environment and the off-file is `stat`ed fresh**, matching
+> `rewrite.sh:57` and `:61` exactly, for the reason §10.1 gives: `CLAUDISH_*` is frozen at session
+> launch, so only the flag file can stop a running session. **Neither is added to §10.1's table** —
+> they are `rewrite.sh`'s existing vars, and inventing `CLAUDISH_SPEAK_ENABLED` beside them is exactly
+> the drift §10.1 forbids.
+
+**Steps 0a–2 must all precede step 3, and the ordering is load-bearing rather than stylistic.** Putting
+an enable check after `jq` would make a speech-disabled user's turn depend on `jq` being installed and
 would pay for payload parsing they never asked for — which contradicts §11's guarantee that the
 bash-only rewrite path is unaffected for users who never enable speech. `rewrite.sh` already gets this
 right and is the precedent: `[ "$ENABLED" = "1" ] || pass_through` at `rewrite.sh:100` comes **before**
@@ -1840,13 +1927,41 @@ which is why the wait needs no new machinery.
   late first utterance per session is the worst case. **Not tolerable to leave unstated**, which is
   what this section used to do.
 
-**5. A warm-up synthesis at worker startup — recommended, with the trade named.** `kok.create("Warming
-up.")` before announcing readiness; `bench/bench.py:471-475` already does this and says why **[repo]**.
-**It is not free either way** **[hook]**: the first `create()` on a freshly loaded model is markedly
-slower than steady state — the same item took **2.13 s** as a worker's first synthesis against **1.41 s**
-on a worker that had already spoken — so the warm-up **costs 0.78–1.12 s of startup**, pushing
-exec→ready from 0.80–1.30 s to **1.33–2.02 s**, and therefore **lengthens the streaming lead clause 4
-needs**. Net: a win when there is lead time, a wash when there is not.
+**5. A warm-up synthesis at worker startup — REQUIRED, not recommended.** `kok.create("Warming up.")`
+before announcing readiness; `bench/bench.py:471-475` already does this and says why **[repo]**.
+
+> **STRENGTHENED in review, from "recommended" to required.** §10.5 is marked LOCKED and §13 row 2
+> lists the startup warm-up as part of the **selected** mechanism, so leaving the clause advisory handed
+> #23 a decision the lock claims is already made — over a choice worth 0.78–1.12 s of startup. Both
+> statements cannot stand, and **the data says required.**
+
+**It is not free** **[hook]**: the first `create()` on a freshly loaded model is markedly slower than
+steady state — the same item took **2.13 s** as a worker's first synthesis against **1.41 s** on a
+worker that had already spoken — so the warm-up **costs 0.78–1.12 s of startup**, pushing exec→ready
+from 0.80–1.30 s to **1.33–2.02 s**, and therefore **lengthens the streaming lead clause 4 needs**.
+
+- **The sentence that used to close this clause — *"a win when there is lead time, a wash when there is
+  not"* — is CONTRADICTED by the only rows that test it, and is withdrawn.** The `cold7` set contains a
+  near-controlled pair: `E-md-warmup` and `G-short-cold` both have the clause-4 ensure hook live, both
+  get **no lead** (a fifty-character reply), and both synthesise the **same item** `r01` — 268 chars in,
+  88 spoken, 5.06 s of audio — so their RTFs are directly comparable. The only difference in the run
+  notes is the startup warm-up **[hook]**:
+
+  | run | startup warm-up | TTFA | synthesis | RTF |
+  | --- | --- | --- | --- | --- |
+  | `A-stop-only` (no ensure hook either) | no | 5.441, 5.496 s | 4232, 3762 ms | 0.837, 0.744 |
+  | `E-md-warmup` | **no** | 4.489 s | 3007 ms | 0.595 |
+  | `G-short-cold` | **yes** | 2.657–3.161 s | 1218–1414 ms | **0.241–0.280** |
+
+- **So the warm-up is a win even with no lead at all**, because the hook-to-worker interval on a cold
+  start is itself **1.38–1.73 s** — enough to absorb the warm-up — which converts the *user-visible*
+  synthesis from a cold first `create()` into a warm one and roughly halves it. **It is not a wash; it
+  is the difference between failing the 3 s line and sitting just under it.**
+- **The honest limit of that comparison: n = 1 on the `E` side**, and the two runs differ in their run
+  label as well as in the warm-up, so this is **suggestive rather than controlled**. It is enough to
+  settle *required versus recommended* — the direction is unambiguous and large — and not enough to
+  quote as an effect size. Marked **[hook]**; the paired A/B that would make it controlled is the same
+  shape as §13 row 22 and is not owed for this decision.
 
 **6. Idle exit at 20 minutes — deliberately SHORTER than `rewrite.sh:117`'s 30-minute sweep, not equal
 to it.** **Not measured** — the runs were minutes long. It re-introduces a cold start after twenty
@@ -2028,7 +2143,9 @@ The plugin documents its configuration in depth, so the surface above lands in `
   not a prerequisite** — verified on this machine; the `libespeak-ng.dylib` ships inside the
   `espeakng-loader` wheel.
 - the **mute-vs-disable** distinction: `claudish-speak-off` stops speech and keeps rewriting;
-  `claudish-off` stops both.
+  `claudish-off` stops both. **This promise is now actually implemented** — `speak.sh` checks
+  `CLAUDISH_ENABLED` and the global off-file as steps 0a–0b (§10.3), which it did not do until review
+  found the gap. A README claim that no code honours is worse than no claim.
 - the residual cost of §11, in the user's own terms: one extra process per turn when speech is off.
 - **that speech arrives AFTER the rewrite, not when the turn ends** — §3.5.1. This is the one piece of
   user-visible behaviour a reader would otherwise file as a bug: the answer appears on screen, then a few
@@ -2051,8 +2168,10 @@ plugin, whether or not they ever enable speech.**
 
 Therefore:
 
-- the guarantee is enforced **inside** `speak.sh`: `CLAUDISH_SPEAK` and the runtime off-file are
-  checked and `exit 0` taken **as the very first thing**, before `jq`, before reading stdin (§10.3);
+- the guarantee is enforced **inside** `speak.sh`: the plugin's **global** switches
+  (`CLAUDISH_ENABLED`, `~/.claude/claudish-off`) and then `CLAUDISH_SPEAK` and its own runtime off-file
+  are checked and `exit 0` taken **as the very first thing**, before `jq`, before reading stdin —
+  §10.3 steps 0a–2. **The two global checks were missing until review**; §10.3 carries what that cost;
 - **the same gate applies to `rewrite.sh`'s two new additions, and this is normative rather than
   advisory.** §10.5 clause 4's ensure-worker step runs on **every** `MessageDisplay` invocation — five
   to seven times per turn on a long reply — so it must sit behind `CLAUDISH_SPEAK` too, checked
@@ -2064,7 +2183,7 @@ Therefore:
   for — but gating it as well is cheaper and is preferred". **That was a contradiction of the sentence
   immediately above it and of this section's title**, and it is withdrawn rather than softened. A
   permission to run is not a preference: with it, a user who has never enabled speech pays a `sha256`
-  over the whole assistant message, a `mkdir -p`, and **three temp-file-plus-rename installs** (§3.1),
+  over the whole assistant message, a `mkdir -p`, and **two temp-file-plus-rename installs** (§3.1),
   on every rewritten turn, for a directory nothing will ever read. **"Off by default" cannot mean
   "does the speech-specific work but makes no sound."** Both of `rewrite.sh`'s additions — the
   ensure-worker step and the publish — are inside `CLAUDISH_SPEAK`, and neither is optional; and
@@ -2113,7 +2232,7 @@ closed row keeps its number rather than being deleted and the numbering never sh
 | 14 | `session_crons` has not been looked at (§8) | one look | no |
 | 15 | Whether any absolute hook-timeout ceiling exists (§6) | a wider read than the two call sites checked — **not** an argument from `hooks.json:21`, since config acceptance is not runtime enforcement | no |
 | 16 | ~~The exit-2 block mechanics have never been observed~~ (§5) | **CLOSED 2026-08-25 — observed.** Four driven runs, 28 captured fires; the cap, the `blockingError` routing and the post-cap override all have a wire observation, and the schema reading was **off by one** (nine invocations, §5). **Still unobserved and named there rather than here:** `async: true`, `SubagentStop`, a raised or disabled cap, and two blocking hooks at once — [`stop-hook-block-mechanics.md`](stop-hook-block-mechanics.md) | **closed** — the invariant was specified to hold regardless, and does |
-| **17** | **§3.5.1's bounded wait is specified and has never been implemented, run, or watched.** The race it repairs is confirmed and reproducible (`Stop` dispatched a median 6.7 ms after the final `MessageDisplay` chunk, positive 32/32, gap independent of that hook's duration; buffer stale 29 of 30) **[obs2]** + **[obs]**. But `speak.sh` does not exist, so **"the wait fixes it" is [inferred]** from an ordering, a buffer read and a publication point that have never been joined — and review found the publication point itself was **not atomically ordered**, which would have let the wait match a hash and speak the previous turn's rewrite (§3.1, fixed) | build `speak.sh` and the worker's wait, then watch: measure the match rate **through the wait** over ~20 real turns, and record how often the deadline is reached. It should be the mirror of the 29-of-30 stale figure. **Widened in review to cover the producer half as well**, because the wait cannot be verified without it: §3.1's publish is now a normative ordering — temp-file rename for every file, `source` written last as the commit marker, and a seqlock re-read on the consumer — and **all of that is [inferred] too**. The same build-and-watch retires both; a run that never observes a publish overtaking a read has not exercised the seqlock, so record whether the re-read ever fired | **YES** — as specified before this revision the feature was silent on the large majority of turns above `MIN_CHARS`; the repair is now specified but unverified |
+| **17** | **§3.5.1's bounded wait is specified and has never been implemented, run, or watched.** The race it repairs is confirmed and reproducible (`Stop` dispatched a median 6.7 ms after the final `MessageDisplay` chunk, positive 32/32, gap independent of that hook's duration; buffer stale 29 of 30) **[obs2]** + **[obs]**. But `speak.sh` does not exist, so **"the wait fixes it" is [inferred]** from an ordering, a buffer read and a publication point that have never been joined — and **two rounds of review found the publication point itself broken twice**: first unordered writes, then a commit-marker-plus-re-read that still accepted a mixed generation (§3.1's table). It is now content-addressed | build `speak.sh` and the worker's wait, then watch: measure the match rate **through the wait** over ~20 real turns, and record how often the deadline is reached. It should be the mirror of the 29-of-30 stale figure. **Widened twice in review to cover the producer half**, because the wait cannot be verified without it: §3.1's publish is now **content-addressed** — the rewrite is rename-installed at `speak/rw.<source hash>` and there is no `speak/source` — and that is **[inferred]** too. The property to check in the build is narrow and mechanical: **that no consumer ever opens a path it did not compute from its own expected hash**, which is a code-reading assertion rather than a race to provoke, and is why draft 3 is easier to verify than the two ordering-based drafts it replaces | **YES** — as specified before this revision the feature was silent on the large majority of turns above `MIN_CHARS`; the repair is now specified but unverified |
 | **18** | **A slash-terminated path gets no rule at all, and it is audibly wrong.** Found by **ear**, in a shipped axis, by the listener: *"a pause is needed after the path if a `path/` ends with a slash. Now it sounds like `research/branches`"* **[heard]**. `_PATH_RE` requires `(?:SEG/)+SEG`, so `research/` and `~/research/` **never match at all**, and there is **no `rstrip("/")` or `endswith("/")` anywhere** in `bench/sanitizers.py` **[repo]**. The listener's own item escaped it only because axis 1 happened to set the backticked span off — outside backticks, `settled` leaves *"Saved to research/ branches"* untouched **[measured-here]** | **PARKED — the user's decision**, on the grounds that reopening axis 3 immediately after a 9–0 result costs more than it buys. To close: widen `_PATH_RE` to *see* a slash-terminated path, append a `BOUNDARY_CHARS` member after rule P, make `_tidy_commas` suppress the double where axis 1 already set the span off, then one listen | no — **parked deliberately, not overlooked.** Nothing is implemented and `COND_CUTOFF`-style constants are untouched |
 | **19** | **`flag-pause` is NOT regression-free inside the settled combination, contrary to §4.3 as written.** On `r11` (a **real** item) axis 1 strips backticks that axis 8 steps over, producing `, $, claudish_ollama,` and `, curl , -K,` — shapes neither rule makes alone. Symmetrically, `r14` becomes a **no-op** because axis 7 eats the fence before axis 8 sees it **[measured-here]**. **`r11` was heard blind and `settled` still won it, so that half is HEARD AND TOLERATED, not harmless** **[heard]** | **the `r14` half was never played**, which is why §4.3's claim stays false as written rather than merely hedged. One pair — `r14:settled` against `r14:base` — closes it | no — one half is heard and tolerated; the other is a wording defect in §4.3, now corrected there |
 | **20** | **§10.6's preemption rests on three worker-side hooks that are all [inferred].** *"A newer message kills stale playback"* is **false** without the worker's claim-time kill, and *"cancellation is latency only, not correctness"* is **conditional** on it (§10.6). Nothing measured drove a second job at a worker that had already claimed the first | two `Stop` hooks ~0.5 s apart at a **warm** worker, recording per run: the hook's `speak/pid` read and job rename (**R**, **W**); the worker's pre-spawn `stat`, `Popen` and pid write (**S**, **P**); **which** step actually killed the first player — hook kill, worker claim-time kill, or neither; and whether the first utterance was audible and for how long. The case that matters is deliberately provoking **R < S < P < W**, which needs an instrumented worker with a settable pre-spawn delay. **A run where the hook's kill happened to see a live pid proves nothing** | **YES** — a stated rule is false without an unmeasured clause |
@@ -2162,46 +2281,51 @@ row 18 is **parked by explicit decision** rather than unresolved. So #11 can loc
 — but #23 finishes at row 17, not at "the hook runs". **An implementer who builds `speak.sh` and does
 not measure the wait has not finished the ship blocker, they have moved it.**
 
-**RE-EXAMINED after review, because the answer above was written before anyone had read this revision
-back. It still holds — and it is weaker than it was stated.** A review of this revision returned eight
-findings against §3.1, §3.5.1, §10.5 and §11. Six are repaired in the text above. **Four of those six
-were not typos.** They were mechanisms specified unsafely or self-contradictorily in prose that this
-same integration pass wrote and marked **LOCKED**:
+**RE-EXAMINED TWICE, and the second time is the one that matters.** The answer above was written
+before anyone had read this revision back. Two independent review rounds have since read it, and
+between them they found **six correctness defects in text this revision marked LOCKED** — with the
+second round finding defects **in the first round's repairs**.
 
-- **§3.1's publish was not atomically ordered.** Two separate writes, no commit marker, so a consumer
-  could match the expected hash and read the *previous* turn's rewrite — **§3.2's guarantee, defeated
-  one layer below where §3.2 states it.**
-- **§10.5 clause 4's trigger was not implementable as written.** "Before any parsing" is impossible for
-  a per-session worker, because `session_id` comes only from the payload. **This was the second
-  correction to that one clause in a single day** — the first replaced a trigger attached to a publish
-  point that does not exist.
-- **§10.5 clause 6 set two timeouts equal and claimed an ordering equality does not give.** The sweep
-  could delete a live worker's lock.
-- **§11 granted the publish permission to run while speech was disabled**, contradicting both the
-  sentence above it and the section's own title.
+| round | finding | section |
+| --- | --- | --- |
+| 1 | publish not atomically ordered — a consumer could match the hash and read the previous turn's rewrite | §3.1 |
+| 1 | the ensure-worker trigger was not implementable as written (needed `session_id` it had no source for) — the **second** correction to that one clause in a day | §10.5 cl. 4 |
+| 1 | idle exit and sweep set equal, claiming an ordering equality does not give | §10.5 cl. 6 |
+| 1 | the publish permitted to run while speech was off, contradicting the section title | §11 |
+| **2** | **the round-1 repair was also wrong** — a commit marker plus a consumer re-read still accepts a mixed generation, because a re-read cannot detect an unpublished change | §3.1 |
+| **2** | **`speak.sh` had no global disable check at all** — the plugin's master switch did not stop speech, though §10.8 promised it did | §10.3 |
 
-**Why the lock survives that.** The test is *"LOCKED with the evidence that decided it, or OPEN with a
-closing condition that does not require re-deciding anything."* **Every one of the four was repairable
-from evidence already in this document.** None needed a new decision from the listener; none needed a
-measurement to choose *which* repair. One — clause 6 — needed a judgement between two repairs, and the
-judgement is recorded with its reasoning and its cost rather than presented as forced. So the lock test
-passes, and #23 can still start.
+**The lock still holds on its own test, and the test is worth restating rather than assumed:** *every
+section is either LOCKED with the evidence that decided it, or OPEN with a closing condition that does
+not require re-deciding anything.* All six defects were repairable from evidence already in the
+document; **not one needed a new decision from the listener**; and the two that needed a judgement
+between competing repairs — clause 6's separation, and clause 5's required-versus-recommended — have
+those judgements recorded with their costs. So #11 can lock and #23 can start.
 
-**What a reader should carry away instead, stated because it is the more useful fact.** **Four defects
-in one review of freshly-written LOCKED text is a rate, not an accident.** The LOCKED marker on the
-sections *this revision wrote* is worth less than the same marker on sections that have survived a read
-by someone other than their author, and §15 should be read with that in mind. Two further findings —
-§10.5 clause 2's pid-less-lock retry and its quarantine rename — are **deliberately not repaired here**:
-they are under active measurement as rows 20 and 21, and the result may **replace** those clauses rather
-than confirm them. That does not unlock #11, because row 21 already marks the clause unverified and
-ship-blocking; it does mean **§10.5 clause 2's text is provisional in a way no other LOCKED clause in
-this document is.** And the count of **[inferred]** correctness clauses went **up** in this pass, not
-down — §3.1's publish ordering and §10.5 clause 6's separation are both new. **The spec is more correct
-and less verified than it was this morning**, which is the honest shape of a review that found real
-things.
+**But the clean "yes" of the paragraph above is no longer the honest answer, and here is the precise
+reason.** This document's stated purpose, in its own opening words, is to be *"a specification an
+implementer can build from in one session without re-deriving a decision."* **An implementer who built
+§3.1 from either of its first two drafts would have shipped a race** — the first speaking the previous
+turn's text, the second speaking a mixed generation — and in both cases only a reviewer caught it.
+§3.1 has now been wrong in three of its four drafts. **That is not a converged specification, and
+calling it LOCKED without saying so would be the manufactured lock this document exists to avoid.**
 
-**So: #11 locks. A second review pass over §3, §10.5 and §11 before #23 starts is cheap, and on this
-evidence it will probably find more.**
+**So the lock ships with a precondition, stated as a falsifiable commitment rather than a caution.**
+
+1. **§3.1 and §10.3 get one more review pass before #23 writes code**, because both were repaired in
+   the round that is still the most recent read, and nothing has read those repairs.
+2. **If a third review of §3.1 finds a fourth defect, §3 should stop being marked LOCKED, and the
+   publish should be settled by *building* it** — row 17 — rather than by a fifth draft. Two
+   ordering-based drafts failed; content addressing is a different kind of answer, and if it fails too,
+   the evidence will be that this mechanism cannot be settled on paper at all.
+3. **The generalisable lesson, worth more than any of the six repairs:** both failed drafts tried to
+   make a shared mutable path safe by **ordering access to it**, and the repair that held **removed the
+   mutable path**. §10.5 clause 2 is the other place that shape appears in this document — a lock file
+   guarded by a retry-then-reclaim ordering rule — and it is precisely where §13 rows 20 and 21 point.
+   **A reviewer with limited time should read those two clauses next.**
+
+**Neither row 24 nor the required warm-up changed the shipping count**: rows 17, 20 and 21 still block,
+and all three need building or measuring rather than deciding.
 
 **One thing a reviewer should attack rather than accept.** Rows 20 and 21 are marked ship-blocking on
 judgement, not on a rule. The argument for it: both are cases where **this document states a rule that
@@ -2336,7 +2460,7 @@ gets shorter above ~1600 (three pairs measured, nine predicted by the duration l
   is going to speak**, because a reader of #1 alone would otherwise expect speech at the end of the turn
   and file the delay as a bug. → §3.5.1
 - **#1's standing constraints should record that speech now has a resident worker.** A per-session
-  Python process holding a few hundred MB, elected by `mkdir`, woken by `kqueue`, exiting after 30
+  Python process holding a few hundred MB, elected by `mkdir`, woken by `kqueue`, exiting after 20
   minutes idle (§10.5). It is not a knob and not a scope change — it is the mechanism behind the only
   latency figure #1 quotes — but it is a **new process in the user's session** and #1 is where the
   footprint of the feature is described. Include the rejected `launchd` alternative and the reason
@@ -2372,25 +2496,39 @@ Stated so a reviewer can attack the right parts.
   reasoning, not an observation. If it is wrong somewhere, the most likely place is the interaction
   between an abandoned wait and §10.6's kills, which is the same timeline §13 row 20 is about. §13 row
   17.
-- **SIX [inferred] correctness clauses now ship, up from three, and the count going UP is the finding.**
-  The original three are in §10.5 and §10.6 — the initializing-lock retry, the quarantine rename, and
-  the worker's claim-time kill. **Review of this revision added three more**: §3.1's publish ordering
-  (temp-file rename, `source` last as the commit marker, and the consumer's seqlock re-read) and §10.5
-  clause 6's idle-exit/sweep separation. Each of the six was found by **reading a mechanism rather than
-  by a failure**, which is the good way to find them and also the reason none has ever been provoked.
-  **They are the clauses that make stated rules true**, so "unmeasured" here is a different weight than
-  it is on a latency figure. §13 rows 17, 20, 21 and 24.
-- **A review of this revision found four defects in text this revision itself marked LOCKED, and that
-  rate is the weakness — not any one of the four.** §3.1's publish was not atomically ordered, so
-  §3.2's guarantee had a hole one layer below where §3.2 states it; §10.5 clause 4's trigger was not
-  implementable as written, for the **second** time in one day; §10.5 clause 6 set two timeouts equal
-  and claimed an ordering equality does not give; §11 permitted the publish to run while speech was
-  off, contradicting its own title. **All four are repaired in place and none needed a new decision**,
-  which is why §13 still answers *"can #11 lock?"* with yes. But the LOCKED marker on the sections
-  written by this pass has now been shown to carry less than the marker on sections that have survived
-  an outside read, and **the right inference is to re-read §3, §10.5 and §11 before #23 starts** rather
-  than to treat the four as closed and the rest as sound. This is the same lesson as the §5 bullet
-  below, arriving from a different direction.
+- **SIX [inferred] correctness clauses now ship, and they are enumerated here so the number is
+  checkable rather than asserted.** (1) §10.5 clause 2(a), the initializing-lock retry; (2) §10.5
+  clause 2(b), the quarantine rename; (3) §10.5 clause 7(ii), the pre-spawn re-check; (4) §10.5
+  clause 7(iii), the worker's claim-time kill; (5) §10.5 clause 6, the idle-exit/sweep separation;
+  (6) §3.1's content-addressed publish. **This bullet said "three" before the integration pass and it
+  was undercounting even then** — it omitted 7(ii). Two review rounds have since **replaced** one of
+  the six rather than added to it: §3.1's entry was an ordering rule in round one and is content
+  addressing now, which is why the total is stable at six while the composition is not. Each was found
+  by **reading a mechanism rather than by a failure**, which is the good way to find them and also the
+  reason none has ever been provoked. **They are the clauses that make stated rules true**, so
+  "unmeasured" here is a different weight than it is on a latency figure. §13 rows 17, 20, 21 and 24.
+- **TWO review rounds have now found six correctness defects in text this revision itself marked
+  LOCKED, and the rate — not any one defect — is the weakness.** Round one: §3.1's publish was not
+  atomically ordered, so §3.2's guarantee had a hole one layer below where §3.2 states it; §10.5
+  clause 4's trigger was not implementable as written, for the second time in one day; §10.5 clause 6
+  set two timeouts equal and claimed an ordering equality does not give; §11 permitted the publish to
+  run while speech was off, contradicting its own title. **Round two, on the repairs themselves**:
+  §3.1's replacement was *also* wrong — a re-read cannot detect an unpublished change — and `speak.sh`
+  had **no global disable check at all**, so a user who had switched the whole plugin off would still
+  have heard audio.
+- **The §3.1 sequence is the one to learn from, and it is now the most-revised paragraph in this
+  document: unordered writes → commit marker → seqlock → content addressing.** Three of those four were
+  wrong, and the first two repairs were wrong *in the same way* — both tried to make a mutable reused
+  path safe by ordering access to it. **The fix that held removed the mutable path instead.** A reviewer
+  should generalise that rather than trust this paragraph: where this spec guards a shared mutable file
+  with an ordering rule, the ordering rule is the smell. §10.5 clause 2 is the other place that shape
+  appears, and it is exactly where §13 rows 20 and 21 are pointed.
+- **All six are repaired in place, none needed a new decision from the listener, and that is why §13
+  still answers *"can #11 lock?"* with yes.** But two independent reads of the same fresh text found
+  six real defects, and the second read found defects **in the first read's repairs** — so the honest
+  posture is that §3 and §10.5 have not converged, and **§13 now says a verification pass over them is
+  a precondition for #23 rather than a nice-to-have.** This is the same lesson as the §5 bullet below,
+  arriving from a different direction and rather more forcefully.
 - **`launchd` was rejected on judgement, not on measurement**, and it is the alternative in §10.5 most
   worth pushing back on: it would be permanently resident and survive machine sleep, which is genuinely
   better on latency. The three reasons against it — a background daemon for an off-by-default feature,
