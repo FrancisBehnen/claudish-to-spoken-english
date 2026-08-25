@@ -3,8 +3,9 @@
 Evidence for [#14](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/14), follow-up
 to [#12](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/12), part of the
 [Kokoro speech map (#1)](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/1).
-Checked 2026-08-25 against the source, this machine's settings, this machine's live environment, and
-one two-item `capture-real-rewrites.sh` run. **No hook was modified.** `rewrite.sh`, `rewrite-md.sh`,
+Checked 2026-08-25 against the source, this machine's settings, this machine's live environment, one
+two-item `capture-real-rewrites.sh` run, one one-item `time-one-rewrite.sh` run, and — for section 5 —
+two logs that already existed on disk. **No hook was modified.** `rewrite.sh`, `rewrite-md.sh`,
 `providers.sh` and `hooks/hooks.json` are untouched by this work.
 
 **Two claims were carried into this document from a hand session. Both were re-checked against the
@@ -14,15 +15,17 @@ step nobody has measured. Trap 2 is confirmed in its *effect* and wrong in its *
 correction is section 2's whole point.**
 
 Everything here is a file read, a `printenv`, a checksum, a word count, a subprocess that made no
-network request, or — for trap 1's mechanism only — a two-item `capture-real-rewrites.sh` run whose
-resolved provider and model were observed. Nothing is inferred from how the plugin "probably" behaves
-except where the text says so.
+network request, a timestamp read out of a log, or — for trap 1's mechanism and section 4's latency —
+a run that spent real calls and whose resolved provider and model were observed. Nothing is inferred
+from how the plugin "probably" behaves except where the text says so.
 
-**#14's own call was still never made.** The ~1,300-word latency measurement was authorised and then
-blocked by this machine's permission classifier; section 4 records the instrument, the input, and
-what is still unknown. Trap 1 being confirmed live (section 1) settles the *provider/model
-resolution* and says nothing about the latency curve — the two are not the same finding and are kept
-apart on purpose.
+**#14's own call has since been made, and its provider has since been verified.** The ~1,300-word
+latency measurement was authorised, refused twice by this machine's permission classifier, and then
+run: **2026-08-25, 15:25 CEST, 52.50s, `rc=0`, 6,094 bytes out**. Section 4 records it. *Which
+provider served it* was not established at the time, was posted publicly on #14 as an open caveat,
+and is settled in section 5 — from logs, with no second call. Trap 1 being confirmed live (section 1)
+settles the *provider/model resolution* and says nothing about the latency curve — the two are not
+the same finding and are kept apart on purpose.
 
 ## The source these line numbers refer to
 
@@ -50,6 +53,18 @@ The three files that matter are **byte-identical** to this checkout at `9355f45`
 | **1** | `CLAUDISH_MODEL` travels with you across the provider switch, and the ollama model id reaches the Claude CLI verbatim | **pass-through confirmed in the source and observed live; that the CLI *rejects* the id, and so that every rewrite breaks, remains inference** |
 | **2** | the timeout notice advises raising a knob that cannot usefully move | **effect confirmed; mechanism misdescribed** |
 | **3** | neither variable can be changed mid-session | found while verifying the other two |
+
+Two further findings sit outside the trap list, in sections 4 and 5: **the ~1,300-word latency is
+52.50s**, over the 45s `CLAUDISH_TIMEOUT` default; and **the binary that served that measurement is
+confirmed to be the `claude` CLI and not ollama**, from logs, after the figure was published with
+that question open.
+
+Those two are not one finding, and section 5 keeps them apart on purpose. The **provider is
+observed**. The **model is not**: `haiku` is what `providers.sh:92` resolves to once
+`CLAUDISH_MODEL` is unset and what `providers.sh:267` passes as `--model`, both read from the
+source — **no record read here names the model that produced the text**. Wherever this document puts
+`claude-cli` and `haiku` together, the first half is observed and the second is the argument the
+script demonstrably builds.
 
 Trap 1's row is deliberately split in two. The mechanism — a set `CLAUDISH_MODEL` overriding
 `providers.sh:92`'s `claude-cli` default and being handed to the CLI as `--model` at
@@ -259,22 +274,44 @@ Consequences:
 
 ---
 
-## 4. The measurement: prepared, authorised, and blocked before it ran
+## 4. The measurement: blocked twice, then spent — 1,328 words in 52.50s
 
-**#14's open question is still open. The instrument exists; the call was not spent.**
+**#14's open question is answered. The call was spent on 2026-08-25 and the number is 52.50s.**
 
-Section 1's live run does not change that. It spent two calls on corpus-sized items and settled how
-`PROVIDER` and `MODEL` resolve; the question here is a latency at ~1,300 words, which no run on this
-machine has reached. Reading a confirmed trap 1 as a confirmed latency curve is the one misreading
-this section exists to prevent.
+> **This section used to be titled "prepared, authorised, and blocked before it ran", and everything
+> below "The result" was written while that was true.** It stopped being true at 15:25 CEST on
+> 2026-08-25. The prepared-but-unspent material is kept rather than rewritten around the answer: the
+> input selection, the thresholds and the three non-comparabilities were all fixed *before* the
+> number existed, which is the only reason the number can be read at face value.
 
-The one call was authorised mid-session. `corpus/bin/time-one-rewrite.sh` was written for it, the
-input was selected, and the path *up to the subprocess* was dry-run — and then the invocation was
-refused by this machine's auto-mode permission classifier, on both attempts. The refusal is the
-harness declining to
-let an agent spawn a nested `claude` process, which is a guardrail against exactly the kind of
-quota-spending this measurement is, so it was not worked around. **A human running the same command
-by hand is not subject to it.**
+### The result
+
+| | |
+| --- | --- |
+| when | **2026-08-25, 15:25:22.3 → 15:26:14.8 CEST** |
+| banner it printed | `provider=claude-cli model=haiku timeout=120s input=1328w/8318c` |
+| TSV line it printed | `1328  8318  0  0  0  52.50  6094` |
+| read as | 1,328 words / 8,318 bytes in; `rc=0`; not rate-limited; not truncated; **52.50s**; 6,094 bytes out |
+
+Against the thresholds this section fixed in advance: **over the 45s `CLAUDISH_TIMEOUT` default, and
+inside the 60s `MessageDisplay` ceiling by 7.5s.** It completed only because `time-one-rewrite.sh`
+runs on a 120s budget; under the real display-hook config `_llm_run_bounded` would have killed it at
+45s and the user would have seen the original message plus the setup notice.
+
+**Which provider actually served it was not established at the time** — the banner reports the
+script's own resolved variables, not what `llm_complete` dispatched on. That gap was posted publicly
+as a caveat on #14 rather than glossed, and section 5 closes it.
+
+Section 1's live run did not settle the latency and was never claimed to. It spent two calls on
+corpus-sized items and settled how `PROVIDER` and `MODEL` resolve; this is a latency at ~1,300 words.
+Reading a confirmed trap 1 as a confirmed latency curve is the one misreading this section exists to
+prevent.
+
+The call was authorised mid-session, and the first two attempts to make it were refused by this
+machine's auto-mode permission classifier — the harness declining to let an agent spawn a nested
+`claude` process, which is a guardrail against exactly the kind of quota-spending this measurement
+is. It was not worked around. A later attempt in the same session was allowed and is the run above.
+**A human running the same command by hand is not subject to the classifier at all.**
 
 ### The command that is ready to run
 
@@ -339,7 +376,8 @@ The all-prose message is the harder and more honest test.
 
 ### What the number would have to beat, and what would not be comparable
 
-`corpus/capture-log.tsv`, the 12 real rewrites, all on `claude-cli`/`haiku`:
+`corpus/capture-log.tsv`, the 12 real rewrites, all on `claude-cli` (confirmed in section 5) at the
+`haiku` that `providers.sh:92` resolves (read from the source, not from any response):
 
 | item | source words | output bytes | seconds |
 | --- | ---: | ---: | ---: |
@@ -349,7 +387,7 @@ The all-prose message is the harder and more honest test.
 | `r10` | 305 | 1576 | 10 |
 | `r11` | 383 | 2387 | 13 |
 | `r12` | **663** | 2933 | **13** |
-| *the pending measurement* | **1328** | ? | **?** |
+| *the measurement, once spent* | **1328** | **6094** | **52.50** |
 
 > **A correction to #14's copy of this table:** it lists `r05` at 96 source words. `corpus/source/r05.txt`
 > is **65** words by both `wc -w` and Python's `split()`. Every other row in that table matches the
@@ -371,14 +409,160 @@ Three things that would **not** be comparable, stated in advance so the number i
 3. **`LLM_TIMEOUT=120` is not the hook's budget.** The script uses 120 so that a slow result is a
    *number* rather than the word "timeout". Read the result against 45, not against 120.
 
-### What it would settle
+### What it would settle — and which branch it took
 
 - **Comfortably under 45s** → the flat-latency extrapolation holds at 2× the largest prior
   measurement, and #14's failure is a **provider** problem, not a model-speed one.
-- **Between 45s and 60s** → the curve is not flat; `claude-cli` would need `CLAUDISH_TIMEOUT` raised
-  toward the ceiling, and section 2's ceiling becomes load-bearing rather than academic.
+- ✅ **Between 45s and 60s** → the curve is not flat; `claude-cli` would need `CLAUDISH_TIMEOUT`
+  raised toward the ceiling, and section 2's ceiling becomes load-bearing rather than academic.
+  **This is the branch that happened, at 52.50s.**
 - **Over 60s, or a non-zero `rc`** → switching provider does not fix long messages, and the honest
   outcome is to let them fail open by design.
+
+The middle branch is not a licence to raise `CLAUDISH_TIMEOUT` and move on. 52.50s clears 60s by
+7.5s on a single sample, with no error bar (non-comparability 2 above), and the 60 behind it is not a
+knob the user owns: it is **this plugin's own declared `MessageDisplay` timeout**
+(`hooks/hooks.json:9`), so moving it means editing a plugin file inside a version-pinned cache
+directory that the next update replaces — section 2. Whether the harness would honour a larger value
+there is a separate question, and **unestablished** ("What was not verified", item 3). A knob whose
+whole remaining range is 7.5 seconds wide is not a fix.
+
+---
+
+## 5. Which provider actually served the measurement — settled from logs, no second call
+
+**Verified after the fact, from two record sets that already existed on this machine. It was the
+`claude` CLI. It was not ollama. The caveat on #14 is resolved.**
+
+Section 4's banner said `provider=claude-cli model=haiku`, but that is `time-one-rewrite.sh` reading
+back its own resolved variables — the shell state, not the dispatch. The caveat posted as
+[`issuecomment-5411419480`](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/14#issuecomment-5411419480)
+said exactly that, and named a real reason to doubt: **52.50s for 8,205 characters is slow for
+`haiku` and entirely ordinary for a local `qwen3:4b-instruct-2507-q4_K_M`**, which `ollama ps` showed
+resident on the GPU right after the run. The doubt was reasonable. It was also wrong, and the same
+log that refutes it also explains the residency that raised it.
+
+### The window, fixed to the second
+
+| | |
+| --- | --- |
+| the timed section began | **2026-08-25 15:25:22.3 CEST** (= `13:25:22.3Z`) |
+| it ended | **2026-08-25 15:26:14.8 CEST** (= `13:26:14.849Z`, when the result landed) |
+| how that is known | the transcript of the session that ran it, `~/.claude/projects/-Users-francis-behnen-Code-claudish-to-spoken-english/07b120e5-b990-47eb-aa3d-28e522236473.jsonl`: the `tool_use` at `2026-08-25T13:25:20.259Z`, and the `tool_result` at `2026-08-25T13:26:14.849Z` carrying the TSV line. Start = end − 52.50s. |
+
+### Evidence 1 — ollama had no model loaded during that window (read from a log)
+
+ollama here is the brew build (`~/homebrew/opt/ollama/bin/ollama serve`, running since 11:47) and its
+stdout goes to **`~/homebrew/var/log/ollama.log`**. It logs every HTTP request it answers, with a
+timestamp and a duration. Read, not inferred:
+
+- The file is a single continuous append log from 2026-08-15 11:42:56 to 2026-08-25 15:55:56 — no
+  rotation, no truncation — and holds 76 request lines for 2026-08-25, running from 10:42:33 to
+  15:55:56. Between **15:10:02** and **15:26:44** there is **not one request of any kind**. The
+  measurement window sits entirely inside that silence.
+- Stronger than silence: at **15:26:44.678** the log shows `starting llama-server`, then
+  `llama-server started in 4.29 seconds`. The model was loaded **cold**. It had been evicted by the
+  5-minute idle timer some time after the 15:10:02 request, so **no model was resident at
+  15:25:22–15:26:14** and ollama could not have produced 6,094 bytes, or anything else.
+- No request on 2026-08-25 has a duration near 52.50s. The three longest are 45.29s, 45.23s and
+  45.08s — all **HTTP 500**, which is the display hook's own `CLAUDISH_TIMEOUT=45` cutting ollama off.
+
+**The residency that made the caveat suspicious comes from the same log, 29 seconds too late.** The
+cold load at 15:26:44 serves a request logged at 15:27:08 whose prompt is **610 tokens** — the
+`MessageDisplay` hook rewriting the assistant message that *reported* the measurement. The 1,328-word
+input is roughly 2,000 tokens, and the log records **no prompt of any size** in the measurement
+window — the last one before it is at 15:10:02 and the next at 15:26:44 (610 tokens). Prompts that
+big do appear in the log on other days and earlier that morning, so this is an argument from the
+window, not from the sizes.
+
+### Evidence 2 — a `claude` process started one second into the call (read from disk)
+
+The CLI creates a directory under **`~/.claude/session-env/`** named for its session id when it
+starts, `-p` mode included. Birth times via `stat -f '%SB'`:
+
+| directory | created |
+| --- | --- |
+| `d2186a88-f281-4acd-97d1-5d9d352e9e69` | **2026-08-25 15:25:23** |
+
+It is the **only** one created between 15:20 and 15:30; it lands one second after `llm_complete`
+began; and **no transcript exists for that session id** anywhere under `~/.claude/projects/`, which
+is precisely what `-p --no-session-persistence` (`providers.sh:266-268`) leaves behind. A `claude`
+process started inside the measurement and left no session file.
+
+### The same records clear the 6–13s corpus band as well
+
+The caveat noted that `capture-real-rewrites.sh` resolves the provider the same way, so the corpus
+band inherits the doubt. It does not survive either.
+
+- **`r01`–`r12`, captured 2026-08-15.** `~/.claude/session-env/` holds **twelve** directories created
+  between **15:32:58** and **15:34:50** — one `claude` start per corpus item. Twelve starts give
+  **eleven** inter-start gaps (16, 8, 12, 9, 7, 9, 10, 10, 8, 10, 13 s), so only eleven of
+  `capture-log.tsv`'s twelve per-item seconds (7, 8, 13, 9, 6, 10, 10, 9, 8, 10, 13, 13) can be
+  checked against a gap at all: **ten of those eleven match within a second**. The first gap is 9s
+  longer than `r01`'s 7s, and **what those 9 seconds went to is not observable from these
+  timestamps** — nothing in the record attributes them. `r12`'s 13s has no following start, so it is
+  unchecked. On that whole day **every** `POST /api/chat` to ollama returned **HTTP 404 in under
+  30 ms** — the model had not been pulled yet, and ollama served **zero** completions on 2026-08-15.
+- **`r13`, `r14`, captured 2026-08-25.** Two more session-env directories at **13:45:08** and
+  **13:45:17** — 9 seconds apart, matching `capture-log.tsv`'s `r13 = 9s`. ollama's log has nothing
+  between 13:41:50 and 13:45:36.
+
+### Observed, and inferred, kept apart
+
+- **Observed.** ollama answered no request during the measurement and had no model loaded. A `claude`
+  process started 1s into it and persisted no session. The fourteen corpus items carry the same
+  signature. `time-one-rewrite.sh:54-55` sets `CLAUDISH_PROVIDER=claude-cli` and unsets
+  `CLAUDISH_MODEL` before `providers.sh` is sourced, and the `claude-cli` branch
+  (`providers.sh:240-288`) is the only branch that can be reached from that state — it makes no HTTP
+  call of its own.
+- **Inferred, strongly.** That the `claude` process reached **Anthropic's API** with `--model haiku`.
+  No endpoint override exists on this machine: `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`,
+  `ANTHROPIC_API_KEY`, `apiKeyHelper` and the Bedrock/Vertex switches are all absent from
+  `~/.claude/settings.json`, `~/.claude/settings.local.json`, `~/.claude.json`, `~/.zshrc`,
+  `~/.zshenv`, `~/.zprofile` and this repo's `.claude/settings.local.json`; `claude` resolves to the
+  official binary at `~/.local/share/claude/versions/2.1.245`; and the only local inference server on
+  the box is the ollama that the log just cleared.
+- **Not observed.** **No record read here names the model that generated the text.** No network
+  capture was taken, the CLI writes no per-call log, and `~/.claude/telemetry/` holds only a stale
+  failed-event spool (newest entry 08:24 that day). The model name rests on the `--model haiku`
+  argument that `providers.sh:267` demonstrably builds, not on a response.
+
+### What this does to #14's conclusion
+
+The caveat hedged that the ticket's conclusion was "unaffected either way", because if ollama had
+served the call then `claude-cli` was simply never measured. **That disjunction is void: `claude-cli`
+*was* measured.** Testing the position rather than repeating it, it holds — and on firmer ground than
+the hedge allowed:
+
+- **1,328 words takes 52.50s on the `claude` CLI** — the binary is observed above; the `haiku`
+  behind it is the `--model` argument `providers.sh:267` builds, not a model named by any record.
+  52.50s is over the 45s `CLAUDISH_TIMEOUT` default, so under the real display-hook config the
+  watchdog kills that rewrite. Switching provider therefore **does not** fix long-message timeouts;
+  it trades ollama's refusal for a client-side timeout, which is the harder of the two to diagnose.
+- **Latency is not flat**, and that reading now stands on fourteen corpus measurements plus one long
+  one that are *all* confirmed to have run on `claude-cli`, rather than on a band of unknown
+  provenance.
+- The one thing that would have changed had ollama served it — "then `claude-cli` was never measured
+  at all, and #14's premise is untested" — is no longer available as a reading.
+
+### The live re-run rig: armed, and deliberately not fired
+
+A re-run was prepared before the logs settled the question, and is left armed because it would prove
+the model name (the one thing above that is still inference) rather than the binary. **It has not
+been run: it would spend a second subscription call, and the standing rule in this repo is that no
+bench or corpus tool calls an LLM without explicit authorisation.**
+
+- **`~/.local/share/claudish-probe-bin/claude`** — a wrapper reached only via `CLAUDISH_CLAUDE_BIN`
+  (`providers.sh:68`), never on `PATH`. It logs `argv`, the `--model` flag, stdin byte count, wall
+  time and the resolved real binary, then runs the real `claude`. It resolves that binary by scanning
+  `PATH` and skipping any candidate whose resolved **device:inode** equals its own, so it cannot
+  recurse; it forwards `TERM`/`INT` so `_llm_run_bounded`'s watchdog still lands on the CLI; and it
+  `tee`s stdin so the child still sees a pipe. Self-tested with `--version` only — no LLM call.
+- The input is re-extracted to a scratchpad path and verified at **1,328 words / 8,205 characters /
+  8,318 bytes / 0 fences**, byte-identical to the original run's banner. **It is not committed: it is
+  borrowed from an unrelated project's transcript and this repo is public.**
+- `time-one-rewrite.sh`'s spend guard refuses to run while the output file exists, so firing it means
+  a deliberate `rm` of that path first.
 
 ---
 
@@ -386,9 +570,11 @@ Three things that would **not** be comparable, stated in advance so the number i
 
 Listed so nobody mistakes an unchecked thing for a checked one.
 
-1. **The latency of a ~1,300-word rewrite on `claude-cli`** — #14's actual question. Section 4 has
-   the script, the input and the thresholds; only the call is missing. The 2026-08-25 run in
-   section 1 spent two calls but on corpus-sized items (≤663 words), so it moved this not at all.
+1. ~~**The latency of a ~1,300-word rewrite on `claude-cli`** — #14's actual question. Section 4 has
+   the script, the input and the thresholds; only the call is missing.~~ **Measured on 2026-08-25:
+   52.50s (section 4), on a provider confirmed in section 5.** What remains unverified is the *shape*
+   of the curve between 663 and 1,328 words: two points do not distinguish a knee from a slope, and
+   `n=1` at the top end has no error bar. Nobody should read 52.50s as a constant.
 2. **That `claude --model <ollama-id>` fails, and how.** Section 1's pass-through is verified twice
    over — in the source and in a live resolution — but the CLI's reaction to a bad id is still
    inference plus `capture-real-rewrites.sh`'s prior expectation. The live run cannot help here by
