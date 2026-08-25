@@ -612,6 +612,14 @@ T0="$(date +%s%N)"; D=<scratch>/cap
 mkdir -p "$D/stop"; cat > "$D/stop/$T0.json"; exit 0
 ```
 
+> **The comment in that second probe is quoted verbatim and it is wrong on one detail.** *"`jq` exits 2
+> on a malformed filter"* is false on this machine: a malformed filter exits **3**. The exit-2 routes are
+> `jq` handed a **bad option or an unreadable file**, and a **bash syntax error** in the hook — measured
+> table in [`speech-integration-spec.md`](speech-integration-spec.md) §5. **The probe's behaviour was
+> right anyway** (writing the payload before running any `jq` avoids both real routes as well as the
+> imagined one), so nothing measured here is affected. The comment is left as written rather than
+> retouched, because it is a record of what the probe said; this note is the correction.
+
 ```json
 { "model": "sonnet",
   "env": { "CLAUDISH_ENABLED": "0" },
