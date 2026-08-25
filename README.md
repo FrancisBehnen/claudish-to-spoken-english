@@ -133,8 +133,8 @@ Notes:
 Directly from this repository (also serves its own marketplace):
 
 ```shell
-/plugin marketplace add gvzdv/claudish-to-english
-/plugin install claudish-to-english@gvzdv-plugins
+/plugin marketplace add FrancisBehnen/claudish-to-spoken-english
+/plugin install claudish-to-english@claudish-tts
 ```
 
 After review by the Anthropic team, the plugin will be available to install from the community marketplace:

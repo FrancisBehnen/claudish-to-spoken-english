@@ -1,11 +1,10 @@
 {
-  "name": "gvzdv-plugins",
+  "name": "claudish-tts",
   "owner": {
-    "name": "Mike Gvozdev",
-    "email": "mv.gvozdev@gmail.com",
-    "url": "https://github.com/gvzdv"
+    "name": "Francis Behnen",
+    "url": "https://github.com/FrancisBehnen"
   },
-  "description": "Mike Gvozdev's Claude Code plugins.",
+  "description": "Francis Behnen's fork of claudish-to-english, diverging to add text-to-speech.",
   "plugins": [
     {
       "name": "claudish-to-english",
