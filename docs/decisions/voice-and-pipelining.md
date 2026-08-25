@@ -356,4 +356,25 @@ was not measured (only `af_nicole` +51% and `am_puck` −24% were), so the first
 should be re-checked on `bf_emma` before the 3-second margin is treated as banked. The margin is
 wide — 1.22s worst case against 3s — so this is a confirmation step, not an expected reversal.
 
+### That re-check is done (2026-08-25, same day)
+
+**Confirmed, no revision needed.** Measured on `bf_emma` with the same script and the same TTFA
+definition, all 12 real rewrites, warm, on a quiet machine (RTF 0.21–0.29 on every `stream` and
+`whole` row):
+
+| mode | `bf_emma` | `af_heart`, as published above |
+| --- | --- | --- |
+| **first** | **12/12 pass** · median 0.86 s · max 1.20 s | 12/12 · median 0.85 s · max 1.22 s |
+| stream | 0/12 · median 4.98 s · max 7.03 s | 0/12 · median 5.41 s · max 6.16 s |
+| whole | 0/12 · median 8.09 s · max 36.83 s | 0/12 · median 9.04 s · max 36.40 s |
+
+An `af_heart` control run taken minutes later on the same machine reproduced the published figures to
+within 0.04 s per item, which is what licenses reading the two columns against each other. And the
+duration ratio that was never measured now is: **`bf_emma` produces 0.927× `af_heart`'s audio** over
+the 12 whole messages (683 s against 736 s), against the 0.92× the voice table above predicted from
+four items.
+
+Full per-item table, the RTF caveats and the noise on the sub-2-second items:
+[`sanitizer-audition-13.md`](sanitizer-audition-13.md) §"Confirmation measurement".
+
 Half A (build first-sentence pipelining) was settled on 2026-08-17 and is unchanged.

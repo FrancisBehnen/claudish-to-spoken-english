@@ -679,7 +679,9 @@ wider than that. **Axis 2 is inside the noise and is explicitly not settled.**
 - **`.` versus `,` as the line-break replacement** (axis 2) — inconclusive by ear; it never mattered
   to the listener. Whoever implements may pick on other grounds (`.` places a harder chunk seam).
 - **`path-shorten` combined with `path-nolead`** — both undefeated, never heard together. One axis
-  moved at a time by design, so their combination is unmeasured.
+  moved at a time by design, so their combination is unmeasured. **→ auditioned as
+  `path-short-nolead` in [`sanitizer-audition-13.md`](sanitizer-audition-13.md), axis 3. If it wins,
+  the axis-3 row of the table above is amended there.**
 - **Rule L** (respelling mis-POS'd words) stays gated behind `--respell`; it still mis-fires on
   "the lives of others" and was not auditioned.
 
@@ -687,6 +689,14 @@ wider than that. **Axis 2 is inside the noise and is explicitly not settled.**
 
 Recorded verbatim; all three are **additive refinements within the chosen directions**, none reverses
 a decision above. Two are new rules that were **never auditioned** and would need their own ear check.
+
+**That ear check is built.** The two new rules became
+[#13](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/13) and are on the page as
+`flag-pause` and `ext-word`, section 4 —
+[`sanitizer-audition-13.md`](sanitizer-audition-13.md). One finding from building them belongs here,
+because it bears on how much the first note is worth: **no real rewrite carries an un-backticked flag
+or `_`-joined identifier** (0 of 12), so on real output the settled `tick-pause` is already setting
+those tokens off via their backticks.
 
 | pair | note | status |
 | --- | --- | --- |

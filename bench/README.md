@@ -41,6 +41,11 @@ one and timing it with the same four-phase definition. Run it in the venv direct
 (`~/.local/share/kokoro/venv/bin/python bench/first-sentence.py --stream --whole`); results in
 [`docs/decisions/voice-and-pipelining.md`](../docs/decisions/voice-and-pipelining.md).
 
+`audition-page.py` builds four sections: #8's sanitizer pairs, #9's voice items, #10's length items,
+and — added for #13 — a second pair section over `audition-13/`, which is a separate directory
+precisely because it is a separate *voice* (`bf_emma`, which #9 chose, against #8's rejected
+`af_heart`). Merging them would have paired one voice's reference against another voice's variant.
+
 `audition-page.py` also imports `sanitizers.py` and edits nothing. It synthesizes nothing either —
 it globs the wavs `bench.py` already wrote and builds one self-contained HTML page for listening to
 them and recording a verdict per pair:
@@ -50,9 +55,11 @@ python3 bench/audition-page.py                       # re-execs itself into the 
 open ~/.local/share/kokoro/bench/audition.html
 ```
 
-The page is written **beside** `audition-8/`, `audition-9/` and `audition-10/` so every `<audio src>`
-is a relative sibling and it works from a `file://` URL with no server; if a browser refuses, the
-page carries the `python3 -m http.server` fallback. Everything on it is derived — the pairs from the
+The page is written **beside** `audition-8/`, `audition-9/`, `audition-10/` and `audition-13/` so
+every `<audio src>` is a relative sibling and it works from a `file://` URL with no server; if a
+browser refuses, the page carries the `python3 -m http.server` fallback (which is the route verified
+for #13, and the one to prefer — `localStorage` is per origin, so switching between `file://` and
+`http://localhost` hides earlier verdicts). Everything on it is derived — the pairs from the
 wavs on disk, the pronounced text from running the real sanitizer over the real corpus file, the
 durations from the wav headers, each variant's description from the registry — so a variant
 synthesized later shows up on a re-run with no edit here. Verdicts live in `localStorage` and export
@@ -200,8 +207,9 @@ same item twice, back to back, plays both, and puts them on adjacent rows of the
 | `candidate` | rules **A–K** from the research doc's candidate list. |
 | `crashguard` | rules **B + A** only: the two that decide whether `create()` raises, and nothing else. Isolates the crash question from the prosody question. |
 | `base` + 19 axis variants | added for [#8](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/8). `base` is `candidate` with one *named* default per open axis; each variant moves **exactly one** axis (`tick-*`, `lb-*`, `path-*`, `md-*`, `scream-*`, `url-*`, `cb-*`). See [`docs/decisions/sanitizer-audition.md`](../docs/decisions/sanitizer-audition.md). |
+| 3 follow-up variants | added for [#13](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/13): `flag-pause` and `ext-word` are two rules #8's listener asked for and nobody had heard; `path-short-nolead` is the one combination #8's decision left unmeasured. Same `base` reference, still one axis at a time. See [`docs/decisions/sanitizer-audition-13.md`](../docs/decisions/sanitizer-audition-13.md). |
 
-**23 sanitizers are registered**; `bench/bench --list-sanitizers` is the authoritative list.
+**26 sanitizers are registered**; `bench/bench --list-sanitizers` is the authoritative list.
 
 ### `candidate` is a candidate, not a decision
 

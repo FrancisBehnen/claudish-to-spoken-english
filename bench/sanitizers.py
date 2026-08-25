@@ -16,6 +16,12 @@ The bottom half of this file is the **#8 audition set**: a `base` reference
 plus one variant per open axis of #8, so each axis can be heard as an A/B.
 Those are not decisions either -- they are the alternatives, built so that a
 listener can pick one. See `docs/decisions/sanitizer-audition.md`.
+
+The last three variants (`flag-pause`, `ext-word`, `path-short-nolead`) are
+**#13's follow-up set**: two rules #8's listener asked for that had never been
+auditioned, and the one combination #8's decision left explicitly unmeasured.
+Same rule: not decisions, just the alternatives. See
+`docs/decisions/sanitizer-audition-13.md`.
 """
 
 from __future__ import annotations
@@ -333,20 +339,28 @@ def san_crashguard(text: str, opts: Opts) -> str:
 #   ticks      keep   -- backticks left in place (espeak emits nothing for them)
 #   boundary   "."    -- what rules B and A insert
 #
+# and the two axes #13 adds, both of which `base` also declines to do:
+#
+#   flags      keep   -- a flag name / bare identifier is left as it is
+#   exts       keep   -- a file extension's `.` reaches espeak as a full stop
+#
 # Adding one more is still a one-function job: a new field value, a helper
 # branch, and one decorated line.
 
 
 @dataclass
 class Axes:
-    """One choice per open axis of #8. Defaults are `base`."""
+    """One choice per open axis of #8 (plus #13's two). Defaults are `base`."""
 
     markdown: str = "strip"  # strip | swallow | strip-plus
     urls: str = "link"  # link | full | domain
     scream: str = "lower"  # lower | asis | spell | drop
-    paths: str = "asis"  # asis | nolead | basename | shorten | expand
+    paths: str = "asis"  # asis | nolead | basename | shorten | shorten-nolead
+    #                      | expand
     code: str = "read"  # read | long | count | short | silent
     ticks: str = "keep"  # keep | strip | pause
+    flags: str = "keep"  # keep | pause          (#13)
+    exts: str = "keep"  # keep | word            (#13)
     boundary: str = ""  # "" -> opts.boundary
 
 
@@ -395,6 +409,50 @@ def rule_N_code_block(text: str, mode: str) -> str:
 
 _TICK_SPAN_RE = re.compile(r"`([^`\n]+)`")
 
+# Where a comma would be redundant: nothing precedes the span, or an opening
+# bracket does; a mark the chunker already splits on follows it.
+_SET_OFF_OPEN = ("", "\n", "(", "[", "{")
+_SET_OFF_CLOSE = ".,;:!?)]"
+
+
+def _set_off(m: re.Match, inner: str) -> str:
+    """`inner`, set off with the chunker's own comma on each side that does not
+    already carry punctuation.
+
+    Extracted so axis 1 (`tick-pause`) and #13's axis 8 (`flag-pause`) apply
+    the IDENTICAL treatment -- the whole premise of #13's first rule is that
+    the thing axis 1 chose was the commas, so the generalisation has to be the
+    same commas and not a second opinion about them.
+    """
+    before = m.string[m.start() - 1: m.start()] if m.start() else ""
+    follows = m.string[m.end():m.end() + 1]
+    head = "" if before in _SET_OFF_OPEN else ", "
+    tail = "" if follows in _SET_OFF_CLOSE else ", "
+    return head + inner + tail
+
+
+def _tidy_commas(text: str) -> str:
+    """Collapse the doubles `_set_off` can leave, and drop a line-leading one.
+
+    Deliberately NOT a blanket ", X" -> "X" tidy: that would eat the real
+    commas in "It handles .sh, .py, .md".
+    """
+    text = re.sub(r",[ \t]*,", ",", text)
+    return re.sub(r"(?m)^[ \t]*,[ \t]*", "", text)
+
+
+def _split_ticks(text: str) -> list[tuple[str, bool]]:
+    """-> [(segment, is_a_backticked_span), ...], covering `text` exactly."""
+    out: list[tuple[str, bool]] = []
+    i = 0
+    for m in _TICK_SPAN_RE.finditer(text):
+        if m.start() > i:
+            out.append((text[i:m.start()], False))
+        out.append((m.group(0), True))
+        i = m.end()
+    out.append((text[i:], False))
+    return out
+
 
 def rule_T_ticks(text: str, mode: str) -> str:
     """espeak emits NOTHING for a backtick, so this axis is about the words
@@ -404,19 +462,8 @@ def rule_T_ticks(text: str, mode: str) -> str:
         return text
     if mode == "strip":
         return text.replace("`", "")
-    # The trailing comma is decided per span, so nothing has to be tidied up
-    # globally afterwards -- a blanket ", X" -> "X" tidy would eat the real
-    # commas in ".sh, .py, .md".
-    def repl(m: re.Match) -> str:
-        before = m.string[m.start() - 1: m.start()]
-        follows = m.string[m.end():m.end() + 1]
-        head = "" if before in ("", "\n", "(", "[", "{") else ", "
-        tail = "" if follows in ".,;:!?)]" else ", "
-        return head + m.group(1) + tail
-
-    text = _TICK_SPAN_RE.sub(repl, text).replace("`", "")
-    text = re.sub(r",[ \t]*,", ",", text)
-    return re.sub(r"(?m)^[ \t]*,[ \t]*", "", text)
+    text = _TICK_SPAN_RE.sub(lambda m: _set_off(m, m.group(1)), text)
+    return _tidy_commas(text.replace("`", ""))
 
 
 # --- paths (PATH-SLASH 7 real, PATH-EXT 5 real) ---------------------------
@@ -455,6 +502,15 @@ def rule_P_paths(text: str, mode: str) -> str:
             return segs[-1]
         if mode == "shorten":
             return "/".join(segs[-2:])
+        if mode == "shorten-nolead":
+            # #13: #8 left `path-shorten` and `path-nolead` both undefeated and
+            # never heard together. Note that `shorten` ALREADY drops `~/`, `/`
+            # and `./` -- only `expand` re-attaches the lead -- so the whole
+            # audible difference between this and `shorten` is the bare dot on
+            # whichever segment survives first: `.claude/settings.json`.
+            segs = segs[-2:]
+            segs[0] = segs[0].lstrip(".") or segs[0]
+            return "/".join(segs)
         lead = m.group("lead") or ""  # expand: keep every segment
         return lead + " slash ".join(_spell_ext(s) for s in segs)
 
@@ -462,6 +518,89 @@ def rule_P_paths(text: str, mode: str) -> str:
     if mode == "expand":  # bare `name.ext` in prose carries PATH-EXT too
         out = _BARE_EXT_RE.sub(lambda m: _spell_ext(m.group(0)), out)
     return out
+
+
+# --- flag names and bare identifiers (axis 8, from #13) --------------------
+#
+# The #8 listener's note on `s15:scream-drop`: "B would be even better if it
+# gets a comma before and after the flag name I think, like what you did with
+# variables in `backticks`". Axis 1 chose `tick-pause` and established that the
+# win was the COMMAS, not the backtick removal -- so this is that treatment,
+# applied to the code tokens that carry no backticks.
+#
+# Three shapes, and no more:
+#
+#   flags        `-p`, `-R`, `--max-time`, `--strict-mcp-config`
+#   assignments  `CLAUDISH_ENABLED=0`, `curl_rc=28`, `http=429`
+#   `_`-joined   `curl_rc`, `CLAUDISH_MIN_CHARS`  -- exactly rule J's set
+#
+# Bare acronyms (`RAM`, `SHA-256`) and camelCase are deliberately NOT in it,
+# for the reason #1 records for narrowing rule J the same way: any widening
+# regresses ordinary words. (`GitHub` satisfies every camelCase test there is.)
+# Paths and filenames are axis 3's business, and a `name.ext` is axis 9's, so
+# the trailing lookahead hands those back.
+_BARE_SPAN_RE = re.compile(
+    r"(?<![\w/=.-])(?:"
+    r"--?[A-Za-z][\w-]*"            # a flag
+    r"|[A-Za-z_][\w-]*=[\w.:/-]+"   # an assignment
+    r"|[A-Za-z]\w*(?:_\w+)+"        # a `_`-joined identifier
+    r")(?![\w/])(?!\.(?:" + _EXTS + r")\b)"
+)
+
+
+def rule_S_bare_spans(text: str, mode: str) -> str:
+    """Set a flag name or a bare identifier off with axis 1's commas.
+
+    Backticked spans are stepped OVER rather than matched inside, so this axis
+    and axis 1 stay independent: under `base` (ticks kept) a `` `--flag` `` is
+    left alone here, and the pair (`base`, `flag-pause`) still moves exactly
+    one axis even on an item that is full of backticks.
+    """
+    if mode == "keep":
+        return text
+    out = [seg if is_tick
+           else _BARE_SPAN_RE.sub(lambda m: _set_off(m, m.group(0)), seg)
+           for seg, is_tick in _split_ticks(text)]
+    return _tidy_commas("".join(out))
+
+
+# --- pronounceable file extensions (axis 9, from #13) ---------------------
+#
+# The #8 listener's note on `s10:path-expand`: "`hooks.json` should become
+# 'hooks dot json' so that 'json' is pronounced". `path-expand` spells EVERY
+# extension -- `.md` becomes " dot M D" -- and the axis-3 winner `path-shorten`
+# does not touch extensions at all, so neither settled variant covers this.
+#
+# The obvious implementation is a table saying which extensions are words and
+# which are letters. It is NOT NEEDED, and this is measured, not assumed. For
+# all 23 extensions `_EXTS` lists, espeak's reading of the extension is
+# BYTE-IDENTICAL after a `.` and after the word "dot":
+#
+#   foo.json  -> 'fˈuː.dʒˈeɪsˈɑːn'      foo dot json -> ... dˈɑːt dʒˈeɪsˈɑːn'
+#   foo.sh    -> 'fˈuː.ˌɛsˈeɪtʃ'        foo dot sh   -> ... dˈɑːt ˌɛsˈeɪtʃ'
+#
+# and it is already right in every case: `json` "jason", `sh` "S-H", `py`
+# "pie", `md` "M-D", `sql` "sequel", `yaml` "yamel", `log` "log", `wav` "wav".
+# Spelling them out is what breaks them -- `log` becomes "L-O-G", `wav`
+# "double-U-A-V", `py` "P-Y" -- which is exactly the note's complaint about
+# `path-expand`.
+#
+# So the rule does ONE thing: the `.` becomes the word "dot". That removes the
+# sentence-final mark PATH-EXT is about and leaves the pronunciation to the
+# frontend that already gets it right. One known limit, unfixed by anything
+# here: espeak reads `yml` as "immel".
+def rule_X_extensions(text: str, mode: str) -> str:
+    """`name.ext` -> `name dot ext`: the dot said, the `.` gone, the extension
+    handed to espeak untouched.
+
+    A BARE extension (`.sh` with no name in front of it, as in s09) is left
+    alone: `PATH-EXTBARE` is a documented control class -- both frontends
+    already agree on it -- and the hazard this rule exists for is the `.`
+    INSIDE `name.ext` landing as a sentence-final mark.
+    """
+    if mode == "keep":
+        return text
+    return _BARE_EXT_RE.sub(lambda m: f"{m.group(1)} dot {m.group(2)}", text)
 
 
 # --- SCREAMING_SNAKE_CASE (rule J is the `lower` arm) ---------------------
@@ -538,8 +677,11 @@ def _pipeline(text: str, opts: Opts, ax: Axes) -> str:
     if ax.markdown == "strip-plus":
         text = rule_MD_extra(text)
     text = rule_T_ticks(text, ax.ticks)
+    text = rule_S_bare_spans(text, ax.flags)  # #13: axis 1's commas, no ticks
     text = rule_B_newlines_to_punct(text, b)
     text = rule_P_paths(text, ax.paths)
+    text = rule_X_extensions(text, ax.exts)  # #13: after P, so a surviving
+    #                                          segment's extension still speaks
     text = rule_G_strip_thousands(text)
     text = rule_K_currency(text)
     text = rule_E_version_dots(text)
@@ -558,6 +700,8 @@ _BASE_RULES = """the #8 reference point: candidate's rules, one choice per open 
   paths    asis    no path rule
   code     read    fenced blocks read out
   ticks    keep    backticks left in place
+  flags    keep    flag names and bare identifiers left as they are   (#13)
+  exts     keep    a file extension's '.' reaches espeak              (#13)
   boundary '.'     what B and A insert"""
 
 
@@ -680,3 +824,40 @@ def san_cb_short(text: str, opts: Opts) -> str:
 @sanitizer("cb-silent", "code block -> a bare '.', i.e. nothing but a pause")
 def san_cb_silent(text: str, opts: Opts) -> str:
     return _pipeline(text, opts, Axes(code="silent"))
+
+
+# ==========================================================================
+# The #13 follow-up set: two rules #8's notes asked for, and one combination
+# #8's decision left unmeasured
+# ==========================================================================
+#
+# STILL NOT A DECISION, and #8's seven axes are NOT reopened. Each of these
+# moves exactly one axis off the same `base` reference #8 used, so the pairs
+# read the same way #8's did. See `docs/decisions/sanitizer-audition-13.md`.
+
+
+# --- axis 8: commas around flag names and bare identifiers ----------------
+
+
+@sanitizer("flag-pause",
+           "base, but a flag name or bare identifier is set off with commas")
+def san_flag_pause(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(flags="pause"))
+
+
+# --- axis 9: pronounceable file extensions --------------------------------
+
+
+@sanitizer("ext-word",
+           "base, but 'hooks.json' becomes 'hooks dot json': the dot is said")
+def san_ext_word(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(exts="word"))
+
+
+# --- axis 10: path-shorten and path-nolead, heard together ----------------
+
+
+@sanitizer("path-short-nolead",
+           "base, but a path is its last two segments AND loses a leading dot")
+def san_path_short_nolead(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(paths="shorten-nolead"))
