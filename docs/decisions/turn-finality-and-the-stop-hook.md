@@ -12,15 +12,14 @@ has an answer: **yes, directly, from the `Stop` hook event.** Nothing has to be 
 or cancelled.
 
 **This document is field names, event names, and two numbers.** It contains no measurement and no
-listening. It also contains no observation: **nobody has yet seen a live `Stop` payload on this
-machine.** Every field named below comes from the published schema plus the schema as it is compiled
-into the shipped binary — two independent sources that agree, but neither of them is the thing
-itself. [The gap is stated in full below](#what-has-not-been-observed), and
-[the one-shot probe that would close it](#the-probe-that-would-close-the-gap) is written out but
-deliberately not installed.
+listening. It does now contain **one observation**: a live `Stop` payload was captured on this
+machine on 2026-08-25 by a throwaway hook, which was torn down in the same sitting.
+[The observed payload is below](#what-was-observed), and it matched the compiled schema field for
+field. Where the docs and the binary disagreed, **the binary was right**: the payload has no
+`stop_reason` and no `model`, both of which the published docs list.
 
-No LLM was called. No hook was touched. `rewrite.sh`, `rewrite-md.sh`, `providers.sh` and `hooks/`
-are unmodified.
+No LLM was called. **No plugin hook was touched** — `rewrite.sh`, `rewrite-md.sh`, `providers.sh` and
+`hooks/` are unmodified. The probe hook lived in the user's own `settings.json` and no longer exists.
 
 ---
 
@@ -33,6 +32,7 @@ Three sources, named per claim so the weak ones stay visible.
 | **[docs]** | <https://code.claude.com/docs/en/hooks.md>, fetched 2026-08-25 | states intent; can lag or lead the installed build |
 | **[bin]** | `/Users/francis.behnen/.local/share/claude/versions/2.1.245` (Mach-O arm64, 376 MB), read via `strings -n 6` | proves what **this** build contains — the compiled Zod schema and the dispatch code |
 | **[inferred]** | reading the minified control flow | a reading of code, not a run of it |
+| **[obs]** | one live `Stop` payload, captured 2026-08-25 on 2.1.245 by a throwaway hook, since removed | proves a field **was** present, with that value, in **one** turn; a single sample can never prove a field is always absent |
 
 Offsets below are byte offsets into the `strings -n 6` output, which is reproducible:
 
@@ -79,8 +79,20 @@ the case where the lag bites.
 of this message" is not "last message of this turn". A turn that emits three narration messages and
 two tool calls fires `final: true` three times.
 
-`Stop` fires once, when the turn ends. One fire per turn, carrying the text of the message that ended
-it. That *is* "final message" in the listener's sense, with no lookahead and no window.
+`Stop` fires when the turn ends, carrying the text of the message that ended it. That *is* "final
+message" in the listener's sense, with no lookahead and no window.
+
+**One qualification, because "once per turn" is not unconditional.** `Stop` fires once per *attempt*
+to end the turn. If any `Stop` hook blocks — exit code 2, or a blocking JSON decision — Claude
+responds to the block and `Stop` fires again, with `stop_hook_active: true` and, because the model
+has spoken since, potentially **different** `last_assistant_message` text. The first payload is
+therefore an *attempted* final message, not a guaranteed one.
+
+In the ordinary case — nothing in the user's config blocking on `Stop` — there is exactly one fire
+per turn, and that is what was observed: one capture for the turn. What the plugin can and cannot
+infer when a block does happen is
+[settled below](#stop_hook_active-is-not-a-duplicate-detector); the short version is that the
+re-fire usually carries the *newer* answer, so the second payload is the one worth speaking.
 
 ### Defer-and-cancel is dead
 
@@ -128,24 +140,107 @@ if (Or > 0 && Fr > Or) return … yield DI(
 So: **the default block cap is 8** consecutive blocks, after which the runtime overrides the hook and
 ends the turn with a warning. Env override `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`; `0` disables the cap.
 
-**The hazard for this plugin is small but it is not zero.** A speech hook has no reason to block —
-it reads `last_assistant_message`, hands it to Kokoro, and exits 0. It never sets
-`stop_hook_active`, so it never sees it `true`. The trap is the *fail-open* discipline the rest of
-this plugin is built on: `rewrite.sh` exits 0 on every error path precisely so a display hook can
-never swallow content (`rewrite.sh:23-24`). **On `Stop`, exit code 2 does not mean "hook failed", it
-means "block the turn".** A speech hook that leaks a non-zero exit — a `set -e` under an unset var,
-a `jq` parse failure, a Kokoro import error — does not merely fail to speak. It holds the turn open,
-gets re-fired up to 8 times, and speaks the same message up to 8 times before the runtime forces the
-turn to end. That is the loop to design against.
+### Only exit code 2 blocks — an earlier revision of this document got this wrong
 
-Two rules follow, and they are cheap:
+**An earlier revision of this section claimed that *any* non-zero exit from a `Stop` hook holds the
+turn open. That is false, and the binary says so in as many words.** The correction is recorded here
+rather than quietly deleted, because the wrong version also went out in the #10 close comment.
 
-1. **Exit 0 on every path**, as `rewrite.sh` already does — but on `Stop` the reason is different and
-   stronger, so it needs its own comment where the exit lives, not a reference to the display hook's.
-2. **Read `stop_hook_active` and stay silent when it is `true`.** Not to avoid blocking — the hook
-   never blocks — but because a `true` means *this turn's final message has already been spoken*.
-   Without the check, any other Stop hook the user installs that blocks (a lint gate, a test gate)
-   makes this plugin repeat itself once per block, up to 8 times.
+Exit status is sorted into three classes, not two. **[bin]** @ 9557061, the command-hook result
+resolver:
+
+```js
+let h = e.status === 2 && Ln({ hookEvent: t, stdout: e.stdout, stderr: e.stderr });
+…
+if (e.status === 0) return { answer: {}, exitClass: "0", blocked: !1 };
+if (e.status === 2) {
+  if (h) return { answer: {}, exitClass: "2",
+                  localWarning: `[${n}]: the hook script appears to be missing (…)`, blocked: !1 };
+  return { answer: Me(t, `[${n}]: ${e.stderr || "No stderr output"}`), exitClass: "2", blocked: !0 };
+}
+return { answer: {}, exitClass: "other",
+         localWarning: `[${n}]: failed with non-blocking status code ${e.status}: …`, blocked: !1 };
+```
+
+- **0** — success.
+- **2** — `blocked: true`. **This is the only status that blocks.** And even it does not always: `h`
+  is a heuristic that recognises "the script isn't there" and downgrades that exit 2 to a warning.
+- **any other non-zero** — `exitClass: "other"`, and the harness's own word for it, in the warning
+  string it emits, is **"non-blocking status code"**.
+
+The consumer side confirms the classes have different consequences. **[bin]** @ 16573673, the `Stop`
+branch of the turn loop:
+
+```js
+if ("hookEvent" in g && g.hookEvent === "Stop") {
+  if (g.type === "hook_non_blocking_error") y.push(g.stderr || `Exit code ${g.exitCode}`);
+  else if (g.type === "hook_error_during_execution") y.push(g.content);
+}
+if (h.blockingError) t.push(k({ content: n.getStopHookMessage(h.blockingError), isMeta: !0 })),
+                     r = !0;                                    // r === requestQuery
+…
+if (y.length > 0) t.push(D(`Stop hook error: ${y.join("; ")}`, "warning"));
+…
+return { messages: t, requestQuery: r };
+```
+
+`requestQuery` — *"go back to the model, the turn is not over"* — is set **only** by `blockingError`,
+or by `additionalContexts`. A non-blocking error is collected into `y` and rendered as one warning
+line, `Stop hook error: …`, and the turn ends normally.
+
+**The quoted `stop_hook_active` documentation above already said this, and this document failed to
+read its own quote**: *"has blocked Claude from stopping (via exit code 2 or
+`permissionDecision: "block"`)"* — exit code 2, named specifically.
+
+### So what is the actual hazard?
+
+Smaller than claimed, and differently shaped. The *fail-open* discipline the rest of this plugin is
+built on still applies (`rewrite.sh` exits 0 on every error path so a display hook can never swallow
+content, `rewrite.sh:23-24`), but the reason to keep it on `Stop` is narrower:
+
+- A `set -e` trip under an unset var, a Kokoro import error, a missing binary — these exit 1, or 127,
+  or 2 only by coincidence. They produce a visible `Stop hook error:` warning and **do not hold the
+  turn**. Noisy, not looping.
+- **`jq` is the one to watch.** `jq` exits **2** on a usage or compile error in the filter (it uses 5
+  for a filter that errors at runtime, and 1 for a false/null result under `-e`). A `Stop` hook whose
+  first act is to parse its stdin with `jq` can therefore hand the harness a genuine 2 and really
+  block — and then really get re-fired, up to the cap of 8. That is the loop to design against, and
+  it is one specific mistake rather than a broad class.
+
+Two rules follow, and they are still cheap — the second for a different reason than before:
+
+1. **Exit 0 on every path**, as `rewrite.sh` already does. On `Stop` the rationale is not "non-zero
+   blocks" but "make the `jq`-exits-2 case unreachable, and keep the transcript free of warning
+   noise". It needs its own comment where the exit lives; the display hook's reason is not this one.
+2. **Do not use `stop_hook_active` as an "already spoken" flag.** It does not mean that — next
+   section.
+
+### `stop_hook_active` is not a duplicate-detector
+
+The rule this document previously stated — *"stay silent when `stop_hook_active` is `true`, because a
+`true` means this turn's final message has already been spoken"* — **is wrong, and wrong in the
+direction that costs the user their answer.**
+
+`true` means only: *a previous attempt to end this turn was blocked.* It says nothing about whether
+this plugin spoke on that attempt, and — the part that matters — **Claude responds to the block
+before `Stop` fires again.** The second payload's `last_assistant_message` is therefore usually
+*newer* text than the first's, and it is the one the user actually wants to hear. A hook that goes
+silent whenever the flag is `true` speaks the answer that got rejected and suppresses the answer that
+stood:
+
+| fire | `stop_hook_active` | `last_assistant_message` | the old rule says | user hears |
+| --- | --- | --- | --- | --- |
+| 1 | `false` | the rejected answer | speak | the rejected answer |
+| 2 | `true` | Claude's reply to the block | stay silent | nothing |
+
+**The flag is a blocking-loop guard, not a de-duplication signal.** Deduplication, if wanted, has to
+compare the *text* — and the payload carries the text, so hashing `last_assistant_message` against
+the last thing spoken is both available and cheap. That also bounds the worst case properly: the
+8-block cap means at most 8 fires, so at most 8 utterances if nothing dedupes.
+
+Speak-first, speak-on-change, or speak-last (which needs knowing a fire is the last one, and it
+cannot) is a real choice with no obviously correct answer, and **it is #11's.** What is settled here
+is only the constraint: `stop_hook_active` alone cannot make that choice.
 
 ---
 
@@ -203,6 +298,15 @@ turn. Subagent chatter is silent for free — not by a filter this plugin has to
 but because the event never fires. This is a better outcome than the design would have got by asking
 for it.
 
+**And this is now observed, not only read off a ternary.** The probe was deliberately run on a turn
+that had a subagent in flight. Result: **one** capture for the whole turn, `hook_event_name: "Stop"`.
+The subagent completed mid-turn and produced **no second capture** — no `Stop` fire for it. The
+payload's `background_tasks` even held that subagent as a live entry, shape
+`{ id, type: "subagent", status: "running", description, agent_type }`. So the turn ended with a
+subagent registered as running, `Stop` fired exactly once, and it fired for the main thread.
+**[obs]** — one sample, and it is the sample that mattered: a build where `Stop` fired for subagents
+would have written a second file.
+
 Two footnotes, so the claim is not overstated:
 
 - **One narrow bypass exists.** The gate is `if (!c && !Rg(l, u, d)) return`, where
@@ -217,7 +321,9 @@ Two footnotes, so the claim is not overstated:
   "Subagent identifier. Present only when the hook fires from within a subagent (e.g., a tool called
   by an AgentTool worker). Absent for the main thread, even in `--agent` sessions. Use this field
   (not agent_type) to distinguish subagent calls from main-thread calls." A belt-and-braces
-  `agent_id`-absent check is available if the design ever wants one; on `Stop` it should be redundant.
+  `agent_id`-absent check is available if the design ever wants one; on `Stop` it is redundant, and
+  the capture bears that out — `agent_id` and `agent_type` were both absent from the observed payload,
+  on a turn that had a subagent running. **[obs]**
 
 ---
 
@@ -262,12 +368,19 @@ a global cap.
 
 ### The 60 in this repo is a declared value, not a cap
 
-**There is no 60 s harness cap, and nothing in this document should be read as contrasting a default
-against one.** The 60 is this plugin's own declared value: `hooks/hooks.json:9` sets `"timeout": 60`
-on `MessageDisplay` (also recorded in `README.md:457`), and `CLAUDISH_TIMEOUT` (default 45) is
-deliberately kept under it. The same file declares **180** at `hooks/hooks.json:21` for `PostToolUse`,
-which on its own disproves any absolute 60 s ceiling — and `CLAUDISH_MD_TIMEOUT`'s 150 s default would
-have been dead on arrival if one existed.
+**There is no *harness* 60 s cap to contrast a default against, and nothing in this document should
+be read as doing so.** The 60 is this plugin's own declared value: `hooks/hooks.json:9` sets
+`"timeout": 60` on `MessageDisplay` (also recorded in `README.md:457`), and `CLAUDISH_TIMEOUT`
+(default 45) is deliberately kept under it. The same file declares **180** at `hooks/hooks.json:21`
+for `PostToolUse`.
+
+**That 180 is not evidence about a ceiling, and an earlier revision wrongly said it "disproves" one.**
+A value the config schema accepts proves only that the schema accepts it — `timeout` is `positive()`
+with no `.max()`, so 180 would validate whether or not the runtime clamps at execution time.
+Configuration cannot establish runtime enforcement. Whether any absolute ceiling exists stays
+**unestablished**, exactly as the previous section says, and this repo's declared numbers cannot
+settle it in either direction. (`CLAUDISH_MD_TIMEOUT`'s 150 s default is not evidence either: nobody
+has measured a hook actually running that long to completion.)
 
 So the only honest comparison is *declared value vs harness default*: `MessageDisplay`'s harness
 default is 10 s and this plugin declares 60; `Stop`'s harness default is 600 s and **a speech hook on
@@ -288,49 +401,105 @@ be reaching for. **#11's call, not settled here.**
 
 ---
 
-## What has not been observed
+## What was observed
 
-**Stated plainly, because everything above is inference from two paper sources.**
+**One live `Stop` payload, captured 2026-08-25 on 2.1.245**, by a throwaway hook installed in
+`~/.claude/settings.json`, fired on one turn, then removed along with its output directory.
+[The probe as it was run](#the-probe-as-it-was-run) is below.
 
-- **No live `Stop` payload has been captured.** Not one. Every field name, type and optionality above
-  is the published schema plus the same schema compiled into the binary. Those are two sources, and
-  they agree, and they are still both descriptions of the payload rather than the payload.
-- **The two sources do not fully agree, which is the reason this caveat is not a formality.**
-  **[docs]** lists `stop_reason` (`"end_turn" | "max_tokens"`) on both `Stop` and `SubagentStop`.
-  **2.1.245 does not have it**: the compiled `Stop` schema at @ 32880490 is
-  `hook_event_name` + `stop_hook_active` + `last_assistant_message` + `background_tasks` +
-  `session_crons` over the common base, with no `stop_reason`, and the dispatcher at @ 25308665 does
-  not construct one. Every `stop_reason` in the binary is an API-message or SDK-result field, not a
-  hook input. Conversely **`session_crons` is in the binary and absent from the docs.** So the docs
-  are describing a build that is not this one, in both directions. A design that reads
-  `stop_reason` on 2.1.245 would read `null`.
-- **`last_assistant_message` is optional, and the code says how it goes missing.** @ 25308665 computes
-  it as `f = p ? Cs(p.message.content, "\n").trim() || undefined : undefined`, i.e. the text blocks of
-  the last assistant message joined by newline, **collapsing to absent when that string is empty**. A
-  turn whose last assistant message is tool-use-only, or empty, delivers no text. A speech hook must
-  treat the field as absent-by-default and exit 0 quietly. **[inferred]** from the minified
-  expression.
-- **Not checked at all:** whether `Stop` fires on user interrupt (Ctrl-C / Esc); what fires when the
-  turn ends in an error — there is a separate **`StopFailure`** event carrying `error`,
-  `error_details` and its own `last_assistant_message` (**[bin]** @ 32880490 region), which has not
-  been looked into; and whether `background_tasks` / `session_crons` being non-empty should suppress
-  a "done" announcement. That last one looks like a real design question — the binary describes
-  `background_tasks` as there to "let hooks distinguish 'session is done' from 'session is paused
-  waiting for background work to wake it'" — and it is #11's, not this document's.
-- **Nothing here was run.** No hook was installed, no settings file was touched, no turn was ended
-  under observation.
+### The payload carried exactly eleven fields
 
-### The probe that would close the gap
+```
+session_id  transcript_path  cwd  prompt_id  permission_mode  effort
+hook_event_name  stop_hook_active  last_assistant_message  background_tasks  session_crons
+```
 
-One throwaway `Stop` hook, one turn, and the real field list is on disk. **Not installed** — it
-edits `~/.claude/settings.json`, which is the user's live config, and that needs Francis' say-so.
+**This matches the compiled schema field for field.** Six from the common base (**[bin]** @ 32875048:
+`session_id`, `transcript_path`, `cwd`, `prompt_id?`, `permission_mode?`, `effort?`) and five from the
+`Stop` extension (**[bin]** @ 32880490). The base's two remaining optional fields, `agent_id` and
+`agent_type`, were absent — which is exactly what the schema says to expect: *"Absent for the main
+thread, even in `--agent` sessions."* Their absence is
+[correction 2](#correction-2--stop-does-not-fire-for-subagents-subagentstop-does) observed from the
+other side.
+
+### The docs were wrong; the binary was right
+
+- **`stop_reason` is absent.** **[docs]** lists it on `Stop` (`"end_turn" | "max_tokens"`). It is not
+  in the payload, not in the compiled schema at @ 32880490, and the dispatcher at @ 25308665 never
+  constructs one — every `stop_reason` in the binary is an API-message or SDK-result field, not a hook
+  input. **This document predicted that divergence before the probe ran, and the prediction held.**
+  That is the case for the method: where the two paper sources disagree, prefer the one compiled into
+  the build you are actually running.
+- **`model` is absent too.** Also listed by **[docs]**, also missing from the common base at
+  @ 32875048, also missing from the payload. Same story, independent second instance.
+- **`session_crons` is present** — in the binary, absent from the docs, and present on the wire.
+
+So the docs describe a build that is not this one, in both directions. A design reading `stop_reason`
+or `model` on 2.1.245 gets `null`.
+
+### `last_assistant_message` arrived populated, and raw
+
+**1511 characters, the full final assistant text of the turn, containing 29 markdown markers.** This
+is the load-bearing observation, and it confirms two things at once:
+
+1. **The field works as advertised.** No transcript read, no lag, no parse — the text was simply
+   there, complete.
+2. **The handoff problem is real, measured, and is this plugin's whole job.** What arrives is *raw
+   markdown*: headings, emphasis, list bullets, fences, links — precisely the input `rewrite-md.sh`
+   exists to deal with. A speech hook on `Stop` cannot hand `last_assistant_message` to a voice
+   as-is; it has to go through sanitisation first. That was always the assumption. It is now 29
+   markers in 1511 characters of one ordinary turn.
+
+### `stop_hook_active` was `false`
+
+As documented, on a first fire with nothing blocking.
+
+### `background_tasks` was non-empty, and the subagent was in it
+
+One entry, `{ id, type: "subagent", status: "running", description, agent_type }`, for a subagent
+still running as the turn ended. Two consequences:
+
+- It confirms the schema's stated purpose verbatim — letting hooks distinguish *"session is done"*
+  from *"session is paused waiting for background work to wake it"*.
+- **It makes #11's suppression question concrete rather than hypothetical.** "Should a non-empty
+  `background_tasks` suppress a done-announcement?" — in this repo the *normal* working turn ends with
+  background work registered. Whatever #11 decides, it decides for the common case.
+
+### What one sample cannot do
+
+**This is a single capture, from one session, on one build, with a subagent running.** It can prove a
+field was present and what it held. **It cannot prove a field is always absent.** `stop_reason` and
+`model` are absent *here*, consistent with the compiled schema — and one turn reaches no further than
+that. Likewise:
+
+- `last_assistant_message` is `optional()` in the schema, and @ 25308665 shows how it goes missing:
+  `f = p ? Cs(p.message.content, "\n").trim() || undefined : undefined` — the text blocks of the last
+  assistant message joined by newline, **collapsing to absent when that string is empty**. A turn
+  whose last assistant message is tool-use-only, or empty, delivers no text. One populated
+  observation does not retire that path: a speech hook must still treat the field as
+  absent-by-default and exit 0 quietly. **[inferred]** from the minified expression.
+- **Still unchecked:** whether `Stop` fires on user interrupt (Ctrl-C / Esc); the separate
+  **`StopFailure`** event, whose compiled shape is
+  `{hook_event_name, error, error_details?, last_assistant_message?}` over the same base
+  (**[bin]** @ 32881159) and which was not exercised; and the blocked-turn path — nothing blocked
+  during the probe, so `stop_hook_active: true` has still never been seen, and neither has a second
+  fire with newer text. The table in
+  [that section](#stop_hook_active-is-not-a-duplicate-detector) is read from the code, not from the
+  wire.
+
+### The probe as it was run
+
+**Spent and torn down.** Recorded so the claims above are reproducible — not as work outstanding.
+The hook went into `~/.claude/settings.json` with Francis' say-so, ran for one turn, and was removed
+in the same sitting along with `~/.local/share/claudish-probe/`.
 
 ```bash
 mkdir -p ~/.local/share/claudish-probe
 cat > ~/.local/share/claudish-probe/stop-probe.sh <<'EOF'
 #!/usr/bin/env bash
 # THROWAWAY. Dumps one Stop payload and exits 0. Delete after reading.
-# Exit 0 unconditionally: on Stop, a non-zero exit BLOCKS the turn.
+# Exit 0 unconditionally: on Stop, exit code 2 blocks the turn (other non-zero
+# statuses only warn — see "Only exit code 2 blocks" above).
 d=~/.local/share/claudish-probe
 mkdir -p "$d" 2>/dev/null
 cat > "$d/stop-$(date +%s%N).json" 2>/dev/null
@@ -339,7 +508,8 @@ EOF
 chmod +x ~/.local/share/claudish-probe/stop-probe.sh
 ```
 
-Then, in `~/.claude/settings.json`, add to the `hooks` object:
+Then, in `~/.claude/settings.json`, this went into the `hooks` object — and came back out again
+afterwards:
 
 ```json
 "Stop": [
@@ -351,7 +521,7 @@ Then, in `~/.claude/settings.json`, add to the `hooks` object:
 ]
 ```
 
-End one turn, then read it and tear the probe out:
+One turn was ended, the capture read, and the probe torn out:
 
 ```bash
 ls -t ~/.local/share/claudish-probe/stop-*.json | head -1 | xargs jq 'keys'
@@ -360,19 +530,20 @@ ls -t ~/.local/share/claudish-probe/stop-*.json | head -1 | xargs jq '{stop_hook
 rm -rf ~/.local/share/claudish-probe
 ```
 
-What it settles in one turn: whether `stop_reason` is really absent on 2.1.245; whether
-`session_crons` is really present; whether `last_assistant_message` arrives populated; and the
-complete key list, against which everything above becomes observed rather than inferred.
+What it settled, all in the one turn: `stop_reason` **is** absent on 2.1.245 and so is `model`;
+`session_crons` **is** present; `last_assistant_message` **does** arrive populated, with raw markdown
+in it; and the complete key list is the eleven fields above, against which the schema reading checks
+out exactly. [Findings above.](#what-was-observed)
 
-**Delegating one subagent while the probe is live would answer correction 2 empirically too** — a
-`Stop`-only probe that stays silent through a subagent's completion and fires once at the end of the
-turn is the direct observation. Worth doing in the same pass.
+**A subagent was deliberately delegated while the probe was live**, which is what turned correction 2
+from a ternary reading into an observation: the probe stayed silent through the subagent's completion
+and fired once, as `Stop`, at the end of the turn.
 
-Two things to be aware of before installing it, neither a blocker:
+Two operational notes, kept because they would apply again:
 
-- A global `Stop` hook fires on **every** turn in **every** project until removed. It writes one
-  small file per turn under `~/.local/share/claudish-probe/`. Remove it in the same sitting.
-- `"timeout": 5` is deliberate: a probe that hangs should not hold a turn for the 600 s default.
+- A global `Stop` hook fires on **every** turn in **every** project until removed. It writes one small
+  file per turn under `~/.local/share/claudish-probe/`. It was removed in the same sitting.
+- `"timeout": 5` was deliberate: a probe that hangs should not hold a turn for the 600 s default.
 
 ---
 
@@ -389,21 +560,38 @@ available.
 3. **Defer-and-cancel is withdrawn.** It was a workaround for a signal that turned out to be
    available.
 4. **`Stop` only. Never `SubagentStop`.** Subagent silence is free.
-5. **Exit 0 on every path, and skip when `stop_hook_active` is true** — on `Stop`, a non-zero exit
-   blocks the turn and gets the hook re-fired up to 8 times.
-6. **Timeouts:** the **harness defaults** are 600 s for `Stop` / `SubagentStop` and 10 s for
-   `MessageDisplay`. **There is no 60 s cap** — the 60 is this plugin's declared value at
-   `hooks/hooks.json:9`, alongside 180 at `:21`. A speech hook on `Stop` declares its own. Whether
-   the harness has any absolute ceiling is **unestablished**, and the real question for `Stop` is
-   `async`, not the timeout.
+5. **Exit 0 on every path** — but not for the reason an earlier revision gave. **Only exit code 2
+   blocks** (**[bin]** @ 9557061; anything else non-zero is, in the harness's own words, a
+   "non-blocking status code" that merely warns). The real trap is narrow: `jq` exits 2 on a malformed
+   filter, so a hook that parses its stdin with `jq` can hand the harness a genuine block and get
+   re-fired up to 8 times. An explicit `exit 0` makes that unreachable.
+6. **Do not use `stop_hook_active` as an "already spoken" flag.** It means "a previous stop attempt
+   was blocked", and Claude replies to the block *before* the re-fire — so the later payload usually
+   carries the **newer** text, which is the one the user wants. Blanket silence on `true` would speak
+   the rejected answer and suppress the real one. Dedupe on the text (the payload carries it) if
+   dedupe is wanted; which policy, and whether any is needed, is #11's.
+7. **Timeouts:** the **harness defaults** are 600 s for `Stop` / `SubagentStop` and 10 s for
+   `MessageDisplay`. **There is no *harness* 60 s cap to compare against** — the 60 is this plugin's
+   declared value at `hooks/hooks.json:9`, alongside 180 at `:21`. Those declared numbers are not
+   evidence about a runtime ceiling in either direction; whether the harness imposes any absolute
+   ceiling is **unestablished**. A speech hook on `Stop` declares its own value, and the real question
+   for `Stop` is `async`, not the timeout.
+8. **The payload is observed, not inferred.** One live capture on 2.1.245 carried exactly eleven
+   fields and matched the compiled schema exactly; `last_assistant_message` held 1511 characters of
+   raw markdown, so speech on `Stop` must go through the sanitiser; `stop_reason` and `model` — both
+   listed by the published docs — were absent. The binary beat the docs, twice. **Single sample**: it
+   proves presence, never permanent absence.
 
 **What stays open, and belongs to [#11](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/11):**
 whether the `Stop` hook runs `async`; whether a long *intermediate* message is ever worth speaking
 (the listener's "maybe if there are way longer updates that would also make sense" — the only place a
-length threshold could still live, as a secondary escape hatch); and whether non-empty
-`background_tasks` should suppress an announcement.
+length threshold could still live, as a secondary escape hatch); whether non-empty `background_tasks`
+should suppress an announcement, which the observation shows is the *common* case in this repo and not
+an edge; and what to do on a re-fire after another hook blocks — speak-first, speak-on-change, or
+nothing.
 
-**What stays owed regardless of #11: the probe.** Closing #10 on two paper sources is defensible
-because they are independent and they agree on the load-bearing field. It is not the same as having
-seen it, and the `stop_reason` disagreement is proof that the docs and this build have drifted. One
-turn closes that.
+**What no longer stays owed: the probe. It ran.** #10 does not close on two paper sources any more; it
+closes on two paper sources plus one observation that agreed with the stricter of them, field for
+field. The residual unobserved surface is named in
+[what one sample cannot do](#what-one-sample-cannot-do) — the empty-message path, `StopFailure`, user
+interrupt, and the blocked-turn re-fire — and none of it is load-bearing for #11's next step.
