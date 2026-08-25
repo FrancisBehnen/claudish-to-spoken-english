@@ -10,6 +10,7 @@ The page is written NEXT TO the wav directories on purpose:
     ~/.local/share/kokoro/bench/audition-8/<item>.<variant>.af_heart.wav
     ~/.local/share/kokoro/bench/audition-9/<item>.candidate.<voice>.wav
     ~/.local/share/kokoro/bench/audition-10/<item>.candidate.af_heart.wav
+    ~/.local/share/kokoro/bench/audition-11/<item>.<variant>.bf_emma.wav
 
 so every `<audio src>` is a relative sibling and the page works from a
 `file://` URL with no server. The wavs are ~195 MB and are not committed; this
@@ -187,11 +188,17 @@ def text_sources(repo: Path):
 # group of its own, so registering a new sanitizer never silently drops it.
 
 AXES = [
+    # #11's ship blocker 1. NOT an axis: it is every axis at once, which is
+    # exactly why it needs its own group -- `n` is 0 and the page prints the
+    # title without an "Axis N" prefix, because calling the composition an
+    # axis would misdescribe what the pair moves.
+    {"key": "settled", "n": 0, "title": "The settled set, composed",
+     "variants": ["settled"], "classes": []},
     {"key": "ticks", "n": 1, "title": "Backtick prosody",
      "variants": ["tick-strip", "tick-pause"],
      "classes": ["MD-BACKTICK"]},
     {"key": "linebreak", "n": 2, "title": "The line-break replacement, and the crash",
-     "variants": ["lb-period", "lb-comma"],
+     "variants": ["lb-period", "lb-comma", "lb-auto"],
      "classes": ["SPLIT-NEWLINE", "CHUNK-510-PUNCT"]},
     {"key": "paths", "n": 3, "title": "Paths",
      "variants": ["path-nolead", "path-basename", "path-shorten", "path-expand",
@@ -625,7 +632,7 @@ const mins = s => (s < 90 ? Math.round(s) + 's' : Math.round(s / 60) + ' min');
    counted twice in the progress line and exported twice, which is why that
    export reads 20/87 for 19 verdicts. The store key is namespaced by section
    from here on, with the export's own section name, and so is the DOM id. */
-const SEC1 = 'sanitizer', SEC4 = 'sanitizer-13';
+const SEC1 = 'sanitizer', SEC4 = 'sanitizer-13', SEC5 = 'settled-set';
 const pairKey = (section, id) => section + '/' + id;
 
 let S = { blinded: true, theme: 'auto', pairs: {}, voices: {}, len: {} };
@@ -642,7 +649,8 @@ if (!S.keyed_by_section) {
 /* The A/B pair sections, in page order, paired with the section name the export
    writes. One list so the renderer, the counter and the exporter cannot drift. */
 const AB_SECTIONS = [[SEC1, D.s1]]
-  .concat(D.s4 && D.s4.pairs ? [[SEC4, D.s4]] : []);
+  .concat(D.s4 && D.s4.pairs ? [[SEC4, D.s4]] : [])
+  .concat(D.s5 && D.s5.pairs ? [[SEC5, D.s5]] : []);
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); }
   catch (e) { flash('could not save to localStorage: ' + e.message); } };
 
@@ -738,7 +746,7 @@ function pairSection(section, heading, data, intro) {
   sec.appendChild(el('h2', null, heading));
   sec.appendChild(el('p', 'small dim', intro));
   data.axes.forEach(ax => {
-    sec.appendChild(el('h3', null, 'Axis ' + ax.n + ' — ' + ax.title));
+    sec.appendChild(el('h3', null, (ax.n ? 'Axis ' + ax.n + ' — ' : '') + ax.title));
     const meta = el('p', 'small dim');
     const bits = [ax.pairs.length + ' pairs', mins(ax.seconds) + ' of audio'];
     if (ax.classes.length) {
@@ -996,6 +1004,19 @@ function render() {
       + 'settled on, so these are NOT comparable with a section 1 wav.'));
   }
 
+  /* section 5 */
+  if (D.s5 && D.s5.pairs) {
+    main.appendChild(pairSection(SEC5, 'Section 5 — #11 the settled set', D.s5,
+      D.s5.pairs + ' pairs. This is the confirmation listen #11 §4.2 asks for: '
+      + 'the settled combination has never been synthesized, and until now it '
+      + 'contained a rule (the conditional boundary B′) that did not exist in '
+      + 'code. Every earlier pair moved ONE axis; here `settled` moves seven at '
+      + 'once, so the question is not which axis wins — those margins stand — '
+      + 'but whether any two of them interact badly. Voice: bf_emma, same as '
+      + 'section 4, so a section 5 wav IS comparable with a section 4 wav and is '
+      + 'NOT comparable with a section 1 wav.'));
+  }
+
   main.appendChild(exportPanel());
   progress();
   setCur(0, false);
@@ -1218,13 +1239,16 @@ def build_html(data: dict, skipped: list[str]) -> str:
     total_s = (sum(a["seconds"] for a in data["s1"]["axes"])
                + sum(i["seconds"] for i in data["s2"]["items"])
                + sum(g["seconds"] for g in data["s3"]["groups"])
-               + sum(a["seconds"] for a in data.get("s4", {}).get("axes", [])))
-    # Sections 1 and 4 are both A/B pairs; the blinding note is about both.
-    ab_pairs = data["s1"]["pairs"] + data.get("s4", {}).get("pairs", 0)
+               + sum(a["seconds"] for a in data.get("s4", {}).get("axes", []))
+               + sum(a["seconds"] for a in data.get("s5", {}).get("axes", [])))
+    # Sections 1, 4 and 5 are all A/B pairs; the blinding note is about all of
+    # them.
+    others = [data.get(k, {}) for k in ("s4", "s5")]
+    ab_pairs = data["s1"]["pairs"] + sum(d.get("pairs", 0) for d in others)
     ab_ident_ph = (data["s1"]["identical_phonemes"]
-                   + data.get("s4", {}).get("identical_phonemes", 0))
+                   + sum(d.get("identical_phonemes", 0) for d in others))
     ab_ident_wav = (data["s1"]["identical_wavs"]
-                    + data.get("s4", {}).get("identical_wavs", 0))
+                    + sum(d.get("identical_wavs", 0) for d in others))
     skip = ""
     if skipped:
         skip = ("<div class=\"note-box\"><b>Not on this page</b><ul class=\"small\">"
@@ -1335,7 +1359,12 @@ def main(argv=None) -> int:
     # Merging the two would silently pair an af_heart reference against a
     # bf_emma variant -- the pair would no longer isolate the rule.
     w13 = scan(bench_dir / "audition-13")
-    if not (w8 or w9 or w10 or w13):
+    # #11's settled-set confirmation listen. Also its own directory: it is
+    # bf_emma like audition-13, but its reference `base` wavs are per-item and
+    # its pairs move seven axes at once rather than one, so folding it into
+    # section 4 would break that section's "one axis moved" reading.
+    w11 = scan(bench_dir / "audition-11")
+    if not (w8 or w9 or w10 or w13 or w11):
         raise SystemExit(f"audition-page: no wavs under {bench_dir}")
 
     skipped: list[str] = []
@@ -1343,13 +1372,14 @@ def main(argv=None) -> int:
     s2 = build_section2(w9, resolve, manifest, skipped)
     s3 = build_section3(w10, resolve, manifest, items_tsv, skipped)
     s4 = build_section1(w13, resolve, manifest, phon, skipped)
+    s5 = build_section1(w11, resolve, manifest, phon, skipped)
 
     data = {
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "root": str(bench_dir),
-        "wavs": len(w8) + len(w9) + len(w10) + len(w13),
+        "wavs": len(w8) + len(w9) + len(w10) + len(w13) + len(w11),
         "phonemes_available": phon is not None,
-        "s1": s1, "s2": s2, "s3": s3, "s4": s4,
+        "s1": s1, "s2": s2, "s3": s3, "s4": s4, "s5": s5,
     }
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(build_html(data, skipped), encoding="utf-8")
@@ -1365,6 +1395,10 @@ def main(argv=None) -> int:
           f"   ({len(w13)} wavs)")
     print(f"             {s4['identical_phonemes']} pairs phoneme-identical, "
           f"{s4['identical_wavs']} byte-identical wavs")
+    print(f"  section 5  {s5['pairs']} pairs over {len(s5['axes'])} groups"
+          f"   ({len(w11)} wavs)")
+    print(f"             {s5['identical_phonemes']} pairs phoneme-identical, "
+          f"{s5['identical_wavs']} byte-identical wavs")
     print("  phoneme identity: "
           + ("kokoro-onnx tokenizer" if phon else "UNAVAILABLE (text comparison only)"))
     for s in skipped:
