@@ -197,9 +197,10 @@ turn_id  message_id  index  final  delta
   `stop_hook_active`, `last_assistant_message`, `background_tasks` and `session_crons`, and adds
   `turn_id`, `message_id`, `index`, `final` and `delta`. `agent_id` and `agent_type` were absent from
   both, as the schema says to expect on the main thread.
-- `rewrite.sh:104-112` reads five of the ten (`message_id`, `session_id`, `index`, `final`, `delta`,
-  plus `transcript_path`). The five it does not read are available to a publish step that wants them.
-  **[repo]**
+- **`rewrite.sh` reads six of the ten**, in two places: `message_id`, `session_id`, `index`, `final`
+  and `transcript_path` at `:107-111`, and `delta` at `:124`. **The four it does not read are `cwd`,
+  `prompt_id`, `hook_event_name` and `turn_id`** — all four are available to a publish step that wants
+  them. **[repo]**
 
 ---
 
@@ -255,7 +256,42 @@ message — a per-message file would reproduce exactly the pile-up `emit()`'s co
 is a **separate write** placed there, not a reuse of `$out`: `emit()` reads and then `rm -f`s its
 argument (`:84-90`), so the file `emit` is handed does not survive the call. The publish must also be
 guarded (`|| true`) so that a full disk or an unwritable `TMPDIR` cannot change `rewrite.sh`'s exit
-path — the display hook's fail-open contract outranks the speech feature absolutely.
+path — the display hook's fail-open contract outranks the speech feature absolutely. **And it sits
+behind `CLAUDISH_SPEAK`, normatively — §11.** A disabled user does not pay for the hash, the `mkdir` or
+the renames below.
+
+**How the publish is installed, and this is normative — ordering the consumer's reads is not enough.**
+The publish writes two files (three with `prompt_id`), and §3.2's whole guarantee rests on a consumer
+that sees a matching `source` also seeing the `rewrite` that belongs to it. Nothing about two separate
+`>` redirections gives that. **If `source` lands first, the worker matches the expected hash and then
+reads the *previous* turn's `rewrite` — which is precisely the failure §3.2's content hash exists to
+prevent, reintroduced one layer down.** So:
+
+1. **Every file is installed by temp-file rename, never written in place.** Write to a unique temp name
+   **inside the same speak directory** — `rename(2)` is atomic only within a filesystem, and the depth-2
+   speak dir is the one place both hooks already share — then `rename` it onto its final name. **This is
+   the same primitive §10.5 clause 1 uses for the job drop**, for the same reason, and it is the idiom
+   this project already reaches for.
+2. **`source` is written LAST, and it is the commit marker.** Order: `rewrite`, then `prompt_id`, then
+   `source`. `source` is the only file §3.2 keys on, so **until `source` names the new hash the entire
+   publish is invisible to the consumer**, and once it does, the matching `rewrite` is already in place.
+   A publisher that dies part-way leaves the *old* `source` standing, so the half-written publish reads
+   as "not yet published" rather than as a match against the wrong text. **Fail-open falls out of the
+   ordering instead of needing a clause of its own.**
+3. **A match is not durable, because `speak/rewrite` is one path reused for every message.** There is
+   one `speak/` per session (the lifecycle above), so a *later* turn's publish **replaces** `rewrite`.
+   Point 1 means that replacement is never *torn* — a reader holding the old file keeps reading a whole,
+   consistent old version — but it does not stop the reader from getting the **wrong generation**: a
+   newer publish can land between the consumer's `source` read and its `rewrite` read. The commit-marker
+   order fixes the *stale-rewrite* direction; it cannot fix this one. **The consumer therefore reads as a seqlock: read `source`, read
+   `rewrite`, re-read `source`, and accept the text only if the second `source` read is byte-identical
+   to the first.** If it changed, a newer turn overtook this one — restart the compare (§3.5.1 clause 2)
+   or abandon the wait (§3.5.1 clause 5), both of which the wait already does. **This is what "the
+   worker re-verifies" in §3.5.1 clause 1 means, stated as a protocol rather than as a reassurance.**
+
+**All three points are [inferred]** — reasoned from the rename semantics and this file's own lifecycle,
+not run. Nothing has published anything, so nothing has raced it. §13 row 17 is where the build-and-watch
+that retires it lives.
 
 **Only successful rewrites are published.** The below-threshold branch (`:147`), the notice branch
 (`:210-225`) and every `pass_through` publish nothing. A stale `speak/` from an earlier message is
@@ -649,7 +685,13 @@ one. Not adopted.
 2. **What it waits on: `speak/source` holding the expected hash. Nothing else.** Not "the buffer
    changed", not a timestamp, not `prompt_id`. Re-read `speak/source` on each wake and compare; read
    `speak/rewrite` **only after** a match, and only in that order — the reverse order can read a
-   rewrite that belongs to a source it has not yet seen.
+   rewrite that belongs to a source it has not yet seen. **Then re-read `speak/source` once more and
+   accept the text only if it has not moved** (§3.1's seqlock, point 3).
+   - **This clause is sound only because the producer is ordered too, and that half lives in §3.1
+     rather than here.** Ordering the consumer's reads is worthless against a producer that writes
+     `source` before `rewrite`: the worker would match the expected hash and read the previous turn's
+     text. §3.1 now makes `source` a commit marker written last, with every file installed by
+     temp-file rename. **Neither half is sufficient alone**, which is why each names the other.
 3. **The ceiling is derived from the thing it is waiting for, and no new knob ships.** The publish is
    bounded by `rewrite.sh`'s own LLM budget: `LLM_TIMEOUT="${CLAUDISH_TIMEOUT:-45}"` (`rewrite.sh:65`),
    enforced by `_llm_run_bounded`'s TERM → `sleep 2` → KILL (`providers.sh:146-172`) and by
@@ -756,7 +798,7 @@ inside budget.
 > earlier run. That applies to the 3.16 s median above, to its 2.66–5.50 s range, and to #6's **3.93 s**
 > — which sits inside that range, so nothing here contradicts #6, it locates it. Purging the page cache
 > needs `sudo`, which this machine's user does not have, so this is a **closed environment limitation
-> and not an owed measurement**. It cannot flip a verdict: **cold already fails the 3 s budget at 3 of
+> and not an owed measurement**. It cannot flip a verdict: **cold already fails the 3 s budget at 4 of
 > 7 turns without any page-cache penalty**, and a larger number makes an already-failing case fail
 > harder.
 >
@@ -767,9 +809,14 @@ inside budget.
 > > **[measured-here]**. The pass count (3/7) and the fail count (4/7) were transposed in the prose.
 > > **It changes nothing** — the conclusion is that cold fails the line either way — but the figure
 > > used throughout this spec is **4 of 7 over**, and the source document's sentence should be
-> > corrected when someone next touches it. **The residual case, on the record rather than implied: the first turn after a boot, or after
-> genuine memory pressure, on a 16 GB machine — and the residency mechanism does not help there,
-> because it only pays off once a worker exists.**
+> > corrected when someone next touches it. **It is also the reason every cold-failure count in this
+> > document has to be read against the data rather than against its neighbours: this file states the
+> > pass count in one place (§10.5's alternatives table, "3 of 7 under the line") and the fail count in
+> > five others, and both phrasings are correct.**
+>
+> **The residual case, on the record rather than implied: the first turn after a boot, or after genuine
+> memory pressure, on a 16 GB machine — and the residency mechanism does not help there, because it
+> only pays off once a worker exists.**
 >
 > #5's ~4.9 s first synthesis after a **sleep/wake** stands unchallenged and unmeasured here; nothing
 > in this project has slept the machine. §13 row 12.
@@ -1562,7 +1609,7 @@ its override per backend** rather than assuming "unset is safe".
 | `speak.sh` (plugin root, beside `rewrite.sh`) | new | the `Stop` hook. Bash, `curl`/`jq` idiom, no `set` options (§5). |
 | `$HOME/.claude/claudish-speak-off` | user | runtime mute flag; existence is the whole signal |
 | `$BUF_ROOT/<session_id>/speak/` | `rewrite.sh` and `speak.sh` write, the worker reads and writes | §3.1. Depth-2 directory so `rewrite.sh:117`'s existing sweep reclaims it. **Everything below lives in this one directory**, which is what keeps the whole feature inside a single sweep-reclaimed path. |
-| `$BUF_ROOT/<session_id>/speak/{rewrite,source,prompt_id}` | `rewrite.sh` writes | §3.1 |
+| `$BUF_ROOT/<session_id>/speak/{rewrite,source,prompt_id}` | `rewrite.sh` writes, **behind `CLAUDISH_SPEAK`** (§11) | §3.1. **Each is installed by temp-file rename inside this same directory, never written in place, and `source` is written LAST as the commit marker** — so a consumer that sees a matching `source` is guaranteed the matching `rewrite` is already there. The consumer still re-reads `source` after `rewrite` (§3.1 point 3), because `rewrite` is overwritten in place once per session. |
 | `$BUF_ROOT/<session_id>/speak/job` | `speak.sh` writes by atomic rename; the **worker** claims by renaming it to `job.taken.<pid>` | §3.5.1 clause 1, §10.5 clause 1. Carries the fire time, the expected source hash, and the mode. A read-then-unlink of `job` would lose a job renamed in between, irrecoverably. |
 | `$BUF_ROOT/<session_id>/speak/worker.lock/` and `worker.lock/pid` | the **worker** writes | §10.5 clause 2. The `mkdir` is the election; the pid inside it is what `kill -0` checks. A lock with no `pid` yet is **initializing**, not stale. |
 | `$BUF_ROOT/<session_id>/speak/spoken` | the **worker** writes, at the moment text goes to synthesis | dedup hash (§5.1, as amended by §3.5.1 clause 6) |
@@ -1737,12 +1784,44 @@ which is why the wait needs no new machinery.
 > implementable. **The error was invisible from inside the measurement**: every number was correct, the
 > mechanism worked, and the sentence above the table described a different mechanism from the one that
 > produced it.
+>
+> **And one thing the probe's shape does NOT transfer, found in review of this correction.** The probe
+> parsed nothing because its `$SPEAK_DIR` was supplied by the harness that launched it **[rig]**.
+> `rewrite.sh` has no such source and must read `session_id` out of the payload (`:108`) to know which
+> session's worker to ensure **[repo]**. **The lead time measured is unaffected** — it is the lead of
+> the *invocation*, and one `jq` field this hook already parses does not move a 5.16–6.23 s number —
+> but "before any parsing" was a property of the probe's environment, not of the trigger. The clause
+> below states the requirement as independence from the chunk role instead, which is what the
+> measurement actually supports.
 
-- **Placement is normative: before `rewrite.sh:127`'s non-final early return.** Non-final invocations
-  `exit 0` at `:127-132`, so anything after that line runs only in the final invocation, which is the
-  concurrent one. The step must be **payload-independent** — one `[[ -d ]]` and one `kill -0`, before
-  any parsing — which is cheap enough to belong at the top of a hook that already runs `jq` several
-  times.
+- **Placement is normative: after `rewrite.sh:108`, before `:127`'s non-final early return.** Non-final
+  invocations `exit 0` at `:127-132`, so anything after that line runs only in the final invocation,
+  which is the concurrent one — that is the constraint that fixes the lower bound. **The upper bound is
+  `session_id`, and an earlier draft of this clause got it wrong.** It said the step must run "before
+  any parsing", which **is not implementable**: the worker is per-session and its address is
+  `$BUF_ROOT/<session_id>/speak/`, and `rewrite.sh` obtains `session_id` from **one place only — the
+  payload, at `:108`** **[repo]**. There is no environment variable, no session file and no argument
+  carrying it. **The probe never hit this because it was handed `$SPEAK_DIR` externally by the harness
+  that launched it** **[rig]**; the specified implementation has no such source.
+  - **What the clause actually requires, stated as the property rather than as a line number: the
+    ensure decision must be independent of the payload's *chunk role*.** It must not read, branch on,
+    or be reached only through `final` or `delta`, and it must not sit inside or after `:127`'s
+    `if [ "$final" != "true" ]`. **Parsing `session_id` is not a violation of that; parsing `final`
+    is.** The distinction is the whole point: "no parsing" was a proxy for "not gated on the chunk
+    role", and the proxy is what failed, not the requirement.
+  - **So: parse `session_id`, and nothing else, before the ensure.** In practice that costs **zero
+    extra `jq` calls** — `:108` already parses it on every invocation, so the step reuses `$sid` and is
+    strictly cheaper than the probe's shape, not more expensive. What remains is one `[[ -d ]]` and one
+    `kill -0`, behind §11's `CLAUDISH_SPEAK` gate.
+  - **If `session_id` is absent, skip the ensure entirely.** `:108` defaults it to the literal
+    `"nosession"` **[repo]**, and a worker elected under that key would be shared by every session
+    that lacked one — which breaks the per-session scoping this clause exists to provide and makes
+    §10.6's per-session `speak/pid` meaningless. On all 94 observed payloads `session_id` was present
+    **[obs]**, so this is a guard against a shape nobody has seen, not a live case.
+  - **One consequence of the placement, on the record.** `:100`'s `[ "$ENABLED" = "1" ] || pass_through`
+    sits above `:108`, so when the *rewriter* is disabled the hook leaves before the ensure and no
+    worker is started. That is correct rather than a gap: with no rewrite there is nothing for §3.1 to
+    publish and nothing for the worker to speak.
 - **Measured, on a fresh session with no worker running, driving a 400-word streaming reply**
   **[hook]**: the first invocation fires **5.16–6.23 s** before `Stop`; the worker becomes ready
   **3.05–4.62 s** before `Stop`; `Stop` finds a resident worker (`started=no`) every time; and TTFA on
@@ -1769,9 +1848,46 @@ on a worker that had already spoken — so the warm-up **costs 0.78–1.12 s of 
 exec→ready from 0.80–1.30 s to **1.33–2.02 s**, and therefore **lengthens the streaming lead clause 4
 needs**. Net: a win when there is lead time, a wash when there is not.
 
-**6. Idle exit at 30 minutes**, matching `rewrite.sh:117`'s existing sweep window, so a worker never
-outlives the directory it depends on. **Not measured** — the runs were minutes long. It re-introduces a
-cold start after half an hour of silence, which is the honest cost.
+**6. Idle exit at 20 minutes — deliberately SHORTER than `rewrite.sh:117`'s 30-minute sweep, not equal
+to it.** **Not measured** — the runs were minutes long. It re-introduces a cold start after twenty
+minutes of silence, which is the honest cost.
+
+> **CORRECTED in review. Matching the two windows at 30 minutes does not achieve what this clause
+> claimed.** The earlier text set the idle exit to 30 minutes "matching `rewrite.sh:117`'s existing
+> sweep window, so a worker never outlives the directory it depends on". **Equal timeouts do not order
+> two events.** `:117` is opportunistic — it fires on whichever `MessageDisplay` invocation happens to
+> arrive after the threshold — so on the first invocation past the 30-minute mark it can `rm -rf` the
+> speak directory of a worker that is still live and has not yet reached its own exit. That loses the
+> warm-up at best, and at worst destroys `speak/worker.lock` **underneath a running worker**, so the
+> next hook's `[[ -d ]]` pre-check finds nothing and elects a **second** worker — two processes, each
+> holding a ~340 MB model, racing the claim-rename. That is the same failure mode §10.5 clause 2 exists
+> to prevent, arriving by a different door.
+
+- **The separation is what makes it safe, and the argument is arithmetic rather than a new mechanism.**
+  A live worker's last job arrived within its idle window, and **a job arriving is a `rename` into the
+  speak directory**, which updates that directory's mtime; so is the claim-rename, the `job.taken`
+  unlink, and the `mkdir` of `worker.lock` at startup. **Therefore a live worker's speak directory has
+  an mtime no older than its idle window**, and `find -mmin +30` cannot select it while the window is
+  20 minutes. **No live worker is ever swept**, with no change to `rewrite.sh:117` at all.
+- **The 10-minute margin is not decoration.** It absorbs `-mmin`'s minute granularity, the fact that
+  the sweep fires at an arbitrary moment after the threshold rather than on a schedule, and any
+  divergence between the worker's idle clock and the filesystem's mtime — **the worker's idle timer
+  must therefore be monotonic**, so that a backward wall-clock step cannot age the directory past 30
+  minutes while the worker still believes it is inside its window.
+- **Why the sweep was NOT made worker-aware, which was the other available repair.** `:117` is a
+  `find … -exec rm -rf` one-liner sitting above §11's speech gate: it serves the *rewriter's* own
+  buffers and runs for every user with `CLAUDISH_ENABLED=1`, speech on or off. Teaching it to read
+  `speak/worker.lock/pid` and `kill -0` would put **speech-specific logic on the disabled user's path**,
+  on a hook that runs five to seven times per turn, to protect a case the inequality already excludes
+  for free — and it would do that inside the fail-open display hook, which §5 makes inviolable. **The
+  cheaper repair is also the one that keeps §11 true.**
+- **A belt, because the inequality only covers the sweep.** A speak directory can also vanish for
+  reasons this clause does not model — a manual `rm -rf`, an OS `TMPDIR` cleaner, a clock jump larger
+  than the margin. **The worker treats the disappearance of its own `speak/worker.lock` or of the speak
+  directory itself as a terminal condition and exits**, rather than blocking forever on a `kqueue` over
+  a deleted directory. It re-checks on each wake, which clause 3's 1 s poll already provides.
+- **All of this is [inferred]** — the mtime reasoning is read off `find`'s semantics and `rewrite.sh:117`
+  **[repo]**, and nothing has been left idle for twenty minutes to watch it happen. **§13 row 24.**
 
 **7. §10.5 owes §10.6 three hooks, all [inferred] and none measured.** They are specified here because
 they live in the worker, and §10.6 is where the rule they serve is stated:
@@ -1918,7 +2034,7 @@ The plugin documents its configuration in depth, so the surface above lands in `
   user-visible behaviour a reader would otherwise file as a bug: the answer appears on screen, then a few
   seconds later it is spoken. Say why (the spoken text *is* the rewrite, and the rewrite takes an LLM
   call), and say that after `CLAUDISH_TIMEOUT + 5` seconds it gives up silently.
-- **that a background Python worker stays resident per session and exits after 30 minutes idle**
+- **that a background Python worker stays resident per session and exits after 20 minutes idle**
   (§10.5). A user who sees a `python` process holding a few hundred MB should find out here that it is
   expected, that it is per session, and that it goes away on its own.
 - **no promise of Linux or Windows playback.** The player stays configurable with documented
@@ -1942,8 +2058,16 @@ Therefore:
   to seven times per turn on a long reply — so it must sit behind `CLAUDISH_SPEAK` too, checked
   **before** the `[[ -d ]]` and the `kill -0`, exactly as the probe that measured it did **[rig]**.
   **Without that gate, "off by default" would cost a user who never enables speech two extra `stat`s
-  per streamed chunk instead of nothing.** The publish (§3.1) may run either way — it is a small write
-  a disabled user pays nothing else for — but gating it as well is cheaper and is preferred; and
+  per streamed chunk instead of nothing.**
+- **The publish (§3.1) sits behind the same gate, and this too is normative.** An earlier draft of this
+  section said the publish "may run either way — it is a small write a disabled user pays nothing else
+  for — but gating it as well is cheaper and is preferred". **That was a contradiction of the sentence
+  immediately above it and of this section's title**, and it is withdrawn rather than softened. A
+  permission to run is not a preference: with it, a user who has never enabled speech pays a `sha256`
+  over the whole assistant message, a `mkdir -p`, and **three temp-file-plus-rename installs** (§3.1),
+  on every rewritten turn, for a directory nothing will ever read. **"Off by default" cannot mean
+  "does the speech-specific work but makes no sound."** Both of `rewrite.sh`'s additions — the
+  ensure-worker step and the publish — are inside `CLAUDISH_SPEAK`, and neither is optional; and
 - **the residual cost is stated, not hidden: one bash process spawned per turn for users who never turn
   speech on.** It is small. It is new. It is not zero. **It has not grown with this revision** —
   the `MessageDisplay` additions are inside a hook that already runs, behind a gate that is one
@@ -1974,7 +2098,7 @@ closed row keeps its number rather than being deleted and the numbering never sh
 | # | open question | what closes it | blocks shipping? |
 | --- | --- | --- | --- |
 | 1 | ~~The settled sanitizer combination has never been synthesized, and now contains a rule that does not exist~~ (§4.2) | **CLOSED 2026-08-25.** B′ implemented as `lb-auto`; the combination registered as `settled`; 24 wavs; the confirmation listen happened blind on `bf_emma` and **`settled` won 9–0**, five of the nine real — [`settled-set-audition.md`](settled-set-audition.md), [`audition-verdicts-11.tsv`](audition-verdicts-11.tsv) **[heard]**. It closes on the **composition**; rows 5, 19 and 23 are what it did not close | **closed** |
-| 2 | ~~The worker residency mechanism~~ (§10.5) | **CLOSED 2026-08-25.** Mechanism picked (lazy, self-electing, per-session, file-drop address, `mkdir` election, kqueue wake, every-invocation warm-up, startup warm-up synthesis, 30-minute idle exit) and TTFA measured **from a hook**: cold median **3.16 s** (fails, 4 of 7 over), warm median **1.22 s** (28/30), warmed-during-turn **1.71 s** (4/5) — [`worker-residency.md`](worker-residency.md), [`residency-timings.tsv`](residency-timings.tsv) **[hook]**. Rows 20, 21 and 22 are what it did not close | **closed** |
+| 2 | ~~The worker residency mechanism~~ (§10.5) | **CLOSED 2026-08-25.** Mechanism picked (lazy, self-electing, per-session, file-drop address, `mkdir` election, kqueue wake, every-invocation warm-up, startup warm-up synthesis, 20-minute idle exit — corrected from 30 in review, §10.5 clause 6) and TTFA measured **from a hook**: cold median **3.16 s** (fails, 4 of 7 over), warm median **1.22 s** (28/30), warmed-during-turn **1.71 s** (4/5) — [`worker-residency.md`](worker-residency.md), [`residency-timings.tsv`](residency-timings.tsv) **[hook]**. Rows 20, 21 and 22 are what it did not close | **closed** |
 | 3 | ~~The §3.2 handoff match rate~~ | **CLOSED 2026-08-25. The rate is 35/35, byte-identical** — and re-derived at **15/15** by the committed kit, which is the reproducible half — [`handoff-match-rate.md`](handoff-match-rate.md) **[obs]** + **[obs2]**. **Closing it surfaced row 17, which is worse than the question this row asked** | **closed** |
 | 4 | ~~Whether `MessageDisplay` carries `prompt_id`~~ (§3.2) | **CLOSED 2026-08-25: yes**, on all 94 payloads, the same value `Stop` carries, 35/35, ten fields catalogued in §2 **[obs]**. It did **not** become the key — §3.2 says why, and that reverses this spec's stated preference | **closed** |
 | 5 | **Axis 2's cutoff position — STRENGTHENED 2026-08-25 from *unaudited* to CONTRADICTED at 4** (§4.1 qualification 1). One wav now exists at the seam and it went against the file: `s04`, 4 boundaries, `,` beat the shipped `.` blind **[heard]**. `COND_CUTOFF` stays at 4 deliberately — one wav cannot separate "the cutoff wants to be 5" from "the count should exclude a closing line", both predict `,` there, and moving it would change `settled` on **17 of 54** items and invalidate the 9–0 sweep just heard | wavs at **5, 6 and 7** boundaries, **and** an `s04` variant with its closing line removed — that last pair is the only one that can separate the two repairs. Then one listen | no — the rule ships and the constant stays at 4 |
@@ -1989,13 +2113,14 @@ closed row keeps its number rather than being deleted and the numbering never sh
 | 14 | `session_crons` has not been looked at (§8) | one look | no |
 | 15 | Whether any absolute hook-timeout ceiling exists (§6) | a wider read than the two call sites checked — **not** an argument from `hooks.json:21`, since config acceptance is not runtime enforcement | no |
 | 16 | ~~The exit-2 block mechanics have never been observed~~ (§5) | **CLOSED 2026-08-25 — observed.** Four driven runs, 28 captured fires; the cap, the `blockingError` routing and the post-cap override all have a wire observation, and the schema reading was **off by one** (nine invocations, §5). **Still unobserved and named there rather than here:** `async: true`, `SubagentStop`, a raised or disabled cap, and two blocking hooks at once — [`stop-hook-block-mechanics.md`](stop-hook-block-mechanics.md) | **closed** — the invariant was specified to hold regardless, and does |
-| **17** | **§3.5.1's bounded wait is specified and has never been implemented, run, or watched.** The race it repairs is confirmed and reproducible (`Stop` dispatched a median 6.7 ms after the final `MessageDisplay` chunk, positive 32/32, gap independent of that hook's duration; buffer stale 29 of 30) **[obs2]** + **[obs]**. But `speak.sh` does not exist, so **"the wait fixes it" is [inferred]** from an ordering, a buffer read and a publication point that have never been joined | build `speak.sh` and the worker's wait, then watch: measure the match rate **through the wait** over ~20 real turns, and record how often the deadline is reached. It should be the mirror of the 29-of-30 stale figure | **YES** — as specified before this revision the feature was silent on the large majority of turns above `MIN_CHARS`; the repair is now specified but unverified |
+| **17** | **§3.5.1's bounded wait is specified and has never been implemented, run, or watched.** The race it repairs is confirmed and reproducible (`Stop` dispatched a median 6.7 ms after the final `MessageDisplay` chunk, positive 32/32, gap independent of that hook's duration; buffer stale 29 of 30) **[obs2]** + **[obs]**. But `speak.sh` does not exist, so **"the wait fixes it" is [inferred]** from an ordering, a buffer read and a publication point that have never been joined — and review found the publication point itself was **not atomically ordered**, which would have let the wait match a hash and speak the previous turn's rewrite (§3.1, fixed) | build `speak.sh` and the worker's wait, then watch: measure the match rate **through the wait** over ~20 real turns, and record how often the deadline is reached. It should be the mirror of the 29-of-30 stale figure. **Widened in review to cover the producer half as well**, because the wait cannot be verified without it: §3.1's publish is now a normative ordering — temp-file rename for every file, `source` written last as the commit marker, and a seqlock re-read on the consumer — and **all of that is [inferred] too**. The same build-and-watch retires both; a run that never observes a publish overtaking a read has not exercised the seqlock, so record whether the re-read ever fired | **YES** — as specified before this revision the feature was silent on the large majority of turns above `MIN_CHARS`; the repair is now specified but unverified |
 | **18** | **A slash-terminated path gets no rule at all, and it is audibly wrong.** Found by **ear**, in a shipped axis, by the listener: *"a pause is needed after the path if a `path/` ends with a slash. Now it sounds like `research/branches`"* **[heard]**. `_PATH_RE` requires `(?:SEG/)+SEG`, so `research/` and `~/research/` **never match at all**, and there is **no `rstrip("/")` or `endswith("/")` anywhere** in `bench/sanitizers.py` **[repo]**. The listener's own item escaped it only because axis 1 happened to set the backticked span off — outside backticks, `settled` leaves *"Saved to research/ branches"* untouched **[measured-here]** | **PARKED — the user's decision**, on the grounds that reopening axis 3 immediately after a 9–0 result costs more than it buys. To close: widen `_PATH_RE` to *see* a slash-terminated path, append a `BOUNDARY_CHARS` member after rule P, make `_tidy_commas` suppress the double where axis 1 already set the span off, then one listen | no — **parked deliberately, not overlooked.** Nothing is implemented and `COND_CUTOFF`-style constants are untouched |
 | **19** | **`flag-pause` is NOT regression-free inside the settled combination, contrary to §4.3 as written.** On `r11` (a **real** item) axis 1 strips backticks that axis 8 steps over, producing `, $, claudish_ollama,` and `, curl , -K,` — shapes neither rule makes alone. Symmetrically, `r14` becomes a **no-op** because axis 7 eats the fence before axis 8 sees it **[measured-here]**. **`r11` was heard blind and `settled` still won it, so that half is HEARD AND TOLERATED, not harmless** **[heard]** | **the `r14` half was never played**, which is why §4.3's claim stays false as written rather than merely hedged. One pair — `r14:settled` against `r14:base` — closes it | no — one half is heard and tolerated; the other is a wording defect in §4.3, now corrected there |
 | **20** | **§10.6's preemption rests on three worker-side hooks that are all [inferred].** *"A newer message kills stale playback"* is **false** without the worker's claim-time kill, and *"cancellation is latency only, not correctness"* is **conditional** on it (§10.6). Nothing measured drove a second job at a worker that had already claimed the first | two `Stop` hooks ~0.5 s apart at a **warm** worker, recording per run: the hook's `speak/pid` read and job rename (**R**, **W**); the worker's pre-spawn `stat`, `Popen` and pid write (**S**, **P**); **which** step actually killed the first player — hook kill, worker claim-time kill, or neither; and whether the first utterance was audible and for how long. The case that matters is deliberately provoking **R < S < P < W**, which needs an instrumented worker with a settable pre-spawn delay. **A run where the hook's kill happened to see a live pid proves nothing** | **YES** — a stated rule is false without an unmeasured clause |
 | **21** | **The stale-lock protocol's two clauses are [inferred]** (§10.5 clause 2). The `mkdir` election itself is measured 8/8; what is not is the initializing-lock retry and the quarantine rename. The window is microseconds wide and did not fire in anything run | start **N** workers against a lock held by a worker deliberately stalled before its pid write, and count how many end up believing they own the session. **The old protocol should produce 2; the corrected one 1.** Same instrumented worker as row 20, same run | **YES** — two resident workers, each holding a ~340 MB model and racing the claim-rename, is a correctness failure and the clause that prevents it is unverified |
 | 22 | The bench-to-hook TTFA gap (~0.37 s) is **decomposed by reasoning, not isolated by experiment** (§4). The control shares hardware but not load or cadence | **interleaved paired runs**: the same corpus item synthesized alternately through `bench/first-sentence.py` and through the hook, A/B/A/B in one session, so both arms see the same load and spacing | no — the gap is small, explained, and inside budget |
 | 23 | **B′'s reach on real text is unproven.** It is a measured no-op on all 14 real rewrites and on **53 of the 54** corpus items; the only item it changes, `s38`, is synthetic **[measured-here]**. The listen confirmed the rule's **direction**, not its reach | a real capture with a short list whose lines do not already end in punctuation. Same shape as row 6 | no — a no-op cannot regress anything |
+| **24** | **The worker's idle exit and `rewrite.sh:117`'s sweep are now separated by arithmetic that nothing has run** (§10.5 clause 6). The claim is that a live worker's speak directory always has an mtime newer than its 20-minute idle window — because every job arrival, claim-rename and `worker.lock` `mkdir` is a directory mutation — so `find -mmin +30` can never select it. Read off `find`'s semantics and `rewrite.sh:117` **[repo]**, **[inferred]**. Nothing in this project has been left idle for twenty minutes, let alone thirty | leave one session's worker resident and idle, sample `stat` on `$BUF_ROOT/<sid>/speak` and the worker's liveness once a minute across the 30-minute mark, and drive one `MessageDisplay` just past it to fire the sweep. Two things to record: that the directory survives while the worker is alive, and that the worker is gone by minute 21. **The same run also exercises the belt** — `rm -rf` the speak dir under a live worker and confirm it exits rather than blocking on a `kqueue` over a deleted directory | no — the failure needs twenty minutes of silence and costs a cold start or, at worst, a second worker that §10.5 clause 2 then has to survive. It is a **real** hole, but not one a first implementation is exposed to in a working session |
 
 **Three of these block shipping: 17, 20 and 21.** All three are the same kind of thing — a mechanism
 this document now specifies, whose verification has not been run — and none of them needs a new decision
@@ -2007,6 +2132,11 @@ implementation phase finishes rather than the last.
 three closures produced a new blocker of their own (row 3 → row 17, row 2 → rows 20 and 21), which is
 what measurement usually does and is not a sign that the count is not moving: the new rows are about
 mechanisms that now exist on paper, where the old ones were about decisions nobody had made.
+
+**Row 24 is new and is NOT ship-blocking**, and the reason it is not is worth being explicit about
+rather than leaving to the table cell: its failure needs twenty minutes of silence in one session, and
+its worst outcome is a second worker that §10.5 clause 2 is separately specified to survive. **It is a
+real hole and it is scheduled, not dismissed.**
 
 ### Can #11 lock?
 
@@ -2031,6 +2161,47 @@ a decision the listener still owes; rows 17, 20 and 21 are **verification of spe
 row 18 is **parked by explicit decision** rather than unresolved. So #11 can lock and **#23 can start**
 — but #23 finishes at row 17, not at "the hook runs". **An implementer who builds `speak.sh` and does
 not measure the wait has not finished the ship blocker, they have moved it.**
+
+**RE-EXAMINED after review, because the answer above was written before anyone had read this revision
+back. It still holds — and it is weaker than it was stated.** A review of this revision returned eight
+findings against §3.1, §3.5.1, §10.5 and §11. Six are repaired in the text above. **Four of those six
+were not typos.** They were mechanisms specified unsafely or self-contradictorily in prose that this
+same integration pass wrote and marked **LOCKED**:
+
+- **§3.1's publish was not atomically ordered.** Two separate writes, no commit marker, so a consumer
+  could match the expected hash and read the *previous* turn's rewrite — **§3.2's guarantee, defeated
+  one layer below where §3.2 states it.**
+- **§10.5 clause 4's trigger was not implementable as written.** "Before any parsing" is impossible for
+  a per-session worker, because `session_id` comes only from the payload. **This was the second
+  correction to that one clause in a single day** — the first replaced a trigger attached to a publish
+  point that does not exist.
+- **§10.5 clause 6 set two timeouts equal and claimed an ordering equality does not give.** The sweep
+  could delete a live worker's lock.
+- **§11 granted the publish permission to run while speech was disabled**, contradicting both the
+  sentence above it and the section's own title.
+
+**Why the lock survives that.** The test is *"LOCKED with the evidence that decided it, or OPEN with a
+closing condition that does not require re-deciding anything."* **Every one of the four was repairable
+from evidence already in this document.** None needed a new decision from the listener; none needed a
+measurement to choose *which* repair. One — clause 6 — needed a judgement between two repairs, and the
+judgement is recorded with its reasoning and its cost rather than presented as forced. So the lock test
+passes, and #23 can still start.
+
+**What a reader should carry away instead, stated because it is the more useful fact.** **Four defects
+in one review of freshly-written LOCKED text is a rate, not an accident.** The LOCKED marker on the
+sections *this revision wrote* is worth less than the same marker on sections that have survived a read
+by someone other than their author, and §15 should be read with that in mind. Two further findings —
+§10.5 clause 2's pid-less-lock retry and its quarantine rename — are **deliberately not repaired here**:
+they are under active measurement as rows 20 and 21, and the result may **replace** those clauses rather
+than confirm them. That does not unlock #11, because row 21 already marks the clause unverified and
+ship-blocking; it does mean **§10.5 clause 2's text is provisional in a way no other LOCKED clause in
+this document is.** And the count of **[inferred]** correctness clauses went **up** in this pass, not
+down — §3.1's publish ordering and §10.5 clause 6's separation are both new. **The spec is more correct
+and less verified than it was this morning**, which is the honest shape of a review that found real
+things.
+
+**So: #11 locks. A second review pass over §3, §10.5 and §11 before #23 starts is cheap, and on this
+evidence it will probably find more.**
 
 **One thing a reviewer should attack rather than accept.** Rows 20 and 21 are marked ship-blocking on
 judgement, not on a rule. The argument for it: both are cases where **this document states a rule that
@@ -2201,11 +2372,25 @@ Stated so a reviewer can attack the right parts.
   reasoning, not an observation. If it is wrong somewhere, the most likely place is the interaction
   between an abandoned wait and §10.6's kills, which is the same timeline §13 row 20 is about. §13 row
   17.
-- **Three [inferred] correctness clauses now ship in §10.5 and §10.6** — the initializing-lock retry,
-  the quarantine rename, and the worker's claim-time kill. Each was found by **review of a probe's
-  source rather than by a failure**, which is the good way to find them and also the reason none has
-  ever been provoked. **They are the clauses that make two stated rules true**, so "unmeasured" here is
-  a different weight than it is on a latency figure. §13 rows 20 and 21.
+- **SIX [inferred] correctness clauses now ship, up from three, and the count going UP is the finding.**
+  The original three are in §10.5 and §10.6 — the initializing-lock retry, the quarantine rename, and
+  the worker's claim-time kill. **Review of this revision added three more**: §3.1's publish ordering
+  (temp-file rename, `source` last as the commit marker, and the consumer's seqlock re-read) and §10.5
+  clause 6's idle-exit/sweep separation. Each of the six was found by **reading a mechanism rather than
+  by a failure**, which is the good way to find them and also the reason none has ever been provoked.
+  **They are the clauses that make stated rules true**, so "unmeasured" here is a different weight than
+  it is on a latency figure. §13 rows 17, 20, 21 and 24.
+- **A review of this revision found four defects in text this revision itself marked LOCKED, and that
+  rate is the weakness — not any one of the four.** §3.1's publish was not atomically ordered, so
+  §3.2's guarantee had a hole one layer below where §3.2 states it; §10.5 clause 4's trigger was not
+  implementable as written, for the **second** time in one day; §10.5 clause 6 set two timeouts equal
+  and claimed an ordering equality does not give; §11 permitted the publish to run while speech was
+  off, contradicting its own title. **All four are repaired in place and none needed a new decision**,
+  which is why §13 still answers *"can #11 lock?"* with yes. But the LOCKED marker on the sections
+  written by this pass has now been shown to carry less than the marker on sections that have survived
+  an outside read, and **the right inference is to re-read §3, §10.5 and §11 before #23 starts** rather
+  than to treat the four as closed and the rest as sound. This is the same lesson as the §5 bullet
+  below, arriving from a different direction.
 - **`launchd` was rejected on judgement, not on measurement**, and it is the alternative in §10.5 most
   worth pushing back on: it would be permanently resident and survive machine sleep, which is genuinely
   better on latency. The three reasons against it — a background daemon for an off-by-default feature,
