@@ -1,0 +1,235 @@
+# Switching the rewrite provider to `claude-cli`: two traps, verified
+
+Evidence for [#14](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/14), follow-up
+to [#12](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/12), part of the
+[Kokoro speech map (#1)](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/1).
+Verified 2026-08-25 by reading the source, this machine's settings, and this machine's live
+environment. **No hook was modified.** `rewrite.sh`, `rewrite-md.sh`, `providers.sh` and
+`hooks/hooks.json` are untouched by this work.
+
+**Two claims were carried into this document from a hand session. Both were re-checked against the
+source line by line. One is confirmed exactly as stated; the other is confirmed in its *effect* and
+wrong in its *mechanism*, and the correction is section 2's whole point.**
+
+Everything here is a file read, a `printenv`, a checksum, or one timed subprocess. Nothing is
+inferred from how the plugin "probably" behaves except where the text says so.
+
+## The source these line numbers refer to
+
+The running plugin is the marketplace cache copy, **not** this checkout:
+
+```
+~/.claude/plugins/cache/claudish-tts/claudish-to-english/0.3.0/
+```
+
+The three files that matter are **byte-identical** to this checkout at `9355f45`, so every
+`file:line` below is true of the code that actually fires on every message:
+
+| file | sha256 (first 12) |
+| --- | --- |
+| `rewrite.sh` | `d84a85152674` |
+| `providers.sh` | `753136e33f31` |
+| `hooks/hooks.json` | `e4d9114b2dd9` |
+
+---
+
+## Verdict
+
+| | trap | status |
+| --- | --- | --- |
+| **1** | `CLAUDISH_MODEL` travels with you across the provider switch and breaks every rewrite | **confirmed, exactly as described** |
+| **2** | the timeout notice advises raising a knob that cannot usefully move | **effect confirmed; mechanism misdescribed** |
+| **3** | neither variable can be changed mid-session | found while verifying the other two |
+
+---
+
+## 1. The model variable travels with you — confirmed
+
+**`CLAUDISH_PROVIDER=claude-cli` alone is not the switch. It is half of it, and the other half is
+mandatory, not advisable.**
+
+### The chain, end to end
+
+| step | location | what it does |
+| --- | --- | --- |
+| the value | `~/.claude/settings.json` → `env` | `CLAUDISH_MODEL = qwen3:4b-instruct-2507-q4_K_M` — **the only key in that block** |
+| the provider | `providers.sh:61` | `PROVIDER="${CLAUDISH_PROVIDER:-ollama}"` |
+| the model | `providers.sh:92` | `claude-cli) MODEL="${CLAUDISH_MODEL:-haiku}" ;;` |
+| the call | `providers.sh:267` | `-p --model "$MODEL" --system-prompt "$_sys"` |
+
+`providers.sh:92` is the line the hand session named, and it is that line, unmoved. The
+`${CLAUDISH_MODEL:-haiku}` default only applies when the variable is **unset or empty**; a set value
+wins for *every* provider branch (`providers.sh:88-93`). Nothing between line 92 and line 267
+validates the string, maps it, or falls back — so the child process is spawned as
+
+```
+claude -p --model qwen3:4b-instruct-2507-q4_K_M --system-prompt ... --strict-mcp-config ...
+```
+
+### The state of this machine, checked rather than assumed
+
+- `~/.claude/settings.json` `env` block: exactly one key, `CLAUDISH_MODEL`. **`CLAUDISH_PROVIDER` is
+  not set there.**
+- `printenv` in a live session: `CLAUDISH_MODEL=qwen3:4b-instruct-2507-q4_K_M` is present, and no
+  other `CLAUDISH_*` variable is.
+- No `CLAUDISH_*` in `~/.zshrc`, `~/.zshenv`, `~/.zprofile`, or `~/.claude/settings.local.json`.
+
+So the trap is live: set `CLAUDISH_PROVIDER=claude-cli` and change nothing else, and the ollama model
+id goes to the Claude CLI on every message.
+
+### What the user would see
+
+The failure is loud in the log and quiet on screen. `rewrite.sh`'s fail-open contract holds
+(`rewrite.sh:22-24`, and the empty-rewrite branch at `rewrite.sh:199-232`): the original assistant
+text stays on screen untouched, so **nothing is lost** — the rewrite simply never appears. Once per
+session, `providers.sh:362-378`'s `claude-cli` branch appends one notice line. A non-zero CLI exit
+with a message on stderr lands on:
+
+```
+the claude CLI failed: <first non-empty line of stderr>
+```
+
+**Not verified, and marked as such:** that the `claude` CLI rejects an unknown `--model` id with a
+non-zero exit and a message. Confirming it costs one CLI invocation and it was not spent on a
+negative result. The pass-through at `providers.sh:267` is verified; the child's reaction to it is
+inference. `corpus/bin/capture-real-rewrites.sh` (header, "Two traps this script exists to defuse")
+records the same expectation, and unsets the variable for exactly this reason — which is the closest
+thing to prior art the repo has.
+
+### The switch, done correctly
+
+Three shapes, in descending order of how well they survive switching back:
+
+1. **Delete `CLAUDISH_MODEL` from the `env` block and let each provider pick its own default.**
+   `providers.sh:88-93` already carries a sane default per provider — `haiku` for `claude-cli`,
+   `gemma4:26b-mlx` for ollama. The variable exists to *override* those, and on this machine it is
+   overriding the ollama one only because that machine-specific choice was written into a
+   provider-agnostic variable. Setting `CLAUDISH_PROVIDER=claude-cli` then needs no second edit.
+   The cost: switching back to ollama needs the qwen id put back, because
+   `gemma4:26b-mlx` is not what is pulled here.
+2. **Set both, together, and treat them as one setting.** `CLAUDISH_PROVIDER=claude-cli` **and**
+   `CLAUDISH_MODEL=haiku`. Correct, and reversible in one place, but it silently breaks the ollama
+   path the moment the provider is flipped back without also flipping the model.
+3. **Per-session override, for a trial rather than a change of default.** Launch one session with
+   both variables set in its environment and leave `settings.json` alone. This is what a measurement
+   should use, and what `corpus/bin/capture-real-rewrites.sh` does: `export
+   CLAUDISH_PROVIDER=claude-cli` then `unset CLAUDISH_MODEL`.
+
+**A `CLAUDISH_MODEL` set to the empty string also works** — `${CLAUDISH_MODEL:-haiku}` uses `:-`,
+not `-`, so an empty value takes the default. That is a fact about the code, not a recommendation:
+an empty string reads like a mistake, so prefer removing the key.
+
+---
+
+## 2. The timeout hint points at a knob that cannot usefully move — effect confirmed, mechanism corrected
+
+### What the code says
+
+| location | text |
+| --- | --- |
+| `rewrite.sh:65` | `LLM_TIMEOUT="${CLAUDISH_TIMEOUT:-45}"` |
+| `rewrite.sh:211` | `TIMEOUT_HINT="raise CLAUDISH_TIMEOUT or set CLAUDISH_MODEL to a smaller model"` |
+| `providers.sh:342, 357, 372` | `"the rewrite timed out after ${LLM_TIMEOUT}s — ${TIMEOUT_HINT:-raise the timeout}"` |
+| `providers.sh:386` | the ollama variant, which also suggests a smaller model |
+| `hooks/hooks.json:9` | `"timeout": 60` on the **`MessageDisplay`** hook — the one `rewrite.sh` serves |
+| `hooks/hooks.json:21` | `"timeout": 180` on the **`PostToolUse`** hook — the one `rewrite-md.sh` serves |
+
+The advice is therefore ineffective as a *sole* action: `CLAUDISH_TIMEOUT` bounds the LLM call, the
+hook's own `timeout` bounds the process that makes it, and the second is 60. Raising
+`CLAUDISH_TIMEOUT` from 45 to, say, 120 does not buy 120 seconds — the hook is killed at 60, and the
+clean fail-open at `rewrite.sh:200` is replaced by a kill mid-flight. The usable ceiling is 60 minus
+whatever the hook spends outside the LLM call (buffering, `jq`, transcript read), so the *effect* the
+hand session described is real. **The hint is bad advice.**
+
+### The mechanism is not what it was described as
+
+The claim carried in was *"Claude Code caps hooks at 60s"*. **That is not what this 60 is.**
+
+- The 60 is **this plugin's own declared value**, in this plugin's own `hooks/hooks.json`. It is a
+  number the repo chose.
+- **The same file declares 180 four lines later.** If the harness enforced a hard 60s ceiling on
+  hooks, the `PostToolUse` entry could not be 180 — and `CLAUDISH_MD_TIMEOUT`'s 150s default
+  (`rewrite-md.sh:67`) would have been dead on arrival since the day it was written. It was not.
+- **Whether Claude Code enforces any absolute per-hook ceiling, and whether `MessageDisplay` is
+  treated differently from `PostToolUse`, is NOT established here.** A `strings` search of the
+  installed CLI binary (2.1.245) found no hook-timeout ceiling — every match was bundled test-runner
+  text or self-hosted-runner code, unrelated. Establishing it would need either the published hook
+  documentation or a deliberate experiment, and **neither is needed for the conclusion**: 60 is the
+  live value either way.
+
+So the correct statement of the trap is:
+
+> `rewrite.sh:211` tells the user to raise `CLAUDISH_TIMEOUT` without mentioning that the plugin's
+> own `MessageDisplay` hook timeout of 60s (`hooks/hooks.json:9`) is the real ceiling, and that
+> moving it means editing a plugin file.
+
+### It was not merely inferred — the repo already documents it
+
+The 60s ceiling is written down in two places in the repo's own README, and both say the right thing:
+
+- `README.md:457` — *"`CLAUDISH_TIMEOUT` | `45` | LLM client timeout for the **display** hook
+  (seconds). Keep it below that hook's `timeout` (60s)."*
+- `README.md:466-469` — the paragraph naming both hook timeouts, 60 and 180, and why the file hook is
+  higher.
+
+So the ceiling is documented; only **the notice** omits it. Which makes the actual defect an
+asymmetry rather than a missing insight:
+
+| hook | its hint | names the hooks.json ceiling? |
+| --- | --- | --- |
+| Markdown file (`rewrite-md.sh:197`) | *"raise `CLAUDISH_MD_TIMEOUT` (and the PostToolUse hook timeout in hooks.json), or set `CLAUDISH_MODEL` to a smaller model"* | **yes** |
+| display (`rewrite.sh:211`) | *"raise `CLAUDISH_TIMEOUT` or set `CLAUDISH_MODEL` to a smaller model"* | **no** |
+
+The file hook's hint already got this right. The display hook's did not, and it is the one users hit,
+because it fires on every message.
+
+### How far the fix a user can perform actually reaches
+
+Raising the ceiling means editing `hooks/hooks.json` — a **plugin** file, not a user setting. For a
+marketplace install that file is at
+`~/.claude/plugins/cache/claudish-tts/claudish-to-english/0.3.0/hooks/hooks.json`, inside a
+version-pinned cache directory that a plugin update replaces. So a hand edit there is real but
+temporary, and it silently reverts on the next update. That is a further reason the hint should point
+at **switching provider** — an env change the user owns — rather than at a timeout at all.
+
+---
+
+## 3. Neither variable can be changed mid-session
+
+Found while verifying the above, and worth recording because it shapes how any switch is tested.
+
+`CLAUDISH_*` variables come from the `env` block of `settings.json` (or the launching shell) and are
+**frozen at session launch**. `rewrite.sh:58-60` says so in as many words, and it is why the plugin
+carries a flag-file kill switch at all: `CLAUDISH_OFF_FILE` is checked fresh on every invocation
+(`rewrite.sh:61`) precisely because the env cannot be.
+
+Consequences:
+
+- Editing `settings.json` mid-session changes nothing until the next session starts.
+- `touch ~/.claude/claudish-off` **pauses** rewrites live, but cannot **reconfigure** them.
+- A provider trial therefore means either a new session, or calling the provider layer directly out
+  of band — which is what `corpus/bin/` does, and what section 4's measurement does.
+
+---
+
+## 4. The measurement: does `claude-cli` clear the size that fails on ollama?
+
+*(Filled in below by the single authorised call. Its script, provenance and numbers are recorded
+there.)*
+
+---
+
+## What was not verified
+
+Listed so nobody mistakes an unchecked thing for a checked one.
+
+1. **That `claude --model <ollama-id>` fails, and how.** Section 1's pass-through is verified; the
+   CLI's reaction is inference plus `capture-real-rewrites.sh`'s prior expectation.
+2. **Whether Claude Code imposes any absolute hook-timeout ceiling**, and whether it differs by event
+   type. Section 2 does not need it.
+3. **The exact overhead between the 60s hook budget and the LLM call**, i.e. what `CLAUDISH_TIMEOUT`
+   could safely be raised to if the ceiling *were* moved. Nobody has measured the hook's non-LLM
+   time.
+4. **The ollama failure itself.** The ~1,200–1,400 word threshold in #14 is #14's reported figure and
+   was not reproduced here — reproducing it would mean deliberately timing out a local model, which
+   costs a minute of GPU and proves a number already reported by the person who hit it.
