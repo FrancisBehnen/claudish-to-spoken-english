@@ -650,7 +650,7 @@ The sanitizer is `candidate`'s rules A–K, with these seven axes fixed:
 | --- | --- | --- | --- |
 | 1 backticks | **`tick-pause`** — set each `` `span` `` off with commas | 2–0, 1 tie | the win is the **commas**, not the character removal: `tick-strip` is phoneme-identical to leaving backticks in |
 | 2 line breaks | **keep `.`** (no change) | 1–1, 1 tie | **not decided by ear** — `lb-comma` neither won nor lost. The default stands for want of evidence, not because it was chosen |
-| 3 paths | **`path-shorten`** — reduce a path to its last two segments | 3–0, undefeated | `path-nolead` is also undefeated (2–0) but is a *different* transformation and was never heard combined with this one |
+| 3 paths | **`path-short-nolead`** — last two segments, and no leading bare dot — **amended by #13, see below** | 3–0 here | `path-shorten` won this audition 3–0 and `path-nolead` was also undefeated (2–0), but the combination was never heard here. [#13](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/13) auditioned it as `path-short-nolead`: 4–0, undefeated, and it **replaces `path-shorten`** as the axis-3 default |
 | 4 markdown | **keep rules C+D** (strip `*` and `#`) | 5–0 | letting `*`/`#` reach espeak (`md-swallow`) lost 0–3; stripping the already-silent markdown (`md-strip-plus`) is a no-op |
 | 5 `SCREAMING_SNAKE_CASE` | **keep rule J** (lowercase `_`-joined tokens) | **7–0** | the most decisive axis. Spelling lost 0–3, deleting lost 0–2, leaving it uppercase lost 0–1 |
 | 6 URLs | **`url-domain`** — a URL becomes its host, "github dot com" | 2–0 | beats rule I's "a link"; reading the URL in full lost 0–2 |
@@ -678,10 +678,11 @@ wider than that. **Axis 2 is inside the noise and is explicitly not settled.**
 
 - **`.` versus `,` as the line-break replacement** (axis 2) — inconclusive by ear; it never mattered
   to the listener. Whoever implements may pick on other grounds (`.` places a harder chunk seam).
-- **`path-shorten` combined with `path-nolead`** — both undefeated, never heard together. One axis
-  moved at a time by design, so their combination is unmeasured. **→ auditioned as
-  `path-short-nolead` in [`sanitizer-audition-13.md`](sanitizer-audition-13.md), axis 3. If it wins,
-  the axis-3 row of the table above is amended there.**
+- ~~**`path-shorten` combined with `path-nolead`**~~ — **closed by #13.** Auditioned as
+  `path-short-nolead`, 4–0 undefeated, and the axis-3 row above is amended to it. Read
+  [`sanitizer-audition-13.md`](sanitizer-audition-13.md)'s DECISION before leaning on that margin:
+  the combination is text-identical to `path-shorten` on two of the four winning pairs and to
+  `path-nolead` on a third, so exactly **one** pair (`s12`) separates it from both parents.
 - **Rule L** (respelling mis-POS'd words) stays gated behind `--respell`; it still mis-fires on
   "the lives of others" and was not auditioned.
 
@@ -698,8 +699,24 @@ because it bears on how much the first note is worth: **no real rewrite carries 
 or `_`-joined identifier** (0 of 12), so on real output the settled `tick-pause` is already setting
 those tokens off via their backticks.
 
+**That ear check is now done, and both rules are adopted** — `flag-pause` 4–0, `ext-word` 5–0, both
+undefeated, verdicts in [`audition-verdicts-13.tsv`](audition-verdicts-13.tsv). Two results from it
+change how the notes above should be read:
+
+- **`ext-word` won for prosody, not pronunciation.** The note asked for a pronunciation fix and #13
+  assumed a pronunciation table. There is none and none is needed: espeak already reads all 23
+  extensions correctly, after a `.` and after the word "dot" alike. The rule wins because it deletes
+  a full stop espeak was planting mid-sentence, which re-phrases the stream — so "we added dot-word
+  to fix pronunciation" would be the wrong summary.
+- **`flag-pause` won on synthetic fixtures only.** All four of its winning pairs are `sNN` items; the
+  0-of-12 finding above means it is a measured no-op on every real rewrite, so it ships free of
+  regression risk and its benefit is contingent on shapes real output has not yet produced.
+
+The third note needs no audio and is #11's: sanitizer output is speech-only, the screen keeps the
+unshortened rewrite.
+
 | pair | note | status |
 | --- | --- | --- |
-| `s10:path-expand` | "`hooks.json` should become 'hooks dot json' so that 'json' is pronounced" | **new sub-rule.** `path-expand` spells `.md` as " dot M D"; the ask is that a pronounceable extension be said as a word. Not covered by `path-shorten` (the axis-3 winner), which shortens but does not touch extensions |
+| `s10:path-expand` | "`hooks.json` should become 'hooks dot json' so that 'json' is pronounced" | **→ adopted as `ext-word`, 5–0, by #13.** **new sub-rule.** `path-expand` spells `.md` as " dot M D"; the ask is that a pronounceable extension be said as a word. Not covered by `path-shorten` (the axis-3 winner), which shortens but does not touch extensions |
 | `s12:path-shorten` | "if the original text is shown but B is the spoken text, I think that would be the perfect combination" | **spec confirmation, not a sanitizer change.** Sanitizer output is speech-only; the screen keeps the unshortened rewrite. Worth stating explicitly in #11 so nobody routes sanitized text to the display |
-| `s15:scream-drop` | "B would be even better if it gets a comma before and after the flag name I think, like what you did with variables in `backticks`" | **new rule, unauditioned.** Generalises axis 1's winning `tick-pause` (commas around `` `spans` ``) to **flag names and bare identifiers**. The axis-1 result — that the win was the commas, not the backtick removal — is direct evidence this is worth hearing |
+| `s15:scream-drop` | "B would be even better if it gets a comma before and after the flag name I think, like what you did with variables in `backticks`" | **→ adopted as `flag-pause`, 4–0 (all synthetic), by #13.** **new rule, unauditioned when this was written.** Generalises axis 1's winning `tick-pause` (commas around `` `spans` ``) to **flag names and bare identifiers**. The axis-1 result — that the win was the commas, not the backtick removal — is direct evidence this is worth hearing |

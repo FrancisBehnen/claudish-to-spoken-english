@@ -463,29 +463,163 @@ anywhere is **500**, `r06` under `ext-word`.
 
 ---
 
-## DECISION
+## DECISION (2026-08-25)
 
-**Not filled in. #13 is open.**
+Settled by Francis listening to section 4 blind, one sitting, 11:27–11:37 UTC on 2026-08-25 — the
+same day as #8's session and on the same page. Verdicts exported to
+`~/.local/share/kokoro/bench/audition-verdicts-round-2.tsv` and committed beside this document as
+[`audition-verdicts-13.tsv`](audition-verdicts-13.tsv).
 
-Nothing above is a verdict. The pairs are blind, the listener decides by ear in one sitting, and the
-verdicts export from the page as TSV. When they are in, this block should record — in the shape
-[`sanitizer-audition.md`](sanitizer-audition.md) uses:
+Read that file's other sections with the origin caveat in mind: its `sanitizer`, `voice` and `length`
+blocks are the #8/#9/#10 pairs re-rendered by the page and are **almost entirely unjudged in this
+export** (`progress: 20/87` in its header) because `localStorage` is per origin and #8's sitting was
+recorded on the other one. Nothing is lost — those verdicts are
+[`audition-verdicts.tsv`](audition-verdicts.tsv), 67/67 and 4/4 and 27/27 — and **nothing in this
+DECISION is derived from any row outside `section = sanitizer-13`.** The one row that appears judged
+in both files, `r06:none`, carries the same verdict in each.
 
-- one row per axis: the decision, the margin, and whether the margin clears the ~1-in-12 noise floor
-  the controls measure;
-- the control tally, so the noise floor of *this* session is stated rather than inherited;
-- anything that stays open, and any listener note that asks for a rule nobody has heard.
+**19 of the 20 pairs judged.** The twentieth is `s03:flag-pause`, one of the six byte-identical
+controls; it was left unjudged and **no verdict has been invented for it**. The tallies below exclude
+the five *judged* control pairs, which carry no signal.
 
-Three things this decision has to answer explicitly, because the audition design leaves them
-hanging:
+**All three rules are adopted. None of them lost a single pair.**
 
-1. **Axis 8, given 0 of 12 real carriers.** A win on synthetic fixtures is a weaker mandate than
-   #8's axes had. If it wins, does it ship, or does it wait for a real carrier to appear in a future
-   corpus capture?
-2. **Axis 3.** If `path-short-nolead` wins, it replaces `path-shorten` in #8's DECISION table — that
-   is an amendment to a settled row, and it should be written into
-   [`sanitizer-audition.md`](sanitizer-audition.md) rather than left only here. If it draws with
-   `path-shorten`, `path-shorten` stands (fewer moving parts).
-3. **Axis 9's scope.** `ext-word` fires on any `name.ext`, including inside a backticked span and
-   inside a path the axis-3 winner has already shortened. If it wins, #11 needs the composition
-   order written down: paths first, extensions second, which is the order `_pipeline` already uses.
+| axis | decision | margin | what the margin is made of |
+| --- | --- | --- | --- |
+| 9 extensions | **`ext-word`** — the `.` in `name.ext` becomes the word "dot" | **5–0** | `r03`, `r06`, `s08`, `s10`, `s13`. **Two of the five are real rewrites**, and the rule fires on 5 of the 12 real items (`r03`, `r06`, `r10`, `r11`, `r12`) — the strongest real-output mandate on this page |
+| 8 flags and bare identifiers | **`flag-pause`** — set them off with axis 1's commas | **4–0** | `s15`, `s16`, `s17`, `s28`. **All four synthetic.** The one real pair, `r04`, was a measured byte-identical no-op — the caveat below is load-bearing, not decorative |
+| 3 paths | **`path-short-nolead`** — last two segments, and no leading bare dot | **4–0** | `r06`, `s11`, `s12`, `s13` — but **only `s12` separates the combination from both of its parents**. See below |
+
+For the record, the two reference points: `base` went **1–13** and the `none` control **0–1**.
+`base`'s single win is `r06:none` — sanitized beat unsanitized on a real rewrite — which re-confirms
+#8's "sanitizing beats not sanitizing everywhere it was tested" on `bf_emma` rather than on the voice
+#9 rejected.
+
+### Calibration — the noise floor of *this* session
+
+6 of the 20 pairs were the same wav against itself, blinded, and the page did not say which. Five of
+the six were judged, and **all five were called "no audible difference"** — correctly. The sixth
+(`s03:flag-pause`) was not judged.
+
+**That is not evidence of a better ear than #8's.** #8 measured 11 of 12 controls correct, which set
+the resolution limit at roughly **1 wrong call in 12**. Five trials cannot distinguish 0-in-5 from
+1-in-12: at #8's rate, five clean controls happen about two thirds of the time. The floor for this
+session is therefore **inherited, not improved** — still about 1 call in 12 is noise. Every margin
+above is 4 or 5 unanimous calls in the same direction, several times that floor. **Nothing here is
+decided inside the noise**, and nothing here licenses re-reading a narrow #8 margin as a win.
+
+### Listener notes this round: none — and that was checked
+
+The `note` column is **empty on all 20 rows of section 4**. This is stated rather than passed over
+because #8's write-up was nearly closed without reading the three listener notes sitting in its
+export — same file, same column — and those three notes are the whole reason #13 exists. "No notes"
+here is a checked fact, not an absence of looking.
+
+### The three questions this document said the decision had to answer
+
+**1. Axis 8, with 0 of 12 real carriers — does it ship, or wait for a real carrier?**
+
+**It ships. The reason it safely can is the same reason it is worth little today.** `flag-pause` is a
+measured no-op on **all twelve** real rewrites — not only on the three that carry `ID-*` classes.
+(Verified by running the variant and `base` over `corpus/spoken/r01`–`r12` and comparing:
+byte-identical, twelve for twelve.) Adopting it cannot change a single word of today's real output,
+so it carries no measurable regression risk, and its 4–0 is not the artefact of an inattentive ear —
+the same sitting called five byte-identical controls correctly.
+
+**But its value is entirely contingent on output shapes that have not yet occurred in production.**
+All four discriminating pairs are synthetic fixtures (`s15`, `s16`, `s17`, `s28`). **No real message
+in the corpus exercises this rule at all.** Every flag and `_`-joined identifier in the 12 real
+rewrites already sits inside backticks, where the settled `tick-pause` sets it off — so on real
+output those commas are already there, put there by a different rule.
+
+This is the same class of gap as `MD-FENCE-MULTI`: a rule justified by fixtures the corpus builder
+wrote, waiting for the real world to produce the shape. It is recorded as a **live caveat, not a
+footnote.** If a future capture puts a bare flag in a real message, axis 8's behaviour on it is known
+only from four synthetic items, and the question `s28` raises — five commas in two sentences, help or
+stutter? — has been answered only on `s28`.
+
+**2. Axis 3 — does it amend #8's settled row?**
+
+**Yes.** `path-short-nolead` replaces `path-shorten` as the axis-3 default, and #8's DECISION table is
+amended in [`sanitizer-audition.md`](sanitizer-audition.md) rather than left only here.
+
+**The 4–0 is not four new discriminations.** Measured by running the variants over the corpus, not
+inferred:
+
+| pair | what it actually decided |
+| --- | --- |
+| `r06`, `s11` | `path-short-nolead` is **text-identical to `path-shorten`** on both. These two are a re-confirmation of #8's axis-3 winner on `bf_emma` — worth having, since #8 heard it on the rejected voice and `s11` never had a `path-shorten` wav at all — but they say nothing about the combination |
+| `s13` | `path-short-nolead` is **text-identical to `path-nolead`** here (both paths are only two segments deep), so this is a first hearing of `path-nolead` on a `PATH-DOTDIR` item, not of the combination |
+| `s12` | **the only pair on the page where the combination differs from both parents.** `.claude/claudish-off` → `claude/claudish-off` |
+
+So the combination is adopted **undefeated, on one genuinely combinational pair.** That is a
+defensible adoption — the transformation is the union of two independently undefeated rules and it
+never lost — but "4–0" overstates the evidence, and anyone reopening axis 3 should know it rests on
+`s12`.
+
+**3. Axis 9's scope — what does [#11](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/11) have to write down?**
+
+Three things, all read out of `bench/sanitizers.py` rather than assumed:
+
+- **Order: paths first, extensions second.** `_pipeline` runs `rule_P_paths` and then
+  `rule_X_extensions`, so a segment the path rule has just shortened still gets its extension spoken.
+  That order is now normative, not incidental.
+- **`ext-word` does *not* step over backticked spans; `flag-pause` does.** Under the settled
+  sanitizer (`tick-pause` on), a `` `hooks.json` `` reaches the model as `, hooks dot json,` — axis
+  1's commas and axis 9's "dot" on the same token. **That composition has never been synthesized**;
+  see "Still open".
+- **A bare extension is left alone.** `.sh` with no name in front of it is `PATH-EXTBARE`, where both
+  frontends already agree. `s09` is a byte-identical control here by design, not by oversight.
+
+### What `ext-word`'s win is about — and it is not pronunciation
+
+#13 assumed a **pronunciation** problem and asked for a table of which extensions are words and which
+are letters. Building the audition measured that away: for all 23 extensions the sanitizer
+recognises, espeak's reading is byte-identical after a `.` and after the word "dot", and already
+correct in every case. **No pronunciation table was built and none is needed.**
+
+`ext-word` won anyway — 5–0, including two real items — and it is **not phoneme-identical** to `base`:
+`r03` is 375 phonemes against 369. So the win is real, and it has to be explained by something other
+than pronunciation. It is **prosody and pacing**: the rule deletes a full stop espeak was planting
+mid-sentence and puts a spoken syllable in its place, which re-phrases the stream around the
+filename. That is the entire mechanism.
+
+**Anyone later reading "we added dot-word to fix pronunciation" would be wrong.** The pronunciation
+was never broken. The phrasing was.
+
+### What this changes in the settled defaults
+
+The sanitizer #11 specifies is #8's settled set with exactly three amendments:
+
+| | before #13 | after #13 |
+| --- | --- | --- |
+| axis 3 paths | `path-shorten` | **`path-short-nolead`** |
+| axis 8 flags / bare identifiers | no rule | **`flag-pause`** |
+| axis 9 `name.ext` | no rule | **`ext-word`** |
+
+### What it does *not* change
+
+- **#8's other six axes.** Not reopened, not re-auditioned, not touched by any variant here.
+- **Axis 2** (`.` versus `,` as the line-break replacement) stays **deliberately undecided**, inside
+  #8's noise floor. Nothing on this page moved it and this decision does not resolve it.
+- **No pronunciation table.** `.py` still reads "pie" (measured, never auditioned) and `yml` still
+  reads "immel". Both are known and both are left alone on purpose.
+- **Rule L** stays gated behind `--respell`, still mis-firing on "the lives of others".
+- **Bare acronyms and camelCase** are still not set off by axis 8, for the reason #1 gives for
+  narrowing rule J the same way.
+
+### Still open after this decision
+
+- **Axis 8 has no real carrier.** The caveat above, as an open item: revisit when a corpus capture
+  produces a bare flag or `_`-joined identifier *outside* backticks.
+- **The settled combination has never been heard.** 26 sanitizers are registered and **not one of
+  them is the settled set**: every pair on both audition pages moves exactly one axis against `base`,
+  which is what made them readable. `tick-pause` + `flag-pause` on one item, and `path-short-nolead`
+  + `ext-word` on one path, are compositions no wav on disk contains. #11 should register the settled
+  combination as a single variant and give it one confirmation listen before it ships — not to
+  re-decide an axis, but to catch an interaction.
+- **`s12` carries the whole combinational case for axis 3** (above).
+- **Deeper leading-dot paths.** A `.github/workflows/ci.yml`-shaped path is still not in the corpus,
+  so the combination on a three-segment dotdir path is unauditioned.
+- **Everything under "What this audition cannot settle"** above stands as written, except the two
+  items this block answers.

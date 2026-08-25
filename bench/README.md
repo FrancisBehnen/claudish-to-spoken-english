@@ -6,9 +6,10 @@ The instrument the listening tickets share. Built for
 Assembled 2026-08-16.
 
 **Throwaway by design.** This is an asset for *deciding* #8 (sanitizer rules), #9 (voice and the
-first-sentence-pipelining call) and #10 — not a component of the speech feature. It touches no hook,
-imports nothing from `rewrite.sh` / `rewrite-md.sh` / `providers.sh`, and never calls an LLM. Delete
-the directory when the decisions are made and nothing breaks.
+first-sentence-pipelining call), #10, and #13 (#8's three follow-up rules) — not a component of the
+speech feature. It touches no hook, imports nothing from `rewrite.sh` / `rewrite-md.sh` /
+`providers.sh`, and never calls an LLM. Delete the directory when the decisions are made and nothing
+breaks.
 
 **Nothing in here is a claim about how anything sounds.** Every number below is a stopwatch reading
 or a count. The `candidate` sanitizer is a candidate.
@@ -31,7 +32,7 @@ bench/
   bench.py           the harness: timing, synthesis, playback, reporting
   sanitizers.py      the pluggable sanitizer registry
   first-sentence.py  a sibling: TTFA for sentence one alone, for #9
-  audition-page.py   builds the local listening page for #8, #9 and #10
+  audition-page.py   builds the local listening page for #8, #9, #10 and #13
   README.md          this file
 ```
 
@@ -207,7 +208,7 @@ same item twice, back to back, plays both, and puts them on adjacent rows of the
 | `candidate` | rules **A–K** from the research doc's candidate list. |
 | `crashguard` | rules **B + A** only: the two that decide whether `create()` raises, and nothing else. Isolates the crash question from the prosody question. |
 | `base` + 19 axis variants | added for [#8](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/8). `base` is `candidate` with one *named* default per open axis; each variant moves **exactly one** axis (`tick-*`, `lb-*`, `path-*`, `md-*`, `scream-*`, `url-*`, `cb-*`). See [`docs/decisions/sanitizer-audition.md`](../docs/decisions/sanitizer-audition.md). |
-| 3 follow-up variants | added for [#13](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/13): `flag-pause` and `ext-word` are two rules #8's listener asked for and nobody had heard; `path-short-nolead` is the one combination #8's decision left unmeasured. Same `base` reference, still one axis at a time. See [`docs/decisions/sanitizer-audition-13.md`](../docs/decisions/sanitizer-audition-13.md). |
+| 3 follow-up variants | added for [#13](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/13): `flag-pause` and `ext-word` are two rules #8's listener asked for and nobody had heard; `path-short-nolead` is the one combination #8's decision left unmeasured. Same `base` reference, still one axis at a time. **All three were auditioned on `bf_emma` and all three are adopted** — `ext-word` 5–0, `flag-pause` 4–0, `path-short-nolead` 4–0, none of them beaten; `path-short-nolead` replaces `path-shorten` on axis 3. See [`docs/decisions/sanitizer-audition-13.md`](../docs/decisions/sanitizer-audition-13.md). |
 
 **26 sanitizers are registered**; `bench/bench --list-sanitizers` is the authoritative list.
 
@@ -281,7 +282,7 @@ One `.txt` per utterance, no front matter; the harness reads `spoken/*.txt` and 
 
 | flag | default | |
 | --- | --- | --- |
-| `--voice` / `--list-voices` | `af_heart` | the assumed default, **unauditioned** — that is #9's job |
+| `--voice` / `--list-voices` | `af_heart` | the harness default, and the voice **#9 rejected**: it chose `bf_emma`, which is what #13's wavs are and what `-v bf_emma` selects |
 | `--speed` | `1.0` | |
 | `--lang` | `en-us` | |
 | `--tolerance` | `3.0` | the TTFA pass/fail line |
