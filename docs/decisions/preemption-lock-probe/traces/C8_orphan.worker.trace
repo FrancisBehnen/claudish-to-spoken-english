@@ -1,0 +1,213 @@
+1787684850.095710	worker	52754	gen1	election_won	
+1787684850.806338	worker	52754	gen1	ready	after=0.7104
+1787684850.965175	worker	52754	gen1	S_claim	job=w0
+1787684850.965392	worker	52754	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target
+1787684851.976360	worker	52754	gen1	synth_done	job=w0 wav=-
+1787684851.977639	worker	52754	gen1	S2_prespawn_stat	job=w0 newer_waiting=0
+1787684852.989910	worker	52754	gen1	P_popen	job=w0 player_pid=52809
+1787684852.991263	worker	52754	gen1	W_pid_write	job=w0 player_pid=52809
+1787684855.566584	worker	52754	gen1	player_exit	job=w0 player_pid=52809 rc=0 killed_by_sig=0 alive_s=2.5818
+1787684856.083429	worker	52852	gen1	election_won	
+1787684856.793458	worker	52852	gen1	ready	after=0.7098
+1787684857.034030	worker	52852	gen1	S_claim	job=j1a
+1787684857.034355	worker	52852	gen1	kill_attempt	by=worker-claim site=pidfile target=52809 sig=30 result=ESRCH
+1787684858.045137	worker	52852	gen1	synth_done	job=j1a wav=-
+1787684858.046234	worker	52852	gen1	S2_prespawn_stat	job=j1a newer_waiting=0
+1787684859.060178	worker	52852	gen1	P_popen	job=j1a player_pid=52892
+1787684859.061902	worker	52852	gen1	worker_die	where=between_P_and_W
+1787684859.915476	worker	52908	gen1r	election_won	
+1787684860.626526	worker	52908	gen1r	ready	after=0.7109
+1787684860.882795	worker	52908	gen1r	S_claim	job=j1b
+1787684860.883888	worker	52908	gen1r	kill_attempt	by=worker-claim site=pidfile target=52809 sig=30 result=ESRCH
+1787684861.894408	worker	52908	gen1r	synth_done	job=j1b wav=-
+1787684861.895036	worker	52908	gen1r	S2_prespawn_stat	job=j1b newer_waiting=0
+1787684862.909904	worker	52908	gen1r	P_popen	job=j1b player_pid=52941
+1787684862.911042	worker	52908	gen1r	W_pid_write	job=j1b player_pid=52941
+1787684865.484457	worker	52908	gen1r	player_exit	job=j1b player_pid=52941 rc=0 killed_by_sig=0 alive_s=2.579
+1787684866.757745	worker	52974	gen2	election_won	
+1787684867.458544	worker	52974	gen2	ready	after=0.7011
+1787684867.636820	worker	52974	gen2	S_claim	job=j2a
+1787684867.637168	worker	52974	gen2	kill_attempt	by=worker-claim site=pidfile target=52941 sig=30 result=ESRCH
+1787684868.647640	worker	52974	gen2	synth_done	job=j2a wav=-
+1787684868.648047	worker	52974	gen2	S2_prespawn_stat	job=j2a newer_waiting=0
+1787684869.658866	worker	52974	gen2	P_popen	job=j2a player_pid=53025
+1787684869.659992	worker	52974	gen2	worker_die	where=between_P_and_W
+1787684870.537287	worker	53026	gen2r	election_won	
+1787684871.247641	worker	53026	gen2r	ready	after=0.711
+1787684871.501805	worker	53026	gen2r	S_claim	job=j2b
+1787684871.502745	worker	53026	gen2r	kill_attempt	by=worker-claim site=pidfile target=52941 sig=30 result=ESRCH
+1787684872.506850	worker	53026	gen2r	synth_done	job=j2b wav=-
+1787684872.507635	worker	53026	gen2r	S2_prespawn_stat	job=j2b newer_waiting=0
+1787684873.519338	worker	53026	gen2r	P_popen	job=j2b player_pid=53072
+1787684873.520557	worker	53026	gen2r	W_pid_write	job=j2b player_pid=53072
+1787684876.098826	worker	53026	gen2r	player_exit	job=j2b player_pid=53072 rc=0 killed_by_sig=0 alive_s=2.5823
+1787684877.415278	worker	53106	gen3	election_won	
+1787684878.125913	worker	53106	gen3	ready	after=0.7107
+1787684878.304298	worker	53106	gen3	S_claim	job=j3a
+1787684878.304614	worker	53106	gen3	kill_attempt	by=worker-claim site=pidfile target=53072 sig=30 result=ESRCH
+1787684879.315207	worker	53106	gen3	synth_done	job=j3a wav=-
+1787684879.316292	worker	53106	gen3	S2_prespawn_stat	job=j3a newer_waiting=0
+1787684880.328337	worker	53106	gen3	P_popen	job=j3a player_pid=53152
+1787684880.329132	worker	53106	gen3	worker_die	where=between_P_and_W
+1787684881.193813	worker	53153	gen3r	election_won	
+1787684881.904615	worker	53153	gen3r	ready	after=0.7111
+1787684882.159357	worker	53153	gen3r	S_claim	job=j3b
+1787684882.160157	worker	53153	gen3r	kill_attempt	by=worker-claim site=pidfile target=53072 sig=30 result=ESRCH
+1787684883.170573	worker	53153	gen3r	synth_done	job=j3b wav=-
+1787684883.171633	worker	53153	gen3r	S2_prespawn_stat	job=j3b newer_waiting=0
+1787684884.185649	worker	53153	gen3r	P_popen	job=j3b player_pid=53203
+1787684884.187482	worker	53153	gen3r	W_pid_write	job=j3b player_pid=53203
+1787684886.742745	worker	53153	gen3r	player_exit	job=j3b player_pid=53203 rc=0 killed_by_sig=0 alive_s=2.5609
+1787684888.057303	worker	53258	gen4	election_won	
+1787684888.767690	worker	53258	gen4	ready	after=0.7107
+1787684888.968064	worker	53258	gen4	S_claim	job=j4a
+1787684888.968470	worker	53258	gen4	kill_attempt	by=worker-claim site=pidfile target=53203 sig=30 result=ESRCH
+1787684889.979146	worker	53258	gen4	synth_done	job=j4a wav=-
+1787684889.980407	worker	53258	gen4	S2_prespawn_stat	job=j4a newer_waiting=0
+1787684890.995710	worker	53258	gen4	P_popen	job=j4a player_pid=53299
+1787684890.997614	worker	53258	gen4	worker_die	where=between_P_and_W
+1787684891.868964	worker	53300	gen4r	election_won	
+1787684892.579963	worker	53300	gen4r	ready	after=0.7109
+1787684892.835672	worker	53300	gen4r	S_claim	job=j4b
+1787684892.836711	worker	53300	gen4r	kill_attempt	by=worker-claim site=pidfile target=53203 sig=30 result=ESRCH
+1787684893.845218	worker	53300	gen4r	synth_done	job=j4b wav=-
+1787684893.846103	worker	53300	gen4r	S2_prespawn_stat	job=j4b newer_waiting=0
+1787684894.854972	worker	53300	gen4r	P_popen	job=j4b player_pid=53346
+1787684894.856721	worker	53300	gen4r	W_pid_write	job=j4b player_pid=53346
+1787684897.429950	worker	53300	gen4r	player_exit	job=j4b player_pid=53346 rc=0 killed_by_sig=0 alive_s=2.5785
+1787684898.714873	worker	53379	gen5	election_won	
+1787684899.421192	worker	53379	gen5	ready	after=0.7061
+1787684899.587552	worker	53379	gen5	S_claim	job=j5a
+1787684899.587925	worker	53379	gen5	kill_attempt	by=worker-claim site=pidfile target=53346 sig=30 result=ESRCH
+1787684900.598428	worker	53379	gen5	synth_done	job=j5a wav=-
+1787684900.599329	worker	53379	gen5	S2_prespawn_stat	job=j5a newer_waiting=0
+1787684901.613431	worker	53379	gen5	P_popen	job=j5a player_pid=53422
+1787684901.614868	worker	53379	gen5	worker_die	where=between_P_and_W
+1787684902.482859	worker	53425	gen5r	election_won	
+1787684903.193486	worker	53425	gen5r	ready	after=0.7111
+1787684903.447710	worker	53425	gen5r	S_claim	job=j5b
+1787684903.448859	worker	53425	gen5r	kill_attempt	by=worker-claim site=pidfile target=53346 sig=30 result=ESRCH
+1787684904.458033	worker	53425	gen5r	synth_done	job=j5b wav=-
+1787684904.458956	worker	53425	gen5r	S2_prespawn_stat	job=j5b newer_waiting=0
+1787684905.474345	worker	53425	gen5r	P_popen	job=j5b player_pid=53470
+1787684905.476006	worker	53425	gen5r	W_pid_write	job=j5b player_pid=53470
+1787684908.042183	worker	53425	gen5r	player_exit	job=j5b player_pid=53470 rc=0 killed_by_sig=0 alive_s=2.5725
+1787684909.337816	worker	53504	gen6	election_won	
+1787684910.040692	worker	53504	gen6	ready	after=0.7032
+1787684910.233890	worker	53504	gen6	S_claim	job=j6a
+1787684910.234223	worker	53504	gen6	kill_attempt	by=worker-claim site=pidfile target=53470 sig=30 result=ESRCH
+1787684911.239259	worker	53504	gen6	synth_done	job=j6a wav=-
+1787684911.239851	worker	53504	gen6	S2_prespawn_stat	job=j6a newer_waiting=0
+1787684912.255527	worker	53504	gen6	P_popen	job=j6a player_pid=53547
+1787684912.257399	worker	53504	gen6	worker_die	where=between_P_and_W
+1787684913.130502	worker	53548	gen6r	election_won	
+1787684913.833551	worker	53548	gen6r	ready	after=0.7031
+1787684914.088853	worker	53548	gen6r	S_claim	job=j6b
+1787684914.089917	worker	53548	gen6r	kill_attempt	by=worker-claim site=pidfile target=53470 sig=30 result=ESRCH
+1787684915.098556	worker	53548	gen6r	synth_done	job=j6b wav=-
+1787684915.099475	worker	53548	gen6r	S2_prespawn_stat	job=j6b newer_waiting=0
+1787684916.109703	worker	53548	gen6r	P_popen	job=j6b player_pid=53621
+1787684916.110818	worker	53548	gen6r	W_pid_write	job=j6b player_pid=53621
+1787684918.683179	worker	53548	gen6r	player_exit	job=j6b player_pid=53621 rc=0 killed_by_sig=0 alive_s=2.5762
+1787684919.964979	worker	53652	gen7	election_won	
+1787684920.675948	worker	53652	gen7	ready	after=0.7109
+1787684920.854253	worker	53652	gen7	S_claim	job=j7a
+1787684920.854633	worker	53652	gen7	kill_attempt	by=worker-claim site=pidfile target=53621 sig=30 result=ESRCH
+1787684921.865171	worker	53652	gen7	synth_done	job=j7a wav=-
+1787684921.866042	worker	53652	gen7	S2_prespawn_stat	job=j7a newer_waiting=0
+1787684922.876917	worker	53652	gen7	P_popen	job=j7a player_pid=53695
+1787684922.877809	worker	53652	gen7	worker_die	where=between_P_and_W
+1787684923.743972	worker	53696	gen7r	election_won	
+1787684924.448370	worker	53696	gen7r	ready	after=0.7042
+1787684924.703853	worker	53696	gen7r	S_claim	job=j7b
+1787684924.704550	worker	53696	gen7r	kill_attempt	by=worker-claim site=pidfile target=53621 sig=30 result=ESRCH
+1787684925.715299	worker	53696	gen7r	synth_done	job=j7b wav=-
+1787684925.716577	worker	53696	gen7r	S2_prespawn_stat	job=j7b newer_waiting=0
+1787684926.731640	worker	53696	gen7r	P_popen	job=j7b player_pid=53744
+1787684926.734319	worker	53696	gen7r	W_pid_write	job=j7b player_pid=53744
+1787684929.302550	worker	53696	gen7r	player_exit	job=j7b player_pid=53744 rc=0 killed_by_sig=0 alive_s=2.5758
+1787684930.636153	worker	53762	gen8	election_won	
+1787684931.346731	worker	53762	gen8	ready	after=0.7107
+1787684931.522777	worker	53762	gen8	S_claim	job=j8a
+1787684931.523116	worker	53762	gen8	kill_attempt	by=worker-claim site=pidfile target=53744 sig=30 result=ESRCH
+1787684932.533640	worker	53762	gen8	synth_done	job=j8a wav=-
+1787684932.535030	worker	53762	gen8	S2_prespawn_stat	job=j8a newer_waiting=0
+1787684933.544173	worker	53762	gen8	P_popen	job=j8a player_pid=53819
+1787684933.544676	worker	53762	gen8	worker_die	where=between_P_and_W
+1787684934.421362	worker	53820	gen8r	election_won	
+1787684935.132144	worker	53820	gen8r	ready	after=0.7109
+1787684935.385745	worker	53820	gen8r	S_claim	job=j8b
+1787684935.386764	worker	53820	gen8r	kill_attempt	by=worker-claim site=pidfile target=53744 sig=30 result=ESRCH
+1787684936.392026	worker	53820	gen8r	synth_done	job=j8b wav=-
+1787684936.393084	worker	53820	gen8r	S2_prespawn_stat	job=j8b newer_waiting=0
+1787684937.400382	worker	53820	gen8r	P_popen	job=j8b player_pid=53866
+1787684937.402400	worker	53820	gen8r	W_pid_write	job=j8b player_pid=53866
+1787684939.961276	worker	53820	gen8r	player_exit	job=j8b player_pid=53866 rc=0 killed_by_sig=0 alive_s=2.5633
+1787684941.254151	worker	53884	gen9	election_won	
+1787684941.965162	worker	53884	gen9	ready	after=0.7108
+1787684942.193392	worker	53884	gen9	S_claim	job=j9a
+1787684942.193834	worker	53884	gen9	kill_attempt	by=worker-claim site=pidfile target=53866 sig=30 result=ESRCH
+1787684943.198074	worker	53884	gen9	synth_done	job=j9a wav=-
+1787684943.198683	worker	53884	gen9	S2_prespawn_stat	job=j9a newer_waiting=0
+1787684944.210455	worker	53884	gen9	P_popen	job=j9a player_pid=53943
+1787684944.211745	worker	53884	gen9	worker_die	where=between_P_and_W
+1787684945.085289	worker	53947	gen9r	election_won	
+1787684945.794240	worker	53947	gen9r	ready	after=0.7091
+1787684946.048033	worker	53947	gen9r	S_claim	job=j9b
+1787684946.049280	worker	53947	gen9r	kill_attempt	by=worker-claim site=pidfile target=53866 sig=30 result=ESRCH
+1787684947.053076	worker	53947	gen9r	synth_done	job=j9b wav=-
+1787684947.053663	worker	53947	gen9r	S2_prespawn_stat	job=j9b newer_waiting=0
+1787684948.069075	worker	53947	gen9r	P_popen	job=j9b player_pid=53994
+1787684948.072114	worker	53947	gen9r	W_pid_write	job=j9b player_pid=53994
+1787684950.646905	worker	53947	gen9r	player_exit	job=j9b player_pid=53994 rc=0 killed_by_sig=0 alive_s=2.5826
+1787684951.951003	worker	54015	gen10	election_won	
+1787684952.661550	worker	54015	gen10	ready	after=0.7109
+1787684952.814518	worker	54015	gen10	S_claim	job=j10a
+1787684952.814719	worker	54015	gen10	kill_attempt	by=worker-claim site=pidfile target=53994 sig=30 result=ESRCH
+1787684953.825376	worker	54015	gen10	synth_done	job=j10a wav=-
+1787684953.826755	worker	54015	gen10	S2_prespawn_stat	job=j10a newer_waiting=0
+1787684954.837905	worker	54015	gen10	P_popen	job=j10a player_pid=54069
+1787684954.838972	worker	54015	gen10	worker_die	where=between_P_and_W
+1787684955.709555	worker	54071	gen10r	election_won	
+1787684956.419979	worker	54071	gen10r	ready	after=0.7109
+1787684956.674060	worker	54071	gen10r	S_claim	job=j10b
+1787684956.674868	worker	54071	gen10r	kill_attempt	by=worker-claim site=pidfile target=53994 sig=30 result=ESRCH
+1787684957.676066	worker	54071	gen10r	synth_done	job=j10b wav=-
+1787684957.677646	worker	54071	gen10r	S2_prespawn_stat	job=j10b newer_waiting=0
+1787684958.684956	worker	54071	gen10r	P_popen	job=j10b player_pid=54119
+1787684958.686145	worker	54071	gen10r	W_pid_write	job=j10b player_pid=54119
+1787684961.245666	worker	54071	gen10r	player_exit	job=j10b player_pid=54119 rc=0 killed_by_sig=0 alive_s=2.564
+1787684962.601752	worker	54141	gen11	election_won	
+1787684963.310685	worker	54141	gen11	ready	after=0.7091
+1787684963.540024	worker	54141	gen11	S_claim	job=j11a
+1787684963.540417	worker	54141	gen11	kill_attempt	by=worker-claim site=pidfile target=54119 sig=30 result=ESRCH
+1787684964.543682	worker	54141	gen11	synth_done	job=j11a wav=-
+1787684964.544595	worker	54141	gen11	S2_prespawn_stat	job=j11a newer_waiting=0
+1787684965.558141	worker	54141	gen11	P_popen	job=j11a player_pid=54201
+1787684965.559081	worker	54141	gen11	worker_die	where=between_P_and_W
+1787684966.411926	worker	54202	gen11r	election_won	
+1787684967.122590	worker	54202	gen11r	ready	after=0.7109
+1787684967.376424	worker	54202	gen11r	S_claim	job=j11b
+1787684967.377188	worker	54202	gen11r	kill_attempt	by=worker-claim site=pidfile target=54119 sig=30 result=ESRCH
+1787684968.387990	worker	54202	gen11r	synth_done	job=j11b wav=-
+1787684968.389371	worker	54202	gen11r	S2_prespawn_stat	job=j11b newer_waiting=0
+1787684969.400986	worker	54202	gen11r	P_popen	job=j11b player_pid=54247
+1787684969.401880	worker	54202	gen11r	W_pid_write	job=j11b player_pid=54247
+1787684971.967415	worker	54202	gen11r	player_exit	job=j11b player_pid=54247 rc=0 killed_by_sig=0 alive_s=2.5676
+1787684973.253008	worker	54550	gen12	election_won	
+1787684973.963509	worker	54550	gen12	ready	after=0.711
+1787684974.127704	worker	54550	gen12	S_claim	job=j12a
+1787684974.127999	worker	54550	gen12	kill_attempt	by=worker-claim site=pidfile target=54247 sig=30 result=ESRCH
+1787684975.138785	worker	54550	gen12	synth_done	job=j12a wav=-
+1787684975.139596	worker	54550	gen12	S2_prespawn_stat	job=j12a newer_waiting=0
+1787684976.151626	worker	54550	gen12	P_popen	job=j12a player_pid=54620
+1787684976.152539	worker	54550	gen12	worker_die	where=between_P_and_W
+1787684977.001155	worker	54633	gen12r	election_won	
+1787684977.709633	worker	54633	gen12r	ready	after=0.7087
+1787684977.963111	worker	54633	gen12r	S_claim	job=j12b
+1787684977.963647	worker	54633	gen12r	kill_attempt	by=worker-claim site=pidfile target=54247 sig=30 result=ESRCH
+1787684978.974426	worker	54633	gen12r	synth_done	job=j12b wav=-
+1787684978.975897	worker	54633	gen12r	S2_prespawn_stat	job=j12b newer_waiting=0
+1787684979.983672	worker	54633	gen12r	P_popen	job=j12b player_pid=54678
+1787684979.985242	worker	54633	gen12r	W_pid_write	job=j12b player_pid=54678
+1787684982.560397	worker	54633	gen12r	player_exit	job=j12b player_pid=54678 rc=0 killed_by_sig=0 alive_s=2.5802

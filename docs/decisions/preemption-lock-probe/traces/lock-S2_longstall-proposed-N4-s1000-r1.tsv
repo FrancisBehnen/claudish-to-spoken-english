@@ -1,0 +1,6 @@
+1787685843.279377	1	proposed	S2_longstall	winner	79201	published	gen=0 owner=79201 window=none
+1787685843.298196	1	proposed	S2_longstall	racer	79204	lost	held_by=79201 gen=0
+1787685843.305808	1	proposed	S2_longstall	racer	79205	lost	held_by=79201 gen=0
+1787685843.311425	1	proposed	S2_longstall	racer	79206	lost	held_by=79201 gen=0
+1787685843.311575	1	proposed	S2_longstall	racer	79207	lost	held_by=79201 gen=0
+1787685844.285177	1	proposed	S2_longstall	winner	79201	owner	via=election

@@ -1,0 +1,10 @@
+1787685290.779497	1	current	S3_aba	winner	63006	mkdir_ok	
+1787685290.821479	1	current	S3_aba	winner	63006	pid_written	owner=63008
+1787685290.840654	1	current	S3_aba	racer	63009	classified_stale	reason=pid_dead pid=63008
+1787685290.853236	1	current	S3_aba	racer	63011	classified_stale	reason=pid_dead pid=63008
+1787685290.853506	1	current	S3_aba	racer	63011	rmdir_ok	
+1787685290.853739	1	current	S3_aba	racer	63011	mkdir_ok	
+1787685290.853824	1	current	S3_aba	racer	63011	owner	via=election
+1787685290.971114	1	current	S3_aba	racer	63009	rmdir_ok	
+1787685290.971486	1	current	S3_aba	racer	63009	mkdir_ok	
+1787685290.971587	1	current	S3_aba	racer	63009	owner	via=election

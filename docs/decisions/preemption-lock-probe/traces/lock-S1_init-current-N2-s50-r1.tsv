@@ -1,0 +1,8 @@
+1787685147.892018	1	current	S1_init	winner	58008	mkdir_ok	
+1787685147.905921	1	current	S1_init	racer	58011	classified_stale	reason=no_pid
+1787685147.906142	1	current	S1_init	racer	58011	rmdir_ok	
+1787685147.906361	1	current	S1_init	racer	58011	mkdir_ok	
+1787685147.906430	1	current	S1_init	racer	58011	owner	via=election
+1787685147.908315	1	current	S1_init	racer	58012	lost	held_by=58011
+1787685147.952763	1	current	S1_init	winner	58008	pid_written	owner=58008
+1787685147.952881	1	current	S1_init	winner	58008	owner	via=election

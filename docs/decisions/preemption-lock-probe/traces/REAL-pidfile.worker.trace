@@ -1,0 +1,51 @@
+1787686260.438006	worker	91310	gen1	election_won	
+1787686262.407529	worker	91310	gen1	ready	after=1.9697
+1787686262.611218	worker	91310	gen1	S_claim	job=w0
+1787686262.611376	worker	91310	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target
+1787686263.851992	worker	91310	gen1	synth_done	job=w0 wav=out.w0.wav
+1787686263.852073	worker	91310	gen1	S2_prespawn_stat	job=w0 newer_waiting=0
+1787686264.883852	worker	91310	gen1	P_popen	job=w0 player_pid=91445
+1787686264.884593	worker	91310	gen1	W_pid_write	job=w0 player_pid=91445
+1787686270.659237	worker	91310	gen1	player_exit	job=w0 player_pid=91445 rc=-15 killed_by_sig=15 alive_s=5.7969
+1787686270.787455	worker	91310	gen1	S_claim	job=j1a
+1787686270.787863	worker	91310	gen1	kill_attempt	by=worker-claim site=pidfile target=91445 sig=30 result=ESRCH
+1787686272.094615	worker	91310	gen1	synth_done	job=j1a wav=out.j1a.wav
+1787686272.094714	worker	91310	gen1	S2_prespawn_stat	job=j1a newer_waiting=0
+1787686273.115413	worker	91310	gen1	P_popen	job=j1a player_pid=91564
+1787686273.116225	worker	91310	gen1	W_pid_write	job=j1a player_pid=91564
+1787686273.116871	worker	91310	gen1	S_claim	job=j1b
+1787686273.117123	worker	91310	gen1	kill_attempt	by=worker-claim site=pidfile target=91564 sig=30 result=sent
+1787686273.117713	worker	91310	gen1	player_exit	job=j1a player_pid=91564 rc=-30 killed_by_sig=30 alive_s=0.0175
+1787686274.277476	worker	91310	gen1	synth_done	job=j1b wav=out.j1b.wav
+1787686274.277596	worker	91310	gen1	S2_prespawn_stat	job=j1b newer_waiting=0
+1787686275.299147	worker	91310	gen1	P_popen	job=j1b player_pid=91587
+1787686275.300207	worker	91310	gen1	W_pid_write	job=j1b player_pid=91587
+1787686281.031312	worker	91310	gen1	player_exit	job=j1b player_pid=91587 rc=0 killed_by_sig=0 alive_s=5.7482
+1787686284.498737	worker	91310	gen1	S_claim	job=j2a
+1787686284.498954	worker	91310	gen1	kill_attempt	by=worker-claim site=pidfile target=91587 sig=30 result=ESRCH
+1787686285.622861	worker	91310	gen1	synth_done	job=j2a wav=out.j2a.wav
+1787686285.623081	worker	91310	gen1	S2_prespawn_stat	job=j2a newer_waiting=0
+1787686286.644545	worker	91310	gen1	P_popen	job=j2a player_pid=91696
+1787686286.645429	worker	91310	gen1	W_pid_write	job=j2a player_pid=91696
+1787686286.646183	worker	91310	gen1	S_claim	job=j2b
+1787686286.646478	worker	91310	gen1	kill_attempt	by=worker-claim site=pidfile target=91696 sig=30 result=sent
+1787686286.647306	worker	91310	gen1	player_exit	job=j2a player_pid=91696 rc=-30 killed_by_sig=30 alive_s=0.0186
+1787686287.858618	worker	91310	gen1	synth_done	job=j2b wav=out.j2b.wav
+1787686287.858868	worker	91310	gen1	S2_prespawn_stat	job=j2b newer_waiting=0
+1787686288.882009	worker	91310	gen1	P_popen	job=j2b player_pid=91712
+1787686288.882968	worker	91310	gen1	W_pid_write	job=j2b player_pid=91712
+1787686294.593175	worker	91310	gen1	player_exit	job=j2b player_pid=91712 rc=0 killed_by_sig=0 alive_s=5.729
+1787686298.253568	worker	91310	gen1	S_claim	job=j3a
+1787686298.253789	worker	91310	gen1	kill_attempt	by=worker-claim site=pidfile target=91712 sig=30 result=ESRCH
+1787686299.411739	worker	91310	gen1	synth_done	job=j3a wav=out.j3a.wav
+1787686299.411971	worker	91310	gen1	S2_prespawn_stat	job=j3a newer_waiting=0
+1787686300.428616	worker	91310	gen1	P_popen	job=j3a player_pid=91801
+1787686300.429221	worker	91310	gen1	W_pid_write	job=j3a player_pid=91801
+1787686300.429731	worker	91310	gen1	S_claim	job=j3b
+1787686300.429932	worker	91310	gen1	kill_attempt	by=worker-claim site=pidfile target=91801 sig=30 result=sent
+1787686300.430185	worker	91310	gen1	player_exit	job=j3a player_pid=91801 rc=-30 killed_by_sig=30 alive_s=0.013
+1787686301.606483	worker	91310	gen1	synth_done	job=j3b wav=out.j3b.wav
+1787686301.606731	worker	91310	gen1	S2_prespawn_stat	job=j3b newer_waiting=0
+1787686302.632087	worker	91310	gen1	P_popen	job=j3b player_pid=91819
+1787686302.633296	worker	91310	gen1	W_pid_write	job=j3b player_pid=91819
+1787686308.354815	worker	91310	gen1	player_exit	job=j3b player_pid=91819 rc=0 killed_by_sig=0 alive_s=5.7426

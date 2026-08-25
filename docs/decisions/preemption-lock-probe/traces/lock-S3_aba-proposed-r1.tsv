@@ -1,0 +1,7 @@
+1787685876.075801	1	proposed	S3_aba	winner	79726	published	gen=0 owner=79728 window=none
+1787685876.096033	1	proposed	S3_aba	racer	79729	classified_stale	reason=pid_dead pid=79728 gen=0
+1787685876.105425	1	proposed	S3_aba	racer	79731	classified_stale	reason=pid_dead pid=79728 gen=0
+1787685876.105643	1	proposed	S3_aba	racer	79731	published	gen=1 superseded=0
+1787685876.105713	1	proposed	S3_aba	racer	79731	owner	via=election
+1787685876.221451	1	proposed	S3_aba	racer	79729	publish_lost	gen=1
+1787685876.222003	1	proposed	S3_aba	racer	79729	lost	held_by=79731 gen=1
