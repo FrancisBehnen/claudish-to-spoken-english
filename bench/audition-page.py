@@ -618,9 +618,31 @@ const el = (t, cls, txt) => { const n = document.createElement(t);
 const secs = s => (s == null ? '—' : s.toFixed(1) + 's');
 const mins = s => (s < 90 ? Math.round(s) + 's' : Math.round(s / 60) + ' min');
 
+/* A pair id is `item:variant`, which is only unique WITHIN one A/B section: a
+   second section over a second wav directory can carry the same pair against a
+   different voice. `r06:none` did, in #13's sitting -- so one click on the
+   bf_emma card also marked the af_heart card judged, revealed its labels,
+   counted twice in the progress line and exported twice, which is why that
+   export reads 20/87 for 19 verdicts. The store key is namespaced by section
+   from here on, with the export's own section name, and so is the DOM id. */
+const SEC1 = 'sanitizer', SEC4 = 'sanitizer-13';
+const pairKey = (section, id) => section + '/' + id;
+
 let S = { blinded: true, theme: 'auto', pairs: {}, voices: {}, len: {} };
 try { const raw = localStorage.getItem(KEY); if (raw) Object.assign(S, JSON.parse(raw)); }
 catch (e) { /* a corrupt or unavailable store must not stop the page */ }
+/* Verdicts saved under the old bare key belong to section 1: it was the only
+   A/B section that existed when they were recorded. */
+if (!S.keyed_by_section) {
+  const moved = {};
+  for (const k in S.pairs) moved[k.indexOf('/') < 0 ? pairKey(SEC1, k) : k] = S.pairs[k];
+  S.pairs = moved;
+  S.keyed_by_section = true;
+}
+/* The A/B pair sections, in page order, paired with the section name the export
+   writes. One list so the renderer, the counter and the exporter cannot drift. */
+const AB_SECTIONS = [[SEC1, D.s1]]
+  .concat(D.s4 && D.s4.pairs ? [[SEC4, D.s4]] : []);
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); }
   catch (e) { flash('could not save to localStorage: ' + e.message); } };
 
@@ -708,8 +730,10 @@ function verdictRow(store, id, options, onChange) {
 const cards = [];   /* every card, in page order, for keyboard navigation */
 
 /* Sections 1 and 4 are the same thing over two wav directories, so they are
-   one function. Adding a third A/B section is one more call. */
-function pairSection(heading, data, intro) {
+   one function. Adding a third A/B section is one more call. `section` is the
+   export's own section name, and it namespaces both the verdict key and the
+   DOM id -- pair ids repeat across sections. */
+function pairSection(section, heading, data, intro) {
   const sec = el('section');
   sec.appendChild(el('h2', null, heading));
   sec.appendChild(el('p', 'small dim', intro));
@@ -730,14 +754,17 @@ function pairSection(heading, data, intro) {
       leg.appendChild(document.createTextNode(' ' + l.doc));
     });
     sec.appendChild(leg);
-    ax.pairs.forEach(p => { const c = pairCard(p); sec.appendChild(c); cards.push(c); });
+    ax.pairs.forEach(p => {
+      const c = pairCard(section, p); sec.appendChild(c); cards.push(c);
+    });
   });
   return sec;
 }
 
-function pairCard(p) {
+function pairCard(section, p) {
+  const key = pairKey(section, p.id);
   const card = el('div', 'card');
-  card.id = 'p-' + p.id.replace(':', '-');
+  card.id = 'p-' + (section + '-' + p.id).replace(/[:/]/g, '-');
   const hd = el('div', 'hd');
   hd.appendChild(el('span', 'id', p.item));
   if (p.kind) hd.appendChild(tag(p.kind));
@@ -777,14 +804,14 @@ function pairCard(p) {
   const rv = el('div', 'reveal');
   card.appendChild(rv);
 
-  const v = verdictRow(S.pairs, p.id, [
+  const v = verdictRow(S.pairs, key, [
     ['a', 'A is better', '1'], ['b', 'B is better', '2'],
     ['same', 'no audible difference', '3'], ['unsure', 'unsure', '4'],
   ], () => { paintReveal(); progress(); });
   card.appendChild(v.row);
 
   function paintReveal() {
-    const r = S.pairs[p.id] || {};
+    const r = S.pairs[key] || {};
     const shown = !S.blinded || !!r.choice;
     revealBits.forEach(([n, name]) => { n.textContent = shown ? name : ''; });
     rv.textContent = '';
@@ -927,7 +954,7 @@ function render() {
   main.textContent = ''; cards.length = 0;
 
   /* section 1, and section 4 — the same machinery over a different wav dir */
-  main.appendChild(pairSection('Section 1 — #8 sanitizer axes', D.s1,
+  main.appendChild(pairSection(SEC1, 'Section 1 — #8 sanitizer axes', D.s1,
     D.s1.pairs + ' pairs over ' + D.s1.axes.length + ' axes, in the audition '
     + 'document’s frequency order: the axis that shows up most often in the '
     + '12 real rewrites comes first. Each pair moves exactly one axis against the '
@@ -961,7 +988,7 @@ function render() {
 
   /* section 4 */
   if (D.s4 && D.s4.pairs) {
-    main.appendChild(pairSection('Section 4 — #13 sanitizer follow-ups', D.s4,
+    main.appendChild(pairSection(SEC4, 'Section 4 — #13 sanitizer follow-ups', D.s4,
       D.s4.pairs + ' pairs over ' + D.s4.axes.length + ' axes: the two rules the '
       + '#8 notes asked for and had never been auditioned, plus the one path '
       + 'combination #8 left unmeasured. Same reference (base), same one-axis-'
@@ -977,11 +1004,12 @@ function render() {
 /* -------------------------------------------------------------- progress */
 function counts() {
   /* Sections 1 and 4 are both A/B pairs and share one counter and one export
-     block; the `section` column tells them apart. */
-  const axes1 = D.s1.axes.concat((D.s4 && D.s4.axes) || []);
-  const p = axes1.reduce((n, a) => n + a.pairs.length, 0);
-  const pj = axes1.reduce((n, a) => n + a.pairs.filter(
-    x => (S.pairs[x.id] || {}).choice).length, 0);
+     block; the `section` column tells them apart -- and so must the store key,
+     or a pair id that appears in both sections counts twice here. */
+  const axes1 = AB_SECTIONS.flatMap(([sec, d]) => d.axes.map(a => [sec, a]));
+  const p = axes1.reduce((n, [, a]) => n + a.pairs.length, 0);
+  const pj = axes1.reduce((n, [sec, a]) => n + a.pairs.filter(
+    x => (S.pairs[pairKey(sec, x.id)] || {}).choice).length, 0);
   const vj = D.s2.items.filter(x => (S.voices[x.id] || {}).winner).length;
   const lj = D.s3.groups.reduce((n, g) => n + g.items.filter(
     x => (S.len[x.id] || {}).choice).length, 0);
@@ -1010,10 +1038,9 @@ const CHOICE1 = { a: 'A is better', b: 'B is better',
 const CHOICE3 = { worth: 'worth speaking', not: 'not worth speaking', unsure: 'unsure' };
 function rows1() {
   const out = [];
-  const src = D.s1.axes.map(a => ['sanitizer', a])
-    .concat(((D.s4 && D.s4.axes) || []).map(a => ['sanitizer-13', a]));
+  const src = AB_SECTIONS.flatMap(([sec, d]) => d.axes.map(a => [sec, a]));
   src.forEach(([section, ax]) => ax.pairs.forEach(p => {
-    const r = S.pairs[p.id] || {};
+    const r = S.pairs[pairKey(section, p.id)] || {};
     out.push([section, 'axis' + ax.n + '-' + ax.key, p.item, p.kind, p.chars_in,
       p.id, p.a.variant, p.b.variant, p.base_side,
       r.choice ? (r.blinded ? 'blind' : 'unblinded') : '',

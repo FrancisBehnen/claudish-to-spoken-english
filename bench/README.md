@@ -212,6 +212,13 @@ same item twice, back to back, plays both, and puts them on adjacent rows of the
 
 **26 sanitizers are registered**; `bench/bench --list-sanitizers` is the authoritative list.
 
+**None of the 26 is the settled set, and one settled rule none of them can even express.** Every variant
+moves exactly one axis against `base`, which is what made the pairs readable, so the composition that
+actually ships has never been synthesized. And axis 2 was settled on 2026-08-25 as a **conditional**
+boundary — `,` at 3 bullets or fewer, `.` at 4 and up — while `lb-period` and `lb-comma`, like every
+other variant, take a single fixed character for every line break. That is a capability to add here
+before the settled set can be put on a page at all.
+
 ### `candidate` is a candidate, not a decision
 
 It implements the rows of

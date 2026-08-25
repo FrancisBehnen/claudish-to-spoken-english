@@ -1,14 +1,20 @@
 # Sanitizer follow-ups: the listening script for #13
 
-The audio [#13](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/13) is decided
+The audio [#13](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/13) was decided
 from. Built 2026-08-25, on top of the set
 [#8](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/8) settled the same day —
 see [`sanitizer-audition.md`](sanitizer-audition.md), whose **DECISION** block and three listener
 notes are what created this ticket.
 
-**This document decides nothing, and it contains no claim about how anything sounds.** Every "what it
-does" below is a text diff, a phoneme string or a duration; every "what to listen for" is a question.
-Nothing here was played back. #13 stays open until the DECISION block at the end is filled in.
+**STATUS: decided. #13 is closed.** The [DECISION](#decision-2026-08-25) at the end is filled in —
+all three rules adopted, on verdicts recorded 11:27–11:37 UTC on 2026-08-25 and committed as
+[`audition-verdicts-13.tsv`](audition-verdicts-13.tsv).
+
+**Everything before that DECISION is the listening script as it was written, and it stays that way on
+purpose.** It decides nothing and contains no claim about how anything sounds: every "what it does" is
+a text diff, a phoneme string or a duration, and every "what to listen for" is a question that had
+not yet been answered when it was written. Read it as the instrument; read the DECISION for the
+result.
 
 **#8's seven axes are not reopened.** Two of its three listener notes asked for rules that had never
 been auditioned, and its "still open" list named one combination it could not measure. That is all
@@ -300,8 +306,10 @@ re-run of `path-shorten` itself under the new voice — which is worth having, s
 
 #8's session put 12 byte-identical pairs in front of the listener without saying which they were, and
 **11 of 12 were correctly called "no audible difference"; 1 was not.** That measured the resolution
-limit of the whole exercise at roughly **1 call in 12 is noise**, and it is why axis 2 of #8 is
-recorded as *not settled* rather than as a narrow win.
+limit of the whole exercise at roughly **1 call in 12 is noise**, and it is why axis 2 of #8 was
+recorded as *not settled* rather than as a narrow win. (Axis 2 has since been settled directly, by
+ear, and its "1–1 tie" turned out to be a mis-posed axis rather than a noise-floor problem — see
+["Axis 2 is settled"](#axis-2-is-settled--and-not-by-either-variant-on-either-page) below.)
 
 This session keeps the same instrument. **6 of the 20 pairs are byte-identical wavs**, one per axis
 at minimum, and the page does not say which:
@@ -472,11 +480,20 @@ same day as #8's session and on the same page. Verdicts exported to
 
 Read that file's other sections with the origin caveat in mind: its `sanitizer`, `voice` and `length`
 blocks are the #8/#9/#10 pairs re-rendered by the page and are **almost entirely unjudged in this
-export** (`progress: 20/87` in its header) because `localStorage` is per origin and #8's sitting was
-recorded on the other one. Nothing is lost — those verdicts are
+export** (`progress: 20/87` in its header — and one of that 20 is the artefact named just below)
+because `localStorage` is per origin and #8's sitting was recorded on the other one. Nothing is lost — those verdicts are
 [`audition-verdicts.tsv`](audition-verdicts.tsv), 67/67 and 4/4 and 27/27 — and **nothing in this
-DECISION is derived from any row outside `section = sanitizer-13`.** The one row that appears judged
-in both files, `r06:none`, carries the same verdict in each.
+DECISION is derived from any row outside `section = sanitizer-13`.**
+
+One row in this export is an artefact and is worth naming, because it looks like evidence and is not.
+`r06:none` is the only pair id that appears in both section 1 and section 4, and the page keyed its
+verdict store on the pair id alone — so the single section-4 click at `11:27:54.486Z` wrote **both**
+rows. The `section = sanitizer` copy of `r06:none` was never listened to in this sitting: its wavs are
+`af_heart` and section 4's are `bf_emma`. That is also why the header reads `progress: 20/87` for
+**19** verdicts. It agrees with #8's own `af_heart` verdict on that pair (recorded at `08:12:30.285Z`
+in [`audition-verdicts.tsv`](audition-verdicts.tsv)), but that agreement is a coincidence of the copy,
+not a second hearing. Nothing in the tallies below reads the duplicated row.
+`bench/audition-page.py` now namespaces the store key by section, so this cannot recur.
 
 **19 of the 20 pairs judged.** The twentieth is `s03:flag-pause`, one of the six byte-identical
 controls; it was left unjudged and **no verdict has been invented for it**. The tallies below exclude
@@ -587,6 +604,46 @@ filename. That is the entire mechanism.
 **Anyone later reading "we added dot-word to fix pronunciation" would be wrong.** The pronunciation
 was never broken. The phrasing was.
 
+### Axis 2 is settled — and not by either variant on either page
+
+Landed after this document's DECISION was first written, and it supersedes every "axis 2 is
+deliberately undecided" line that used to be in these files, this one included.
+
+**The rule is conditional: the line-break boundary is `,` for 3 bullets or fewer, and `.` for 4 and
+up.** Settled by Francis directly, by ear. Three things travel with it and none of them is optional.
+
+**1. The "1–1 tie" was a mis-posed axis, not a coin-flip.** Every variant on this axis applies **one
+character to every line break in the item** — `san_lb_comma` in
+[`bench/sanitizers.py`](../../bench/sanitizers.py) is one line,
+`_pipeline(text, opts, Axes(boundary=","))`, and `Axes.boundary` is a single character. The axis as posed could not
+express a conditional answer, so a conditional answer had to read as a tie. Read #8's three verdicts
+against the rule instead of against each other and they do not tie — they fit:
+
+| item | shape | #8's verdict | the rule |
+| --- | --- | --- | --- |
+| `r09` | real, 1176 ch, paragraph-heavy | no audible difference | neither, correctly: there is barely a bullet to break |
+| `s37` | 8 bullets, 653 ch | `base` (`.`) wins | `.`, 8 ≥ 4 |
+| `s38` | 3 bullets, 106 ch | `lb-comma` (`,`) wins | `,`, 3 ≤ 3 |
+
+Three for three. That is a better account of the same data than "inconclusive" was — but it is an
+account of **three** items, and the rule was not derived from them mechanically.
+
+**2. The cutoff's POSITION is the listener's call, not an audited result.** The evidence brackets it
+at 3 and at 8. **No item between 4 and 7 bullets has ever been synthesized**, in this audition or in
+#8's. Where exactly the boundary sits between those two is a judgement, and it is to be held to the
+same standard as `flag-pause`'s zero real carriers above: adopted, recorded, and not to be quoted as
+a measurement.
+
+**3. No registered sanitizer implements a conditional boundary.** All 26 take a fixed `boundary`
+character. This is a **new capability to be built**, not a variant to be selected — so it cannot be
+compared on the page as it stands, and it has to exist in code before the settled-set confirmation
+listen under "Still open" can include it.
+
+**It carries no crash-safety weight either way.** `kokoro_onnx._split_phonemes` splits on `. , ! ? ;`
+— `BOUNDARY_CHARS` in [`bench/sanitizers.py`](../../bench/sanitizers.py) is that set — so `.` and `,`
+are both valid batch seams and **both** avert the 510-phoneme `IndexError`. Nothing about this choice
+is a safety trade; it is prosody only.
+
 ### What this changes in the settled defaults
 
 The sanitizer #11 specifies is #8's settled set with exactly three amendments:
@@ -597,11 +654,16 @@ The sanitizer #11 specifies is #8's settled set with exactly three amendments:
 | axis 8 flags / bare identifiers | no rule | **`flag-pause`** |
 | axis 9 `name.ext` | no rule | **`ext-word`** |
 
+Axis 2's conditional boundary is a fourth amendment to the same settled set, settled the same day but
+**not by anything on this page** — see the section above. It is listed separately because it is the
+only one of the four that no registered sanitizer can currently produce.
+
 ### What it does *not* change
 
 - **#8's other six axes.** Not reopened, not re-auditioned, not touched by any variant here.
-- **Axis 2** (`.` versus `,` as the line-break replacement) stays **deliberately undecided**, inside
-  #8's noise floor. Nothing on this page moved it and this decision does not resolve it.
+- **Axis 2** (`.` versus `,` as the line-break replacement) is settled, but **not by anything on this
+  page** — no variant here moves it and no wav in `audition-13/` bears on it. See ["Axis 2 is
+  settled"](#axis-2-is-settled--and-not-by-either-variant-on-either-page) above.
 - **No pronunciation table.** `.py` still reads "pie" (measured, never auditioned) and `yml` still
   reads "immel". Both are known and both are left alone on purpose.
 - **Rule L** stays gated behind `--respell`, still mis-firing on "the lives of others".
@@ -612,12 +674,20 @@ The sanitizer #11 specifies is #8's settled set with exactly three amendments:
 
 - **Axis 8 has no real carrier.** The caveat above, as an open item: revisit when a corpus capture
   produces a bare flag or `_`-joined identifier *outside* backticks.
+- **Axis 2's conditional boundary has to be built before it can be heard.** No registered sanitizer
+  takes anything but a fixed boundary character, so the settled rule — `,` at 3 bullets or fewer, `.`
+  at 4 and up — does not exist in code yet. It is a prerequisite for the confirmation listen below,
+  not a variant selection, and it is the one settled amendment the page cannot currently render.
+- **Nothing between 4 and 7 bullets has ever been synthesized.** Axis 2's cutoff is bracketed by
+  `s38` at 3 and `s37` at 8 and its exact position is a judgement, so the corpus wants an item in
+  that gap before anyone treats the number 4 as measured.
 - **The settled combination has never been heard.** 26 sanitizers are registered and **not one of
   them is the settled set**: every pair on both audition pages moves exactly one axis against `base`,
   which is what made them readable. `tick-pause` + `flag-pause` on one item, and `path-short-nolead`
   + `ext-word` on one path, are compositions no wav on disk contains. #11 should register the settled
-  combination as a single variant and give it one confirmation listen before it ships — not to
-  re-decide an axis, but to catch an interaction.
+  combination as a single variant — including axis 2's conditional boundary, once that exists — and
+  give it one confirmation listen before it ships: not to re-decide an axis, but to catch an
+  interaction.
 - **`s12` carries the whole combinational case for axis 3** (above).
 - **Deeper leading-dot paths.** A `.github/workflows/ci.yml`-shaped path is still not in the corpus,
   so the combination on a three-segment dotdir path is unauditioned.

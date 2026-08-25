@@ -539,12 +539,31 @@ def rule_P_paths(text: str, mode: str) -> str:
 # regresses ordinary words. (`GitHub` satisfies every camelCase test there is.)
 # Paths and filenames are axis 3's business, and a `name.ext` is axis 9's, so
 # the trailing lookahead hands those back.
+#
+# Two boundary bugs, found in review of #13 and fixed here. Both are about an
+# `=`, and both are TEXT-IDENTICAL FIXES on the whole corpus -- the 12 real
+# rewrites and all 33 synthetic items, `flag-pause` against `base`, unchanged on
+# every one, so #13's 4-0 still describes the rule below:
+#
+#   `--flag=value`  the flag arm won the alternation and stopped at `--flag`,
+#                   orphaning the value: ", --flag, =value". A flag now takes
+#                   its `=value` with it, so the whole token is set off once.
+#   `name=value.`   `[\w.:/-]+` is greedy and `.` is in it, so a sentence-final
+#                   full stop was eaten INTO the span and the closing comma was
+#                   then suppressed against it. A value must now end on a
+#                   non-dot character, which leaves the `.` outside where
+#                   `_set_off` reads it as the boundary it is.
+#
+# Still true and deliberate: an `=value` that ends in a known extension
+# (`out_file=notes.md`) is set off WHOLE and axis 9 does not see inside it.
+# Splitting there would hand axis 9 a bare `.md`, which it leaves alone by
+# design, so the split would buy nothing.
 _BARE_SPAN_RE = re.compile(
     r"(?<![\w/=.-])(?:"
-    r"--?[A-Za-z][\w-]*"            # a flag
-    r"|[A-Za-z_][\w-]*=[\w.:/-]+"   # an assignment
-    r"|[A-Za-z]\w*(?:_\w+)+"        # a `_`-joined identifier
-    r")(?![\w/])(?!\.(?:" + _EXTS + r")\b)"
+    r"--?[A-Za-z][\w-]*(?:=[\w.:/-]*[\w:/-])?"  # a flag, with its value
+    r"|[A-Za-z_][\w-]*=[\w.:/-]*[\w:/-]"        # a bare assignment
+    r"|[A-Za-z]\w*(?:_\w+)+"                    # a `_`-joined identifier
+    r")(?![\w/=])(?!\.(?:" + _EXTS + r")\b)"
 )
 
 
@@ -724,6 +743,21 @@ def san_tick_pause(text: str, opts: Opts) -> str:
 
 
 # --- axis 2: the line-break replacement (rule B) --------------------------
+#
+# SETTLED 2026-08-25, by ear, and NOT by either variant below: the boundary is
+# `,` for 3 bullets or fewer and `.` for 4 and up. Both of these apply ONE
+# character to every line break in the item, which is why #8's three pairs read
+# as a 1-1 tie -- the axis as posed could not express the answer. The three
+# verdicts fit the conditional rule exactly: `r09` (paragraph-heavy) no audible
+# difference, `s37` (8 bullets) `.`, `s38` (3 bullets) `,`.
+#
+# NO SANITIZER HERE IMPLEMENTS IT. All 26 take a fixed `boundary`, so the
+# settled rule is a new capability to be BUILT, not a variant to be selected,
+# and the cutoff's exact position is the listener's call rather than an audited
+# result -- nothing between 4 and 7 bullets has ever been synthesized. Neither
+# choice carries crash-safety weight: `BOUNDARY_CHARS` above is the set
+# `_split_phonemes` itself splits on, so `.` and `,` are both valid batch seams
+# and both avert the 510-phoneme IndexError.
 
 
 @sanitizer("lb-period", "base with '.' as the line-break replacement (same as base)")
@@ -854,7 +888,11 @@ def san_ext_word(text: str, opts: Opts) -> str:
     return _pipeline(text, opts, Axes(exts="word"))
 
 
-# --- axis 10: path-shorten and path-nolead, heard together ----------------
+# --- axis 3, continued: path-shorten and path-nolead, heard together ------
+#
+# NOT a tenth axis. It is a third candidate on #8's existing axis 3, which is
+# how the audition page files it and how both decision documents record it --
+# and it is now that axis's winner, replacing `path-shorten`.
 
 
 @sanitizer("path-short-nolead",

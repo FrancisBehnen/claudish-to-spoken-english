@@ -649,7 +649,7 @@ The sanitizer is `candidate`'s rules A–K, with these seven axes fixed:
 | axis | decision | margin | note |
 | --- | --- | --- | --- |
 | 1 backticks | **`tick-pause`** — set each `` `span` `` off with commas | 2–0, 1 tie | the win is the **commas**, not the character removal: `tick-strip` is phoneme-identical to leaving backticks in |
-| 2 line breaks | **keep `.`** (no change) | 1–1, 1 tie | **not decided by ear** — `lb-comma` neither won nor lost. The default stands for want of evidence, not because it was chosen |
+| 2 line breaks | **conditional: `,` at 3 bullets or fewer, `.` at 4 and up** — **amended after this audition, see below** | 1–1, 1 tie here | this audition read as a tie because **the axis was mis-posed**: every variant on it applies ONE character to every line break, so a conditional answer had to look like a coin-flip. Settled directly by ear on 2026-08-25; the three verdicts here fit the rule rather than tie (`s38`, 3 bullets → `,`; `s37`, 8 bullets → `.`; `r09`, paragraph-heavy → no difference). **No sanitizer implements a conditional boundary**, and nothing between 4 and 7 bullets has been synthesized — see [`sanitizer-audition-13.md`](sanitizer-audition-13.md) |
 | 3 paths | **`path-short-nolead`** — last two segments, and no leading bare dot — **amended by #13, see below** | 3–0 here | `path-shorten` won this audition 3–0 and `path-nolead` was also undefeated (2–0), but the combination was never heard here. [#13](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/13) auditioned it as `path-short-nolead`: 4–0, undefeated, and it **replaces `path-shorten`** as the axis-3 default |
 | 4 markdown | **keep rules C+D** (strip `*` and `#`) | 5–0 | letting `*`/`#` reach espeak (`md-swallow`) lost 0–3; stripping the already-silent markdown (`md-strip-plus`) is a no-op |
 | 5 `SCREAMING_SNAKE_CASE` | **keep rule J** (lowercase `_`-joined tokens) | **7–0** | the most decisive axis. Spelling lost 0–3, deleting lost 0–2, leaving it uppercase lost 0–1 |
@@ -672,12 +672,19 @@ Two results worth keeping visible:
 "no audible difference"; 1 was not** — `r01:tick-strip` was recorded as "A is better" (preferring
 `base`) on byte-identical audio. That is a normal blind-A/B error rate and it sets the resolution
 limit of this session: roughly **1 call in 12 is noise**. Axes 4, 5 and 7 are decided by margins far
-wider than that. **Axis 2 is inside the noise and is explicitly not settled.**
+wider than that. **Axis 2 was inside the noise and was explicitly not settled here** — it has since
+been settled off this page, and the reason it read as a tie turned out to be the shape of the axis
+rather than the noise floor. See the axis-2 row above.
 
 ### Still open after this decision
 
-- **`.` versus `,` as the line-break replacement** (axis 2) — inconclusive by ear; it never mattered
-  to the listener. Whoever implements may pick on other grounds (`.` places a harder chunk seam).
+- ~~**`.` versus `,` as the line-break replacement**~~ (axis 2) — **closed off this page**, by ear, as
+  a **conditional** rule: `,` at 3 bullets or fewer, `.` at 4 and up. Three things go with it. The
+  cutoff's position is a judgement, not a measurement — nothing between **4 and 7** bullets has ever
+  been synthesized. **No registered sanitizer implements a conditional boundary**, so this is a
+  capability to build before it can be heard. And it is prosody only: `_split_phonemes` splits on
+  `. , ! ? ;`, so either character is a valid batch seam and both avert the 510-phoneme `IndexError`.
+  Recorded in full in [`sanitizer-audition-13.md`](sanitizer-audition-13.md).
 - ~~**`path-shorten` combined with `path-nolead`**~~ — **closed by #13.** Auditioned as
   `path-short-nolead`, 4–0 undefeated, and the axis-3 row above is amended to it. Read
   [`sanitizer-audition-13.md`](sanitizer-audition-13.md)'s DECISION before leaning on that margin:
