@@ -6,10 +6,14 @@ re-fire as the one part of `Stop` it had read but never seen. Part of the
 [Kokoro speech map (#1)](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/1).
 Established 2026-08-25 against Claude Code **2.1.245**.
 
-**That gap is now closed by measurement.** Four probe runs drove a second `claude` session into the
-block loop on purpose and captured every fire. Everything the two prior documents said about this area
-was read out of the binary; **all of it now has a wire observation behind it, and one number in the
-spec is off by one.**
+**That gap is now closed for the mechanics this probe drove.** Four probe runs drove a second `claude`
+session into the block loop on purpose and captured every fire. Everything the two prior documents said
+about this area was read out of the binary; **the behaviour exercised here — the block itself, the
+re-fire count, `stop_hook_active`, the post-cap override, the JSON route and what
+`last_assistant_message` carries — now has a wire observation behind it, and one number in the spec is
+off by one.** What the probe did not drive stays **[bin]**- or **[docs]**-only and is labelled that way
+where it appears — the `0`-disables-the-cap branch, `async: true`, `SubagentStop` and the rest of the
+[list below](#what-was-still-not-observed).
 
 **No LLM was called for the plugin. No plugin hook was touched** — `rewrite.sh`, `rewrite-md.sh`,
 `providers.sh` and `hooks/` are unmodified. The probe hook never entered
@@ -41,7 +45,7 @@ hit alone.
 | 3 | Does `stop_hook_active` flip to `true`, and when? | **Yes, on fire 2**, and it stays `true` through fire 9. | **[obs]** |
 | 4 | What does the post-cap override look like? | **To the model: nothing.** To the user: one `level: "warning"` line, verbatim from the binary, with the count interpolated. | **[obs]** |
 | 5 | Does `last_assistant_message` change between fires? | **Yes — it carries the newer text.** The prior reasoning is confirmed, not refuted. | **[obs]** |
-| 6 | Exit 2 vs. `{"decision":"block"}`? | **Same loop, same cap of 9, same two surfaces for the text.** One cosmetic difference. | **[obs]** |
+| 6 | Exit 2 vs. `{"decision":"block"}`? | **Same loop, same nine invocations under the same cap of 8, same two surfaces for the text.** One cosmetic difference. | **[obs]** |
 | 7 | Does exit 3 block? | **No.** One fire, no re-fire, no message to the model. | **[obs]** |
 
 **All seven were answered.** None was left open for lack of time.
@@ -92,7 +96,7 @@ second reason behind it, and it is sharper than "noisy transcript".
 
 ---
 
-## 2 — The cap: **nine fires**, and the spec's "8" is off by one
+## 2 — The cap tolerates **8 blocks**, so the hook fires **nine** times, and the spec's "8" is off by one
 
 Three independent runs drove the loop to exhaustion. **All three stopped at exactly nine fires.**
 **[obs]**
@@ -105,7 +109,7 @@ Three independent runs drove the loop to exhaustion. **All three stopped at exac
 | C | `exit 3` | **1** | — | turn ended normally |
 
 The probe's own hard rail sits at 12 and **was never reached in any run** — the runtime stopped the loop
-first, in every case, at 9.
+first, in every case, on the ninth fire.
 
 ### Why nine and not eight
 
@@ -280,7 +284,7 @@ Run B's hook exited **0** and printed `{"decision":"block","reason":"claudish bl
 block, fire N"}` on stdout. **[obs]**
 
 - **Same loop.** Nine fires, `stop_hook_active` `false` then `true` from fire 2.
-- **Same cap.** Overridden at 9, with the identical warning text.
+- **Same cap.** Eight blocks tolerated, the ninth overridden, with the identical warning text.
 - **Same two surfaces for the text.** `reason` lands in exactly the places exit-2 stderr lands: the
   `hookErrors` array of the `stop_hook_summary` system record, and a `Stop hook feedback:` meta user
   message the model reads.
@@ -316,8 +320,9 @@ because it names something the plugin should know about:
   (a wiki hot-cache updater from an installed plugin, ending in `|| true`). It exited 0 on all 28 fires
   and never blocked. It is noted so the "Ran 2 stop hooks" line in the evidence below is not mistaken
   for the probe firing twice. **Multiple hooks where more than one blocks was not tested.**
-- **`preventedContinuation` was `false` on every single fire, including the nine that blocked.**
-  **[obs]** Whatever that field tracks, it is **not** "this hook blocked the turn". Recorded as
+- **`preventedContinuation` was `false` on every single one of the 28 fires — including all 27 fires
+  of the three blocking runs, A, A2 and B.** **[obs]** Whatever that field tracks, it is **not** "this
+  hook blocked the turn". Recorded as
   observed-and-uninterpreted; nothing should be built on it without finding out what it means.
 
 ---
@@ -374,7 +379,8 @@ Named so the next probe knows where to start, and so nothing here is read as bro
 - **Two blocking hooks at once.** `hookCount` was 2 but only one of them ever blocked.
 - **`decision: "block"` with no `reason`**, and the `permissionDecision: "block"` spelling from
   **[docs]**.
-- **What `preventedContinuation` actually means.** Observed `false` on 28 fires including nine blocks.
+- **What `preventedContinuation` actually means.** Observed `false` on all 28 fires, including the 27
+  that came from the three blocking runs.
 - **Interrupt during a block loop.** Esc / Ctrl-C mid-ladder was never needed and never tried.
 - **`prompt_id` across resume, compaction, or `--continue`.**
 - **`StopFailure`**, still unexercised, as it was after the first probe.
@@ -558,7 +564,7 @@ mechanism fires and blocks. **[obs]**
 A single script, dispatching on a `mode` file so the four runs could share one driven session, with
 counters reset between runs. It has a **hard rail at 12 fires** — an unconditional `exit 0` that no
 mode can bypass, so no session could be permanently wedged whatever the cap turned out to be. **The
-rail was never reached**; the runtime's own cap stopped every run at 9.
+rail was never reached**; the runtime's own cap stopped every blocking run on its ninth fire.
 
 ```bash
 d="$HOME/.local/share/claudish-blockprobe"
