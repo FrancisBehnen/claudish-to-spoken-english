@@ -15,8 +15,9 @@ Built 2026-08-25, on top of [`sanitizer-audition.md`](sanitizer-audition.md) (#8
 scored: thirteen in one sitting and `r11` in a single-pair re-listen afterwards. The committed export
 [`audition-verdicts-11.tsv`](audition-verdicts-11.tsv) holds **all 14 of section 5's pairs scored**,
 and is the one artifact for the round. **`settled` won every pair it was in, 9–0.**
-Read the [DECISION](#decision) for the outcome, including **two open gaps the listen did not close
-and one it opened**.
+Read the [DECISION](#decision) for the outcome, including **two named open gaps and one open item**:
+the B′ cutoff, which the listen contradicted; a slash-terminated path, which the listen discovered;
+and B′'s count, which knowingly disagrees with locked spec text that #11 has to amend.
 
 **Everything before the DECISION is still the instrument.** Every "what it does" outside the DECISION
 is a text diff, a phoneme count, a byte count or a wav duration, and every "what to listen for" is
@@ -108,6 +109,44 @@ Counting boundaries (`segments − 1`) reproduces **both** discriminating verdic
 is the acoustically relevant quantity: the question the listener answered was how many stops in a row
 a passage plants, not how many lines it has. That is what is implemented. **§4.1 clause 3 needs the
 correction; §4's table row does not.**
+
+#### Say it without the euphemism: the code is currently OUT OF CONTRACT
+
+"Departure" is too soft for what this is, so state it flatly. **§4.1 is LOCKED, clause 3 is part of
+it, and `count_boundaries` does not implement clause 3.** The spec's own words are *"the items of a
+run are the non-empty segments a `\n+` split produces"* with *"`. ` if the count is `≥ 4`"*
+(`speech-integration-spec.md` §4.1, the rule block and qualification 3) **[repo]**. On `s38` that is
+4 items and demands `.`; `settled` emits `,` **[measured-here]**. **That is a live violation of a
+locked clause, on a real registered sanitizer, and it is not resolved by this document.**
+
+It is nonetheless the right code, and the reason is that **clause 3 contradicts the other two
+statements of the same rule in the same section**. §4.1 has three: the rule block (*"count the items
+the run holds"*, ≤3 → `,`), qualification 1 (*"`s38` at 3 bullets picks `,`"* — cited as the verdict
+the cutoff rests on), and qualification 3 (items = segments). **Under qualification 3, `s38` counts 4
+and takes `.` — the opposite of what qualification 1 says the listener chose.** Clause 3 is the odd
+one out, and as of this listen it is also the one the listener has overruled by ear: `s38:lb-auto`
+won blind **[heard]**.
+
+**Clause 3 is wrong at both ends, not merely mis-cutoffed** **[measured-here]**:
+
+| what clause 3 says, read literally | scope in `corpus/spoken/` | what the implementation does |
+| --- | --- | --- |
+| a list's segments include its lead-in line, so **every list counts ≥ 4 and takes `.`** | **8 of 8** bullet-carrying items — segments strictly exceed bullets on every one | boundaries, so `s38` takes `,`; B′ can actually fire on a short list |
+| a one-line message is **1 item, so ≤ 3, so `,`** — it would end on a comma | **31 of 54** items are single-segment | no boundary between two items means no run, so the fixed `opts.boundary` (`.`) applies — the `s35` branch |
+
+So on lists clause 3 makes B′ pick `.` for **every list in the corpus**, collapsing it onto `base` and
+buying nothing — B′ would never once fire the `,` it exists to produce. **That is the collapse claim,
+and it is about lists specifically**; across all 54 items clause 3 does *not* simply reduce to `base`,
+because at the other end it would put a comma at the end of 31 one-line messages, which is a second
+and arguably worse defect. **A correct amendment has to fix both**, which is why the proposed
+replacement text in [what §4.2 will need to say](#what-42-of-the-spec-will-need-to-say) carries a
+no-run sentence as well as the boundaries change.
+
+**Whose job this is.** #11 owns `speech-integration-spec.md` and this document must not edit it, so
+**the divergence stays open until #11 accepts the clause 3 amendment.** Until then the honest state is:
+*the implementation knowingly contradicts a locked clause, the listen is the evidence that the
+implementation is the side that is right, and the clause is the thing that has to move.* Recorded
+here rather than silently carried.
 
 ### What "item" means for a paragraph run — the choice, and how thin its evidence is
 
@@ -336,10 +375,19 @@ single integration pass folds this in. Recorded so that pass has the text.
    **[heard]** ([`audition-verdicts-11.tsv`](audition-verdicts-11.tsv)). The row closes on the
    composition. It does **not** close §13 row 5, and it does not close the two gaps the
    [DECISION](#decision) names.
-2. **§4.1 clause 3 is wrong as written and needs replacing — and the boundaries reading is now heard,
-   not merely reasoned.** *"the non-empty segments a `\n+` split produces"* makes `s38` count 4 and
+2. **§4.1 clause 3 must be amended, and this is the one item here that is a REQUIRED CONTRACT CHANGE
+   rather than a note.** *"the non-empty segments a `\n+` split produces"* makes `s38` count 4 and
    take `.`, contradicting the `s38` verdict the same section cites as evidence. The implemented count
    is of **boundaries between two items** — `segments − 1`.
+
+   **Until #11 accepts this amendment, the implementation is out of contract with locked text.** The
+   divergence is live, not theoretical: `settled` emits `,` on `s38` where clause 3 demands `.`
+   **[measured-here]**. **The code is not being changed to match**, and the reason is on the record —
+   clause 3 contradicts §4.1's own rule block and its own qualification 1, and the listener has now
+   overruled it by ear. The full statement of the violation, its scope at both ends of the clause, and
+   why the code is the side that is right is under [out of
+   contract](#say-it-without-the-euphemism-the-code-is-currently-out-of-contract). **The amendment is
+   the fix; a code change would be the bug.**
 
    **What the listen settles, exactly.** Across all 54 corpus items, **`s38` is the only one where the
    two readings produce a different character at all** **[measured-here]** — everywhere else both land
@@ -358,6 +406,13 @@ single integration pass folds this in. Recorded so that pass has the text.
 
    The worked example in clause 3 — *"a paragraph-only run of two long paragraphs therefore counts 2
    and takes `,`"* — needs its number changed from 2 to **1**. The outcome (`,`) is unchanged.
+
+   **The no-run sentence in that replacement is load-bearing and is not cosmetic.** Clause 3 read
+   literally makes a one-line message **1 item**, therefore `≤ 3`, therefore `,` — so it would end
+   **31 of the 54 corpus items** on a comma **[measured-here]**. The implementation instead treats "no
+   boundary between two items" as "no run" and applies the fixed `opts.boundary`. An amendment that
+   only swaps *segments* for *boundaries* and stops there would leave that end broken, because 0
+   boundaries is also `≤ 3`. Both halves have to land together.
 3. **§4.1's "no registered sanitizer implements this" is now false** and its consequence — *"the
    settled-set confirmation listen cannot include axis 2 until rule B′ exists"* — is discharged.
    Axis 2's **"never heard"** caveat comes off: B′ as shipped was played in isolation against `base`
@@ -490,9 +545,10 @@ not a side bias.
 2. **§13 row 1 closes.** B′ exists, the combination is registered, the confirmation listen happened.
    All three clauses discharged.
 3. **The sanitizer that ships is `settled` exactly as registered** — the nine axis values in that
-   table, composed in `_pipeline`'s order, no edits. **One qualifier, and it is not a change to the
+   table, composed in `_pipeline`'s order, no edits. **Two qualifiers, neither of them a change to the
    composition:** the *cutoff constant inside* B′ is now contradicted by the only wav that has ever
-   tested it. See gap 1.
+   tested it (gap 1), and B′'s **count** contradicts §4.1 clause 3's locked wording, deliberately and
+   with the listen as the reason (the [open item](#open-item-settled-ships-out-of-contract-with-41-clause-3-on-purpose)).
 4. **Axis 2's "never heard" caveat comes off.** B′ as shipped was heard in isolation against `base` on
    `s38` and won **[heard]**. Axis 2 is no longer the one axis adopted without a wav behind it.
 5. **The boundaries reading of §4.1 clause 3 is confirmed by ear**, on the single corpus item that can
@@ -584,6 +640,26 @@ must not double up where axis 1 has already set the span off, which is `_tidy_co
 **Not implemented, and no wav was synthesized for it.** Whether it gets a round-4 listen is the
 listener's call and is **open**. Nothing about it is heard except the one report above — which is a
 listener's diagnosis of a cause, not an A/B verdict, and it is labelled that way on purpose.
+
+### Open item — `settled` ships out of contract with §4.1 clause 3, on purpose
+
+**This is not a gap in the evidence; it is an unresolved disagreement between the code and locked
+text, and it does not close with this listen.** §4.1 clause 3 counts *segments*; `count_boundaries`
+counts *boundaries*. On `s38` clause 3 demands `.` and `settled` emits `,` **[measured-here]** — the
+one item the whole axis turns on.
+
+**The listen is what makes the code the right side of that disagreement.** `s38:lb-auto` won blind
+**[heard]**, and `s38` is the only corpus item where the two readings differ at all
+**[measured-here]**. Clause 3 also contradicts §4.1's own rule block and its own qualification 1, and
+read literally it is wrong at both ends — `.` for every list in the corpus, and a trailing `,` on 31
+one-line messages. Full statement under [out of
+contract](#say-it-without-the-euphemism-the-code-is-currently-out-of-contract).
+
+**So `count_boundaries` was deliberately NOT changed to match the locked clause.** Bending the code to
+a clause the listener has overruled would be backwards, and it would undo the sweep above. **The fix
+is the clause 3 amendment, which #11 owns** — proposed text in [item
+2](#what-42-of-the-spec-will-need-to-say). **Until #11 accepts it, this document's claim is only that
+the divergence is deliberate, measured, named and evidenced — not that it is resolved.**
 
 ### What was not established
 
