@@ -5,7 +5,10 @@ Built 2026-08-16 against the corpus from
 [#7](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/7) and the harness from
 [#6](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/6). **Extended 2026-08-17**:
 axis 7 had no multi-line code block to audition, so corpus items `s39` and `s40` were authored and ten
-wavs added — 88 in all.
+wavs added — 88 in all. **Addendum 2026-08-25**: those two were authored on an unchecked assumption,
+which has now been checked — the multi-line block is a real shape (258 real assistant messages carry
+one) but a smaller one than was auditioned (median 4 body lines, not 12). No wav changed and no
+decision moved; see [Axis 7](#axis-7--how-a-skipped-code-block-is-announced).
 
 **This document decides nothing, and it contains no claim about how anything sounds.** Every "what it
 does" below is a text diff, a phoneme count or a duration; every "what to listen for" is a question,
@@ -503,6 +506,41 @@ multi-line fenced block, so every wording said "one line". `s39` and `s40` were 
 that, `MD-FENCE-MULTI` was added to `corpus/classes.tsv` so the coverage table can show the absence
 next time, and the ten new wavs are in the same directory as the rest of this audition.
 
+### Addendum 2026-08-25 — the shape is real, and the magnitude that was auditioned is the tail
+
+`s39` and `s40` were **authored**, so the numbers this axis was heard at — twelve lines and three —
+were assumptions about what production emits. Those assumptions have now been checked against the
+transcripts on this machine, for free, over **assistant message text only** (not tool inputs, not
+tool results, not file content echoed back):
+
+| | |
+| --- | --- |
+| transcripts scanned | **886** top-level session files, 30 project directories (1,395 counting `subagents/`) |
+| assistant records | **70,543** (95,887 counting subagents) |
+| …carrying a text block | **14,991** |
+| …whose text holds a triple-backtick fence | 420 |
+| …with a fence body of **2+ non-blank lines** | **258 messages**, 291 such blocks |
+| in this repo's own sessions | **9 messages**, fence bodies of 2–5 lines (a 10th held a 64-line resumed-session dump with no prose at all, which the 200-character gate would never have sent to a model) |
+
+**The multi-line block is real** — about 1 in 58 assistant messages that say anything at all has one.
+**Its size is smaller than what was auditioned:** median **4** non-blank lines, **69% at 2–5 lines**,
+**19% at 12 or more** (p90 40, max 121). So `s40`'s three-line block was the representative case and
+`s39`'s twelve-line block the tail one, not the other way round — and in this repo's own history
+nothing genuine went past **five** lines.
+
+**This does not disturb the decision; it explains why the decision is the safe one.** `cb-count` won
+at N = 1 (`r07`, `s07`), N = 3 (`s40`) and N = 12 (`s39`) — 4–0 — while `cb-long` won only where N was
+large. The real distribution is concentrated exactly where `cb-long` lost, so choosing `cb-count` for
+robustness across sizes was choosing it for the sizes that actually occur.
+
+**What is still not heard.** Two of the 258 messages are now in the corpus as `corpus/source/r13.txt`
+(fence bodies of 1 and 4 lines) and `corpus/source/r14.txt` (2, 2 and 3 lines), byte-identical to the
+transcript. **Neither has been rewritten** — that is one subscription call each — so no *real*
+multi-line block has been through the rewrite path, sanitized, or synthesized, and `MD-FENCE-MULTI`
+still reads `0 real, 2 synthetic` in the coverage table. The rewrite prompt does say *"Leave fenced
+code blocks unchanged"*, and `r07`'s fence body is byte-identical in `source/` and `spoken/`, so the
+line count is expected to survive into the speech path — expected, not measured.
+
 ---
 
 ## What this audition cannot settle
@@ -682,6 +720,11 @@ wider than that. **Axis 2 is inside the noise and is explicitly not settled.**
   moved at a time by design, so their combination is unmeasured.
 - **Rule L** (respelling mis-POS'd words) stays gated behind `--respell`; it still mis-fires on
   "the lives of others" and was not auditioned.
+- **No *real* multi-line code block has been heard** (axis 7). The shape was confirmed real on
+  2026-08-25 — 258 real assistant messages carry one, median 4 body lines — and two of those messages
+  are in `corpus/source/` as `r13`/`r14`, but their rewrites are unpaid, so every multi-line wav in
+  this audition is still of authored text. See the addendum in
+  [Axis 7](#axis-7--how-a-skipped-code-block-is-announced).
 
 ### Listener notes left during the audition (3)
 

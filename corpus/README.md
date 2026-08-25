@@ -26,6 +26,15 @@ rather than rhetorical — **24 of the 53 hazard classes appear in no real item 
 > [#8](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/8)'s code-block wording axis
 > unjudgeable — see [Multi-line code blocks](#multi-line-code-blocks-s39-s40).
 
+> **Extended 2026-08-25.** `MD-FENCE-MULTI` was still **synthetic-only**, so axis 7's count wording had
+> been settled by ear on a shape production had never been shown to produce. It does produce it: a scan
+> of every transcript on this machine found **258 real assistant messages** carrying a fence with two or
+> more non-blank body lines, 9 of them in this repo's own sessions. Two of those messages are now in
+> `source/` as `r13` and `r14`, and the measured size distribution is recorded in
+> [Multi-line code blocks](#multi-line-code-blocks-s39-s40). Their `spoken/` halves are **not** captured —
+> that costs one subscription call each — so the [coverage](#coverage) table is unchanged and
+> `MD-FENCE-MULTI` still reads `0 real`.
+
 ---
 
 ## Layout
@@ -41,7 +50,9 @@ corpus/
     r01.txt .. r12.txt   real  — the plain-English rewrite of a real assistant message
     s01.txt .. s40.txt   synthetic — hand-authored, one or a few hazard classes each
   source/          the real assistant messages the rNN rewrites were produced from
-    r01.txt .. r12.txt
+    r01.txt .. r12.txt   the twelve whose rewrites are in spoken/
+    r13.txt, r14.txt     captured 2026-08-25 for MD-FENCE-MULTI; their rewrites are NOT paid for
+                         yet, so they are deliberately absent from spoken/ and manifest.tsv
   bin/             the scripts that built and verify all of the above
 ```
 
@@ -72,6 +83,12 @@ spelled `MIN` and `MAX` in a sentence but spoke them in isolation.
 
 12 genuine assistant messages from real Claude Code sessions in this repo, rewritten by the real
 plugin path.
+
+**Plus two sources with no rewrite yet.** `source/r13.txt` and `source/r14.txt` were captured
+2026-08-25 to give `MD-FENCE-MULTI` a real item. Nothing rewrote them — that is a paid call — so they
+have no `spoken/` half, do not appear in `manifest.tsv`, and change no coverage number. They are the
+material, queued for the one call each that finishes them; see
+[Multi-line code blocks](#multi-line-code-blocks-s39-s40).
 
 ### How they were captured
 
@@ -135,6 +152,12 @@ built this corpus. They were picked for a realistic spread of length (prose_len 
 source side) and for resembling what the plugin actually rewrites, **not** for hazard coverage; that
 is the synthetic half's job, and keeping the selection independent of it is what makes the coverage
 table's 24 empty real-item classes meaningful.
+
+`r13` and `r14` break that last rule on purpose: they come from session `62d419ff` on **2026-08-25**
+(the same session five of the twelve came from, continued) and they were selected **for** a hazard
+class — `MD-FENCE-MULTI`, the one class the coverage table could not fill from real output. Everything
+else about the selection was kept the same: main-chain assistant messages, this repo's own sessions,
+above the 200-character gate, of a length the plugin really does rewrite.
 
 ## The synthetic half
 
@@ -218,6 +241,61 @@ into a 215-character run once the newlines are deleted — well short of the det
 flag and of the ~500-character danger point (see [Chunking](#chunking-s34-s38)). The crash shape does
 not come free with a long code block; it needs `s37`'s length. Neither item carries
 `CHUNK-LIST-NOPUNCT`, and both `notes.tsv` rows record the `max_run` so that is not a surprise later.
+
+#### The shape is real — measured 2026-08-25
+
+`s39` and `s40` were authored on the assumption that a multi-line fenced block is something real
+assistant messages emit. Nobody had checked. Checking it is free — the messages are already on disk —
+so it was checked, over **every** transcript under `~/.claude/projects/`, matching fenced blocks in
+**assistant message text only** (not tool inputs, not tool results, not file content echoed back):
+
+| | |
+| --- | --- |
+| transcripts scanned | **886** top-level session files across 30 project directories (1,395 counting the `subagents/` files) |
+| assistant records in them | **70,543** (95,887 counting subagents) |
+| …carrying a text block | **14,991** |
+| …whose text holds a triple-backtick fence | 420 |
+| …whose fence body holds **2+ non-blank lines** | **258 distinct messages**, holding 291 such blocks |
+| in this repo's own sessions | **9 messages**, all main-chain, fence bodies of 2–5 lines |
+
+So the shape is not hypothetical: roughly **1 in 58** assistant messages that say anything at all
+carries a multi-line fenced block, and this project's own sessions produced nine of them.
+
+**The size distribution is the part that bears on axis 7.** Of the 291 blocks: median **4** non-blank
+lines, p90 40, max 121; **69% are 2–5 lines** and **19% are 12 or more**. So `s39`'s twelve-line block
+is a real magnitude but a tail one, `s40`'s three-line block is the *modal* one, and in this repo's own
+history nothing genuine exceeded **five** lines — the only bigger block in these sessions was a
+resumed-session state dump with no prose around it at all, which the 200-character gate would never
+have sent to a model. Whatever axis 7 settles on has to read well at N = 3 or 4 first, and at N = 12
+second.
+
+**The two captured messages.** Both are from this repo's own sessions, both main-chain, chosen the way
+`r01`–`r12` were — for resembling what the plugin actually rewrites, not for hazard coverage:
+
+| item | fence bodies | `prose_len` | bytes | `max_run` | origin |
+| --- | --- | --- | --- | --- | --- |
+| `r13` | **1 line + 4 lines** — a push result, then the four `/plugin` commands after a colon lead-in | 965 | 1358 | 341 | `62d419ff:e9314dee` 2026-08-25T09:31:35Z |
+| `r14` | **2 + 2 + 3 lines** — an ollama error, a token-budget sum, three `OLLAMA_*` settings | 2042 | 2834 | 260 | `62d419ff:bf63018e` 2026-08-25T09:38:31Z |
+
+Those numbers are `bin/detect-hazards.sh` run over `source/`, i.e. over the rewrite **input**; the
+`spoken/` numbers will differ and are what the manifest will carry once the rewrites are captured.
+`r13` pairs a one-line and a multi-line fence inside one message, which no other item does; `r14` is
+the multi-block case. Both also carry tokens of classes that currently have **no** real item at all —
+`ID-SHA` and `PATH-ABS` in `r13`, `MD-HASH` and `NUM-THOUSANDS` in `r14` — so if those survive the
+rewrite, capturing these two moves four more rows of the coverage table off `0 real`. That is a
+side effect, not the reason they were picked.
+
+**Why capturing the source alone is worth anything.** The rewrite system prompt says *"Leave fenced
+code blocks unchanged"* (`rewrite.sh:170`, copied verbatim into `bin/capture-real-rewrites.sh`), and
+`r07` is the evidence it holds: its fence body is **byte-identical** in `source/r07.txt` and
+`spoken/r07.txt`. A body's line count is therefore expected to survive into the speech path unchanged,
+which is exactly the input `rule_N_code_block` counts.
+
+**What is still missing, precisely.** `spoken/r13.txt` and `spoken/r14.txt`. Producing them is one
+`claude-cli` call each on the user's subscription — step 2 of [Regenerating](#regenerating), which is
+idempotent and will skip the twelve already captured. Until then `MD-FENCE-MULTI` reads `0 real, 2
+synthetic`, and axis 7's caveat stands in the narrow form: *the wording was chosen against a real
+shape at an authored magnitude.*
 
 ### Why `MD-FENCE-MULTI` is a class
 
@@ -360,6 +438,8 @@ corpus/bin/extract-real-sources.sh \
 
 # 2. Re-run the rewrites. COSTS SUBSCRIPTION QUOTA — one call per missing item.
 #    Delete the spoken/rNN.txt you want redone first; existing ones are skipped.
+#    As of 2026-08-25 two items are missing on purpose: r13 and r14, the two
+#    MD-FENCE-MULTI sources. This is the call that closes that gap.
 MAX_ITEMS=20 corpus/bin/capture-real-rewrites.sh
 
 # 3. Rebuild the manifest after any item or note changes (free, no model calls).

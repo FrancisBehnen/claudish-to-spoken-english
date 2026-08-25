@@ -1,0 +1,45 @@
+No — nothing is verbalized. And my earlier flag was wrong on both counts: it isn't silent, and nothing is truncated.
+
+## What actually happens
+
+ollama 0.32.12 refuses the request outright rather than trimming it:
+
+```
+400  exceed_context_size_error
+"request (6826 tokens) exceeds the available context size (4096 tokens)"
+```
+
+`err` comes back non-empty, so `rewrite` is empty, so the hook fails open. What you see on a too-long message is Claude's **original text in full**, plus this once per session:
+
+> ⚠️ claudish-to-english: ollama returned an error: … exceeds the available context size (4096 tokens) … Showing Claude's original text unchanged.
+
+So it's all-or-nothing per message: either the whole thing is rewritten, or none of it is. There's no partial rewrite to speak, and nothing quietly goes missing.
+
+There's a second failure mode I should mention because it's the one that *could* have produced a partial, and doesn't: if the prompt fits but leaves too little room to generate, ollama returns `done_reason: "length"`, and `providers.sh` sets `truncated=1` and **discards** the rewrite rather than showing it. Upstream deliberately refuses to display half-finished output on all three providers. For a TTS fork that's the right call — a truncated rewrite spoken aloud as if complete would be far worse than silence, since you can't see where it stopped.
+
+## Where the ceiling actually sits
+
+`n_ctx` covers prompt *and* generated output, and a plain-English rewrite runs about as long as its input. So:
+
+```
+system prompt (~60) + user-question context (≤200) + message M + output (~M)  ≤  4096
+→  M ≈ 1,900 tokens  ≈  1,400 words
+```
+
+Messages under roughly 1,300 words rewrite normally. Past that you get the original plus the notice. Most of what I write sits at 600–900 words, which is why you've been seeing rewrites work — the ceiling is real but you're usually under it.
+
+## The fix is cheap here
+
+The plist already has the two settings that make a bigger window affordable:
+
+```
+OLLAMA_FLASH_ATTENTION => 1
+OLLAMA_KV_CACHE_TYPE   => q8_0
+OLLAMA_CONTEXT_LENGTH  => (not set → 4096 default)
+```
+
+With flash attention on and an 8-bit KV cache, going to 16384 costs maybe 0.5–1 GB more on a 4B model — call it ~3.5–4 GB resident against the 2.9 GB you have now, still fine alongside Kokoro. That would lift the ceiling to roughly 5,500 words, which no assistant message will realistically reach.
+
+Want me to add `OLLAMA_CONTEXT_LENGTH=16384` to the plist and restart the service? It's service config, so nothing in the fenced-off scripts gets touched, and it's a one-line revert.
+
+I've cleaned up the test artifacts, and the repo is back to just your pre-existing untracked `.playwright-cli/` — a stray `trunc.json` briefly landed in there from a failed `cd` and I've moved it out.
