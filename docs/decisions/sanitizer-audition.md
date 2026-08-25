@@ -79,8 +79,10 @@ others".
 ### Order
 
 The axes are in **real-corpus frequency order**, so the most consequential is heard first. The counts
-are the coverage table in [`corpus/README.md`](../../corpus/README.md): how many of the **12 real
-rewrites** carry the hazard.
+are the coverage table in [`corpus/README.md`](../../corpus/README.md) **as it stood when this audition
+was built**: how many of the **12 real rewrites** then in the corpus carried the hazard. The corpus is 14
+real since 2026-08-25 and the counts have moved; the order has not. See the
+[axis 7 addendum](#axis-7--how-a-skipped-code-block-is-announced).
 
 | # | axis | real items | minutes |
 | --- | --- | --- | --- |
@@ -412,8 +414,11 @@ full it is 416 phonemes / 24.4s; as "a link" 132 / 7.4s; as domains 167 / 9.7s. 
 
 ## Axis 7 — how a skipped code block is announced
 
-That code blocks are skipped and announced is **settled**; the wording is open. `MD-FENCE` is in 1 of
-12 real rewrites, and `MD-FENCE-MULTI` — a fence body of more than one line — is in **none** of them.
+That code blocks are skipped and announced is **settled**; the wording is open. When this axis was
+auditioned, `MD-FENCE` was in 1 of the 12 real rewrites and `MD-FENCE-MULTI` — a fence body of more
+than one line — in **none** of them. Both counts have since moved (`3 real` and `2 real`); see the
+[addendum](#addendum-2026-08-25--the-shape-is-real-and-the-magnitude-that-was-auditioned-is-the-tail)
+at the end of this section.
 
 | variant | what the transformation does |
 | --- | --- |
@@ -535,11 +540,18 @@ robustness across sizes was choosing it for the sizes that actually occur.
 
 **What is still not heard.** Two of the 258 messages are now in the corpus as `corpus/source/r13.txt`
 (fence bodies of 1 and 4 lines) and `corpus/source/r14.txt` (2, 2 and 3 lines), byte-identical to the
-transcript. **Neither has been rewritten** — that is one subscription call each — so no *real*
-multi-line block has been through the rewrite path, sanitized, or synthesized, and `MD-FENCE-MULTI`
-still reads `0 real, 2 synthetic` in the coverage table. The rewrite prompt does say *"Leave fenced
-code blocks unchanged"*, and `r07`'s fence body is byte-identical in `source/` and `spoken/`, so the
-line count is expected to survive into the speech path — expected, not measured.
+transcript, and **both have been rewritten** — two subscription calls, so `MD-FENCE-MULTI` reads
+`2 real, 2 synthetic` in the coverage table. What the rewrite did to the fences is now measured rather
+than assumed, and it is mixed: `spoken/r13.txt` keeps **both** bodies byte-identically, so a real
+four-line block does reach the speech path as four lines; `spoken/r14.txt` keeps only the first
+two-line block and drops the other two along with the prose around them. The prompt's *"Leave fenced
+code blocks unchanged"* therefore holds for a block the rewrite keeps, but the rewrite is free to drop
+a passage and its fence with it.
+
+**What has still not happened is synthesis.** No wav in this audition was made from `r13` or `r14`.
+Every multi-line code-block sample here is `s39` or `s40` — authored text — so axis 7 was still settled
+by ear at an authored magnitude, and the real magnitudes now sitting in `corpus/spoken/` (four lines
+and two) have never been heard. Closing that needs a synthesis run, not a subscription call.
 
 ---
 
@@ -722,8 +734,9 @@ wider than that. **Axis 2 is inside the noise and is explicitly not settled.**
   "the lives of others" and was not auditioned.
 - **No *real* multi-line code block has been heard** (axis 7). The shape was confirmed real on
   2026-08-25 — 258 real assistant messages carry one, median 4 body lines — and two of those messages
-  are in `corpus/source/` as `r13`/`r14`, but their rewrites are unpaid, so every multi-line wav in
-  this audition is still of authored text. See the addendum in
+  are now in the corpus as `r13`/`r14`, rewrites included, so `MD-FENCE-MULTI` is no longer
+  synthetic-only. What is missing is **audio**: nothing has been synthesized from them, so every
+  multi-line wav in this audition is still of authored text. See the addendum in
   [Axis 7](#axis-7--how-a-skipped-code-block-is-announced).
 
 ### Listener notes left during the audition (3)
