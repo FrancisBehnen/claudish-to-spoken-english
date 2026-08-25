@@ -55,9 +55,16 @@ The three files that matter are **byte-identical** to this checkout at `9355f45`
 | **3** | neither variable can be changed mid-session | found while verifying the other two |
 
 Two further findings sit outside the trap list, in sections 4 and 5: **the ~1,300-word latency is
-52.50s** on `claude-cli`/`haiku`, over the 45s `CLAUDISH_TIMEOUT` default; and **the provider that
-served that measurement is confirmed to be the `claude` CLI and not ollama**, from logs, after the
-figure was published with that question open.
+52.50s**, over the 45s `CLAUDISH_TIMEOUT` default; and **the binary that served that measurement is
+confirmed to be the `claude` CLI and not ollama**, from logs, after the figure was published with
+that question open.
+
+Those two are not one finding, and section 5 keeps them apart on purpose. The **provider is
+observed**. The **model is not**: `haiku` is what `providers.sh:92` resolves to once
+`CLAUDISH_MODEL` is unset and what `providers.sh:267` passes as `--model`, both read from the
+source — **no record read here names the model that produced the text**. Wherever this document puts
+`claude-cli` and `haiku` together, the first half is observed and the second is the argument the
+script demonstrably builds.
 
 Trap 1's row is deliberately split in two. The mechanism — a set `CLAUDISH_MODEL` overriding
 `providers.sh:92`'s `claude-cli` default and being handed to the CLI as `--model` at
@@ -369,7 +376,8 @@ The all-prose message is the harder and more honest test.
 
 ### What the number would have to beat, and what would not be comparable
 
-`corpus/capture-log.tsv`, the 12 real rewrites, all on `claude-cli`/`haiku`:
+`corpus/capture-log.tsv`, the 12 real rewrites, all on `claude-cli` (confirmed in section 5) at the
+`haiku` that `providers.sh:92` resolves (read from the source, not from any response):
 
 | item | source words | output bytes | seconds |
 | --- | ---: | ---: | ---: |
@@ -412,9 +420,12 @@ Three things that would **not** be comparable, stated in advance so the number i
   outcome is to let them fail open by design.
 
 The middle branch is not a licence to raise `CLAUDISH_TIMEOUT` and move on. 52.50s clears 60s by
-7.5s on a single sample, with no error bar (non-comparability 2 above), and section 2's ceiling is a
-*harness* limit that no plugin setting can move. A knob whose whole remaining range is 7.5 seconds
-wide is not a fix.
+7.5s on a single sample, with no error bar (non-comparability 2 above), and the 60 behind it is not a
+knob the user owns: it is **this plugin's own declared `MessageDisplay` timeout**
+(`hooks/hooks.json:9`), so moving it means editing a plugin file inside a version-pinned cache
+directory that the next update replaces — section 2. Whether the harness would honour a larger value
+there is a separate question, and **unestablished** ("What was not verified", item 3). A knob whose
+whole remaining range is 7.5 seconds wide is not a fix.
 
 ---
 
@@ -484,12 +495,14 @@ The caveat noted that `capture-real-rewrites.sh` resolves the provider the same 
 band inherits the doubt. It does not survive either.
 
 - **`r01`–`r12`, captured 2026-08-15.** `~/.claude/session-env/` holds **twelve** directories created
-  between **15:32:58** and **15:34:50** — one `claude` start per corpus item. The gaps between
-  consecutive starts (16, 8, 12, 9, 7, 9, 10, 10, 8, 10, 13 s) match `capture-log.tsv`'s per-item
-  seconds (7, 8, 13, 9, 6, 10, 10, 9, 8, 10, 13, 13) within a second for eleven of the twelve; only
-  the first gap is longer than its item, by 9s, which is the script's start-up before item two. On
-  that whole day **every** `POST /api/chat` to ollama returned **HTTP 404 in under 30 ms** — the
-  model had not been pulled yet, and ollama served **zero** completions on 2026-08-15.
+  between **15:32:58** and **15:34:50** — one `claude` start per corpus item. Twelve starts give
+  **eleven** inter-start gaps (16, 8, 12, 9, 7, 9, 10, 10, 8, 10, 13 s), so only eleven of
+  `capture-log.tsv`'s twelve per-item seconds (7, 8, 13, 9, 6, 10, 10, 9, 8, 10, 13, 13) can be
+  checked against a gap at all: **ten of those eleven match within a second**. The first gap is 9s
+  longer than `r01`'s 7s, and **what those 9 seconds went to is not observable from these
+  timestamps** — nothing in the record attributes them. `r12`'s 13s has no following start, so it is
+  unchecked. On that whole day **every** `POST /api/chat` to ollama returned **HTTP 404 in under
+  30 ms** — the model had not been pulled yet, and ollama served **zero** completions on 2026-08-15.
 - **`r13`, `r14`, captured 2026-08-25.** Two more session-env directories at **13:45:08** and
   **13:45:17** — 9 seconds apart, matching `capture-log.tsv`'s `r13 = 9s`. ollama's log has nothing
   between 13:41:50 and 13:45:36.
@@ -521,10 +534,11 @@ served the call then `claude-cli` was simply never measured. **That disjunction 
 *was* measured.** Testing the position rather than repeating it, it holds — and on firmer ground than
 the hedge allowed:
 
-- **1,328 words on `claude-cli`/`haiku` takes 52.50s**, over the 45s `CLAUDISH_TIMEOUT` default.
-  Under the real display-hook config the watchdog kills that rewrite. Switching provider therefore
-  **does not** fix long-message timeouts; it trades ollama's refusal for a client-side timeout, which
-  is the harder of the two to diagnose.
+- **1,328 words takes 52.50s on the `claude` CLI** — the binary is observed above; the `haiku`
+  behind it is the `--model` argument `providers.sh:267` builds, not a model named by any record.
+  52.50s is over the 45s `CLAUDISH_TIMEOUT` default, so under the real display-hook config the
+  watchdog kills that rewrite. Switching provider therefore **does not** fix long-message timeouts;
+  it trades ollama's refusal for a client-side timeout, which is the harder of the two to diagnose.
 - **Latency is not flat**, and that reading now stands on fourteen corpus measurements plus one long
   one that are *all* confirmed to have run on `claude-cli`, rather than on a band of unknown
   provenance.
