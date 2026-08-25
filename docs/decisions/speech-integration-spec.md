@@ -42,7 +42,7 @@ three PRs to fix a relative link would cost more than the broken link does. The 
 those PRs merge.
 | **[heard]** | [`sanitizer-audition.md`](sanitizer-audition.md), [`sanitizer-audition-13.md`](sanitizer-audition-13.md), [`voice-and-pipelining.md`](voice-and-pipelining.md), [`min-length-audition.md`](min-length-audition.md) | blind A/B verdicts and stopwatch readings. Noise floor ~1 call in 12. |
 | **[repo]** | the working tree, read directly; line numbers citable | what this plugin does today |
-| **[measured-here]** | measurements taken while writing this document, from existing scripts over existing files | stated inline with the command that produced them |
+| **[measured-here]** | measurements taken while writing this document — existing scripts over existing files, plus exit codes read off `jq` and `bash` directly | stated inline with what produced them. No audio, no benchmark, no LLM. |
 
 **Four claims this spec was written from did not survive checking**, and the corrected versions are
 used throughout:
@@ -55,7 +55,16 @@ used throughout:
 - `rewrite.sh` **does** set shell options — `set -uo pipefail` at `rewrite.sh:55` — so "no `set -e`"
   understates what the `Stop` hook must avoid (§5);
 - axis 2 was **not** a 1–1 tie inside the noise floor; the tally hid an item-count effect the variant
-  could not express (§4.1).
+  could not express (§4.1);
+- **only exit code 2 blocks the turn on `Stop`**, not any non-zero exit — and the replacement
+  mechanism handed over with that correction (*"`jq` exits 2 on a malformed filter"*) is **also wrong
+  on this machine**: a malformed filter exits **3**. The real exit-2 routes are a **bash syntax
+  error** and **`jq` given a filename it cannot read**, both measured (§5);
+- **`stop_hook_active` is not a duplicate-detector**, and a rule built on it would have spoken the
+  rejected answer and suppressed the real one (§5.1).
+
+The last two arrived after this spec had already locked its §5, and both are marked **CORRECTED** in
+place rather than rewritten away.
 
 ---
 
@@ -69,7 +78,7 @@ used throughout:
 | declared timeout | 60 s (`hooks/hooks.json:9`) | **10 s** — see §10.4 |
 | harness default | 10 s **[bin]** | 600 s **[bin]** |
 | fires for subagents | yes | **no** **[obs]** — §7 |
-| non-zero exit means | "hook failed"; content passes through | **"block the turn"** — §5 |
+| exit status means | "hook failed"; content passes through | **exit 2 blocks the turn**; every other code is an explicitly *non-blocking status code* — §5 |
 
 **Why the split is forced.** `MessageDisplay.final` is *message*-level: a turn that emits three
 narration messages and two tool calls sets `final: true` three times, and there is no lookahead at
@@ -150,6 +159,10 @@ $BUF_ROOT/<session_id>/speak/rewrite   # the finished rewrite, exactly as emitte
 $BUF_ROOT/<session_id>/speak/source    # sha256 of the trimmed ORIGINAL assistant text
 $BUF_ROOT/<session_id>/speak/prompt_id # the prompt_id, IF MessageDisplay carries one (see 3.2)
 ```
+
+`speak.sh` writes two more files into the same directory — `spoken` (the dedup hash, §5.1) and `pid`
+(the preemption PID, §10.6). **Both hooks write into one depth-2 directory**, which is what keeps the
+whole feature inside a single sweep-reclaimed path.
 
 **Lifecycle: one `speak/` per session, overwritten in place on every rewritten message.** Not one per
 message — a per-message file would reproduce exactly the pile-up `emit()`'s comment warns about.
@@ -544,45 +557,130 @@ backticks in a real message. Recorded as a live caveat, not a footnote.
 
 ---
 
-## 5. LOCKED — fail-open, and on `Stop` it means something stronger
+## 5. LOCKED — fail-open, and on `Stop` the reason is narrower and sharper than it first looked
 
-**On `Stop`, a non-zero exit is a control signal, not a failure report.** Exit 2 means *block the
-turn*. The runtime counts consecutive blocks, caps them at `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP ?? 8`,
-then overrides with a warning. `stop_hook_active` is `true` on any invocation following a block.
-**[bin]**
+> **CORRECTED 2026-08-25, and the correction is recorded rather than absorbed.** An earlier reading —
+> carried in the draft this spec replaces, in the brief it was written from, and in the first version
+> of this section — said *"on `Stop`, any non-zero exit blocks the turn."* **That is false.** The
+> conclusion (exit 0 on every path) survives unchanged; the argument for it does not, and the
+> replacement argument is **narrower, more specific, and easier to check**. Showing the change is the
+> point: a spec that quietly upgraded its own reasoning would be asking to be trusted about the next
+> thing too.
 
-**For a speech hook the failure mode is loud, literally.** A leaked non-zero exit does not merely
-fail to speak — it **holds the user's prompt open and gets the hook re-fired up to 8 times, speaking
-the same message up to 8 times**, before the runtime forces the turn to end.
+**What is actually true.** **Exit code 2 alone blocks the turn.** The result resolver returns
+`blocked: true` for status **2** and labels every other code a *"non-blocking status code"* — a string
+present in the 2.1.245 binary, 4 occurrences. The `Stop` consumer drives its retry **only** from
+`blockingError`; any other failure renders as a **single warning line** and the turn ends normally.
+Exit-2 blocks are counted and capped at `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP ?? 8`, after which the
+runtime overrides. **[bin]**
+
+**So the hazard is not "any error holds the prompt hostage" — it is much more specific, and that
+makes it more real, not less.** A speech hook that exits 1 because a binary was missing loses nothing
+but the utterance. A speech hook that exits **2** holds the user's prompt open and gets re-fired up
+to 8 times, **speaking the same message up to 8 times.**
+
+**And this plugin's own idiom can produce a 2 — but not by the route that was claimed.**
+
+> **SECOND CORRECTION, measured here rather than inherited.** The replacement reasoning handed to this
+> spec was *"`jq` exits 2 on a malformed filter."* **That is false on this machine.** Measured on
+> `jq-1.7.1-apple`, `bash` under Darwin 25.6.0 **[measured-here]**:
+>
+> | cause | exit code | blocks the turn? |
+> | --- | ---: | --- |
+> | **bash syntax error in the hook script** | **2** | **yes** |
+> | **`jq` bad option, missing file, or `--rawfile <missing>`** | **2** | **yes** |
+> | `jq` malformed filter (program compile error) | 3 | no |
+> | `jq` unparseable JSON on stdin | 5 | no |
+> | `set -u` expansion of an unset variable | **1** | no |
+> | command not found / missing script | 127 | no |
+>
+> So the conclusion holds and is if anything better supported — **two real exit-2 paths exist** — but
+> the specific mechanism cited was wrong, and one leg of the argument collapses entirely. Recorded
+> rather than smoothed over, for the same reason as the first correction.
+
+**The two paths that genuinely reach exit 2:**
+
+- **A bash syntax error in `speak.sh` is exit 2.** This is the strongest form of the hazard and it was
+  not in either earlier version: an unbalanced `fi`, `done`, or quote does not fail one turn, it
+  **blocks every turn** and speaks the same message 8 times each. It is also the single most likely
+  defect in a shell script under edit. Mitigation is not a runtime guard — it is `bash -n` before the
+  file ships, and keeping the file small.
+- **`jq` invoked with a bad option or an unreadable file is exit 2** — and this *is* the plugin's own
+  idiom: `rewrite.sh:87` is `jq -n --rawfile dc "$1"`, so a vanished temp file lands exactly here.
+  `rewrite.sh` already guards it (`2>/dev/null || { rm -f "$1"; pass_through; }`), which is the
+  precedent to copy rather than re-derive.
+
+**What this costs the old argument: `set -uo pipefail` is no longer the blocking hazard.** `set -u` on
+an unset variable exits **1**, which the resolver classes as *non-blocking* — so it costs the
+utterance, not the turn. **`speak.sh` still sets no shell options**, but the honest reason is
+robustness and predictability, **not** turn-blocking. A spec that kept claiming otherwise would be
+citing a measurement that says the opposite.
 
 > **INVARIANT (both hooks; the `Stop` hook especially).** Every hook this plugin ships exits **0 on
-> every path, including every error path**. On `MessageDisplay` this is what keeps a display hook
-> from swallowing the assistant's answer (`rewrite.sh:22-25`). On `Stop` it is a different and
-> stronger requirement: **a non-zero exit is not a failure report, it is a request to block the
-> turn**, and a leaked one holds the user's prompt hostage and repeats the same utterance up to
-> `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` (default 8) times. **The `Stop` hook's exit must carry its own
-> comment stating this reason**; a cross-reference to the display hook's comment would document the
-> wrong hazard.
+> every path, including every error path**. On `MessageDisplay` this is what keeps a display hook from
+> swallowing the assistant's answer (`rewrite.sh:22-25`). On `Stop` the reason is different and
+> narrower: **exit code 2 is not a failure report, it is a request to block the turn** — capped at
+> `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` (default 8) re-fires, speaking the same message each time. The two
+> routes that actually produce a 2 are **a bash syntax error in the hook** and **`jq` given a bad
+> option or an unreadable file** (`rewrite.sh:87`'s `--rawfile` shape). Every other failure code — 1,
+> 3, 5, 127 — is explicitly *non-blocking* and costs only the utterance. **The `Stop` hook's exit must
+> carry its own comment naming those two routes**; a cross-reference to the display hook's comment
+> would document the wrong hazard, a comment saying "any non-zero exit blocks" would document a hazard
+> that does not exist, and a comment blaming `set -u` would name a code (1) that does not block.
 
-**A correction the draft and #1 both need.** They say the discipline is "exit 0 on every path, no
-`set -e`". **`rewrite.sh:55` is `set -uo pipefail`.** **[repo]** There is indeed no `set -e` — but
-`set -u` makes an expansion of an unset variable **fatal**, and `pipefail` promotes a mid-pipeline
-failure to the pipeline's status. `rewrite.sh` survives both because it guards every pipeline with
-`|| pass_through` and because on `MessageDisplay` a non-zero exit is *harmless anyway*. **Neither
-protection transfers to `Stop`.** So:
+**`rewrite.sh` survives its own shell options** because it guards every pipeline with
+`|| pass_through` **and** because on `MessageDisplay` a non-zero exit is harmless anyway. **Neither
+protection transfers to `Stop`.**
 
 **Specification for `speak.sh`:**
 
-- **No `set -e`, no `set -u`, no `set -o pipefail`.** State the reason in a comment. Copying
-  `rewrite.sh:55` is the single most likely way to introduce the 8× repeat hazard, precisely because
-  it looks like following house style.
+- **`bash -n speak.sh` must pass before the file ships**, and be re-run on every edit. This is the
+  mitigation for the *only* exit-2 route a runtime guard cannot cover, and it is the one item on this
+  list that is a process requirement rather than a code requirement.
+- **Every `jq` invocation guarded** — `2>/dev/null || true`, or its status tested and discarded — with
+  particular care wherever a **filename** is passed (`--rawfile`, `--slurpfile`, a positional file),
+  because that is the shape that returns **2**. `rewrite.sh:87-90` is the precedent.
+- **No `set -e`, no `set -u`, no `set -o pipefail`.** For robustness and predictability — **not**
+  because they block the turn; `set -u` exits **1**, which is non-blocking. State that honestly in
+  the comment rather than overstating it.
 - Every expansion defaulted (`${VAR:-}`); every external call `|| true` or explicitly tested.
-- A single `exit 0` reachable from every path, and no `exit` with any other status anywhere in the
-  file.
-- **Read `stop_hook_active` and stay silent when it is `true`.** Not to avoid blocking — this hook
-  never blocks — but because `true` means *this turn's final message has already been spoken*.
-  Without it, any other blocking `Stop` hook the user installs (a lint gate, a test gate) makes this
-  plugin repeat itself once per block. **[bin]**
+- A single `exit 0` reachable from every path, and **no `exit` with any other status anywhere in the
+  file** — which makes the invariant checkable by `grep`, not by reasoning.
+
+### 5.1 LOCKED — `stop_hook_active` is **not** a duplicate-detector, and must not be used as one
+
+> **CORRECTED 2026-08-25.** The draft and the first version of this section specified *"read
+> `stop_hook_active` and stay silent when it is `true`",* on the reasoning that `true` means this
+> turn's final message has already been spoken. **That rule is not merely useless — it is inverted,
+> and it is the most dangerous single thing this spec previously said.**
+
+**Why it inverts.** Claude replies to a blocked turn **before** the hook re-fires, so the payload that
+arrives with `stop_hook_active: true` usually carries the **newer** text. A "stay silent while
+`stop_hook_active` is true" rule would therefore **speak the rejected answer and suppress the real
+one** — the exact opposite of what it appears to do. **[bin]**
+
+**Specification.**
+
+- **`speak.sh` reads `stop_hook_active` for no behaviour at all.** Log it under `CLAUDISH_DEBUG` if
+  useful; branch on it never.
+- **Deduplication compares the message text**, and it reuses machinery §3.1 already specifies rather
+  than adding any:
+
+```
+$BUF_ROOT/<session_id>/speak/spoken   # sha256 of the text last actually sent to synthesis
+```
+
+  Before speaking, hash the text about to be spoken and compare. Equal → `exit 0`. Different → write
+  the new hash, then speak. Same depth-2 directory, so `rewrite.sh:117`'s existing sweep reclaims it
+  (§3.1); same hashing the handoff match already needs (§3.2).
+
+**What this buys, stated precisely.** It suppresses a genuine re-fire of the **same** text — the case
+the flag was reached for. It does **not** suppress the blocked-turn sequence, and that is correct: if
+text A was already spoken and Claude then produces B, A cannot be un-spoken, so speaking B as well is
+the best behaviour available. The old rule would have spoken A and swallowed B.
+
+**One accepted cost:** if Claude legitimately ends two consecutive turns with byte-identical text, the
+second is silent. Rare, and silence is the safe direction.
 
 ---
 
@@ -601,12 +699,16 @@ If it waits for playback to finish it holds the prompt for the **audio duration,
 second is not a trade-off, it is a defect — and it is where the obvious shape ("synthesise, play,
 exit") lands by default.
 
-**The timeout is not the constraint, and that framing should be killed.** The harness default on
-`Stop` is **600 s** **[bin]**; a declared `timeout` *replaces* the default rather than being clamped
-by it, and the schema is `positive()` with **no `.max()`**. **There is no 60 s cap** — the 60 is
-`hooks/hooks.json:9`, a plugin choice, alongside 180 at `:21`. Whether any absolute ceiling exists is
-**unestablished**: no clamp appears at the call site or on the schema, but "not at the two places I
-looked" is not "nowhere". **[bin]**
+**The timeout is not the constraint, and that framing should be killed.** The harness defaults are
+**600 s** on `Stop`/`SubagentStop` and **10 s** on `MessageDisplay` **[bin]**. Nothing about speech
+comes near 600 s, so "under the timeout" was never the question.
+
+**Two things this spec deliberately does *not* argue.** There is **no harness 60 s cap** to argue
+against in the first place — the 60 is `hooks/hooks.json:9`, this plugin's own declared value.
+And **the 180 at `:21` proves nothing about a ceiling**: config *acceptance* is not runtime
+*enforcement*, so a plugin declaring 180 shows only that 180 passed validation. **Whether any
+absolute ceiling exists is unestablished**, and it is left that way rather than argued from
+`hooks.json`. **[bin]**
 
 **LOCKED: the guarantee is carried by detachment, and detachment alone.** Speech is fired detached —
 **stdio closed, disowned** — exactly as #1's standing constraint already commits. It is in this
@@ -617,8 +719,9 @@ rests on.
 is one compiled-schema string — *"If true, hook runs in background without blocking"* **[bin]** — and
 **three things about it are unobserved**:
 
-1. whether an async hook's **exit status is read at all** (if not, §5's 8× hazard cannot fire for it);
-2. whether an async hook is subject to the **block cap** / `stop_hook_active` machinery;
+1. whether an async hook's **exit status is read at all** (if not, §5's exit-2 hazard cannot fire for
+   it);
+2. whether an async hook's exit 2 is routed to `blockingError` and subject to the **block cap**;
 3. whether an async hook receives the **same payload**, in particular a populated
    `last_assistant_message`.
 
@@ -772,7 +875,8 @@ its override per backend** rather than assuming "unset is safe".
 | `speak.sh` (plugin root, beside `rewrite.sh`) | new | the `Stop` hook. Bash, `curl`/`jq` idiom, no `set` options (§5). |
 | `$HOME/.claude/claudish-speak-off` | user | runtime mute flag; existence is the whole signal |
 | `$BUF_ROOT/<session_id>/speak/` | `rewrite.sh` writes, `speak.sh` reads | §3.1. Depth-2 directory so `rewrite.sh:117`'s existing sweep reclaims it. |
-| `$BUF_ROOT/<session_id>/speak/{rewrite,source,prompt_id}` | same | §3.1 |
+| `$BUF_ROOT/<session_id>/speak/{rewrite,source,prompt_id}` | `rewrite.sh` writes | §3.1 |
+| `$BUF_ROOT/<session_id>/speak/{spoken,pid}` | `speak.sh` writes | dedup hash (§5.1) and the preemption PID (§10.6) |
 
 `BUF_ROOT` is **not** redefined in `speak.sh` as a new constant with a new default — it is the same
 `"${TMPDIR:-/tmp}/claudish-to-english"` string as `rewrite.sh:69`, and the two must not be able to
@@ -787,10 +891,13 @@ Specified as an order because the cheap rejections must precede everything, for 
 2. `CLAUDISH_SPEAK_OFF_FILE` does not exist, else `exit 0`.
 3. `jq` present, else `exit 0`.
 4. Read the payload; `exit 0` if empty.
-5. `stop_hook_active` is not `true`, else `exit 0` (§5).
+5. **Not a `stop_hook_active` check** — see §5.1; that flag is read for no behaviour. Dedup happens at
+   step 8b instead, on the text.
 6. `background_tasks` has no `status: "running"` entry, else `exit 0` (§8).
 7. `last_assistant_message` present and non-empty, else `exit 0` (§2).
 8. Resolve the text via §3.5's decision table; `exit 0` if the table says silent.
+8b. **Dedup on the resolved text** — hash it, compare against `speak/spoken`, `exit 0` if equal, else
+   write the new hash (§5.1).
 9. Fire the detached speech child (§6) and `exit 0` **without waiting**.
 
 Steps 1–2 are the whole of the off-by-default guarantee (§11), and step 9 is the whole of the
@@ -876,7 +983,9 @@ Every row exits 0 and speaks nothing. None writes to the screen.
 | `kokoro-onnx` raises (including the 510-phoneme `IndexError`) | child dies; `exit 0` |
 | player missing, or playback fails | `exit 0` |
 | background task running | `exit 0` (§8) |
-| `stop_hook_active` true | `exit 0` (§5) |
+| resolved text identical to the last spoken text | `exit 0` (§5.1). **Not** a `stop_hook_active` check |
+| `jq` given an unreadable filename (`--rawfile`) | guarded, so its **exit 2** cannot escape (§5); `exit 0` |
+| `jq` filter malformed, or stdin unparseable | exits 3 / 5 — non-blocking; guarded anyway; `exit 0` |
 
 **On-screen surfacing of speech failures: LOCKED as absent, and this is a real cost.** The plugin has
 a `CLAUDISH_NOTICE` idiom for once-per-session provider warnings (`rewrite.sh:206-225`), but that
@@ -954,7 +1063,8 @@ Nothing below is papered over to make the spec look finished.
 | 12 | Warm-up-on-wake vs a late first utterance (§10.5) | a listening call once residency exists | no |
 | 13 | Deeper leading-dot paths (`.github/workflows/ci.yml`) unauditioned | a corpus item | no |
 | 14 | `session_crons` has not been looked at (§8) | one look | no |
-| 15 | Whether any absolute hook-timeout ceiling exists (§6) | a wider read than the two call sites checked | no |
+| 15 | Whether any absolute hook-timeout ceiling exists (§6) | a wider read than the two call sites checked — **not** an argument from `hooks.json:21`, since config acceptance is not runtime enforcement | no |
+| 16 | **The exit-2 block mechanics have never been observed** (§5). The resolver's status-2 behaviour and the *"non-blocking status code"* string are verified in the binary; the block cap, the `blockingError` routing and the post-cap override are still schema reading | make a throwaway `Stop` hook exit 2 and count the re-fires | no — the invariant is specified to hold regardless |
 
 **Three of these — 1, 2, 3 — block shipping.** All three are cheap: one listen, one measurement, one
 log. None needs a new decision from the listener.
@@ -1005,9 +1115,23 @@ understates the requirement. Proposed replacement for that sentence:
 > `-u`/`-o pipefail` either, despite `rewrite.sh:55` setting them**: `set -u` makes an unset
 > expansion fatal and `pipefail` promotes a mid-pipeline failure to the exit status, and
 > `rewrite.sh` survives both only because every pipeline is guarded with `|| pass_through` **and**
-> because a non-zero exit is harmless on `MessageDisplay`. Neither protection transfers to `Stop`.
-> Copying `rewrite.sh:55` is the most likely way to introduce the 8× repeat hazard, precisely
-> because it looks like following house style.
+> because a non-zero exit is harmless on `MessageDisplay`. Neither protection transfers to `Stop` —
+> though the honest reason to drop the options is **robustness, not turn-blocking**: measured on this
+> machine, `set -u` on an unset variable exits **1**, which the resolver classes non-blocking. The two
+> routes that actually reach the blocking **2** are a **bash syntax error** in the hook and **`jq`
+> handed a bad option or an unreadable file** (`rewrite.sh:87`'s `--rawfile` shape). So `speak.sh`
+> guards every `jq` that takes a filename, and `bash -n` gates the file.
+
+**One further correction #1 will want.** #1's `#10` bullet says *"`jq` exits **2** on a malformed
+filter, so a hook parsing stdin with `jq` … genuinely can block a turn by accident."* **Measured on
+`jq-1.7.1-apple`, a malformed filter exits 3, not 2** (unparseable JSON input exits 5). The
+conclusion survives — two other exit-2 routes exist and one of them is worse — but the cited
+mechanism should be replaced with the measured table in §5, since the current wording would send an
+implementer to guard the wrong thing.
+
+**Otherwise #1 already carries the exit-2 correction** in the `#10` bullet and the `stop_hook_active`
+bullet in *Standing constraints*, and this document is written to match that wording rather than
+restate it differently. **This amendment is the shell-options sentence plus the `jq`-code fix.**
 
 ### 14c. Amend the planned config surface in **Standing constraints**
 
@@ -1097,3 +1221,18 @@ Stated so a reviewer can attack the right parts.
 - **Everything about the raw path above 200 characters is unmeasured**, by construction — §3.5 never
   sends long raw text to synthesis, and if that ever changes the phoneme-batch measurement is owed
   first.
+- **§5 has now been wrong three times, and is the section to re-check hardest.** It locked "any
+  non-zero exit blocks the turn" (false — only 2 does); it specified a `stop_hook_active` dedupe rule
+  that was **inverted** (it would have spoken the rejected answer and suppressed the real one); and
+  the *replacement* mechanism it was handed — "`jq` exits 2 on a malformed filter" — is **also false**
+  on this machine (that is a 3). All three are corrected in place. **The first two came from outside
+  this document** (a review pass on PR #17); the third was caught by running `jq` rather than quoting
+  it, which is the only reason it did not survive into the lock. **The conclusion has been stable
+  across all three corrections while every stated reason for it changed** — which is either
+  reassuring or a sign that the conclusion is being defended rather than derived, and a reviewer
+  should decide which.
+- **The block mechanics themselves are still unobserved.** The resolver's status-2 behaviour and the
+  *"non-blocking status code"* string are verified in the binary, and the exit codes in §5's table are
+  measured here — but the **block cap, the `blockingError` routing and the post-cap override are
+  schema-and-`strings` reading**. Nobody has made a `Stop` hook exit 2 and counted the re-fires
+  (§13 row 16).
