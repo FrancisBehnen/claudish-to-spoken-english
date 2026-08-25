@@ -11,14 +11,18 @@ The listening script for **ship blocker 1** of
 Built 2026-08-25, on top of [`sanitizer-audition.md`](sanitizer-audition.md) (#8, seven axes) and
 [`sanitizer-audition-13.md`](sanitizer-audition-13.md) (#13, three rules adopted 13–0).
 
-**STATUS: two of the three steps are done; the third is the listener's.** B′ is implemented,
-the combination is registered as `settled`, 24 wavs are synthesized and 14 pairs are on the page as
-**section 5**. The [DECISION](#decision) block at the end is **empty**. Nothing below claims how
-anything sounds.
+**STATUS: all three steps are done. The listen happened 2026-08-25, blind, `bf_emma`** — 14 pairs
+scored: thirteen in one sitting and `r11` in a single-pair re-listen afterwards. The committed export
+[`audition-verdicts-11.tsv`](audition-verdicts-11.tsv) holds **all 14 of section 5's pairs scored**,
+and is the one artifact for the round. **`settled` won every pair it was in, 9–0.**
+Read the [DECISION](#decision) for the outcome, including **two open gaps the listen did not close
+and one it opened**.
 
-**Everything before the DECISION is the instrument, and it stays that way.** Every "what it does" is
-a text diff, a phoneme count, a byte count or a wav duration; every "what to listen for" is a
-question nobody has answered.
+**Everything before the DECISION is still the instrument.** Every "what it does" outside the DECISION
+is a text diff, a phoneme count, a byte count or a wav duration, and every "what to listen for" is
+the question as it was asked — not its answer. The two exceptions are labelled: the axis-2 row of the
+table below now carries its heard margin like every other row, and the sections the DECISION
+supersedes say so inline and point at it.
 
 ---
 
@@ -40,7 +44,7 @@ alternative, and the file's docstring now says so. Every other variant moves exa
 | axis | value | rule | the margin it was adopted on |
 | --- | --- | --- | --- |
 | 1 backticks | `pause` | `tick-pause` | #8, 2–0 + 1 tie **[heard]** |
-| 2 line breaks | `CONDITIONAL` | **rule B′** | the listener directly, 2026-08-25 — **never heard** |
+| 2 line breaks | `CONDITIONAL` | **rule B′** | #11, 1–0 on `s38`, B′ as shipped **[heard]** — but see the cutoff gap in the [DECISION](#decision) |
 | 3 paths | `shorten-nolead` | `path-short-nolead` | #13, 4–0 **[heard]** |
 | 4 markdown | `strip` | rules C + D | #8, 5–0 **[heard]** |
 | 5 `SCREAMING_SNAKE` | `lower` | rule J | #8, 7–0 **[heard]** |
@@ -67,8 +71,20 @@ stated here rather than buried in a commit.
 > A text with **no** boundary between two items has no run, and takes the fixed `opts.boundary`.
 
 `bench/sanitizers.py`: `rule_Bprime_conditional`, `count_boundaries`, `COND_CUTOFF = 4`,
-`Axes.boundary = "auto"`. The counting regex is rule B's own pattern with a lookahead, so the count
-and the replacement cannot drift apart **[repo]**.
+`Axes.boundary = "auto"`. **`count_boundaries` iterates rule B's own compiled pattern,
+`_B_BREAK_RE`, and subtracts only the one intentional exclusion — a match reaching the end of the
+text** — so a change to what rule B treats as a break flows into the count instead of having to be
+mirrored **[repo]**.
+
+> **Corrected 2026-08-25, from review on [PR #24](https://github.com/FrancisBehnen/claudish-to-spoken-english/pull/24).**
+> This sentence previously claimed the count "is rule B's own pattern with a lookahead, so the count
+> and the replacement cannot drift apart". That was **false**: it was a second, independently typed
+> pattern, and it did already disagree with rule B. On the text `"a\n \n b"` rule B plants one
+> boundary and the old count returned **0** **[measured-here]**. The count now reads `_B_BREAK_RE`
+> itself, which makes the no-drift claim structural rather than asserted. **The fix is a no-op on
+> the corpus** — all 28 sanitizers byte-identical over all 54 items under both `--boundary .` and
+> `--boundary ,`, and no item's boundary count changed **[measured-here]** — so every measurement and
+> every wav in this document still stands.
 
 ### The departure: boundaries, not segments
 
@@ -122,6 +138,10 @@ wav proved it: the corpus's axis-2 evidence is `s38` at 3 and `s37` at 8 (§13 r
 does not try to settle it — but it does put **one** wav at the seam, which the corpus did not have
 before: see `s04` below.
 
+> **Superseded by the [DECISION](#decision).** `s04` was heard, and it went **against** the value in
+> the file. The cutoff is still not settled, but it is no longer merely unaudited — it is now
+> contradicted at 4 by the only wav that has ever tested it.
+
 ---
 
 ## How to listen
@@ -141,7 +161,8 @@ cd ~/.local/share/kokoro/bench && python3 -m http.server 8765
 > **`localStorage` is per origin.** Verdicts recorded over `file://` are invisible over
 > `http://localhost:8765` and the reverse. Pick one origin and stay on it. The #8 and #13 verdicts
 > are already exported to [`audition-verdicts.tsv`](audition-verdicts.tsv) and
-> [`audition-verdicts-13.tsv`](audition-verdicts-13.tsv), so a low counter costs nothing.
+> [`audition-verdicts-13.tsv`](audition-verdicts-13.tsv), and #11's to
+> [`audition-verdicts-11.tsv`](audition-verdicts-11.tsv), so a low counter costs nothing.
 
 Regenerate anything — the wavs are **not committed** (37 MB for this set):
 
@@ -208,6 +229,9 @@ and 8** **[measured-here]**, and it is at the very edge of the gap, not in the m
 It is also where the two possible counts diverge: **4 boundaries** (implemented → `.`) versus
 **3 bullets** (the listener's phrasing → `,`). If `,` wins here, the count wants to exclude a
 closing line, or the cutoff wants to be 5.
+
+> **`,` won.** That conditional is discharged in the [DECISION](#decision), which is where the
+> consequence is written down.
 
 ### Group C — triangulating the one composition §4.2 names (2 pairs)
 
@@ -305,33 +329,67 @@ for the wording.
 **Not applied here** — #11 owns [`speech-integration-spec.md`](speech-integration-spec.md) and a
 single integration pass folds this in. Recorded so that pass has the text.
 
-1. **§13 row 1's first two clauses are done.** B′ is implemented (`bench/sanitizers.py`,
+1. **§13 row 1 closes.** All three clauses are done: B′ is implemented (`bench/sanitizers.py`,
    `rule_Bprime_conditional`, selectable as `lb-auto`); the combination is registered as `settled`;
-   24 wavs exist under `~/.local/share/kokoro/bench/audition-11/` and 14 pairs are section 5 of the
-   audition page. **The row stays open until the listen happens**, and the listen is the listener's.
-2. **§4.1 clause 3 is wrong as written and needs replacing.** *"the non-empty segments a `\n+` split
-   produces"* makes `s38` count 4 and take `.`, contradicting the `s38` verdict the same section
-   cites as evidence. The implemented count is of **boundaries between two items** — `segments − 1` —
-   which reproduces both discriminating verdicts. §4's axis-table row is unaffected.
+   24 wavs exist under `~/.local/share/kokoro/bench/audition-11/`; and **the confirmation listen
+   happened 2026-08-25, blind, `bf_emma`, with `settled` preferred on all nine pairs it was in**
+   **[heard]** ([`audition-verdicts-11.tsv`](audition-verdicts-11.tsv)). The row closes on the
+   composition. It does **not** close §13 row 5, and it does not close the two gaps the
+   [DECISION](#decision) names.
+2. **§4.1 clause 3 is wrong as written and needs replacing — and the boundaries reading is now heard,
+   not merely reasoned.** *"the non-empty segments a `\n+` split produces"* makes `s38` count 4 and
+   take `.`, contradicting the `s38` verdict the same section cites as evidence. The implemented count
+   is of **boundaries between two items** — `segments − 1`.
+
+   **What the listen settles, exactly.** Across all 54 corpus items, **`s38` is the only one where the
+   two readings produce a different character at all** **[measured-here]** — everywhere else both land
+   on the same side of the cutoff, `s04` (4 boundaries / 5 segments → `.` either way) and `s37`
+   (8 / 9 → `.` either way) included. So `s38` is the whole discriminator, and **`s38` was played
+   blind and went to the boundaries implementation**: B′'s `,` beat `base`'s `.` **[heard]**, where
+   the segment count would have produced `base`'s `.`. That is the reading confirmed by ear, on the
+   one pair that can confirm it. `s04` bears on the **cutoff**, not on this choice, and it is recorded
+   under item 5. §4's axis-table row is unaffected. **Proposed replacement for clause 3:**
+
+   > Count the **boundaries** a run plants between two items — equivalently, the non-empty segments a
+   > `\n+` split produces, **minus one**. A break at the very end of the text separates the last item
+   > from nothing and is not counted. Replace the line breaks with `, ` below the cutoff and `. ` at
+   > or above it. A text with no boundary between two items has no run and takes the fixed boundary.
+   > A paragraph break is counted exactly like a list break; two long paragraphs therefore count 1.
+
+   The worked example in clause 3 — *"a paragraph-only run of two long paragraphs therefore counts 2
+   and takes `,`"* — needs its number changed from 2 to **1**. The outcome (`,`) is unchanged.
 3. **§4.1's "no registered sanitizer implements this" is now false** and its consequence — *"the
    settled-set confirmation listen cannot include axis 2 until rule B′ exists"* — is discharged.
+   Axis 2's **"never heard"** caveat comes off: B′ as shipped was played in isolation against `base`
+   on `s38` and won **[heard]**.
 4. **A new caveat, of §4.3's class, belongs next to §4.3.** B′ is a **measured no-op on all 14 real
    rewrites and on 53 of the 54 corpus items**; the only item it changes is `s38`. Its closing
    condition is the same shape as `flag-pause`'s: a real capture with a short list whose lines do not
-   already end in punctuation.
-5. **§13 row 5 is unchanged but slightly better funded.** One wav now exists at 4 boundaries (`s04`,
-   `base` against `lb-comma`). 5, 6 and 7 are still empty.
-6. **A finding §4.2 predicted and did not name: two interactions exist, and they are on a real
-   item.** Axis 1 strips the backticks axis 8 relies on stepping over, so inside `settled` — and only
-   inside `settled` — `` `$CLAUDISH_OLLAMA` `` becomes `, $, claudish_ollama,` and `` `curl -K` ``
-   becomes `, curl , -K,`, both on `r11`, both **measured, neither heard**. §4.3's *"ships free of
-   regression risk, a measured no-op on all twelve real rewrites"* is true of `flag-pause` on `base`
-   and **false of `flag-pause` inside the settled set**; that sentence needs the qualifier. The
-   inversion is symmetric and worth carrying: axis 7 removes `r14`'s carrier before axis 8 sees it,
-   so **`r14` is a no-op inside `settled`** while `r11` is not.
+   already end in punctuation. **The listen does not discharge this** — the one item that carries the
+   rule is synthetic, so what was confirmed is the rule's direction, not its reach.
+5. **§13 row 5 stays open and now has evidence pointing away from the shipped constant.** One wav
+   exists at 4 boundaries (`s04`, `base` against `lb-comma`) and **`,` won it, blind** **[heard]** —
+   against `COND_CUTOFF = 4`, which picks `.` there. 5, 6 and 7 are still empty. See the
+   [DECISION](#decision)'s cutoff gap for why the constant was not simply moved.
+6. **A finding §4.2 predicted and did not name: two interactions exist, they are on a real item, and
+   they have now been heard and tolerated.** Axis 1 strips the backticks axis 8 relies on stepping
+   over, so inside `settled` — and only inside `settled` — `` `$CLAUDISH_OLLAMA` `` becomes
+   `, $, claudish_ollama,` and `` `curl -K` `` becomes `, curl , -K,`, both on `r11`
+   **[measured-here]**. **`r11:settled` was then played blind and `settled` won** **[heard]**: the
+   artifacts did not cost the pair. That is *tolerated*, not *absent* — one listener, one item, and
+   the shapes remain in the output. §4.3's *"ships free of regression risk, a measured no-op on all
+   twelve real rewrites"* is true of `flag-pause` on `base` and **still false of `flag-pause` inside
+   the settled set**; that sentence needs the qualifier regardless of `r11`'s verdict, because the
+   other half of the inversion was never played: axis 7 removes `r14`'s carrier before axis 8 sees
+   it, so **`r14` is a no-op inside `settled`** while `r11` is not.
 7. **§15's "axis 2 … the most likely error is on paragraph runs" stands, and now names a choice**:
    one run per message, paragraph breaks counted like list breaks, no blank-line special case — the
-   §4.1 clause-3 reading, adopted with its evidence (`r09`, a tie) stated as thin.
+   §4.1 clause-3 reading, adopted with its evidence (`r09`, a tie) stated as thin. **The listen does
+   not improve this**: no paragraph-heavy item was played on axis 2.
+8. **§4.3 needs a new open condition that no section currently carries: a slash-terminated path.**
+   Found by ear on `r06` during this listen **[heard]**, not by any measurement here. Axis 3 ships as
+   `path-short-nolead` and **no path rule looks at a trailing `/`** **[repo]**. Details, mechanism and
+   a candidate rule are in the [DECISION](#decision); nothing is implemented.
 
 ---
 
@@ -354,6 +412,15 @@ All of it here, none of it heard. Reproduce with the commands under [How to list
 items under both `--boundary .` and `--boundary ,`, old file against new: **byte-identical, 26 for
 26** **[measured-here]**. The only shared code that moved is rule B's pattern, hoisted to a module
 constant so B′ counts exactly what B replaces.
+
+**Re-run after the PR-review fix to `count_boundaries`** (see [the rule as
+implemented](#the-rule-as-implemented)). Same comparison, widened to **all 28** including `lb-auto`
+and `settled`, both boundary settings: **byte-identical, 28 for 28 over 54 items**, and **no item's
+boundary count changed** — `s38` 3, `s04` 4, `s37` 8 before and after **[measured-here]**. The fix is
+a refactor with no reach into the corpus, so no wav was re-synthesized and every duration in the
+table below is still the duration of the file that was heard. Re-synthesis of `s38` under `base`,
+`lb-auto` and `settled` as a live check: **3 OK, 0 CRASH, 0 ERROR**, one batch of 112 phonemes each
+**[measured-here]**.
 
 **Crash safety.** Phonemised every item under both `base` and `settled` with kokoro-onnx's own
 tokenizer and split it with `Kokoro._split_phonemes`: the worst batch under `settled` is **509**
@@ -389,15 +456,152 @@ about §4's 0.86 s median, which is a pipelined, warm, resident-worker number
 
 ## DECISION
 
-*Empty. The confirmation listen has not happened.*
+**The listen happened. `settled` ships.** Section 5 was played blind on **2026-08-25**, voice
+`bf_emma`, **all 14 pairs scored** — thirteen between **15:18 and 15:54 UTC** and `r11` in a
+single-pair re-listen afterwards. The export is committed at
+[`audition-verdicts-11.tsv`](audition-verdicts-11.tsv) **[repo]**; it is that file, not this prose,
+that is the record.
 
-**What closes it:** play section 5 blind, record a verdict on each of the 14 pairs, export the TSV
-from the page's Export panel to `docs/decisions/audition-verdicts-11.tsv`, and write the outcome
-here.
+**`settled` won every pair it was in: 9–0** **[heard]**.
 
-**What a clean result means:** no axis reopens, §13 row 1 closes, and the sanitizer that ships is
-`settled` exactly as registered.
+| pair | verdict | preferred |
+| --- | --- | --- |
+| `r03:settled` | B is better | **`settled`** |
+| `r06:settled` | B is better | **`settled`** |
+| `r09:settled` | A is better | **`settled`** |
+| `r11:settled` | B is better | **`settled`** |
+| `r13:settled` | A is better | **`settled`** |
+| `s03:settled` | A is better | **`settled`** |
+| `s13:settled` | B is better | **`settled`** |
+| `s28:settled` | B is better | **`settled`** |
+| `s38:settled` | B is better | **`settled`** |
 
-**What a dirty result means:** the finding is an **interaction**, named by which pair carried it —
-and group C exists so that a bad `s03:settled` can be attributed to axis 1 or axis 9 rather than
-argued about. For `r11` the attribution is already done, in text, above.
+Nine for nine, five of them **real** rewrites, and the composition was never once beaten by `base`.
+Sides alternated across the nine — `settled` was A on three and B on six **[repo]** — so the sweep is
+not a side bias.
+
+**The sanity pair passed.** `r06:none`, `base` against untouched text: **`base` preferred**
+**[heard]**. Sanitizing beats raw. The instrument was measuring something.
+
+### What this closes
+
+1. **No axis reopens.** Every margin in [the axis-by-axis table](#settled-axis-by-axis) stands, and
+   nothing here is a re-vote. That was the precondition for a clean result and it held.
+2. **§13 row 1 closes.** B′ exists, the combination is registered, the confirmation listen happened.
+   All three clauses discharged.
+3. **The sanitizer that ships is `settled` exactly as registered** — the nine axis values in that
+   table, composed in `_pipeline`'s order, no edits. **One qualifier, and it is not a change to the
+   composition:** the *cutoff constant inside* B′ is now contradicted by the only wav that has ever
+   tested it. See gap 1.
+4. **Axis 2's "never heard" caveat comes off.** B′ as shipped was heard in isolation against `base` on
+   `s38` and won **[heard]**. Axis 2 is no longer the one axis adopted without a wav behind it.
+5. **The boundaries reading of §4.1 clause 3 is confirmed by ear**, on the single corpus item that can
+   confirm it. `s38` is the only one of 54 where the segment count and the boundary count produce
+   different characters **[measured-here]**, and it went to boundaries. The proposed replacement text
+   is item 2 of [what §4.2 will need to say](#what-42-of-the-spec-will-need-to-say).
+6. **Group C's triangulation came back consistent, not diagnostic.** `s03:tick-pause` → **`tick-pause`
+   preferred**; `s03:ext-word` → **`ext-word` preferred** **[heard]**. Both halves of the composition
+   §4.2 names win alone on `s03`, and the whole thing wins on `s03` too. There was no bad pair to
+   attribute, so the triangulation was never needed — it is recorded as a negative result, which is
+   the outcome it was built to be able to have.
+7. **`r11`'s measured interaction was heard and did not cost the pair.** `r11` is the item carrying
+   the axis-1 × axis-8 artifacts — `` `$CLAUDISH_OLLAMA` `` → `, $, claudish_ollama,` and
+   `` `curl -K` `` → `, curl , -K,`, produced by neither rule alone. Blind, **`settled` still beat
+   `base` on `r11`** **[heard]**. **State that at its real strength:** the artifacts were not audible
+   enough to lose a pair, on one item, to one listener. That is **tolerated, not harmless**. The
+   shapes are still in the output, they are still the mechanism §4.2 warned about, and §4.3's
+   *"ships free of regression risk, a measured no-op on all twelve real rewrites"* is **still false as
+   written** — because its other half, the `r14` no-op where axis 7 eats the carrier before axis 8
+   sees it, was never played in this listen at all. The fix, if it is ever wanted, remains a
+   rule-scope change, not a re-vote.
+
+### Open gap 1 — the cutoff is contradicted at 4, and was not moved
+
+**`s04:lb-comma` → `lb-comma` preferred, blind** **[heard]**. This is the one result of the round that
+goes against the file.
+
+`s04` is the seam and the corpus's only wav between 3 and 8 boundaries. It has **4** boundaries, so
+B′ as shipped picks `.` — which on this item is byte-identical to `base` **[measured-here]**. The pair
+was therefore `base`/`settled`'s character against the comma, and **the comma won**. The document
+wrote the conditional down in advance: *"If `,` wins here, the count wants to exclude a closing line,
+or the cutoff wants to be 5."*
+
+**`COND_CUTOFF` is left at 4** — deliberately, and this is the decision, not an omission:
+
+- **One wav cannot pick between the two repairs.** `s04` is *"a lead-in line, three bullets and a
+  closing sentence"*: 4 boundaries, 3 bullets. A cutoff of 5 explains the verdict. So does a count
+  that excludes a trailing non-list line, which would make `s04` count 3. **Both predict `,` here**,
+  and they diverge on shapes the corpus does not contain. Moving the constant would silently pick one.
+- **It is one wav at the very edge of a gap that is still empty at 5, 6 and 7.** §13 row 5 asked for
+  the band to be filled; it now has one point, at one end.
+- **Changing it would invalidate the sweep above.** `lb-comma` differs from `base` on 17 of 54 items
+  **[measured-here]**, so a cutoff of 5 changes what `settled` does to items in group A that were
+  just heard as `settled`. That is a new set, not an amendment to this one.
+
+**So: §13 row 5 stays open, and it is no longer merely unaudited — it is contradicted at 4.** The next
+listen on this axis wants wavs at 5, 6 and 7, and an `s04` variant with the closing line removed to
+separate the two repairs. The constant is one named line in `bench/sanitizers.py`, and the comment
+there now carries the verdict against it **[repo]**.
+
+### Open gap 2 — a slash-terminated path has no pause, found by ear in a shipped axis
+
+**This is the round's genuinely new finding, and it came from the listener, not from a measurement.**
+Recorded verbatim, on the `r06:none` pair:
+
+> I think a pause is needed after the path if a `path/` ends with a slash. Now it sounds like
+> `research/branches`
+
+**What is in the text.** `r06` says *"save their work to local `` `research/*` `` branches"*. Under
+`base`, axis 4's markdown strip removes the `*` and leaves `` `research/` ``; the slash is silent, so
+"research" runs straight into "branches" and the ear reconstructs a two-segment path,
+`research/branches` — a path that is not in the message **[measured-here]**.
+
+**Which rule owns it: axis 3, `path-short-nolead`, and it does not fire at all.** `_PATH_RE` requires
+`(?:SEG/)+SEG`, so a slash-*terminated* path is never matched as one unit **[repo]**:
+
+| input | `settled` output | why |
+| --- | --- | --- |
+| `research/` | `research/` | no match — nothing follows the final `/` |
+| `~/research/` | `~/research/` | same |
+| `docs/decisions/notes/` | `decisions/notes/` | matches `docs/decisions/notes`, the trailing `/` sits outside the match and survives |
+
+**There is no trailing-slash handling anywhere in `bench/sanitizers.py`** — no `endswith("/")`, no
+`rstrip("/")`, nothing **[repo]**. So this is a real gap in an axis that ships, at `4–0` **[heard]**,
+and the gap was invisible to every measurement in this document.
+
+**Why it did not sink `r06:settled`, and why that is not a defence.** On `r06` the token is
+*backticked*, so axis 1 (`tick-pause`) sets it off and the settled output is `, research/, branches` —
+there *is* a pause, supplied by a different axis, by luck **[measured-here]**. A slash-terminated path
+**outside** backticks gets nothing: `settled` leaves *"Saved to research/ branches"* exactly as it is
+**[measured-here]**. The defect is latent in the shipped set and `r06` happens not to expose it.
+
+**Candidate rule, a sketch and nothing more.** After rule P, append a `BOUNDARY_CHARS` member — `,`,
+for the same reason axis 1 and axis 8 use one — to a path token that ends in `/`, so the following
+word cannot fuse onto it. Two things would have to be settled first: `_PATH_RE` has to be widened to
+*see* a slash-terminated path before any of this can reach `research/` or `~/research/`; and the comma
+must not double up where axis 1 has already set the span off, which is `_tidy_commas`' job.
+
+**Not implemented, and no wav was synthesized for it.** Whether it gets a round-4 listen is the
+listener's call and is **open**. Nothing about it is heard except the one report above — which is a
+listener's diagnosis of a cause, not an A/B verdict, and it is labelled that way on purpose.
+
+### What was not established
+
+- **Nothing about the paragraph case on axis 2.** No paragraph-heavy item was played on this axis;
+  `r09`'s tie from #8 is still the only evidence and §15 still names it the likeliest error.
+- **Nothing about `flag-pause`'s reach on real text.** Its intended value still rests on `s28` and
+  three other synthetic items; §4.3's closing condition is unchanged.
+- **Nothing about B′'s reach on real text.** It is still a measured no-op on all 14 real rewrites; the
+  one item that carries it is synthetic. What was confirmed is direction, not reach.
+- **Nothing about `MD-FENCE-MULTI`,** and nothing about TTFA or §10.5.
+- **The 4–7 band is still nearly empty:** one point, at 4, and it went against the file.
+
+### A note on the timestamps
+
+The `judged_at` column is the page's serialization stamp, not an independent record of when a pair was
+heard. For `r11` it reads `16:40:08.540Z` against an export stamp of `16:40:08.541Z` — 1 ms apart,
+where round 3's last verdict and its export were 8.7 s apart **[repo]**. Treat the column as ordering,
+not as timing. The `r11` verdict itself is the listener's, reported directly, and its sides were
+confirmed against the served page's own `"base_side": "a"` for `r11:settled` under the same
+`2026-08-25 14:42 UTC` page generation that round 3 was scored on — so no pair was re-rendered or
+reshuffled between the two listens **[repo]**.

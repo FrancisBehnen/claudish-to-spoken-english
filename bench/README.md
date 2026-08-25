@@ -219,10 +219,12 @@ same item twice, back to back, plays both, and puts them on adjacent rows of the
 **Two of the 28 were added for #11, and they close the gap the paragraph below used to describe.**
 Rule B′ — the conditional boundary, `,` on a short run and `.` on a long one — is implemented and
 selectable as `lb-auto`; the composition that would actually ship is registered as `settled` and is
-synthesized in `audition-11/`. **It has not been heard yet**: the confirmation listen is the
-listener's, and until it happens `settled` is a set of individually-auditioned rules whose
-*interactions* are unheard. See
-[`docs/decisions/settled-set-audition.md`](../docs/decisions/settled-set-audition.md).
+synthesized in `audition-11/`. **It has now been heard.** The confirmation listen ran 2026-08-25,
+blind, on `bf_emma`: `settled` was preferred on **all nine** pairs it appeared in, and B′ won in
+isolation on `s38`. Two gaps stayed open — the `COND_CUTOFF` position, which one wav at 4 boundaries
+contradicts, and a slash-terminated path that no axis-3 rule sets off. See
+[`docs/decisions/settled-set-audition.md`](../docs/decisions/settled-set-audition.md), whose DECISION
+block is the record.
 
 **The other 26 are still one-axis-at-a-time variants and none of them is the settled set.** That is
 deliberate and stays: each moves exactly one axis against `base`, which is what made its pair

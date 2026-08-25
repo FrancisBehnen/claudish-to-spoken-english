@@ -237,21 +237,32 @@ def rule_B_newlines_to_punct(text: str, boundary: str) -> str:
 
 CONDITIONAL = "auto"  # the `Axes.boundary` sentinel that selects rule B'
 
-# `,` at or below this many boundaries, `.` at or above it. The POSITION of
-# this cutoff is the listener's placement inside a gap, not an audited result:
-# nothing between 4 and 7 has ever been synthesized (spec §13 row 5). One
+# `,` STRICTLY BELOW this many boundaries, `.` at or above it -- the branch is
+# `n >= COND_CUTOFF`, so 4 boundaries take `.`. The POSITION of this cutoff is
+# the listener's placement inside a gap, not an audited result: nothing between
+# 4 and 7 had ever been synthesized when it was chosen (spec §13 row 5). One
 # constant, so moving it is one edit.
+#
+# HEARD 2026-08-25, and it disagrees with the value here: on `s04`, the corpus's
+# only wav at 4 boundaries, the listener preferred `,` blind. See the DECISION in
+# `docs/decisions/settled-set-audition.md`. Not moved here, because what the
+# verdict cannot distinguish is "the cutoff wants to be 5" from "the count wants
+# to exclude a closing line", and one wav at the edge of the gap does not pick
+# between them. §13 row 5 stays open with this as its first evidence.
 COND_CUTOFF = 4
-
-# Rule B's own pattern, restricted to breaks that separate two items: a break
-# at the very end of the text separates the last item from nothing, and a
-# trailing newline would otherwise inflate every count by one.
-_B_INNER_BREAK_RE = re.compile(r"(?<=\S)[ \t]*\n+[ \t]*(?=\S)")
 
 
 def count_boundaries(text: str) -> int:
-    """How many line-break boundaries rule B would plant between two items."""
-    return len(_B_INNER_BREAK_RE.findall(text))
+    """How many line-break boundaries rule B would plant between two items.
+
+    Counted from `_B_BREAK_RE`, rule B's OWN compiled pattern, so that any
+    change to what rule B treats as a break flows into the count instead of
+    having to be mirrored into a second pattern. The only thing subtracted is
+    the one intentional exclusion: a match reaching the end of the text is a
+    break that separates the last item from nothing, and a trailing newline
+    would otherwise inflate every count by one.
+    """
+    return sum(1 for m in _B_BREAK_RE.finditer(text) if m.end() < len(text))
 
 
 def rule_Bprime_conditional(text: str, fallback: str) -> str:
