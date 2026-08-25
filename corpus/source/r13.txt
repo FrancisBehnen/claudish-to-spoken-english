@@ -1,0 +1,24 @@
+Step 1 complete.
+
+```
+4cb5828..446eefc  main -> main
+```
+
+`origin/main` is at `446eefc`, and the remote now serves `name: claudish-tts`, `owner: Francis Behnen`, with the README's install line reading `/plugin install claudish-to-english@claudish-tts`. The fast-forward was clean — no merge commit.
+
+I also confirmed the rename is genuinely reachable from the marketplace clone's side, so step 2 won't come up empty: fetching `origin/main` there now resolves `446eefc` and reads `claudish-tts` out of the manifest.
+
+Your turn — step 2, in this order:
+
+```
+/plugin marketplace remove gvzdv-plugins
+/plugin marketplace add FrancisBehnen/claudish-to-spoken-english
+/plugin install claudish-to-english@claudish-tts
+/reload-plugins
+```
+
+That `add` also closes the staleness gap: the clone is 39 commits behind its own origin (26 real commits — the 39 is that shallow-clone artifact again), so this pulls in all the TTS work at the same time.
+
+Two things afterward and I'll be out of your way:
+- Ping me and I'll sweep the stale `settings.json` keys (`extraKnownMarketplaces["gvzdv-plugins"]` and `enabledPlugins["claudish-to-english@gvzdv-plugins"]`) and confirm the new ones landed.
+- The worktree at `/Users/francis.behnen/Code/ctse-rename` is now redundant since the branch is merged. Say so and I'll `git worktree remove` it and delete the local branch.

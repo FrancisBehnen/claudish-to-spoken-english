@@ -1,0 +1,22 @@
+Nothing gets hidden. When your message is too long, ollama refuses it completely instead of cutting it off:
+
+```
+400  exceed_context_size_error
+"request (6826 tokens) exceeds the available context size (4096 tokens)"
+```
+
+The hook fails, so you see Claude's original text in full, plus this warning once per session:
+
+> ⚠️ claudish-to-english: ollama returned an error: … exceeds the available context size (4096 tokens) … Showing Claude's original text unchanged.
+
+So it's all or nothing. Either the whole thing gets rewritten, or you see the original. Nothing disappears quietly.
+
+There's another failure mode where the output itself is too long. In that case, ollama returns `done_reason: "length"`, and the partial rewrite gets thrown away instead of shown. No half-finished output.
+
+The limit is real. The math works out to about 1,300–1,400 words per message. Most of what I write is 600–900 words, so rewrites usually work fine. Anything longer gets the original unchanged.
+
+The fix is simple. Your plist already has flash attention and 8-bit KV cache turned on. Just add `OLLAMA_CONTEXT_LENGTH=16384` to raise the limit to about 5,500 words. It'll use maybe 0.5–1 GB more memory — you'd be at 3.5–4 GB total, still fine next to Kokoro.
+
+Want me to add that line to the plist and restart? It's just service config, so nothing else changes.
+
+I cleaned up the test artifacts. The repo is back to just your original untracked `.playwright-cli/` folder.
