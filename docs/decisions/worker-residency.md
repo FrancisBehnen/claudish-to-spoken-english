@@ -40,6 +40,7 @@ made about thirty two-word Haiku turns, whose only purpose was to make a hook fi
 | **[hook]** | a `Stop` hook fired by Claude Code 2.1.245 in a driven session, 2026-08-25, its own clock read in-process | proves what **this** hook did on **this** machine on **this** build; a stopwatch reading, not a claim about other hardware |
 | **[bench]** | `bench/first-sentence.py`, re-run the same afternoon on the same machine as a control | establishes that today's machine reproduces §4's published figures, so the two are comparable |
 | **[obs]** | a one-off observation outside the driven session — a `bind()` that failed, eight processes racing, a pid still alive | proves a thing **happened once**; a single sample can never prove a thing always happens |
+| **[rig]** | read out of the throwaway probe's own source — `speakd.py`, `speak-probe.sh`, `warm-probe.sh` — which is **not** in this repository | proves what the thing that produced the numbers above actually did; it is not evidence about any shipped file, and the probe is not the specification |
 | **[repo]** | read out of this repository's own files | proves what the code says, not what it does |
 | **[inferred]** | a reading, not a run | the weakest tag here; used where I could not measure |
 
@@ -143,9 +144,72 @@ So: **the hook writes the job to a temp name in the speak dir and `mv`s it onto 
 `rewrite.sh`'s own idiom, it is inside the depth-2 directory §3.1 already reclaims, and `rename(2)`
 within a directory is atomic.
 
-**Latest-wins falls out for free, and it is exactly §10.6.** Eight hooks dropping eight jobs leave one
-job — the last one to land. **[obs]**: eight simultaneous hooks against an empty speak dir produced
-**one** utterance, and it was the newest job's.
+**What the producer rename buys is coalescing, and coalescing is not §10.6.** An earlier draft of this
+document said latest-wins "falls out for free, and it is exactly §10.6". That was wrong on both halves.
+It was caught in review of this PR, the review was right, and the corrected account is the subsection
+below — which is now the most intricate part of the mechanism and was previously its most hand-waved.
+
+### 1b. Coalescing, claiming, and what §10.6 actually needs
+
+A rename onto `speak/job` replaces whatever is at that path. That settles exactly one of the three ways
+a newer job can arrive:
+
+| a newer job arrives while the older one is… | what the producer rename settles |
+| --- | --- |
+| **unconsumed** — still sitting at `speak/job` | settled: the older text is replaced and never spoken. *n* drops, one utterance |
+| **being synthesized** — claimed, inside a blocking `create()` | nothing. The rename cannot un-claim it |
+| **playing** — `create()` done, player running | nothing. The rename cannot stop a process |
+
+**[obs]** covers row one and only row one: eight simultaneous hooks against an empty speak dir produced
+**one** utterance, and it was the newest job's. That is a *coalescing* result. The worker was cold, all
+eight renames landed inside its 1.33–2.02 s startup, and **nothing had been consumed while they raced**
+— so the observation is silent about rows two and three, which the driven session never exercised
+either: turns were issued sequentially, one job per turn.
+
+Rows two and three need three further things, and only the first of them was in the probe.
+
+**(a) The consumer needs its own atomic step. The probe had one; the earlier draft failed to write it
+down.** `speakd.py` claims a job by `os.rename(job, job.taken.<pid>)` and then unlinks *that private
+name* — never `speak/job` (**[rig]**, `read_job()`). This is load-bearing rather than tidy: a worker
+that read `speak/job` and then unlinked `speak/job` would delete a job a hook had renamed into place
+between the read and the unlink, and that job is then **lost outright** — no further rename is coming,
+and the kqueue event that announced it has already been spent. Review of this PR raised exactly that
+failure mode. It does not occur in what was measured, but only because of a line the design text
+omitted, so: **the claim rename is part of the mechanism, not an implementation detail.**
+
+**(b) Re-check for a newer job after synthesis and before spawning the player.** **[inferred]** — this
+is reasoned, not measured, and it is the piece that actually delivers row two. The probe's loop calls
+`read_job()` only at the top, so a job arriving mid-`create()` goes unnoticed until the older utterance
+has been synthesized *and spawned*; the stale audio starts, and dies only when the newer job's own
+synthesis completes. One `stat()` of `speak/job` between `create()` returning and `Popen` fixes it: if a
+newer job is waiting, **discard the finished wav and never play it.** The window in which a badly-timed
+arrival still produces audible stale speech shrinks from the whole of `create()` — **0.49–4.23 s** on
+the rows measured here — to the gap between that `stat()` and the spawn, which is the measured spawn
+cost, **6–38 ms, median 8.9 ms** (n = 38). That narrows the race by two to three orders of magnitude.
+It does not close it, and saying otherwise would repeat the mistake this subsection exists to correct.
+
+**(c) Keep §10.6's `speak/pid` and its hook-side kill, and reassign only the writer.** **[inferred]**.
+Row three — a newer message while the older is *playing* — is the case §10.6 already specifies, and its
+mechanism survives residency intact: the pid file at `$BUF_ROOT/<session_id>/speak/pid`, killed by the
+next hook invocation before it drops its job. What changes is **who writes it.** §10.6 says "the speech
+child"; under residency there is no per-turn speech child, so **the worker writes the player's pid
+there** after spawning it. With that, playback already in progress dies within the hook's own wall cost
+— **median 0.086 s, max 0.219 s** measured — which is a *tighter* bound than the worker-side kill the
+probe used, because the hook runs before the worker has noticed anything at all. The probe put the kill
+in the worker (**[rig]**, `speak()`: `_PREV_PLAYER.kill()`), which works and is simpler, but pays the
+newer job's entire synthesis first. **§10.6 as written is the better design on this axis and residency
+should not quietly drop it.**
+
+**What remains genuinely OPEN, and it is smaller than it looks.** Interrupting an in-flight `create()`
+is not solved by any of (a)–(c), and I am **not** specifying it: the two candidates I can see both carry
+costs nothing here has measured — synthesizing in a killable child forfeits the residency this document
+just bought, since the child cannot hold the model, and chunking the text to check between chunks
+interacts with `kokoro_onnx._split_phonemes` in ways nobody has looked at. But note what (b) and (c)
+leave for it to do. With them, **no stale utterance is played and §10.6's semantics hold**; what
+synthesis cancellation would additionally buy is only the *newer* utterance's latency — up to one wasted
+`create()`, 0.49–4.23 s, of delay. That is a performance question, not a correctness one. **Routed to
+§10.6 as OPEN with that reduced scope stated.** The measurement that would confirm or refute (b) and (c)
+is named in *What I could not measure* below.
 
 ### 2. The election is `mkdir`, and it lives in the worker
 
@@ -163,7 +227,7 @@ speak dir:
 | elections won | **1** |
 | elections lost, exiting immediately | **7** |
 | workers alive 12 s later | **1** |
-| utterances produced | **1** (the newest job) |
+| utterances produced | **1** (the newest job — that is coalescing of unconsumed jobs, not preemption; §1b) |
 
 **[obs]** — and the interesting half is the first row. The hook's own `[[ -d worker.lock ]] && kill -0`
 pre-check is a **race-prone optimisation and it lost the race eight times out of eight**. It is worth
@@ -379,7 +443,10 @@ The mechanism, in six clauses, each measured above:
 
 1. **Address**: a job file at `$BUF_ROOT/<session_id>/speak/job`, written to a temp name and `mv`d
    into place. **Not a socket** — the path is 116 bytes against Darwin's 104-byte `sun_path` and
-   `bind()` fails, observed. Atomic rename gives §10.6's latest-wins preemption for free.
+   `bind()` fails, observed. The producer rename **coalesces unconsumed jobs** — *n* drops, one
+   utterance, observed — and buys nothing about a job already claimed. **The consumer needs its own
+   atomic step**: the worker claims by `rename(job, job.taken.<pid>)` and unlinks only that private
+   name. A read-then-unlink of `job` loses a job renamed in between, irrecoverably (§1b).
 2. **Election**: `mkdir $BUF_ROOT/<session_id>/speak/worker.lock` with the pid inside, performed
    **by the worker**. The hook's pre-check is an optimisation that loses races; the `mkdir` is the
    guarantee. Eight simultaneous hooks → one worker, observed.
@@ -392,10 +459,35 @@ The mechanism, in six clauses, each measured above:
    ~0.7 s on the first real utterance.
 6. **Idle exit** at 30 minutes, matching `rewrite.sh:117`'s sweep. Re-introduces a cold start after
    half an hour of silence.
+7. **Preemption is §10.6's, not §10.5's**, but §10.5 owes it two hooks: the worker writes the player's
+   pid to `speak/pid` so §10.6's hook-side kill still has something to kill, and the worker re-checks
+   `speak/job` after `create()` and before `Popen`, discarding the audio if a newer job is waiting.
+   Both **[inferred]**, neither measured — §1b.
 
 And the closing condition §10.5 set for itself is now met, with this result:
 **cold from a hook is 2.66–5.50 s (median 3.16 s) and fails the 3 s line; warm from a hook is
 0.57–4.01 s (median 1.22 s) and holds it 28 times in 30.**
+
+### §10.6 — two qualifiers, and its pid file survives residency
+
+§10.6 stays LOCKED and this document reopens none of its decisions. It needs two qualifiers, both from
+§1b, because §10.6 was written for a design in which the hook spawned the speech child and could
+therefore kill the previous one itself.
+
+1. **Its `speak/pid` mechanism is still the right one; it now has a different writer.** §10.6 says the
+   pid is "written by the speech child". Under §10.5's mechanism there is no per-turn speech child, so
+   **the resident worker writes the player's pid there** after spawning it, and the next hook invocation
+   kills it exactly as §10.6 already says. Playback in progress therefore dies within the hook's own
+   wall cost, median **0.086 s**. Without this sentence an implementer reads §10.6 and finds nothing
+   left in the design that writes the file.
+2. **"A newer message kills stale playback" needs one more clause to be true.** A message newer than a
+   synthesis *in progress* is not covered by the pid kill — no player exists yet to kill. It is covered
+   by the worker re-checking `speak/job` after `create()` and before `Popen` and **discarding** the
+   finished audio if a newer job is waiting. Add that clause, and state the residual: a job landing
+   inside the **6–38 ms** between that check and the spawn still plays.
+
+Cancelling an in-flight `create()` stays **OPEN** and stays in §10.6 rather than §10.5, with its scope
+reduced to the newer utterance's latency rather than the older one's suppression — §1b.
 
 ### §4 — the headline number survives, restated
 
@@ -443,6 +535,13 @@ cheap: the mechanism already has a warm-up trigger and a wake handler would reus
   expect bash to land in the same band — **but that is an expectation, not a measurement.**
 - **Why `MessageDisplay`'s hook process started after `Stop`'s on a short turn.** Observed, twice,
   reproducibly; unexplained. I did not read the binary for hook dispatch ordering.
+- **Preemption, in every case except coalescing.** Nothing here drove a second job at a worker that had
+  already claimed the first: the driven session issued turns sequentially, and the eight-hook race
+  dropped all eight before any worker was ready. So §1b's rows two and three are **reasoned, not
+  measured**, and §1b's (b) and (c) are proposals rather than results. The measurement owed is small and
+  specific — **fire two `Stop` hooks roughly 0.5 s apart at a warm worker and record whether the older
+  utterance is audible at all** — and it needs the hook-probe rig, which another agent holds an
+  exclusive lease on, so it was not run.
 - **Whether any of this holds on hardware that is not an M3.** Nothing here is portable evidence.
 
 ## One place my expectation was contradicted
