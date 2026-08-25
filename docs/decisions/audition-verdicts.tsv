@@ -1,0 +1,110 @@
+# claudish audition verdicts
+# page generated 2026-08-17 09:26 UTC
+# exported 2026-08-25T09:27:14.438Z
+# blinding is currently ON; the per-row blinding column is the state when THAT verdict was recorded
+# progress: 67/67 pairs, 4/4 voice items, 27/27 length items
+# text_identical / phonemes_identical / wav_identical were measured at generation time and are NOT shown on the page while a pair is blinded
+
+section	axis	item	kind	chars_in	pair	side_a	side_b	reference_side	blinding	verdict	preferred_variant	text_identical	phonemes_identical	wav_identical	phonemes_a_b	note	judged_at
+sanitizer	axis1-ticks	r01	real	268	r01:none	none	base	b	blind	no audible difference		true	true	true	290/290		2026-08-25T07:53:32.272Z
+sanitizer	axis1-ticks	r01	real	268	r01:tick-strip	base	tick-strip	a	blind	A is better	base	false	true	true	290/290		2026-08-25T07:54:52.502Z
+sanitizer	axis1-ticks	r01	real	268	r01:tick-pause	base	tick-pause	a	blind	B is better	tick-pause	false	false	false	290/299		2026-08-25T07:55:23.962Z
+sanitizer	axis1-ticks	r04	real	369	r04:none	base	none	a	blind	no audible difference		false	true	true	440/440		2026-08-25T07:56:29.491Z
+sanitizer	axis1-ticks	r04	real	369	r04:tick-strip	tick-strip	base	b	blind	no audible difference		false	true	true	440/440		2026-08-25T07:58:38.983Z
+sanitizer	axis1-ticks	r04	real	369	r04:tick-pause	tick-pause	base	b	blind	no audible difference		false	false	false	443/440		2026-08-25T08:00:52.070Z
+sanitizer	axis1-ticks	s03	synthetic	185	s03:tick-strip	tick-strip	base	b	blind	no audible difference		false	true	true	206/206		2026-08-25T08:04:29.584Z
+sanitizer	axis1-ticks	s03	synthetic	185	s03:tick-pause	base	tick-pause	a	blind	B is better	tick-pause	false	false	false	206/223		2026-08-25T08:04:58.728Z
+sanitizer	axis2-linebreak	r09	real	1176	r09:none	none	base	b	blind	B is better	base	false	false	false	1580/1277		2026-08-25T08:05:39.519Z
+sanitizer	axis2-linebreak	r09	real	1176	r09:lb-comma	base	lb-comma	a	blind	no audible difference		false	false	false	1277/1277		2026-08-25T08:07:47.068Z
+sanitizer	axis2-linebreak	s37	synthetic	653	s37:lb-comma	base	lb-comma	a	blind	A is better	base	false	false	false	662/662		2026-08-25T08:09:32.712Z
+sanitizer	axis2-linebreak	s38	synthetic	106	s38:none	none	base	b	blind	B is better	base	false	false	false	108/112		2026-08-25T08:09:48.270Z
+sanitizer	axis2-linebreak	s38	synthetic	106	s38:lb-comma	base	lb-comma	a	blind	B is better	lb-comma	false	false	false	112/112		2026-08-25T08:10:11.860Z
+sanitizer	axis3-paths	r06	real	611	r06:none	base	none	a	blind	A is better	base	false	false	false	645/654		2026-08-25T08:12:30.285Z
+sanitizer	axis3-paths	r06	real	611	r06:path-basename	base	path-basename	a	blind	B is better	path-basename	false	false	false	645/616		2026-08-25T08:11:54.574Z
+sanitizer	axis3-paths	r06	real	611	r06:path-shorten	path-shorten	base	b	blind	A is better	path-shorten	false	false	false	632/645		2026-08-25T08:12:48.403Z
+sanitizer	axis3-paths	r06	real	611	r06:path-expand	path-expand	base	b	blind	A is better	path-expand	false	false	false	652/645		2026-08-25T08:15:12.636Z
+sanitizer	axis3-paths	s10	synthetic	172	s10:none	none	base	b	blind	no audible difference		false	true	true	225/225		2026-08-25T08:14:24.024Z
+sanitizer	axis3-paths	s10	synthetic	172	s10:path-basename	base	path-basename	a	blind	B is better	path-basename	false	false	false	225/156		2026-08-25T08:14:50.175Z
+sanitizer	axis3-paths	s10	synthetic	172	s10:path-shorten	path-shorten	base	b	blind	A is better	path-shorten	false	false	false	199/225		2026-08-25T08:15:14.678Z
+sanitizer	axis3-paths	s10	synthetic	172	s10:path-expand	base	path-expand	a	blind	B is better	path-expand	false	false	false	225/252	`hooks.json` should become 'hooks dot json' so that 'json' is pronounced	2026-08-25T08:15:41.529Z
+sanitizer	axis3-paths	s11	synthetic	144	s11:none	base	none	a	blind	no audible difference		false	true	true	199/199		2026-08-25T08:16:56.546Z
+sanitizer	axis3-paths	s11	synthetic	144	s11:path-nolead	base	path-nolead	a	blind	B is better	path-nolead	false	false	false	199/182		2026-08-25T08:17:17.578Z
+sanitizer	axis3-paths	s11	synthetic	144	s11:path-basename	path-basename	base	b	blind	B is better	base	false	false	false	113/199		2026-08-25T08:17:44.350Z
+sanitizer	axis3-paths	s11	synthetic	144	s11:path-expand	base	path-expand	a	blind	A is better	base	false	false	false	199/214		2026-08-25T08:18:03.022Z
+sanitizer	axis3-paths	s12	synthetic	189	s12:none	base	none	a	blind	no audible difference		false	true	true	257/257		2026-08-25T08:18:34.818Z
+sanitizer	axis3-paths	s12	synthetic	189	s12:path-nolead	path-nolead	base	b	blind	A is better	path-nolead	false	false	false	221/257		2026-08-25T08:19:17.692Z
+sanitizer	axis3-paths	s12	synthetic	189	s12:path-basename	base	path-basename	a	blind	A is better	base	false	false	false	257/155		2026-08-25T08:19:35.939Z
+sanitizer	axis3-paths	s12	synthetic	189	s12:path-shorten	base	path-shorten	a	blind	B is better	path-shorten	false	false	false	257/197	if the original text is shown but B is the spoken text, I think that would be the perfect combination	2026-08-25T08:20:30.793Z
+sanitizer	axis3-paths	s12	synthetic	189	s12:path-expand	path-expand	base	b	blind	no audible difference		false	true	true	257/257		2026-08-25T08:21:27.295Z
+sanitizer	axis4-markdown	r09	real	1176	r09:md-swallow	md-swallow	base	b	blind	B is better	base	false	false	false	1473/1277		2026-08-25T08:24:38.148Z
+sanitizer	axis4-markdown	r09	real	1176	r09:md-strip-plus	md-strip-plus	base	b	blind	B is better	base	false	false	false	1265/1277		2026-08-25T08:24:22.434Z
+sanitizer	axis4-markdown	s01	synthetic	171	s01:none	none	base	b	blind	B is better	base	false	false	false	263/162		2026-08-25T08:25:47.322Z
+sanitizer	axis4-markdown	s01	synthetic	171	s01:md-swallow	md-swallow	base	b	blind	B is better	base	false	false	false	263/162		2026-08-25T08:25:57.935Z
+sanitizer	axis4-markdown	s01	synthetic	171	s01:md-strip-plus	md-strip-plus	base	b	blind	no audible difference		false	true	true	162/162		2026-08-25T08:26:33.062Z
+sanitizer	axis4-markdown	s02	synthetic	209	s02:md-swallow	md-swallow	base	b	blind	B is better	base	false	false	false	255/231		2026-08-25T08:26:45.162Z
+sanitizer	axis4-markdown	s06	synthetic	261	s06:md-strip-plus	md-strip-plus	base	b	blind	no audible difference		false	true	true	282/282		2026-08-25T08:27:22.928Z
+sanitizer	axis5-scream	r11	real	2370	r11:scream-asis	base	scream-asis	a	blind	no audible difference		false	true	true	2939/2939		2026-08-25T08:28:42.141Z
+sanitizer	axis5-scream	r11	real	2370	r11:scream-spell	scream-spell	base	b	blind	B is better	base	false	false	false	3080/2939		2026-08-25T08:29:31.530Z
+sanitizer	axis5-scream	s15	synthetic	203	s15:none	none	base	b	blind	B is better	base	false	false	false	251/228		2026-08-25T08:30:01.000Z
+sanitizer	axis5-scream	s15	synthetic	203	s15:scream-asis	base	scream-asis	a	blind	A is better	base	false	false	false	228/251		2026-08-25T08:30:17.617Z
+sanitizer	axis5-scream	s15	synthetic	203	s15:scream-spell	scream-spell	base	b	blind	B is better	base	false	false	false	398/228		2026-08-25T08:30:23.239Z
+sanitizer	axis5-scream	s15	synthetic	203	s15:scream-drop	scream-drop	base	b	blind	B is better	base	false	false	false	137/228	B would be even better if it gets a comma before and after the flag name I think, like what you did with variables in `backticks`	2026-08-25T08:30:32.465Z
+sanitizer	axis5-scream	s16	synthetic	162	s16:scream-spell	scream-spell	base	b	blind	B is better	base	false	false	false	292/248		2026-08-25T08:31:55.084Z
+sanitizer	axis5-scream	s16	synthetic	162	s16:scream-drop	base	scream-drop	a	blind	A is better	base	false	false	false	248/229		2026-08-25T08:32:15.806Z
+sanitizer	axis6-urls	r09	real	1176	r09:url-full	base	url-full	a	blind	A is better	base	false	false	false	1277/1395		2026-08-25T08:33:36.307Z
+sanitizer	axis6-urls	r09	real	1176	r09:url-domain	url-domain	base	b	blind	A is better	url-domain	false	false	false	1289/1277		2026-08-25T08:34:29.218Z
+sanitizer	axis6-urls	s26	synthetic	229	s26:none	none	base	b	blind	B is better	base	false	false	false	416/132		2026-08-25T08:34:46.398Z
+sanitizer	axis6-urls	s26	synthetic	229	s26:url-full	url-full	base	b	blind	B is better	base	false	false	false	416/132		2026-08-25T08:34:54.308Z
+sanitizer	axis6-urls	s26	synthetic	229	s26:url-domain	url-domain	base	b	blind	A is better	url-domain	false	false	false	167/132		2026-08-25T08:35:13.876Z
+sanitizer	axis7-code	r07	real	669	r07:none	none	base	b	blind	B is better	base	false	false	false	872/891		2026-08-25T08:36:42.756Z
+sanitizer	axis7-code	r07	real	669	r07:cb-long	cb-long	base	b	blind	B is better	base	false	false	false	739/891		2026-08-25T08:37:40.766Z
+sanitizer	axis7-code	r07	real	669	r07:cb-count	cb-count	base	b	blind	A is better	cb-count	false	false	false	733/891		2026-08-25T08:38:38.708Z
+sanitizer	axis7-code	r07	real	669	r07:cb-short	cb-short	base	b	blind	B is better	base	false	false	false	721/891		2026-08-25T08:39:23.458Z
+sanitizer	axis7-code	r07	real	669	r07:cb-silent	cb-silent	base	b	blind	B is better	base	false	false	false	709/891		2026-08-25T08:39:45.309Z
+sanitizer	axis7-code	s07	synthetic	250	s07:cb-long	cb-long	base	b	blind	B is better	base	false	false	false	233/382		2026-08-25T08:40:00.524Z
+sanitizer	axis7-code	s07	synthetic	250	s07:cb-count	base	cb-count	a	blind	B is better	cb-count	false	false	false	382/227		2026-08-25T08:40:19.860Z
+sanitizer	axis7-code	s07	synthetic	250	s07:cb-short	base	cb-short	a	blind	B is better	cb-short	false	false	false	382/215		2026-08-25T08:40:28.917Z
+sanitizer	axis7-code	s07	synthetic	250	s07:cb-silent	base	cb-silent	a	blind	A is better	base	false	false	false	382/203		2026-08-25T08:40:33.638Z
+sanitizer	axis7-code	s39	synthetic	483	s39:cb-long	cb-long	base	b	blind	A is better	cb-long	false	false	false	270/652		2026-08-25T08:41:03.369Z
+sanitizer	axis7-code	s39	synthetic	483	s39:cb-count	cb-count	base	b	blind	A is better	cb-count	false	false	false	265/652		2026-08-25T08:41:17.827Z
+sanitizer	axis7-code	s39	synthetic	483	s39:cb-short	cb-short	base	b	blind	A is better	cb-short	false	false	false	250/652		2026-08-25T08:41:37.973Z
+sanitizer	axis7-code	s39	synthetic	483	s39:cb-silent	cb-silent	base	b	blind	B is better	base	false	false	false	238/652		2026-08-25T08:42:04.903Z
+sanitizer	axis7-code	s40	synthetic	294	s40:cb-long	cb-long	base	b	blind	A is better	cb-long	false	false	false	235/376		2026-08-25T08:42:35.554Z
+sanitizer	axis7-code	s40	synthetic	294	s40:cb-count	cb-count	base	b	blind	A is better	cb-count	false	false	false	230/376		2026-08-25T08:42:41.901Z
+sanitizer	axis7-code	s40	synthetic	294	s40:cb-short	base	cb-short	a	blind	B is better	cb-short	false	false	false	376/216		2026-08-25T08:42:46.363Z
+sanitizer	axis7-code	s40	synthetic	294	s40:cb-silent	base	cb-silent	a	blind	A is better	base	false	false	false	376/204		2026-08-25T08:42:54.911Z
+
+section	item	chars_in	blinding	winner_voice	eliminated_voices	note	judged_at
+voice	r03	334	blind	bf_emma	af_nicole af_bella af_heart am_michael		2026-08-25T09:09:05.662Z
+voice	r04	369	blind	bf_emma	af_nicole		2026-08-25T09:09:02.480Z
+voice	r06	611	blind	bf_emma			2026-08-25T09:09:36.815Z
+voice	r11	2370	blind	bf_emma			2026-08-25T09:10:27.291Z
+
+section	group	item	chars_in	audio_s	verdict	note	judged_at
+length	ACK	ack01	23	1.45	not worth speaking		2026-08-25T09:13:53.007Z
+length	ACK	ack02	50	2.82	not worth speaking		2026-08-25T09:13:51.871Z
+length	ACK	ack03	61	3.37	not worth speaking		2026-08-25T09:13:50.863Z
+length	ACK	ack04	74	3.58	not worth speaking		2026-08-25T09:13:49.866Z
+length	ACK	ack05	90	5.21	not worth speaking		2026-08-25T09:13:48.673Z
+length	ACK	ack06	130	8.11	not worth speaking		2026-08-25T09:13:48.022Z
+length	ACK	ack07	177	10.50	worth speaking		2026-08-25T09:12:49.759Z
+length	ACK	ack08	240	15.62	worth speaking		2026-08-25T09:12:50.415Z
+length	CORPUS	fct01	40	2.50	not worth speaking		2026-08-25T09:14:09.092Z
+length	CORPUS	s09	48	4.14	not worth speaking		2026-08-25T09:14:08.259Z
+length	CORPUS	fct03	95	5.38	not worth speaking		2026-08-25T09:14:16.421Z
+length	CORPUS	fct02	71	5.40	not worth speaking		2026-08-25T09:14:24.859Z
+length	CORPUS	fct04	100	7.91	not worth speaking		2026-08-25T09:14:31.593Z
+length	CORPUS	s21	122	12.01	unsure		2026-08-25T09:14:39.555Z
+length	CORPUS	fct05	115	12.39	not worth speaking		2026-08-25T09:14:59.081Z
+length	CORPUS	fct07	147	13.25	not worth speaking		2026-08-25T09:15:31.407Z
+length	CORPUS	s32	240	13.40	unsure		2026-08-25T09:15:50.079Z
+length	CORPUS	s15	203	13.74	worth speaking		2026-08-25T09:16:06.438Z
+length	CORPUS	s33	244	14.02	unsure		2026-08-25T09:16:25.835Z
+length	CORPUS	fct06	147	14.78	not worth speaking	I feel like I'm selecting here for whether it's a status update or a final message from claude. From these small bits it feels like it would only make sense to verbalize the final message, but maybe if there are way longer updates that would also make sense.	2026-08-25T09:16:58.245Z
+length	CORPUS	fct08	228	15.87	not worth speaking		2026-08-25T09:19:24.950Z
+length	PAIR	raw-r01	241	15.21	not worth speaking		2026-08-25T09:26:08.280Z
+length	PAIR	rew-r01	268	16.51	not worth speaking		2026-08-25T09:26:26.774Z
+length	PAIR	rew-r03	334	20.80	not worth speaking		2026-08-25T09:26:51.134Z
+length	PAIR	raw-r03	316	21.35	not worth speaking		2026-08-25T09:27:01.039Z
+length	PAIR	raw-r06	532	30.93	worth speaking		2026-08-25T09:27:09.062Z
+length	PAIR	rew-r06	611	34.73	worth speaking		2026-08-25T09:27:14.438Z

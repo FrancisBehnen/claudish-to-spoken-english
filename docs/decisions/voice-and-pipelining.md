@@ -335,3 +335,25 @@ Two consequences that are arithmetic, not taste:
 
 **That is the entire measurable difference between these six.** Everything else about them is a
 listening question, and this document does not answer it. **#9 stays open for that reason.**
+
+---
+
+## DECISION — half B (2026-08-25)
+
+Settled by Francis listening blind (voices presented as V1–V6), verdicts exported to
+`~/.local/share/kokoro/bench/audition-verdicts.tsv`. **4/4 items judged.**
+
+**The voice is `bf_emma`.** It won all four items — `r03`, `r04`, `r06`, `r11` — every one of them a
+real rewrite dense with paths and identifiers, which is the content this feature actually has to read.
+
+**`af_heart` is rejected.** It was the assumed default through the whole of #1, had never been heard
+against real content, and was explicitly eliminated on `r03`. Also eliminated: `af_nicole` (`r03`,
+`r04`), `af_bella` and `am_michael` (`r03`).
+
+One consequence for the numbers already recorded in half A: **`bf_emma` is not the voice half A was
+measured on.** Every TTFA figure above is `af_heart`. `bf_emma`'s duration ratio against `af_heart`
+was not measured (only `af_nicole` +51% and `am_puck` −24% were), so the first-sentence TTFA budget
+should be re-checked on `bf_emma` before the 3-second margin is treated as banked. The margin is
+wide — 1.22s worst case against 3s — so this is a confirmation step, not an expected reversal.
+
+Half A (build first-sentence pipelining) was settled on 2026-08-17 and is unchanged.

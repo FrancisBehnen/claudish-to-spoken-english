@@ -634,3 +634,51 @@ length of the audio. No timing column: see above.
 | 7 code blocks | `s40` | `cb-count` | `s40.cb-count.af_heart.wav` | 218 | 230 | 1 | 230 | 13.2 |
 | 7 code blocks | `s40` | `cb-short` | `s40.cb-short.af_heart.wav` | 205 | 216 | 1 | 216 | 12.2 |
 | 7 code blocks | `s40` | `cb-silent` | `s40.cb-silent.af_heart.wav` | 195 | 204 | 1 | 203 | 11.4 |
+
+---
+
+## DECISION (2026-08-25)
+
+Settled by Francis listening to all 67 pairs blind, one sitting, verdicts exported to
+`~/.local/share/kokoro/bench/audition-verdicts.tsv`. **67/67 pairs judged, no gaps** (verified
+against the wavs on disk in both directions). Tallies below **exclude the 12 byte-identical control
+pairs**, which carry no signal.
+
+The sanitizer is `candidate`'s rules A–K, with these seven axes fixed:
+
+| axis | decision | margin | note |
+| --- | --- | --- | --- |
+| 1 backticks | **`tick-pause`** — set each `` `span` `` off with commas | 2–0, 1 tie | the win is the **commas**, not the character removal: `tick-strip` is phoneme-identical to leaving backticks in |
+| 2 line breaks | **keep `.`** (no change) | 1–1, 1 tie | **not decided by ear** — `lb-comma` neither won nor lost. The default stands for want of evidence, not because it was chosen |
+| 3 paths | **`path-shorten`** — reduce a path to its last two segments | 3–0, undefeated | `path-nolead` is also undefeated (2–0) but is a *different* transformation and was never heard combined with this one |
+| 4 markdown | **keep rules C+D** (strip `*` and `#`) | 5–0 | letting `*`/`#` reach espeak (`md-swallow`) lost 0–3; stripping the already-silent markdown (`md-strip-plus`) is a no-op |
+| 5 `SCREAMING_SNAKE_CASE` | **keep rule J** (lowercase `_`-joined tokens) | **7–0** | the most decisive axis. Spelling lost 0–3, deleting lost 0–2, leaving it uppercase lost 0–1 |
+| 6 URLs | **`url-domain`** — a URL becomes its host, "github dot com" | 2–0 | beats rule I's "a link"; reading the URL in full lost 0–2 |
+| 7 code blocks | **`cb-count`** — "Code block, N lines." | **4–0** | and it beat *reading the block out* on all four items, which confirms the skip-and-announce decision as well as fixing the wording |
+
+Two results worth keeping visible:
+
+- **Sanitizing beats not sanitizing everywhere it was tested.** The `none` control lost every
+  informative pair it appeared in (axes 2, 3, 4, 5, 6 — 0–6 overall). The sanitizer path is
+  confirmed by ear, not just by phoneme damage.
+- **`cb-long` ("Then an N line code block.") wins only where N is large.** It took `s39`/`s40`
+  (12-line, 3-line) and lost `r07`/`s07` (both one-line), where the phrasing has to say "one line".
+  `cb-count` won all four, so it is chosen for robustness across block sizes, not because it won by
+  more on any single item.
+
+### Calibration — read this before trusting a narrow margin
+
+12 of the 67 pairs were the same wav compared against itself, blinded. **11 were correctly called
+"no audible difference"; 1 was not** — `r01:tick-strip` was recorded as "A is better" (preferring
+`base`) on byte-identical audio. That is a normal blind-A/B error rate and it sets the resolution
+limit of this session: roughly **1 call in 12 is noise**. Axes 4, 5 and 7 are decided by margins far
+wider than that. **Axis 2 is inside the noise and is explicitly not settled.**
+
+### Still open after this decision
+
+- **`.` versus `,` as the line-break replacement** (axis 2) — inconclusive by ear; it never mattered
+  to the listener. Whoever implements may pick on other grounds (`.` places a harder chunk seam).
+- **`path-shorten` combined with `path-nolead`** — both undefeated, never heard together. One axis
+  moved at a time by design, so their combination is unmeasured.
+- **Rule L** (respelling mis-POS'd words) stays gated behind `--respell`; it still mis-fires on
+  "the lives of others" and was not auditioned.
