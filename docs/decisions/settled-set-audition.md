@@ -468,14 +468,29 @@ items under both `--boundary .` and `--boundary ,`, old file against new: **byte
 26** **[measured-here]**. The only shared code that moved is rule B's pattern, hoisted to a module
 constant so B′ counts exactly what B replaces.
 
-**Re-run after the PR-review fix to `count_boundaries`** (see [the rule as
-implemented](#the-rule-as-implemented)). Same comparison, widened to **all 28** including `lb-auto`
-and `settled`, both boundary settings: **byte-identical, 28 for 28 over 54 items**, and **no item's
-boundary count changed** — `s38` 3, `s04` 4, `s37` 8 before and after **[measured-here]**. The fix is
-a refactor with no reach into the corpus, so no wav was re-synthesized and every duration in the
-table below is still the duration of the file that was heard. Re-synthesis of `s38` under `base`,
-`lb-auto` and `settled` as a live check: **3 OK, 0 CRASH, 0 ERROR**, one batch of 112 phonemes each
-**[measured-here]**.
+**Re-run after BOTH PR-review fixes to rule B** — the `count_boundaries` rewrite (see [the rule as
+implemented](#the-rule-as-implemented)) and the blank-line fix to `_B_BREAK_RE` below. Same
+comparison, widened to **all 28** including `lb-auto` and `settled`, both boundary settings, measured
+against the pre-review commit: **byte-identical, 28 for 28 over 54 items**, and **no item's boundary
+count changed** — `s38` 3, `s04` 4, `s37` 8 before and after **[measured-here]**. Checked directly
+rather than by inference: the **24 distinct wavs behind the 14 scored pairs** are byte-identical for
+byte-identical input, so **no wav was re-synthesized and every duration in the table below is still
+the duration of the file that was heard** **[measured-here]**. Live re-synthesis of `s38` under
+`base`, `lb-auto` and `settled`: **3 OK, 0 CRASH, 0 ERROR**, one batch of 112 phonemes each, same
+durations as the heard files **[measured-here]**.
+
+**The second fix was a real bug, and it is worth stating rather than folding into a regression line.**
+`_B_BREAK_RE` was `(\S)[ \t]*\n+[ \t]*`, and `\n+` **stops at the first line that is blank only to
+the eye**. A "blank" line holding a single space or tab therefore split the run, and rule B left a
+**raw newline in its own output**: `"a\n \n b"` sanitized to `"a. \n b"` **[measured-here]** — the
+`SPLIT-NEWLINE` hazard rule B exists to remove, produced by rule B. It is now
+`(\S)[ \t]*(?:\n[ \t]*)+`, which takes a whole run of breaks however they are padded; the leading-break
+strip got the same spelling. **Scope, and this is the reason the listen is untouched: no item in
+`corpus/spoken/` contains a whitespace-only line, so the bug could not fire on anything auditioned,
+and no sanitized output of any of the 28 variants over any of the 54 items contains a newline either
+before or after the fix** **[measured-here]**. It was latent, not harmless — real assistant text is
+not guaranteed to be tidy — and it is the same input that exposed the `count_boundaries` drift, which
+is how it was found.
 
 **Crash safety.** Phonemised every item under both `base` and `settled` with kokoro-onnx's own
 tokenizer and split it with `Kokoro._split_phonemes`: the worst batch under `settled` is **509**

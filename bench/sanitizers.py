@@ -4,7 +4,11 @@ A sanitizer is a function ``(text: str, opts: Opts) -> str``. Register one by
 decorating it with ``@sanitizer("name", "one-line description")``; it is then
 selectable as ``--sanitizer name`` with no other edit anywhere.
 
-NOTHING IN HERE IS A DECISION. The `candidate` sanitizer is rules A-K of
+WITH ONE NAMED EXCEPTION, NOTHING IN HERE IS A DECISION -- the exception is
+`settled`, and it is described at the end of this docstring. Everything else is
+an alternative built to be chosen between.
+
+The `candidate` sanitizer is rules A-K of
 `docs/research/espeak-sanitizer-rules.md` §"Candidate rule list, in priority
 order", assembled verbatim from *measured phoneme damage*. That document is
 explicit that the list is input to #8, not #8's answer. Nobody has listened to
@@ -27,9 +31,22 @@ unmeasured. Same rule: not decisions, just the alternatives. See
 It is #11's ship blocker 1 — every axis at the value #8, #13 and the listener's
 2026-08-25 axis-2 call chose, composed into the single variant that would
 actually ship, plus the conditional boundary **rule B'** that none of the 26
-one-axis variants could express. Registering it is what makes it possible to
-*hear* the combination; nothing about it has been heard yet. See
-`docs/decisions/settled-set-audition.md`.
+one-axis variants could express.
+
+IT HAS NOW BEEN HEARD. The confirmation listen ran 2026-08-25, blind, on
+`bf_emma`: `settled` was preferred on all NINE pairs it appeared in, five of
+them real rewrites, and the `base`-vs-untouched sanity pair went to `base`. So
+this is a decision that has been auditioned as a whole, not just assembled.
+
+Three things did NOT close, and none of them is a re-vote on an axis:
+  * `COND_CUTOFF`'s position. `s04`, the only wav ever made at 4 boundaries,
+    went AGAINST the value in this file -- see the constant's own comment.
+  * A slash-terminated path gets no pause from any axis-3 rule. Found by ear on
+    `r06`; not implemented here.
+  * `count_boundaries` disagrees with the locked wording of the spec's §4.1
+    clause 3, deliberately. See rule B' below.
+See `docs/decisions/settled-set-audition.md`, whose DECISION block is the
+record.
 """
 
 from __future__ import annotations
@@ -167,7 +184,16 @@ def rule_D_strip_heading_marks(text: str) -> str:
 # The pattern is shared with rule B' below, which has to count exactly the
 # breaks this rule is about to replace -- a second, independently-written
 # regex would let the count and the replacement drift apart.
-_B_BREAK_RE = re.compile(r"(\S)[ \t]*\n+[ \t]*")
+#
+# `(?:\n[ \t]*)+` and NOT `\n+[ \t]*`: a "blank" line is often blank only to
+# the eye and still holds a space or a tab, and `\n+` stops at the first such
+# line. That left a RAW NEWLINE in the output -- `"a\n \n b"` sanitized to
+# `"a. \n b"` -- which is the SPLIT-NEWLINE hazard rule B exists to remove.
+# Found in review on PR #24. No corpus item has a whitespace-only line, so the
+# bug never fired on anything auditioned, but real assistant text is not so
+# tidy. This spelling consumes a whole run of breaks however they are padded,
+# which is also what "no blank-line special case" is supposed to mean.
+_B_BREAK_RE = re.compile(r"(\S)[ \t]*(?:\n[ \t]*)+")
 
 
 def rule_B_newlines_to_punct(text: str, boundary: str) -> str:
@@ -181,7 +207,9 @@ def rule_B_newlines_to_punct(text: str, boundary: str) -> str:
         return prev + boundary + " "
 
     text = _B_BREAK_RE.sub(repl, text)
-    return re.sub(r"^[ \t]*\n+[ \t]*", "", text)
+    # Same spelling as above, for the same reason: a leading break padded with
+    # horizontal whitespace has to come off in one bite.
+    return re.sub(r"^[ \t]*(?:\n[ \t]*)+", "", text)
 
 
 # --------------------------------------------------------------------------
@@ -870,11 +898,23 @@ def san_tick_pause(text: str, opts: Opts) -> str:
 # verdicts fit the conditional rule exactly: `r09` (paragraph-heavy) no audible
 # difference, `s37` (8 bullets) `.`, `s38` (3 bullets) `,`.
 #
-# NO SANITIZER HERE IMPLEMENTS IT. All 26 take a fixed `boundary`, so the
-# settled rule is a new capability to be BUILT, not a variant to be selected,
-# and the cutoff's exact position is the listener's call rather than an audited
-# result -- nothing between 4 and 7 bullets has ever been synthesized. Neither
-# choice carries crash-safety weight: `BOUNDARY_CHARS` above is the set
+# IT IS NOW IMPLEMENTED, as `lb-auto` immediately below -- rule B' and rule B'
+# only, on `base`. The two variants above still take a fixed `boundary` and are
+# kept as the axis's original alternatives; what changed is that the conditional
+# is no longer a capability to be built. B' HAS ALSO BEEN HEARD: on `s38`,
+# blind, `lb-auto`'s `,` beat `base`'s `.`, which is the verdict that took the
+# "never heard" caveat off this axis.
+#
+# THE CUTOFF'S POSITION IS STILL NOT SETTLED, AND THE ONE WAV AT THE SEAM WENT
+# AGAINST IT. The 4-7 band is no longer completely empty -- `s04` was built at 4
+# boundaries and played -- but read what it said: the listener preferred `,`
+# there, where `COND_CUTOFF = 4` picks `.`. So "a wav now exists at 4" must NOT
+# be read as "the cutoff is validated"; it is the opposite, and the constant is
+# left where it is only because one wav cannot separate "the cutoff wants to be
+# 5" from "the count wants to exclude a closing line". See `COND_CUTOFF`'s own
+# comment and spec §13 row 5, which stays open. 5, 6 and 7 are still empty.
+#
+# Neither choice carries crash-safety weight: `BOUNDARY_CHARS` above is the set
 # `_split_phonemes` itself splits on, so `.` and `,` are both valid batch seams
 # and both avert the 510-phoneme IndexError.
 
@@ -1051,14 +1091,30 @@ def san_path_short_nolead(text: str, opts: Opts) -> str:
 #   axis 8  flags    pause            flag-pause          #13, 4-0 (all synthetic)
 #   axis 9  exts     word             ext-word            #13, 5-0
 #
-# NOTHING HERE HAS BEEN HEARD AS A COMBINATION. Every margin above was earned
+# THE COMBINATION HAS NOW BEEN HEARD, and it won. Every margin above was earned
 # against `base` with one axis moved, so the compositions -- `tick-pause` and
 # `ext-word` on the same token (`` `hooks.json` `` -> `, hooks dot json,`),
 # `path-short-nolead` and `ext-word` on the same path, `tick-pause` and
-# `flag-pause` in the same sentence -- exist in no wav anyone has played. That
-# is exactly what the confirmation listen is for, and it is why this variant
-# exists at all rather than the shipping pipeline being assembled from the
-# axis table by hand at implementation time.
+# `flag-pause` in the same sentence -- had existed in no wav anyone had played.
+# That is what this variant was built for, and the confirmation listen ran
+# 2026-08-25, blind, on `bf_emma`:
+#
+#   * `settled` was preferred on ALL NINE pairs it appeared in -- r03, r06, r09,
+#     r11, r13, s03, s13, s28, s38 -- five of them real rewrites, never once
+#     beaten by `base`.
+#   * The sanity pair passed: `base` beat untouched text on `r06`.
+#   * Group C triangulated `s03` and came back consistent: `tick-pause` alone
+#     and `ext-word` alone each also beat `base`, so no half of the composition
+#     is carrying a defect.
+#   * `r11` is the item where axis 1 strips the backticks axis 8 steps over, so
+#     `` `$CLAUDISH_OLLAMA` `` -> `, $, claudish_ollama,` and `` `curl -K` `` ->
+#     `, curl , -K,`. Those were heard and did not cost the pair -- TOLERATED,
+#     not absent. The shapes are still in the output.
+#
+# So the axis table above is no longer just a list of separately-won margins; it
+# is a set that has been auditioned as one thing. What did NOT close is listed
+# at the top of this file: the cutoff position, the slash-terminated path, and
+# the count's disagreement with the spec's clause 3.
 #
 # Rule L does not ship (still gated behind --respell, still mis-fires on "the
 # lives of others", never auditioned), so `settled` does not set it.
