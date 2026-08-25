@@ -682,3 +682,14 @@ wider than that. **Axis 2 is inside the noise and is explicitly not settled.**
   moved at a time by design, so their combination is unmeasured.
 - **Rule L** (respelling mis-POS'd words) stays gated behind `--respell`; it still mis-fires on
   "the lives of others" and was not auditioned.
+
+### Listener notes left during the audition (3)
+
+Recorded verbatim; all three are **additive refinements within the chosen directions**, none reverses
+a decision above. Two are new rules that were **never auditioned** and would need their own ear check.
+
+| pair | note | status |
+| --- | --- | --- |
+| `s10:path-expand` | "`hooks.json` should become 'hooks dot json' so that 'json' is pronounced" | **new sub-rule.** `path-expand` spells `.md` as " dot M D"; the ask is that a pronounceable extension be said as a word. Not covered by `path-shorten` (the axis-3 winner), which shortens but does not touch extensions |
+| `s12:path-shorten` | "if the original text is shown but B is the spoken text, I think that would be the perfect combination" | **spec confirmation, not a sanitizer change.** Sanitizer output is speech-only; the screen keeps the unshortened rewrite. Worth stating explicitly in #11 so nobody routes sanitized text to the display |
+| `s15:scream-drop` | "B would be even better if it gets a comma before and after the flag name I think, like what you did with variables in `backticks`" | **new rule, unauditioned.** Generalises axis 1's winning `tick-pause` (commas around `` `spans` ``) to **flag names and bare identifiers**. The axis-1 result — that the win was the commas, not the backtick removal — is direct evidence this is worth hearing |

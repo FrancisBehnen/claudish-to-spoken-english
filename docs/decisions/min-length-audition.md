@@ -454,3 +454,47 @@ deviation from the live hook"). It was not blocked this time.
 The sixteen item texts are committed under `bench/audition-10/items/` — they are real messages from
 Francis' own sessions on this repo, the same provenance as `corpus/source/`. Wavs are not
 committed; there is no LFS here.
+
+---
+
+## FINDING (2026-08-25): length is the wrong variable
+
+27/27 items judged. **No character threshold fits the verdicts.** The best possible single threshold
+is ~335 chars at **3 errors out of 24** decided items, and it only achieves that by silencing all
+three *shorter* items marked worth speaking (`ack07` 177, `ack08` 240, `s15` 203). Excluding the six
+raw-vs-rewritten `PAIR` rows, ~148 chars fits 17 of 18 — but that exclusion had no justification
+until the note below.
+
+**The listener's own note on `fct06` explains it:**
+
+> "I feel like I'm selecting here for whether it's a status update or a final message from claude.
+> From these small bits it feels like it would only make sense to verbalize the final message, but
+> maybe if there are way longer updates that would also make sense."
+
+So the discriminator is **status update vs final message**, not length. That fits every anomaly:
+`ack07`/`ack08` read as final messages, the `r01`/`r03` pairs as intermediate updates despite being
+*longer*, and `r06` (532/611 chars) as long enough to be worth hearing regardless.
+
+Duration does not rescue a threshold either: `fct06` at **14.78 s** is "not worth" while `ack07` at
+**10.50 s** is "worth". The `0.355 + 0.05488 × phonemes` law still holds — it just predicts the wrong
+thing.
+
+### The blocking problem: the hook cannot tell
+
+**`CLAUDISH_SPEAK_MIN_CHARS` is the wrong knob, and the right one is not currently observable.**
+`rewrite.sh` reads `.final` from the `MessageDisplay` payload, but `.final` means *"the last streamed
+chunk of this message"* (`rewrite.sh:9`), **not** "the last message of the turn". Only
+`MessageDisplay` and `PostToolUse` are wired (`hooks/hooks.json`). At display time the tool call that
+would make a message intermediate has not happened yet, so finality is not knowable from this event
+without lookahead.
+
+Two candidate shapes, both #11's call:
+
+- **Trigger speech from the `Stop` event** instead of `MessageDisplay` — `Stop` fires when the turn
+  ends, which is exactly "final message". Speech would no longer ride the display hook at all.
+- **Defer and cancel** — start synthesis on the message, and cancel if a tool use or another message
+  follows within a short window. Keeps the current wiring, costs a timer and a cancel path.
+
+The note's second half — "maybe if there are way longer updates that would also make sense" — means a
+length gate may still exist, but as a **secondary escape hatch for long intermediate messages**, not
+as the primary rule. No number is set here, because the primary rule has to be settled first.
