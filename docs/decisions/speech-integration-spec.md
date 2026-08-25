@@ -579,16 +579,32 @@ runs. **[obs]** See [`stop-hook-block-mechanics.md`](stop-hook-block-mechanics.m
 
 **So the hazard is not "any error holds the prompt hostage" — it is much more specific, and that
 makes it more real, not less.** A speech hook that exits 1 because a binary was missing loses nothing
-but the utterance. A speech hook that exits **2** holds the user's prompt open and gets re-fired
-**eight** times — nine invocations in all — **speaking the same message nine times.**
+but the utterance. A speech hook that exits **2** holds the user's prompt open and is re-fired
+**eight** times — **nine invocations in all. [obs]**
 
-> **THIRD CORRECTION, observed rather than read.** This section previously said "up to 8 times,
-> speaking the same message up to 8 times", taking the cap's default as the invocation count. It is
-> **nine**. `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` bounds *tolerated* blocks under a strict comparison, so
-> the ninth block executes and is then refused. Counted at exactly nine in three independent driven
-> runs — `exit 2`, varied-stderr, and the `{"decision":"block"}` JSON route all cap identically.
-> **[obs]** The conclusion of §5 is unaffected; only the size of the cost changes, and it is one
-> utterance worse than stated.
+**Nine is the loop's ceiling, not the audio's, and the two are different costs.** How much the user
+actually hears depends on two things the invocation count says nothing about: whether an invocation
+reaches the speech call at all before it exits 2 — the bash-syntax-error bullet below is a path where
+it does not — and §5.1's `spoken` hash, which exits 0 on text it has already sent to synthesis. So
+**a message that does not change is spoken once, however many times the hook runs**; this design
+cannot speak the same message nine times. Additional utterances require the resolved text to
+*change*, and the driven run shows that it usually does: **eight distinct `last_assistant_message`
+values across the nine fires of one turn [obs]**, because Claude answers each block before the hook
+re-fires. Dedup suppresses genuine repeats; it cannot suppress a turn whose text keeps moving — and
+§5.1 argues that it should not.
+
+> **THIRD CORRECTION, in two parts — the count and the unit.** *(a) The count.* This section
+> previously said the hook is "re-fired up to 8 times", taking `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`'s
+> default as the invocation count. It is **nine**: the cap bounds *tolerated* blocks under a strict
+> comparison, so the ninth block executes and is then refused. Counted at exactly nine in three
+> independent driven runs — `exit 2`, varied-stderr, and the `{"decision":"block"}` JSON route all
+> cap identically. **[obs]** See [`stop-hook-block-mechanics.md`](stop-hook-block-mechanics.md).
+> *(b) The unit.* The same sentence went on to say the hook speaks "the same message up to 8 times",
+> and **the first version of this correction repeated that error at nine** instead of catching it: it
+> scaled a number that counts invocations and reported the result as utterances. **The unit was wrong
+> before this correction and wrong after it**, and it was caught on review of the very change that
+> fixed the count. Both parts are recorded, because the second is the more instructive — the count
+> was read wrong once, the unit was carried wrong twice. §5's conclusion is unaffected by either.
 
 **And this plugin's own idiom can produce a 2 — but not by the route that was claimed.**
 
@@ -613,9 +629,34 @@ but the utterance. A speech hook that exits **2** holds the user's prompt open a
 
 - **A bash syntax error in `speak.sh` is exit 2.** This is the strongest form of the hazard and it was
   not in either earlier version: an unbalanced `fi`, `done`, or quote does not fail one turn, it
-  **blocks every turn** and speaks the same message 9 times each. It is also the single most likely
-  defect in a shell script under edit. Mitigation is not a runtime guard — it is `bash -n` before the
-  file ships, and keeping the file small.
+  **blocks turn after turn** — up to nine invocations each, and typically **zero utterances**. It is
+  also the single most likely defect in a shell script under edit. Mitigation is not a runtime guard
+  — a guard cannot run in a file the parser refuses to get past — it is `bash -n` before the file
+  ships, and keeping the file small.
+
+  > **FOURTH CORRECTION — this bullet was wrong before this PR and wrong after it.** It said the error
+  > "**blocks every turn** and speaks the same message 8 times each"; the correction above changed the
+  > 8 to a 9 and left the mechanism untouched. **The two halves cannot both be true, and the utterance
+  > half is the false one.** `bash` executes a script command by command *as it parses it*, so
+  > execution stops where the parse fails: everything textually **before** that point has already run,
+  > everything after it never runs at all. **[measured-here]** — `bash 3.2.57(1)-release`, Darwin
+  > 25.6.0: a script whose trailing `if` is unterminated still ran its earlier `echo`; the same script
+  > with that `echo` moved *after* the broken `if` printed nothing; an unterminated quote behaves like
+  > the unterminated `if`; every variant exited **2**. So the real cost is **nine invocations and zero
+  > utterances whenever the parse fails before the speech call** — the usual arrangement, since an
+  > unbalanced `fi`, `done` or quote generally *encloses* the body it broke. Where the break sits
+  > after the speech call the call does run on every fire, but §5.1's hash still speaks each distinct
+  > message once. **Nine utterances of the same message was never reachable on either arrangement.**
+  >
+  > **Stating it accurately makes this hazard worse, not better.** Its likely shape is **silent**: the
+  > prompt hangs through nine fires, the user hears nothing at all, and the only surface is the
+  > runtime's single post-cap warning line. A hook that spoke nine times would at least have announced
+  > itself. The same measurement settles the opposite tail — an `exit 0` the script reaches *before*
+  > the parse failure exits **0** **[measured-here]**, so a broken file is not even reliably a blocker;
+  > which turns block depends on where the break landed relative to the single `exit 0` the invariant
+  > requires. That is an argument for `bash -n` as a ship gate, not for reasoning about where any
+  > particular break fell.
+
 - **`jq` invoked with a bad option or an unreadable file is exit 2** — and this *is* the plugin's own
   idiom: `rewrite.sh:87` is `jq -n --rawfile dc "$1"`, so a vanished temp file lands exactly here.
   `rewrite.sh` already guards it (`2>/dev/null || { rm -f "$1"; pass_through; }`), which is the
@@ -630,9 +671,11 @@ citing a measurement that says the opposite.
 > **INVARIANT (both hooks; the `Stop` hook especially).** Every hook this plugin ships exits **0 on
 > every path, including every error path**. On `MessageDisplay` this is what keeps a display hook from
 > swallowing the assistant's answer (`rewrite.sh:22-25`). On `Stop` the reason is different and
-> narrower: **exit code 2 is not a failure report, it is a request to block the turn** — capped at
-> `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` (default 8) re-fires, which is **nine utterances of the same
-> message in total [obs]**, speaking it each time. The two
+> narrower: **exit code 2 is not a failure report, it is a request to block the turn** — eight
+> re-fires under `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`'s default of **8 tolerated blocks**, which is
+> **nine invocations of the hook in total [obs]**. Nine is the loop's cost, not the audio's: what
+> reaches synthesis is §5.1's business, and for a message that does not change it is one utterance.
+> The two
 > routes that actually produce a 2 are **a bash syntax error in the hook** and **`jq` given a bad
 > option or an unreadable file** (`rewrite.sh:87`'s `--rawfile` shape). Every other failure code — 1,
 > 3, 5, 127 — is explicitly *non-blocking* and costs only the utterance. **The `Stop` hook's exit must
@@ -1083,7 +1126,7 @@ Nothing below is papered over to make the spec look finished.
 | 13 | Deeper leading-dot paths (`.github/workflows/ci.yml`) unauditioned | a corpus item | no |
 | 14 | `session_crons` has not been looked at (§8) | one look | no |
 | 15 | Whether any absolute hook-timeout ceiling exists (§6) | a wider read than the two call sites checked — **not** an argument from `hooks.json:21`, since config acceptance is not runtime enforcement | no |
-| 16 | **The exit-2 block mechanics have never been observed** (§5). The resolver's status-2 behaviour and the *"non-blocking status code"* string are verified in the binary; the block cap, the `blockingError` routing and the post-cap override are still schema reading | make a throwaway `Stop` hook exit 2 and count the re-fires | no — the invariant is specified to hold regardless |
+| 16 | **CLOSED 2026-08-25 — observed.** This row read *"the exit-2 block mechanics have never been observed (§5) … the block cap, the `blockingError` routing and the post-cap override are still schema reading."* A driven probe has since made a `Stop` hook exit 2 and counted the fires, and all three now have a wire observation behind them **[obs]** — the schema reading was off by one (§5, THIRD CORRECTION). **Still unobserved, and named there rather than here:** `async: true`, `SubagentStop`, a raised or disabled cap, and two blocking hooks at once | closed — [`stop-hook-block-mechanics.md`](stop-hook-block-mechanics.md), four driven runs, 28 captured fires | no — the invariant was specified to hold regardless, and does |
 
 **Three of these — 1, 2, 3 — block shipping.** All three are cheap: one listen, one measurement, one
 log. None needs a new decision from the listener.
@@ -1240,18 +1283,26 @@ Stated so a reviewer can attack the right parts.
 - **Everything about the raw path above 200 characters is unmeasured**, by construction — §3.5 never
   sends long raw text to synthesis, and if that ever changes the phoneme-batch measurement is owed
   first.
-- **§5 has now been wrong three times, and is the section to re-check hardest.** It locked "any
+- **§5 has now been wrong four times, and is the section to re-check hardest.** It locked "any
   non-zero exit blocks the turn" (false — only 2 does); it specified a `stop_hook_active` dedupe rule
-  that was **inverted** (it would have spoken the rejected answer and suppressed the real one); and
-  the *replacement* mechanism it was handed — "`jq` exits 2 on a malformed filter" — is **also false**
-  on this machine (that is a 3). All three are corrected in place. **The first two came from outside
-  this document** (a review pass on PR #17); the third was caught by running `jq` rather than quoting
-  it, which is the only reason it did not survive into the lock. **The conclusion has been stable
-  across all three corrections while every stated reason for it changed** — which is either
-  reassuring or a sign that the conclusion is being defended rather than derived, and a reviewer
-  should decide which.
-- **The block mechanics themselves are still unobserved.** The resolver's status-2 behaviour and the
-  *"non-blocking status code"* string are verified in the binary, and the exit codes in §5's table are
-  measured here — but the **block cap, the `blockingError` routing and the post-cap override are
-  schema-and-`strings` reading**. Nobody has made a `Stop` hook exit 2 and counted the re-fires
-  (§13 row 16).
+  that was **inverted** (it would have spoken the rejected answer and suppressed the real one); the
+  *replacement* mechanism it was handed — "`jq` exits 2 on a malformed filter" — is **also false**
+  on this machine (that is a 3); and it read the block cap's default as the invocation count, which is
+  off by one, **then priced the loop in utterances when the number that scales counts invocations**
+  (§5, THIRD and FOURTH CORRECTIONS). All four are corrected in place. **Two came from outside this
+  document** (a review pass on PR #17); the third was caught by running `jq` rather than quoting it;
+  the fourth by a review of the PR that fixed the third. **The conclusion has been stable across all
+  four corrections while every stated reason for it changed** — which is either reassuring or a sign
+  that the conclusion is being defended rather than derived, and a reviewer should decide which.
+  **The fourth is the one to learn from**: it was not a misreading of the binary but a misreading of
+  what the binary's number *counted*, and it survived one correction aimed straight at it.
+- **The block mechanics are no longer unobserved — and observing them falsified this bullet.** It used
+  to read: *"the block cap, the `blockingError` routing and the post-cap override are
+  schema-and-`strings` reading. Nobody has made a `Stop` hook exit 2 and counted the re-fires."*
+  Somebody has. Four driven runs captured 28 fires, so all three are **[obs]**, and the cap reading
+  was off by one — nine invocations, not eight (§13 row 16,
+  [`stop-hook-block-mechanics.md`](stop-hook-block-mechanics.md)). **What remains unobserved is
+  narrower and is named in that document:** `async: true`, `SubagentStop`, a raised or disabled cap,
+  and two blocking hooks at once. None of it is load-bearing here — §6 is written to lean on `async`
+  for nothing — but the `async: true` residue is the same gap **§13 row 8** already carries, and
+  closing row 16 did not close row 8.
