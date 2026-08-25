@@ -136,9 +136,9 @@ runs once more than that.
 >
 > **Nine is the count of *fires*, and this document should not be read as saying nine utterances.**
 > [Run A below](#5--last_assistant_message-carries-the-newer-text-confirmed-on-the-wire) is the case that settles
-> it: nine fires, one distinct string — and under the spec's §5.1 text-hash dedup, **one utterance**.
-> Fires and utterances are different quantities and only coincide where the text changes on every fire
-> and nothing dedupes. Recorded here rather than silently patched, because #11 owns that document.
+> it: nine fires, one distinct string — and under the spec's §5.1 text-hash dedup, **at most one
+> utterance**. Fires and utterances are different quantities and only coincide where the text changes
+> on every fire, nothing dedupes, and every synthesis attempt succeeds. Recorded here rather than silently patched, because #11 owns that document.
 
 `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` was **unset** in the driven session's environment; 9 is the default
 behaviour, not a configured one. **[obs]** The `0`-disables-the-cap branch was **not exercised** and
@@ -411,8 +411,8 @@ closed and the reasoning held.** Specifically:
    A2's ladder.
 2. **§5's worst case is 9 *invocations*, not 8** — the only factual correction this probe produces.
    **Not 9 utterances:** run A shows nine fires resolving to one distinct string, which §5.1's hash
-   speaks once. The invocation ceiling and the audio cost are different numbers, and §5 has been
-   corrected to say so.
+   speaks at most once. The invocation ceiling and the audio cost are different numbers, and §5 has
+   been corrected to say so.
 3. **§5's fail-open rule gains a second, sharper reason.** A blocking hook's stderr is *prompt input*
    to the model, not just log noise.
 4. Nothing in §3, §4, §6–§11 is touched.

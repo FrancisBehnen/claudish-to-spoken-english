@@ -246,7 +246,8 @@ hook is invoked **nine** times
 ([Correction 3](#correction-3--the-block-cap-counts-tolerated-blocks-not-invocations)); nine is a
 count of *fires*, and the utterances only match it if the text changes on every one of them and
 nothing dedupes. Observed: a run whose text never changed produced nine fires and **one** distinct
-string, a run whose text moved produced nine fires and **eight**. **[obs]**
+string; a run whose stderr *asked* the model for a different word each fire produced nine fires and
+**eight**. **[obs]** The second shows the text can move, not how often it moves unprompted.
 ([`stop-hook-block-mechanics.md`](stop-hook-block-mechanics.md).)
 
 Speak-first, speak-on-change, or speak-last (which needs knowing a fire is the last one, and it

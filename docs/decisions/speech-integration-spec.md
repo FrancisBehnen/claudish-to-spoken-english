@@ -572,26 +572,36 @@ backticks in a real message. Recorded as a live caveat, not a footnote.
 present in the 2.1.245 binary, 4 occurrences. The `Stop` consumer drives its retry **only** from
 `blockingError`; any other failure renders as a **single warning line** and the turn ends normally.
 Exit-2 blocks are counted and capped at `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP ?? 8`, after which the
-runtime overrides. **[bin]** The cap counts *tolerated* blocks and the comparison against it is
-**strict**, so the ninth block still runs before it is refused: the observed cost is **nine
-invocations — one initial fire plus eight re-fires** — measured at exactly nine in three independent
-runs. **[obs]** See [`stop-hook-block-mechanics.md`](stop-hook-block-mechanics.md).
+runtime overrides. **[bin]** **Read the comparison, not just the number.** The guard is
+`if (Or > 0 && Fr > Or)` and `Fr > Or` is **strict** on *tolerated* blocks, so a run of exactly 8
+blocks is tolerated and the **ninth block executes before it is refused**. The ceiling is therefore
+**nine invocations of the hook — one initial fire plus eight re-fires — and nine counts invocations,
+not utterances.** Measured at exactly nine in three independent driven runs (named in the THIRD
+CORRECTION below), with `stop_hook_active` **`false` on fire 1 and `true` on fires 2–9** in every run.
+**[obs]** See [`stop-hook-block-mechanics.md`](stop-hook-block-mechanics.md).
 
 **So the hazard is not "any error holds the prompt hostage" — it is much more specific, and that
 makes it more real, not less.** A speech hook that exits 1 because a binary was missing loses nothing
 but the utterance. A speech hook that exits **2** holds the user's prompt open and is re-fired
 **eight** times — **nine invocations in all. [obs]**
 
-**Nine is the loop's ceiling, not the audio's, and the two are different costs.** How much the user
-actually hears depends on two things the invocation count says nothing about: whether an invocation
-reaches the speech call at all before it exits 2 — the bash-syntax-error bullet below is a path where
-it does not — and §5.1's `spoken` hash, which exits 0 on text it has already sent to synthesis. So
-**a message that does not change is spoken once, however many times the hook runs**; this design
-cannot speak the same message nine times. Additional utterances require the resolved text to
-*change*, and the driven run shows that it usually does: **eight distinct `last_assistant_message`
-values across the nine fires of one turn [obs]**, because Claude answers each block before the hook
-re-fires. Dedup suppresses genuine repeats; it cannot suppress a turn whose text keeps moving — and
-§5.1 argues that it should not.
+**Nine is an invocation ceiling, not an utterance count, and the two are different costs.** How much
+the user actually hears depends on things the invocation count says nothing about: whether an
+invocation reaches the speech call at all before it exits 2 — the bash-syntax-error bullet below is a
+path where it does not — whether synthesis and playback then succeed, and §5.1's `spoken` hash, which
+exits 0 on text it has already sent to synthesis. So **a message that does not change is spoken at
+most once, however many times the hook runs**: the hash bounds duplicate *attempts*, and it cannot
+promise even the one utterance. **This design cannot speak the same message nine times, or twice.**
+
+Additional utterances require the resolved text to *change*, and **how often it changes on its own is
+not established.** Two ladders have been observed and only one of them was left to itself. The
+undriven run answered the same word on all nine fires — **nine fires, one distinct string [obs]**,
+which §5.1's hash speaks at most once. The run that produced **eight distinct `last_assistant_message` values across the
+nine fires [obs]** produced them because its stderr *instructed* the model to say a different word
+each time. That second run proves the text **can** move — which is what makes additional utterances
+possible at all, and what makes §5.1's rejected `stop_hook_active` rule unsafe — but it measures an
+induced rate, not a natural one. Dedup suppresses genuine repeats; it cannot suppress a turn whose
+text keeps moving, and §5.1 argues that it should not.
 
 > **THIRD CORRECTION, in two parts — the count and the unit.** *(a) The count.* This section
 > previously said the hook is "re-fired up to 8 times", taking `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`'s
@@ -604,7 +614,12 @@ re-fires. Dedup suppresses genuine repeats; it cannot suppress a turn whose text
 > scaled a number that counts invocations and reported the result as utterances. **The unit was wrong
 > before this correction and wrong after it**, and it was caught on review of the very change that
 > fixed the count. Both parts are recorded, because the second is the more instructive — the count
-> was read wrong once, the unit was carried wrong twice. §5's conclusion is unaffected by either.
+> was read wrong once, and the unit was carried wrong three times: in the original sentence, in the
+> correction that fixed the count, and in the title of the branch that carried the correction, which
+> read *"nine utterances, not eight"* until a reviewer noticed it contradicted the paragraph it was
+> shipping. **The rule this section now holds to: nine is an invocation ceiling and never an utterance
+> count; what reaches synthesis is §5.1's, and for text that does not change §5.1 permits at most
+> one.** §5's conclusion is unaffected by any of it.
 
 **And this plugin's own idiom can produce a 2 — but not by the route that was claimed.**
 
@@ -628,31 +643,53 @@ re-fires. Dedup suppresses genuine repeats; it cannot suppress a turn whose text
 **The two paths that genuinely reach exit 2:**
 
 - **A bash syntax error in `speak.sh` is exit 2.** This is the strongest form of the hazard and it was
-  not in either earlier version: an unbalanced `fi`, `done`, or quote does not fail one turn, it
-  **blocks turn after turn** — up to nine invocations each, and typically **zero utterances**. It is
-  also the single most likely defect in a shell script under edit. Mitigation is not a runtime guard
+  not in either earlier version: an unbalanced `fi`, `done`, or quote does not fail one turn, it can
+  **block turn after turn** — up to nine invocations each, and **zero utterances** wherever the broken
+  construct encloses the speech call. Both halves are conditional on where the break landed relative
+  to the code that runs first: a script that reaches an `exit 0` before the parser reaches the break
+  exits **0** and does not block at all, measured below. It is also the single most likely defect in a
+  shell script under edit. Mitigation is not a runtime guard
   — a guard cannot run in a file the parser refuses to get past — it is `bash -n` before the file
   ships, and keeping the file small.
 
   > **FOURTH CORRECTION — this bullet was wrong before this PR and wrong after it.** It said the error
   > "**blocks every turn** and speaks the same message 8 times each"; the correction above changed the
   > 8 to a 9 and left the mechanism untouched. **The two halves cannot both be true, and the utterance
-  > half is the false one.** `bash` executes a script command by command *as it parses it*, so
-  > execution stops where the parse fails: everything textually **before** that point has already run,
-  > everything after it never runs at all. **[measured-here]** — `bash 3.2.57(1)-release`, Darwin
-  > 25.6.0: a script whose trailing `if` is unterminated still ran its earlier `echo`; the same script
-  > with that `echo` moved *after* the broken `if` printed nothing; an unterminated quote behaves like
-  > the unterminated `if`; every variant exited **2**. So the real cost is **nine invocations and zero
-  > utterances whenever the parse fails before the speech call** — the usual arrangement, since an
-  > unbalanced `fi`, `done` or quote generally *encloses* the body it broke. Where the break sits
-  > after the speech call the call does run on every fire, but §5.1's hash still speaks each distinct
-  > message once. **Nine utterances of the same message was never reachable on either arrangement.**
+  > half is the false one.**
   >
-  > **Stating it accurately makes this hazard worse, not better.** Its likely shape is **silent**: the
-  > prompt hangs through nine fires, the user hears nothing at all, and the only surface is the
-  > runtime's single post-cap warning line. A hook that spoke nine times would at least have announced
-  > itself. The same measurement settles the opposite tail — an `exit 0` the script reaches *before*
-  > the parse failure exits **0** **[measured-here]**, so a broken file is not even reliably a blocker;
+  > **The mechanism, at the granularity that actually decides it.** `bash` does not parse the whole
+  > file before running any of it — but it does not proceed line by line either. **It parses one
+  > complete top-level command at a time and executes that one, so the unit is the compound command,
+  > not the line.** A complete top-level command that finished parsing before the break has already
+  > run. A command *inside* the unterminated construct never runs — even though it sits textually
+  > **before** the point where the parse fails. **[measured-here]**, `bash 3.2.57(1)-release` on Darwin
+  > 25.6.0, every variant exiting **2** except the last:
+  >
+  > | script shape | does the body command run? | exit |
+  > | --- | --- | ---: |
+  > | `echo` as a complete top-level command *before* an unterminated trailing `if` | **yes** | 2 |
+  > | `echo` **inside** that unterminated `if`, textually before EOF | **no** | 2 |
+  > | `echo` *after* the unterminated `if` | **no** | 2 |
+  > | `echo` before an unterminated quote | **yes** | 2 |
+  > | `exit 0` reached before the break | n/a | **0** |
+  >
+  > **The first version of this correction got the mechanism wrong in the other direction**, claiming
+  > everything textually before the break "has already run". Row 2 falsifies that, and row 2 is the row
+  > that matters: a speech call in a hook is nearly always *inside* the `if`, `case` or loop that
+  > broke, so it is exactly the command that does not run.
+  >
+  > So the real cost is **nine invocations and zero utterances whenever the parse fails before the
+  > speech call has run** — the usual arrangement, since an unbalanced `fi`, `done` or quote generally
+  > *encloses* the body it broke. Where the speech call is a complete top-level command that parsed
+  > before the break, it does run on every fire, but §5.1's hash still speaks each distinct message at
+  > most once. **Nine utterances of the same message was never reachable on any arrangement.**
+  >
+  > **Stating it accurately makes this hazard worse, not better.** Its likely shape is **silent**:
+  > where it blocks at all, the prompt hangs through nine fires, the user hears nothing, and the only
+  > surface is the runtime's single post-cap warning line. A hook that spoke nine times would at
+  > least have announced itself. The same measurement settles the opposite tail — an `exit 0` the
+  > script reaches *before* the parse failure exits **0** **[measured-here]**, so a broken file is not
+  > even reliably a blocker;
   > which turns block depends on where the break landed relative to the single `exit 0` the invariant
   > requires. That is an argument for `bash -n` as a ship gate, not for reasoning about where any
   > particular break fell.
@@ -672,10 +709,10 @@ citing a measurement that says the opposite.
 > every path, including every error path**. On `MessageDisplay` this is what keeps a display hook from
 > swallowing the assistant's answer (`rewrite.sh:22-25`). On `Stop` the reason is different and
 > narrower: **exit code 2 is not a failure report, it is a request to block the turn** — eight
-> re-fires under `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`'s default of **8 tolerated blocks**, which is
-> **nine invocations of the hook in total [obs]**. Nine is the loop's cost, not the audio's: what
-> reaches synthesis is §5.1's business, and for a message that does not change it is one utterance.
-> The two
+> re-fires under `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`'s default of **8 tolerated blocks** (the comparison
+> is strict, so the ninth block runs and is then refused), which is **nine invocations of the hook in
+> total [obs]**. **Nine counts invocations and never utterances:** what reaches synthesis is §5.1's
+> business, and for a message that does not change it is **at most one**. The two
 > routes that actually produce a 2 are **a bash syntax error in the hook** and **`jq` given a bad
 > option or an unreadable file** (`rewrite.sh:87`'s `--rawfile` shape). Every other failure code — 1,
 > 3, 5, 127 — is explicitly *non-blocking* and costs only the utterance. **The `Stop` hook's exit must
@@ -718,7 +755,12 @@ one** — the exact opposite of what it appears to do. **[obs]**
 the binary; a driven blocking run has since captured all nine payloads of a single turn and found
 **eight distinct `last_assistant_message` values across the nine fires**, with fires 1 and 9 differing
 in `stop_hook_active` and `last_assistant_message` and nothing else. `stop_hook_active` is `false` on
-fire 1 and `true` on fires 2–9, every run. **[obs]**
+fire 1 and `true` on fires 2–9, every run. **[obs]** That run's stderr *asked* the model for a
+different word on each fire, so what it establishes is that the text **can** move across the ladder —
+which is all this section's argument needs, since a rule that would speak the first value and swallow
+the other seven is condemned by one such turn. It is **not** a measurement of how often the text moves
+unprompted; §5 states that limit, and the sibling run whose text never changed is the case the hash is
+for.
 [`stop-hook-block-mechanics.md`](stop-hook-block-mechanics.md)
 
 **Specification.**
