@@ -1,0 +1,4 @@
+cfg=C13a_ledger_truncate delay=1000 gap=1.4 ck=pidfile rechk=on die=popen respawn=yes
+respawn_delay=0.6 pidmode=shared pubdelay=400 sweepmode=record
+sweepgap=900 reapdelay=0 unlinkreap=off ledger=on pidw=on
+pending=off

@@ -1,0 +1,16 @@
+cfg=C15a_recheck_death delay=0 gap=0.4 ck=pidfile rechk=on die=popen respawn=yes
+respawn_delay=0.8 pidmode=worker pubdelay=0 sweepmode=off
+sweepgap=0 reapdelay=0 unlinkreap=off ledger=off pidw=on
+pending=off
+trial 1: no replacement needed, worker still alive
+trial 2: no replacement needed, worker still alive
+trial 3: no replacement needed, worker still alive
+trial 4: no replacement needed, worker still alive
+trial 5: no replacement needed, worker still alive
+trial 6: no replacement needed, worker still alive
+trial 7: no replacement needed, worker still alive
+trial 8: no replacement needed, worker still alive
+trial 9: no replacement needed, worker still alive
+trial 10: no replacement needed, worker still alive
+trial 11: no replacement needed, worker still alive
+trial 12: no replacement needed, worker still alive

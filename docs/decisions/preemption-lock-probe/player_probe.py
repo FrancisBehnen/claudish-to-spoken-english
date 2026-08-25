@@ -47,7 +47,8 @@ def handler(signum, frame):
     os.kill(os.getpid(), signum)
 
 
-for s in (signal.SIGTERM, signal.SIGUSR1, signal.SIGUSR2, signal.SIGINT, signal.SIGHUP):
+for s in (signal.SIGTERM, signal.SIGUSR1, signal.SIGUSR2, signal.SIGINT,
+          signal.SIGHUP, signal.SIGALRM):
     signal.signal(s, handler)
 
 rec("player_start", secs=secs)

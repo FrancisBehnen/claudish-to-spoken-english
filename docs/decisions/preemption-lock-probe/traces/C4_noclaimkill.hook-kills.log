@@ -1,25 +1,25 @@
-warmup	hook	48652	kill_attempt	by=hook target=none sig=15 result=nopid
-t1a	hook	48694	kill_attempt	by=hook target=48675 sig=15 result=esrch
-t1b	hook	48717	kill_attempt	by=hook target=48675 sig=15 result=esrch
-t2a	hook	48786	kill_attempt	by=hook target=48743 sig=15 result=esrch
-t2b	hook	48806	kill_attempt	by=hook target=48743 sig=15 result=esrch
-t3a	hook	48864	kill_attempt	by=hook target=48828 sig=15 result=esrch
-t3b	hook	48869	kill_attempt	by=hook target=48828 sig=15 result=esrch
-t4a	hook	48939	kill_attempt	by=hook target=48911 sig=15 result=esrch
-t4b	hook	48969	kill_attempt	by=hook target=48911 sig=15 result=esrch
-t5a	hook	49052	kill_attempt	by=hook target=49017 sig=15 result=esrch
-t5b	hook	49072	kill_attempt	by=hook target=49017 sig=15 result=esrch
-t6a	hook	49123	kill_attempt	by=hook target=49105 sig=15 result=esrch
-t6b	hook	49143	kill_attempt	by=hook target=49105 sig=15 result=esrch
-t7a	hook	49200	kill_attempt	by=hook target=49166 sig=15 result=esrch
-t7b	hook	49225	kill_attempt	by=hook target=49166 sig=15 result=esrch
-t8a	hook	49286	kill_attempt	by=hook target=49248 sig=15 result=esrch
-t8b	hook	49292	kill_attempt	by=hook target=49248 sig=15 result=esrch
-t9a	hook	49345	kill_attempt	by=hook target=49329 sig=15 result=esrch
-t9b	hook	49366	kill_attempt	by=hook target=49329 sig=15 result=esrch
-t10a	hook	49429	kill_attempt	by=hook target=49391 sig=15 result=esrch
-t10b	hook	49450	kill_attempt	by=hook target=49391 sig=15 result=esrch
-t11a	hook	49506	kill_attempt	by=hook target=49472 sig=15 result=esrch
-t11b	hook	49539	kill_attempt	by=hook target=49472 sig=15 result=esrch
-t12a	hook	49597	kill_attempt	by=hook target=49563 sig=15 result=esrch
-t12b	hook	49619	kill_attempt	by=hook target=49563 sig=15 result=esrch
+warmup	hook	57988	kill_attempt	by=hook via=shared target=none sig=15 result=nopid
+t1a	hook	58032	kill_attempt	by=hook via=shared target=58009 sig=15 result=esrch
+t1b	hook	58052	kill_attempt	by=hook via=shared target=58009 sig=15 result=esrch
+t2a	hook	58105	kill_attempt	by=hook via=shared target=58074 sig=15 result=esrch
+t2b	hook	58125	kill_attempt	by=hook via=shared target=58074 sig=15 result=esrch
+t3a	hook	58185	kill_attempt	by=hook via=shared target=58153 sig=15 result=esrch
+t3b	hook	58190	kill_attempt	by=hook via=shared target=58153 sig=15 result=esrch
+t4a	hook	58265	kill_attempt	by=hook via=shared target=58217 sig=15 result=esrch
+t4b	hook	58285	kill_attempt	by=hook via=shared target=58217 sig=15 result=esrch
+t5a	hook	58338	kill_attempt	by=hook via=shared target=58306 sig=15 result=esrch
+t5b	hook	58343	kill_attempt	by=hook via=shared target=58306 sig=15 result=esrch
+t6a	hook	58401	kill_attempt	by=hook via=shared target=58384 sig=15 result=esrch
+t6b	hook	58423	kill_attempt	by=hook via=shared target=58384 sig=15 result=esrch
+t7a	hook	58491	kill_attempt	by=hook via=shared target=58453 sig=15 result=esrch
+t7b	hook	58511	kill_attempt	by=hook via=shared target=58453 sig=15 result=esrch
+t8a	hook	58565	kill_attempt	by=hook via=shared target=58533 sig=15 result=esrch
+t8b	hook	58571	kill_attempt	by=hook via=shared target=58533 sig=15 result=esrch
+t9a	hook	58631	kill_attempt	by=hook via=shared target=58609 sig=15 result=esrch
+t9b	hook	58655	kill_attempt	by=hook via=shared target=58609 sig=15 result=esrch
+t10a	hook	58733	kill_attempt	by=hook via=shared target=58695 sig=15 result=esrch
+t10b	hook	58755	kill_attempt	by=hook via=shared target=58695 sig=15 result=esrch
+t11a	hook	58800	kill_attempt	by=hook via=shared target=58779 sig=15 result=esrch
+t11b	hook	58822	kill_attempt	by=hook via=shared target=58779 sig=15 result=esrch
+t12a	hook	58887	kill_attempt	by=hook via=shared target=58848 sig=15 result=esrch
+t12b	hook	58907	kill_attempt	by=hook via=shared target=58848 sig=15 result=esrch

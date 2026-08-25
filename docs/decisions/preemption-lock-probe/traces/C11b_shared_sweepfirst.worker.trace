@@ -1,0 +1,249 @@
+1787694084.104124	worker	69952	gen1	election_won	gen=0
+1787694084.104342	worker	69952	gen1	election_sweep_record	swept=0 rows=0 pids=-
+1787694084.807861	worker	69952	gen1	ready	after=0.7032
+1787694084.983686	worker	69952	gen1	S_claim	job=w0
+1787694084.984038	worker	69952	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=w0
+1787694085.989671	worker	69952	gen1	synth_done	job=w0 wav=-
+1787694085.990913	worker	69952	gen1	S2_prespawn_stat	job=w0 newer_waiting=0
+1787694087.004709	worker	69952	gen1	P_popen	job=w0 player_pid=70004 pid_mode=shared record=pid
+1787694087.006618	worker	69952	gen1	W_pid_write	job=w0 player_pid=70004 by=player result=deferred_to_player
+1787694090.114793	worker	70031	gen1	election_won	gen=1 superseded=0 prev_owner=69952
+1787694090.115043	worker	70031	gen1	kill_attempt	by=election-sweep site=record target=70004 sig=31 result=sent
+1787694090.115127	worker	70031	gen1	election_sweep_record	swept=1 rows=1 pids=70004
+1787694090.820563	worker	70031	gen1	ready	after=0.7057
+1787694091.031842	worker	70031	gen1	S_claim	job=j1a
+1787694091.032215	worker	70031	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=70004 sig=30 result=ESRCH job=j1a
+1787694092.036325	worker	70031	gen1	synth_done	job=j1a wav=-
+1787694092.036861	worker	70031	gen1	S2_prespawn_stat	job=j1a newer_waiting=0
+1787694093.046532	worker	70031	gen1	P_popen	job=j1a player_pid=70086 pid_mode=shared record=pid
+1787694093.047428	worker	70031	gen1	worker_die	where=between_P_and_W
+1787694093.617703	worker	70088	gen1r	election_won	gen=2 superseded=1 prev_owner=70031
+1787694093.618142	worker	70088	gen1r	kill_attempt	by=election-sweep site=record target=70004 sig=31 result=ESRCH
+1787694093.618821	worker	70088	gen1r	election_sweep_record	swept=0 rows=1 pids=70004
+1787694094.324243	worker	70088	gen1r	ready	after=0.7073
+1787694094.577683	worker	70088	gen1r	S_claim	job=j1b
+1787694094.578449	worker	70088	gen1r	kill_attempt	by=worker-claim site=pidfile via=record target=70004 sig=30 result=ESRCH job=j1b
+1787694095.582976	worker	70088	gen1r	synth_done	job=j1b wav=-
+1787694095.583368	worker	70088	gen1r	S2_prespawn_stat	job=j1b newer_waiting=0
+1787694096.592998	worker	70088	gen1r	P_popen	job=j1b player_pid=70125 pid_mode=shared record=pid
+1787694096.595960	worker	70088	gen1r	W_pid_write	job=j1b player_pid=70125 by=player result=deferred_to_player
+1787694100.490899	worker	70161	gen2	election_won	gen=3 superseded=2 prev_owner=70088
+1787694100.491125	worker	70161	gen2	kill_attempt	by=election-sweep site=record target=70125 sig=31 result=sent
+1787694100.491202	worker	70161	gen2	election_sweep_record	swept=1 rows=1 pids=70125
+1787694101.195155	worker	70161	gen2	ready	after=0.7038
+1787694101.392148	worker	70161	gen2	S_claim	job=j2a
+1787694101.392614	worker	70161	gen2	kill_attempt	by=worker-claim site=pidfile via=record target=70125 sig=30 result=ESRCH job=j2a
+1787694102.395058	worker	70161	gen2	synth_done	job=j2a wav=-
+1787694102.398368	worker	70161	gen2	S2_prespawn_stat	job=j2a newer_waiting=0
+1787694103.410507	worker	70161	gen2	P_popen	job=j2a player_pid=70201 pid_mode=shared record=pid
+1787694103.411422	worker	70161	gen2	worker_die	where=between_P_and_W
+1787694103.914328	worker	70218	gen2r	election_won	gen=4 superseded=3 prev_owner=70161
+1787694103.915118	worker	70218	gen2r	kill_attempt	by=election-sweep site=record target=70125 sig=31 result=ESRCH
+1787694103.915466	worker	70218	gen2r	election_sweep_record	swept=0 rows=1 pids=70125
+1787694104.618873	worker	70218	gen2r	ready	after=0.7044
+1787694104.872338	worker	70218	gen2r	S_claim	job=j2b
+1787694104.873117	worker	70218	gen2r	kill_attempt	by=worker-claim site=pidfile via=record target=70125 sig=30 result=ESRCH job=j2b
+1787694105.877225	worker	70218	gen2r	synth_done	job=j2b wav=-
+1787694105.877950	worker	70218	gen2r	S2_prespawn_stat	job=j2b newer_waiting=0
+1787694106.888265	worker	70218	gen2r	P_popen	job=j2b player_pid=70256 pid_mode=shared record=pid
+1787694106.889796	worker	70218	gen2r	W_pid_write	job=j2b player_pid=70256 by=player result=deferred_to_player
+1787694110.781545	worker	70298	gen3	election_won	gen=5 superseded=4 prev_owner=70218
+1787694110.781811	worker	70298	gen3	kill_attempt	by=election-sweep site=record target=70256 sig=31 result=sent
+1787694110.781887	worker	70298	gen3	election_sweep_record	swept=1 rows=1 pids=70256
+1787694111.486485	worker	70298	gen3	ready	after=0.7048
+1787694111.697340	worker	70298	gen3	S_claim	job=j3a
+1787694111.697883	worker	70298	gen3	kill_attempt	by=worker-claim site=pidfile via=record target=70256 sig=30 result=ESRCH job=j3a
+1787694112.704474	worker	70298	gen3	synth_done	job=j3a wav=-
+1787694112.705574	worker	70298	gen3	S2_prespawn_stat	job=j3a newer_waiting=0
+1787694113.717173	worker	70298	gen3	P_popen	job=j3a player_pid=70341 pid_mode=shared record=pid
+1787694113.718552	worker	70298	gen3	worker_die	where=between_P_and_W
+1787694114.200594	worker	70343	gen3r	election_won	gen=6 superseded=5 prev_owner=70298
+1787694114.201042	worker	70343	gen3r	kill_attempt	by=election-sweep site=record target=70256 sig=31 result=ESRCH
+1787694114.201127	worker	70343	gen3r	election_sweep_record	swept=0 rows=1 pids=70256
+1787694114.906825	worker	70343	gen3r	ready	after=0.7059
+1787694115.159873	worker	70343	gen3r	S_claim	job=j3b
+1787694115.160696	worker	70343	gen3r	kill_attempt	by=worker-claim site=pidfile via=record target=70256 sig=30 result=ESRCH job=j3b
+1787694116.166372	worker	70343	gen3r	synth_done	job=j3b wav=-
+1787694116.167861	worker	70343	gen3r	S2_prespawn_stat	job=j3b newer_waiting=0
+1787694117.180750	worker	70343	gen3r	P_popen	job=j3b player_pid=70396 pid_mode=shared record=pid
+1787694117.182212	worker	70343	gen3r	W_pid_write	job=j3b player_pid=70396 by=player result=deferred_to_player
+1787694121.053710	worker	70433	gen4	election_won	gen=7 superseded=6 prev_owner=70343
+1787694121.053928	worker	70433	gen4	kill_attempt	by=election-sweep site=record target=70396 sig=31 result=sent
+1787694121.054030	worker	70433	gen4	election_sweep_record	swept=1 rows=1 pids=70396
+1787694121.757716	worker	70433	gen4	ready	after=0.7033
+1787694121.957996	worker	70433	gen4	S_claim	job=j4a
+1787694121.958268	worker	70433	gen4	kill_attempt	by=worker-claim site=pidfile via=record target=70396 sig=30 result=ESRCH job=j4a
+1787694122.961159	worker	70433	gen4	synth_done	job=j4a wav=-
+1787694122.961638	worker	70433	gen4	S2_prespawn_stat	job=j4a newer_waiting=0
+1787694123.967813	worker	70433	gen4	P_popen	job=j4a player_pid=70478 pid_mode=shared record=pid
+1787694123.968536	worker	70433	gen4	worker_die	where=between_P_and_W
+1787694124.422442	worker	70480	gen4r	election_won	gen=8 superseded=7 prev_owner=70433
+1787694124.422852	worker	70480	gen4r	kill_attempt	by=election-sweep site=record target=70396 sig=31 result=ESRCH
+1787694124.422935	worker	70480	gen4r	election_sweep_record	swept=0 rows=1 pids=70396
+1787694125.128765	worker	70480	gen4r	ready	after=0.7059
+1787694125.383555	worker	70480	gen4r	S_claim	job=j4b
+1787694125.385279	worker	70480	gen4r	kill_attempt	by=worker-claim site=pidfile via=record target=70396 sig=30 result=ESRCH job=j4b
+1787694126.390968	worker	70480	gen4r	synth_done	job=j4b wav=-
+1787694126.392297	worker	70480	gen4r	S2_prespawn_stat	job=j4b newer_waiting=0
+1787694127.402554	worker	70480	gen4r	P_popen	job=j4b player_pid=70530 pid_mode=shared record=pid
+1787694127.403490	worker	70480	gen4r	W_pid_write	job=j4b player_pid=70530 by=player result=deferred_to_player
+1787694131.301363	worker	70553	gen5	election_won	gen=9 superseded=8 prev_owner=70480
+1787694131.301607	worker	70553	gen5	kill_attempt	by=election-sweep site=record target=70530 sig=31 result=sent
+1787694131.301688	worker	70553	gen5	election_sweep_record	swept=1 rows=1 pids=70530
+1787694132.007132	worker	70553	gen5	ready	after=0.7057
+1787694132.174180	worker	70553	gen5	S_claim	job=j5a
+1787694132.174701	worker	70553	gen5	kill_attempt	by=worker-claim site=pidfile via=record target=70530 sig=30 result=ESRCH job=j5a
+1787694133.177888	worker	70553	gen5	synth_done	job=j5a wav=-
+1787694133.178644	worker	70553	gen5	S2_prespawn_stat	job=j5a newer_waiting=0
+1787694134.189820	worker	70553	gen5	P_popen	job=j5a player_pid=70608 pid_mode=shared record=pid
+1787694134.190768	worker	70553	gen5	worker_die	where=between_P_and_W
+1787694134.709027	worker	70610	gen5r	election_won	gen=10 superseded=9 prev_owner=70553
+1787694134.709463	worker	70610	gen5r	kill_attempt	by=election-sweep site=record target=70530 sig=31 result=ESRCH
+1787694134.709566	worker	70610	gen5r	election_sweep_record	swept=0 rows=1 pids=70530
+1787694135.415271	worker	70610	gen5r	ready	after=0.7061
+1787694135.669532	worker	70610	gen5r	S_claim	job=j5b
+1787694135.670284	worker	70610	gen5r	kill_attempt	by=worker-claim site=pidfile via=record target=70530 sig=30 result=ESRCH job=j5b
+1787694136.672531	worker	70610	gen5r	synth_done	job=j5b wav=-
+1787694136.673694	worker	70610	gen5r	S2_prespawn_stat	job=j5b newer_waiting=0
+1787694137.688348	worker	70610	gen5r	P_popen	job=j5b player_pid=70645 pid_mode=shared record=pid
+1787694137.689951	worker	70610	gen5r	W_pid_write	job=j5b player_pid=70645 by=player result=deferred_to_player
+1787694141.612566	worker	70700	gen6	election_won	gen=11 superseded=10 prev_owner=70610
+1787694141.612780	worker	70700	gen6	kill_attempt	by=election-sweep site=record target=70645 sig=31 result=sent
+1787694141.612871	worker	70700	gen6	election_sweep_record	swept=1 rows=1 pids=70645
+1787694142.318764	worker	70700	gen6	ready	after=0.706
+1787694142.527401	worker	70700	gen6	S_claim	job=j6a
+1787694142.527857	worker	70700	gen6	kill_attempt	by=worker-claim site=pidfile via=record target=70645 sig=30 result=ESRCH job=j6a
+1787694143.529623	worker	70700	gen6	synth_done	job=j6a wav=-
+1787694143.531000	worker	70700	gen6	S2_prespawn_stat	job=j6a newer_waiting=0
+1787694144.544106	worker	70700	gen6	P_popen	job=j6a player_pid=70758 pid_mode=shared record=pid
+1787694144.545238	worker	70700	gen6	worker_die	where=between_P_and_W
+1787694145.040855	worker	70760	gen6r	election_won	gen=12 superseded=11 prev_owner=70700
+1787694145.041087	worker	70760	gen6r	kill_attempt	by=election-sweep site=record target=70645 sig=31 result=ESRCH
+1787694145.041174	worker	70760	gen6r	election_sweep_record	swept=0 rows=1 pids=70645
+1787694145.746889	worker	70760	gen6r	ready	after=0.7057
+1787694146.001672	worker	70760	gen6r	S_claim	job=j6b
+1787694146.002704	worker	70760	gen6r	kill_attempt	by=worker-claim site=pidfile via=record target=70645 sig=30 result=ESRCH job=j6b
+1787694147.007461	worker	70760	gen6r	synth_done	job=j6b wav=-
+1787694147.008548	worker	70760	gen6r	S2_prespawn_stat	job=j6b newer_waiting=0
+1787694148.017971	worker	70760	gen6r	P_popen	job=j6b player_pid=70795 pid_mode=shared record=pid
+1787694148.019253	worker	70760	gen6r	W_pid_write	job=j6b player_pid=70795 by=player result=deferred_to_player
+1787694151.974539	worker	70831	gen7	election_won	gen=13 superseded=12 prev_owner=70760
+1787694151.974757	worker	70831	gen7	kill_attempt	by=election-sweep site=record target=70795 sig=31 result=sent
+1787694151.974825	worker	70831	gen7	election_sweep_record	swept=1 rows=1 pids=70795
+1787694152.679619	worker	70831	gen7	ready	after=0.7047
+1787694152.897500	worker	70831	gen7	S_claim	job=j7a
+1787694152.899119	worker	70831	gen7	kill_attempt	by=worker-claim site=pidfile via=record target=70795 sig=30 result=ESRCH job=j7a
+1787694153.902534	worker	70831	gen7	synth_done	job=j7a wav=-
+1787694153.903071	worker	70831	gen7	S2_prespawn_stat	job=j7a newer_waiting=0
+1787694154.909152	worker	70831	gen7	P_popen	job=j7a player_pid=70872 pid_mode=shared record=pid
+1787694154.911365	worker	70831	gen7	worker_die	where=between_P_and_W
+1787694155.409377	worker	70889	gen7r	election_won	gen=14 superseded=13 prev_owner=70831
+1787694155.409857	worker	70889	gen7r	kill_attempt	by=election-sweep site=record target=70795 sig=31 result=ESRCH
+1787694155.409981	worker	70889	gen7r	election_sweep_record	swept=0 rows=1 pids=70795
+1787694156.115469	worker	70889	gen7r	ready	after=0.7061
+1787694156.368621	worker	70889	gen7r	S_claim	job=j7b
+1787694156.369789	worker	70889	gen7r	kill_attempt	by=worker-claim site=pidfile via=record target=70795 sig=30 result=ESRCH job=j7b
+1787694157.372881	worker	70889	gen7r	synth_done	job=j7b wav=-
+1787694157.377500	worker	70889	gen7r	S2_prespawn_stat	job=j7b newer_waiting=0
+1787694158.390323	worker	70889	gen7r	P_popen	job=j7b player_pid=70924 pid_mode=shared record=pid
+1787694158.391865	worker	70889	gen7r	W_pid_write	job=j7b player_pid=70924 by=player result=deferred_to_player
+1787694162.327112	worker	70960	gen8	election_won	gen=15 superseded=14 prev_owner=70889
+1787694162.327331	worker	70960	gen8	kill_attempt	by=election-sweep site=record target=70924 sig=31 result=sent
+1787694162.327399	worker	70960	gen8	election_sweep_record	swept=1 rows=1 pids=70924
+1787694163.028993	worker	70960	gen8	ready	after=0.7016
+1787694163.224186	worker	70960	gen8	S_claim	job=j8a
+1787694163.224728	worker	70960	gen8	kill_attempt	by=worker-claim site=pidfile via=record target=70924 sig=30 result=ESRCH job=j8a
+1787694164.226491	worker	70960	gen8	synth_done	job=j8a wav=-
+1787694164.227809	worker	70960	gen8	S2_prespawn_stat	job=j8a newer_waiting=0
+1787694165.237777	worker	70960	gen8	P_popen	job=j8a player_pid=71000 pid_mode=shared record=pid
+1787694165.240081	worker	70960	gen8	worker_die	where=between_P_and_W
+1787694165.732770	worker	71002	gen8r	election_won	gen=16 superseded=15 prev_owner=70960
+1787694165.733140	worker	71002	gen8r	kill_attempt	by=election-sweep site=record target=70924 sig=31 result=ESRCH
+1787694165.733298	worker	71002	gen8r	election_sweep_record	swept=0 rows=1 pids=70924
+1787694166.439281	worker	71002	gen8r	ready	after=0.7062
+1787694166.693600	worker	71002	gen8r	S_claim	job=j8b
+1787694166.695024	worker	71002	gen8r	kill_attempt	by=worker-claim site=pidfile via=record target=70924 sig=30 result=ESRCH job=j8b
+1787694167.698408	worker	71002	gen8r	synth_done	job=j8b wav=-
+1787694167.699589	worker	71002	gen8r	S2_prespawn_stat	job=j8b newer_waiting=0
+1787694168.708095	worker	71002	gen8r	P_popen	job=j8b player_pid=71052 pid_mode=shared record=pid
+1787694168.708840	worker	71002	gen8r	W_pid_write	job=j8b player_pid=71052 by=player result=deferred_to_player
+1787694172.587368	worker	71164	gen9	election_won	gen=17 superseded=16 prev_owner=71002
+1787694172.587608	worker	71164	gen9	kill_attempt	by=election-sweep site=record target=71052 sig=31 result=sent
+1787694172.587697	worker	71164	gen9	election_sweep_record	swept=1 rows=1 pids=71052
+1787694173.290417	worker	71164	gen9	ready	after=0.7029
+1787694173.464718	worker	71164	gen9	S_claim	job=j9a
+1787694173.465065	worker	71164	gen9	kill_attempt	by=worker-claim site=pidfile via=record target=71052 sig=30 result=ESRCH job=j9a
+1787694174.469388	worker	71164	gen9	synth_done	job=j9a wav=-
+1787694174.470442	worker	71164	gen9	S2_prespawn_stat	job=j9a newer_waiting=0
+1787694175.483840	worker	71164	gen9	P_popen	job=j9a player_pid=71211 pid_mode=shared record=pid
+1787694175.487400	worker	71164	gen9	worker_die	where=between_P_and_W
+1787694175.957251	worker	71213	gen9r	election_won	gen=18 superseded=17 prev_owner=71164
+1787694175.957733	worker	71213	gen9r	kill_attempt	by=election-sweep site=record target=71052 sig=31 result=ESRCH
+1787694175.957823	worker	71213	gen9r	election_sweep_record	swept=0 rows=1 pids=71052
+1787694176.665567	worker	71213	gen9r	ready	after=0.7062
+1787694176.922205	worker	71213	gen9r	S_claim	job=j9b
+1787694176.924645	worker	71213	gen9r	kill_attempt	by=worker-claim site=pidfile via=record target=71052 sig=30 result=ESRCH job=j9b
+1787694177.930502	worker	71213	gen9r	synth_done	job=j9b wav=-
+1787694177.930890	worker	71213	gen9r	S2_prespawn_stat	job=j9b newer_waiting=0
+1787694178.942272	worker	71213	gen9r	P_popen	job=j9b player_pid=71277 pid_mode=shared record=pid
+1787694178.943090	worker	71213	gen9r	W_pid_write	job=j9b player_pid=71277 by=player result=deferred_to_player
+1787694182.905429	worker	71302	gen10	election_won	gen=19 superseded=18 prev_owner=71213
+1787694182.905705	worker	71302	gen10	kill_attempt	by=election-sweep site=record target=71277 sig=31 result=sent
+1787694182.905806	worker	71302	gen10	election_sweep_record	swept=1 rows=1 pids=71277
+1787694183.609858	worker	71302	gen10	ready	after=0.7045
+1787694183.819984	worker	71302	gen10	S_claim	job=j10a
+1787694183.820360	worker	71302	gen10	kill_attempt	by=worker-claim site=pidfile via=record target=71277 sig=30 result=ESRCH job=j10a
+1787694184.826257	worker	71302	gen10	synth_done	job=j10a wav=-
+1787694184.827677	worker	71302	gen10	S2_prespawn_stat	job=j10a newer_waiting=0
+1787694185.840764	worker	71302	gen10	P_popen	job=j10a player_pid=71362 pid_mode=shared record=pid
+1787694185.842598	worker	71302	gen10	worker_die	where=between_P_and_W
+1787694186.327036	worker	71364	gen10r	election_won	gen=20 superseded=19 prev_owner=71302
+1787694186.327491	worker	71364	gen10r	kill_attempt	by=election-sweep site=record target=71277 sig=31 result=ESRCH
+1787694186.327581	worker	71364	gen10r	election_sweep_record	swept=0 rows=1 pids=71277
+1787694187.032920	worker	71364	gen10r	ready	after=0.7058
+1787694187.291188	worker	71364	gen10r	S_claim	job=j10b
+1787694187.293331	worker	71364	gen10r	kill_attempt	by=worker-claim site=pidfile via=record target=71277 sig=30 result=ESRCH job=j10b
+1787694188.299387	worker	71364	gen10r	synth_done	job=j10b wav=-
+1787694188.300274	worker	71364	gen10r	S2_prespawn_stat	job=j10b newer_waiting=0
+1787694189.311994	worker	71364	gen10r	P_popen	job=j10b player_pid=71399 pid_mode=shared record=pid
+1787694189.316585	worker	71364	gen10r	W_pid_write	job=j10b player_pid=71399 by=player result=deferred_to_player
+1787694193.249679	worker	71438	gen11	election_won	gen=21 superseded=20 prev_owner=71364
+1787694193.250013	worker	71438	gen11	kill_attempt	by=election-sweep site=record target=71399 sig=31 result=sent
+1787694193.250093	worker	71438	gen11	election_sweep_record	swept=1 rows=1 pids=71399
+1787694193.954786	worker	71438	gen11	ready	after=0.7052
+1787694194.132386	worker	71438	gen11	S_claim	job=j11a
+1787694194.132826	worker	71438	gen11	kill_attempt	by=worker-claim site=pidfile via=record target=71399 sig=30 result=ESRCH job=j11a
+1787694195.134674	worker	71438	gen11	synth_done	job=j11a wav=-
+1787694195.135379	worker	71438	gen11	S2_prespawn_stat	job=j11a newer_waiting=0
+1787694196.151286	worker	71438	gen11	P_popen	job=j11a player_pid=71493 pid_mode=shared record=pid
+1787694196.152763	worker	71438	gen11	worker_die	where=between_P_and_W
+1787694196.649546	worker	71495	gen11r	election_won	gen=22 superseded=21 prev_owner=71438
+1787694196.649987	worker	71495	gen11r	kill_attempt	by=election-sweep site=record target=71399 sig=31 result=ESRCH
+1787694196.650082	worker	71495	gen11r	election_sweep_record	swept=0 rows=1 pids=71399
+1787694197.356189	worker	71495	gen11r	ready	after=0.7064
+1787694197.611938	worker	71495	gen11r	S_claim	job=j11b
+1787694197.613082	worker	71495	gen11r	kill_attempt	by=worker-claim site=pidfile via=record target=71399 sig=30 result=ESRCH job=j11b
+1787694198.618951	worker	71495	gen11r	synth_done	job=j11b wav=-
+1787694198.620691	worker	71495	gen11r	S2_prespawn_stat	job=j11b newer_waiting=0
+1787694199.634556	worker	71495	gen11r	P_popen	job=j11b player_pid=71530 pid_mode=shared record=pid
+1787694199.636175	worker	71495	gen11r	W_pid_write	job=j11b player_pid=71530 by=player result=deferred_to_player
+1787694203.560146	worker	71566	gen12	election_won	gen=23 superseded=22 prev_owner=71495
+1787694203.560587	worker	71566	gen12	kill_attempt	by=election-sweep site=record target=71530 sig=31 result=sent
+1787694203.561472	worker	71566	gen12	election_sweep_record	swept=1 rows=1 pids=71530
+1787694204.263957	worker	71566	gen12	ready	after=0.7038
+1787694204.456336	worker	71566	gen12	S_claim	job=j12a
+1787694204.456745	worker	71566	gen12	kill_attempt	by=worker-claim site=pidfile via=record target=71530 sig=30 result=ESRCH job=j12a
+1787694205.461217	worker	71566	gen12	synth_done	job=j12a wav=-
+1787694205.462190	worker	71566	gen12	S2_prespawn_stat	job=j12a newer_waiting=0
+1787694206.469566	worker	71566	gen12	P_popen	job=j12a player_pid=71610 pid_mode=shared record=pid
+1787694206.470352	worker	71566	gen12	worker_die	where=between_P_and_W
+1787694206.969863	worker	71612	gen12r	election_won	gen=24 superseded=23 prev_owner=71566
+1787694206.970118	worker	71612	gen12r	kill_attempt	by=election-sweep site=record target=71530 sig=31 result=ESRCH
+1787694206.970224	worker	71612	gen12r	election_sweep_record	swept=0 rows=1 pids=71530
+1787694207.676379	worker	71612	gen12r	ready	after=0.7059
+1787694207.932093	worker	71612	gen12r	S_claim	job=j12b
+1787694207.933701	worker	71612	gen12r	kill_attempt	by=worker-claim site=pidfile via=record target=71530 sig=30 result=ESRCH job=j12b
+1787694208.935952	worker	71612	gen12r	synth_done	job=j12b wav=-
+1787694208.936629	worker	71612	gen12r	S2_prespawn_stat	job=j12b newer_waiting=0
+1787694209.945232	worker	71612	gen12r	P_popen	job=j12b player_pid=71662 pid_mode=shared record=pid
+1787694209.947655	worker	71612	gen12r	W_pid_write	job=j12b player_pid=71662 by=player result=deferred_to_player

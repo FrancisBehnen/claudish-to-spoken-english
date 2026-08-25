@@ -1,0 +1,4 @@
+cfg=C14b_perplayer_unlink delay=0 gap=1.6 ck=pidfile rechk=on die=none respawn=no
+respawn_delay=1.2 pidmode=perplayer pubdelay=0 sweepmode=off
+sweepgap=0 reapdelay=1200 unlinkreap=on ledger=off pidw=on
+pending=off playersetsid=off

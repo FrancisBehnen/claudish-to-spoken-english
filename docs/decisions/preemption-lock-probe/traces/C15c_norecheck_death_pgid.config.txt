@@ -1,0 +1,4 @@
+cfg=C15c_norecheck_death_pgid delay=0 gap=0.4 ck=pidfile rechk=off die=popen respawn=yes
+respawn_delay=0.8 pidmode=perplayer pubdelay=0 sweepmode=both
+sweepgap=0 reapdelay=0 unlinkreap=off ledger=off pidw=on
+pending=on playersetsid=off

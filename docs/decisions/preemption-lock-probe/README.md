@@ -12,16 +12,17 @@ Nothing here calls an LLM. Nothing here touches `rewrite.sh`, `providers.sh`,
 
 | file | what it is |
 | --- | --- |
-| `speakd_probe.py` | the instrumented resident worker. §10.5's shape (file-drop job address, `mkdir` election with a pid inside, `kqueue` wake, claim by `rename`), with each of clause 7's three preemption hooks independently switchable and a settable delay between the pre-spawn `stat` and the `Popen` |
+| `speakd_probe.py` | the instrumented resident worker. §10.5's shape (file-drop job address, election with the owner pid recorded, `kqueue` wake, claim by `rename`), with every preemption clause independently switchable. Round 2 adds `--pid-mode {worker,shared,perplayer}` (who publishes the player's identity and where), `--publish-delay-ms` (the wrapper stays descheduled after `Popen`, so a sweep can land *before* publication), `--sweep-mode {off,record,pgid,both}`, `--sweep-gap-ms`, `--reap-delay-ms` and `--unlink-on-reap` |
 | `player_probe.py` | stub player. Stands in for `afplay` so the probe can record *why* playback ended. Also self-registers in the player ledger |
 | `hook_probe.sh` | stand-in for `speak.sh`'s `Stop` body, in **bash**, doing only the two things §10.6 gives the hook: read `speak/pid` and kill (**K**), then publish by atomic rename (**R**) |
 | `lockrace.py` | row 21. Three election protocols — `current`, `spec`, `proposed` — plus a winner that can be stalled in the `mkdir`→pid-write window and racers that can be stalled *after* classifying a lock stale |
 | `run_preempt.sh` | row 20 driver. One warm worker per configuration; the second hook's launch time picks which ordering the trial lands in |
-| `run_all_preempt.sh` | all nine configurations in sequence |
+| `run_all_preempt.sh` | all twenty-two configurations in sequence |
 | `run_real.sh` | real-audio confirmation: real Kokoro synthesis on `bf_emma`, `afplay` as the player |
-| `run_lock.sh` | row 21 driver. Four scenarios × three protocols × N × stall |
+| `run_lock.sh` | row 21 driver. **Six** scenarios (S1 `init`, S2 `longstall`, S3 `aba`, S4 `dualreclaim`, S5 `scratch`, S6 `deadN`) × three protocols × N × stall |
 | `collect.sh` | joins the marker files, `kills.log`, `player.log` and `worker.trace` into one `trials.tsv` per run |
-| `summarise.sh` | every published figure, from the committed TSVs, with `awk` and `sort` only |
+| `collect_real.sh` | turns the `REAL-*` traces into `real-audio-trials.tsv`, so section 2.6's figures re-derive like every other figure |
+| `summarise.sh` | every published figure, from the committed TSVs, with `awk` and `sort` only. **Medians average the two middle observations** — round 1 took the lower middle, which for these even-sized samples was not the median |
 
 ## Timestamp names
 
@@ -67,25 +68,31 @@ question is an **ordering**, and a stub isolates it far better than real audio. 
 real-audio arm (`run_real.sh`) exists to answer the one thing the stub cannot: whether
 the stale utterance is *audible*.
 
-## `traces/` — the raw evidence the TSVs were derived from
+## The signal-attribution table, round 2
 
-The committed `preemption-trials.tsv`, `preemption-trials-pass1.tsv` and `lock-owners.tsv` are
-**derived**. `traces/` holds the raw traces for the runs the conclusions turn on, so the
-derivation can be checked rather than trusted:
+| signal | site |
+| --- | --- |
+| `SIGTERM` 15 | the hook's kill of the pid record(s) |
+| `SIGUSR1` 30 | the worker's claim-time kill (clause iii) |
+| `SIGUSR2` 31 | a newly elected worker's sweep **by record** |
+| `SIGALRM` 14 | a newly elected worker's sweep **by process group**. `SIGHUP` was used first and abandoned: `nohup` sets it to `SIG_IGN`, inherited across fork *and* exec, which turned the sweep into a silent no-op. `speakd_probe.py` now records its signal dispositions at startup and refuses to run if a sweep signal is ignored |
 
-- `C3_adversarial`, `C4_noclaimkill` — the adversarial ordering, with and without clause (iii)
-- `C8_orphan`, `C9_ledger` — the `P`→`W` hole and the repair
-- `C10a_nopid_pidfile`, `C10b_nopid_handle` — clause (i) removed, both claim-kill targets
-- `REAL-pidfile`, `REAL-off` — the real Kokoro / `afplay` arms
-- `lock-S3_aba-*` — the quarantine ABA, one trial per protocol
-- `lock-S1_init-current-N2-s50`, `lock-S2_longstall-{spec,proposed}-N4-s1000` — the stall failures
-- `lock-S5_scratch-proposed-N16` — the who-wins race at N = 16
+## Why the election here is the generation protocol from row 21
 
-Each row 20 config has four files: `worker.trace` (the worker's own `S`/`S2`/`P`/`W`, kill
-attempts and player exit statuses), `player.log` (the player's own start/end and signal),
-`hook-kills.log` (what each hook's `speak/pid` read found and did), and `markers.tsv` (the
-hook-side `K`/`R` timestamps read out of the marker files with `stat -f %Fm`).
+`speakd_probe.py` elects with row 21's `proposed` protocol (`worker.lock.<gen>`, a
+symlink whose target is the pid, dead owners superseded rather than removed) and not
+with `mkdir`. That is not tidiness: **row 20's process-group sweep has to read the
+superseded owner's pid**, and a protocol that deletes the record of the worker it
+replaced cannot supply it. The two rows' repairs are coupled, and the coupling runs
+in the direction row 21 → row 20.
 
-`collect.sh` joins those four into one `trials.tsv`; `assemble.sh` concatenates them;
-`summarise.sh` produces every published figure with `awk` and `sort`; `compare_passes.sh`
-prints pass 1 beside pass 2.
+## Round-2 configurations
+
+| family | what it stages |
+| --- | --- |
+| `C11a` / `C11b` | the **single-record** form — one replaceable `speak/pid` written by the player — with the replacement worker elected **after** (`a`) and **before** (`b`) the player publishes. `b` is the ordering round 1 could not reach |
+| `C12a` / `C12b` | the **process-group** repair, staged on both sides of publication |
+| `C12c` | per-player records but **no** pgid sweep, to show which half does the work |
+| `C13a` / `C13b` | the ledger **truncation** loss: the player publishes inside the gap between the sweep's read and its truncate. `b` is the same timing with per-player records |
+| `C14a` / `C14b` | the **read-then-unlink TOCTOU**: an older player's reap completing after a newer player has replaced the shared record |
+| `C15a` / `C15b` | clause (ii) **combined with worker death** — a newer job present at `S2` and the worker dying after the spawn |

@@ -57,6 +57,7 @@ FILENAME ~ /worker\.trace$/ {
   else if ($5 == "P_popen")      { P[job] = $1; PPID[job] = V["player_pid"] }
   # a disabled pid write is NOT a pid write: recording it would mislabel the
   # ordering of any configuration that switches clause (i) off
+  else if ($5 == "W_pid_write" && V["by"] == "player") { WPLAYER[job] = 1; W[job] = $1 }
   else if ($5 == "W_pid_write" && V["result"] != "disabled") { W[job] = $1 }
   else if ($5 == "W_pid_write") { WOFF[job] = 1 }
   else if ($5 == "player_exit")  { RC[job] = V["rc"]; SIG[job] = V["killed_by_sig"];
@@ -66,13 +67,14 @@ FILENAME ~ /worker\.trace$/ {
                                    # job claimed on the line above
                                    WK[lastjob] = V["result"]; WKT[lastjob] = V["target"] }
   else if ($5 == "kill_attempt" && V["by"] == "election-sweep") {
-                                   nsw++; SWT[nsw] = V["target"]; SWR[nsw] = V["result"] }
+                                   nsw++; SWT[nsw] = V["target"]; SWR[nsw] = V["result"]
+                                   SWSITE[nsw] = V["site"] }
   else if ($5 == "worker_die")   { ndie++ }
   delete V
   next
 }
 END {
-  printf "config\ttrial\tR_a\tK_b\tR_b\tS\tS2\tP\tW\tnewer_at_S2\tdiscarded\t"
+  printf "config\ttrial\tR_a\tK_b\tR_b\tRdone_b\tS\tS2\tP\tW\tnewer_at_S2\tdiscarded\t"
   printf "player_pid\trc\tkilled_by_sig\talive_s\tplayer_log_sig\taudible_s\t"
   printf "p_start_ts\tp_end_ts\t"
   printf "hook_b_target\thook_b_result\t"
@@ -85,18 +87,25 @@ END {
     wct = "-"; wcr = "-"
     if (jb in WKT) { wct = WKT[jb]; wcr = WK[jb] }
     ord = "?"
+    # rdb is the Rdone marker: stamped AFTER mv(1) returns, so publication is known
+    # to have COMPLETED by then. Using rb (stamped BEFORE the rename) would count a
+    # trial where P happened during the rename as adversarial, which it is not.
+    rdb = M["t" t "b.Rdone"]
     if (DISC[ja]) ord = "R<S2 (recheck)"
     else if ((ja in P) && (ja in WOFF)) ord = "no pid record (clause i off)"
+    else if ((ja in P) && (ja in WPLAYER)) ord = "record published by player"
     else if ((ja in P) && !(ja in W)) ord = "P<death<W (worker died in window)"
-    else if (rb != "" && (ja in W) && rb+0 > W[ja]+0) ord = "W<R (hook sees live pid)"
-    else if (rb != "" && (ja in S2) && rb+0 > S2[ja]+0 && kb+0 < W[ja]+0) ord = "R<S2<R_b<P<W (adversarial)"
+    else if (rdb != "" && (ja in W) && rdb+0 > W[ja]+0) ord = "W<R (hook sees live pid)"
+    else if (rdb != "" && (ja in S2) && (ja in P) && (ja in W) && \
+             rdb+0 > S2[ja]+0 && rdb+0 < P[ja]+0 && kb+0 < W[ja]+0) \
+      ord = "R<S2<R_b<P<W (adversarial)"
     else ord = "other"
     aud = "-"
     if ((ja in PSTART) && (ja in PEND)) aud = sprintf("%.4f", PEND[ja] - PSTART[ja])
     else if (ja in PSTART) aud = "unended"
     else if (ja in P) aud = "0(never_started)"
-    printf "%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-      cfg, t, ra, kb, rb,
+    printf "%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+      cfg, t, ra, kb, rb, (rdb == "" ? "-" : rdb),
       (ja in S ? S[ja] : "-"), (ja in S2 ? S2[ja] : "-"),
       (ja in P ? P[ja] : "-"), (ja in W ? W[ja] : "-"),
       (ja in NEWER ? NEWER[ja] : "-"), (DISC[ja] ? 1 : 0),

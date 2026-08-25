@@ -1,0 +1,274 @@
+1787694610.500929	worker	76985	gen1	election_won	gen=0
+1787694610.501114	worker	76985	gen1	election_sweep_record	swept=0 rows=0 pids=-
+1787694611.406858	worker	76985	gen1	ledger_truncated	held_at_truncate=- erased=-
+1787694612.111659	worker	76985	gen1	ready	after=1.61
+1787694612.347769	worker	76985	gen1	S_claim	job=w0
+1787694612.348192	worker	76985	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=w0
+1787694613.351566	worker	76985	gen1	synth_done	job=w0 wav=-
+1787694613.352156	worker	76985	gen1	S2_prespawn_stat	job=w0 newer_waiting=0
+1787694614.362455	worker	76985	gen1	P_popen	job=w0 player_pid=77056 pid_mode=shared record=pid
+1787694614.363730	worker	76985	gen1	W_pid_write	job=w0 player_pid=77056 by=player result=deferred_to_player
+1787694617.526014	worker	77079	gen1	election_won	gen=1 superseded=0 prev_owner=76985
+1787694617.526243	worker	77079	gen1	kill_attempt	by=election-sweep site=record target=77056 sig=31 result=ESRCH
+1787694617.526321	worker	77079	gen1	election_sweep_record	swept=0 rows=1 pids=77056
+1787694618.432929	worker	77079	gen1	ledger_truncated	held_at_truncate=77056 erased=-
+1787694619.138826	worker	77079	gen1	ready	after=1.6124
+1787694619.363847	worker	77079	gen1	S_claim	job=j1a
+1787694619.364312	worker	77079	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j1a
+1787694620.370008	worker	77079	gen1	synth_done	job=j1a wav=-
+1787694620.371156	worker	77079	gen1	S2_prespawn_stat	job=j1a newer_waiting=0
+1787694621.383395	worker	77079	gen1	P_popen	job=j1a player_pid=77147 pid_mode=shared record=pid
+1787694621.385296	worker	77079	gen1	worker_die	where=between_P_and_W
+1787694621.671822	worker	77150	gen1r	election_won	gen=2 superseded=1 prev_owner=77079
+1787694621.672258	worker	77150	gen1r	election_sweep_record	swept=0 rows=0 pids=-
+1787694622.578327	worker	77150	gen1r	ledger_truncated	held_at_truncate=77147 erased=77147
+1787694623.284090	worker	77150	gen1r	ready	after=1.6121
+1787694623.537752	worker	77150	gen1r	S_claim	job=j1b
+1787694623.538168	worker	77150	gen1r	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j1b
+1787694624.543335	worker	77150	gen1r	synth_done	job=j1b wav=-
+1787694624.544203	worker	77150	gen1r	S2_prespawn_stat	job=j1b newer_waiting=0
+1787694625.552056	worker	77150	gen1r	P_popen	job=j1b player_pid=77215 pid_mode=shared record=pid
+1787694625.553125	worker	77150	gen1r	W_pid_write	job=j1b player_pid=77215 by=player result=deferred_to_player
+1787694628.633206	worker	77150	gen1r	player_exit	job=j1b player_pid=77215 rc=0 killed_by_sig=0 alive_s=3.0855
+1787694629.462953	worker	77260	gen2	election_won	gen=3 superseded=2 prev_owner=77150
+1787694629.463193	worker	77260	gen2	kill_attempt	by=election-sweep site=record target=77215 sig=31 result=ESRCH
+1787694629.463285	worker	77260	gen2	election_sweep_record	swept=0 rows=1 pids=77215
+1787694630.369018	worker	77260	gen2	ledger_truncated	held_at_truncate=77215 erased=-
+1787694631.073779	worker	77260	gen2	ready	after=1.6107
+1787694631.257803	worker	77260	gen2	S_claim	job=j2a
+1787694631.258233	worker	77260	gen2	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j2a
+1787694632.259617	worker	77260	gen2	synth_done	job=j2a wav=-
+1787694632.260496	worker	77260	gen2	S2_prespawn_stat	job=j2a newer_waiting=0
+1787694633.267984	worker	77260	gen2	P_popen	job=j2a player_pid=77331 pid_mode=shared record=pid
+1787694633.268781	worker	77260	gen2	worker_die	where=between_P_and_W
+1787694633.591625	worker	77333	gen2r	election_won	gen=4 superseded=3 prev_owner=77260
+1787694633.591854	worker	77333	gen2r	election_sweep_record	swept=0 rows=0 pids=-
+1787694634.498119	worker	77333	gen2r	ledger_truncated	held_at_truncate=77331 erased=77331
+1787694635.201219	worker	77333	gen2r	ready	after=1.6094
+1787694635.456076	worker	77333	gen2r	S_claim	job=j2b
+1787694635.457377	worker	77333	gen2r	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j2b
+1787694636.461597	worker	77333	gen2r	synth_done	job=j2b wav=-
+1787694636.461919	worker	77333	gen2r	S2_prespawn_stat	job=j2b newer_waiting=0
+1787694637.470531	worker	77333	gen2r	P_popen	job=j2b player_pid=77444 pid_mode=shared record=pid
+1787694637.471244	worker	77333	gen2r	W_pid_write	job=j2b player_pid=77444 by=player result=deferred_to_player
+1787694640.510921	worker	77333	gen2r	player_exit	job=j2b player_pid=77444 rc=0 killed_by_sig=0 alive_s=3.0437
+1787694641.395013	worker	77558	gen3	election_won	gen=5 superseded=4 prev_owner=77333
+1787694641.395179	worker	77558	gen3	kill_attempt	by=election-sweep site=record target=77444 sig=31 result=ESRCH
+1787694641.395239	worker	77558	gen3	election_sweep_record	swept=0 rows=1 pids=77444
+1787694642.296553	worker	77558	gen3	ledger_truncated	held_at_truncate=77444 erased=-
+1787694643.006828	worker	77558	gen3	ready	after=1.6089
+1787694643.231971	worker	77558	gen3	S_claim	job=j3a
+1787694643.232111	worker	77558	gen3	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j3a
+1787694644.236204	worker	77558	gen3	synth_done	job=j3a wav=-
+1787694644.236919	worker	77558	gen3	S2_prespawn_stat	job=j3a newer_waiting=0
+1787694645.280228	worker	77558	gen3	P_popen	job=j3a player_pid=77661 pid_mode=shared record=pid
+1787694645.280598	worker	77558	gen3	worker_die	where=between_P_and_W
+1787694645.700594	worker	77682	gen3r	election_won	gen=6 superseded=5 prev_owner=77558
+1787694645.701126	worker	77682	gen3r	election_sweep_record	swept=0 rows=0 pids=-
+1787694646.606307	worker	77682	gen3r	ledger_truncated	held_at_truncate=77661 erased=77661
+1787694647.312131	worker	77682	gen3r	ready	after=1.612
+1787694647.577170	worker	77682	gen3r	S_claim	job=j3b
+1787694647.578087	worker	77682	gen3r	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j3b
+1787694648.581828	worker	77682	gen3r	synth_done	job=j3b wav=-
+1787694648.582281	worker	77682	gen3r	S2_prespawn_stat	job=j3b newer_waiting=0
+1787694649.589355	worker	77682	gen3r	P_popen	job=j3b player_pid=77791 pid_mode=shared record=pid
+1787694649.590164	worker	77682	gen3r	W_pid_write	job=j3b player_pid=77791 by=player result=deferred_to_player
+1787694652.624074	worker	77682	gen3r	player_exit	job=j3b player_pid=77791 rc=0 killed_by_sig=0 alive_s=3.0399
+1787694653.492960	worker	77835	gen4	election_won	gen=7 superseded=6 prev_owner=77682
+1787694653.493183	worker	77835	gen4	kill_attempt	by=election-sweep site=record target=77791 sig=31 result=ESRCH
+1787694653.493277	worker	77835	gen4	election_sweep_record	swept=0 rows=1 pids=77791
+1787694654.404956	worker	77835	gen4	ledger_truncated	held_at_truncate=77791 erased=-
+1787694655.108546	worker	77835	gen4	ready	after=1.6151
+1787694655.343067	worker	77835	gen4	S_claim	job=j4a
+1787694655.344004	worker	77835	gen4	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j4a
+1787694656.347841	worker	77835	gen4	synth_done	job=j4a wav=-
+1787694656.348844	worker	77835	gen4	S2_prespawn_stat	job=j4a newer_waiting=0
+1787694657.359455	worker	77835	gen4	P_popen	job=j4a player_pid=77907 pid_mode=shared record=pid
+1787694657.361732	worker	77835	gen4	worker_die	where=between_P_and_W
+1787694657.648281	worker	77909	gen4r	election_won	gen=8 superseded=7 prev_owner=77835
+1787694657.648783	worker	77909	gen4r	election_sweep_record	swept=0 rows=0 pids=-
+1787694658.555404	worker	77909	gen4r	ledger_truncated	held_at_truncate=77907 erased=77907
+1787694659.261296	worker	77909	gen4r	ready	after=1.6128
+1787694659.515336	worker	77909	gen4r	S_claim	job=j4b
+1787694659.515881	worker	77909	gen4r	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j4b
+1787694660.519867	worker	77909	gen4r	synth_done	job=j4b wav=-
+1787694660.523254	worker	77909	gen4r	S2_prespawn_stat	job=j4b newer_waiting=0
+1787694661.537351	worker	77909	gen4r	P_popen	job=j4b player_pid=77973 pid_mode=shared record=pid
+1787694661.538502	worker	77909	gen4r	W_pid_write	job=j4b player_pid=77973 by=player result=deferred_to_player
+1787694664.605819	worker	77909	gen4r	player_exit	job=j4b player_pid=77973 rc=0 killed_by_sig=0 alive_s=3.0761
+1787694665.488189	worker	78013	gen5	election_won	gen=9 superseded=8 prev_owner=77909
+1787694665.488445	worker	78013	gen5	kill_attempt	by=election-sweep site=record target=77973 sig=31 result=ESRCH
+1787694665.488586	worker	78013	gen5	election_sweep_record	swept=0 rows=1 pids=77973
+1787694666.392332	worker	78013	gen5	ledger_truncated	held_at_truncate=77973 erased=-
+1787694667.097325	worker	78013	gen5	ready	after=1.6089
+1787694667.255001	worker	78013	gen5	S_claim	job=j5a
+1787694667.255197	worker	78013	gen5	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j5a
+1787694668.256681	worker	78013	gen5	synth_done	job=j5a wav=-
+1787694668.257621	worker	78013	gen5	S2_prespawn_stat	job=j5a newer_waiting=0
+1787694669.264824	worker	78013	gen5	P_popen	job=j5a player_pid=78080 pid_mode=shared record=pid
+1787694669.266173	worker	78013	gen5	worker_die	where=between_P_and_W
+1787694669.595445	worker	78082	gen5r	election_won	gen=10 superseded=9 prev_owner=78013
+1787694669.595721	worker	78082	gen5r	election_sweep_record	swept=0 rows=0 pids=-
+1787694670.498092	worker	78082	gen5r	ledger_truncated	held_at_truncate=78080 erased=78080
+1787694671.203704	worker	78082	gen5r	ready	after=1.6084
+1787694671.457818	worker	78082	gen5r	S_claim	job=j5b
+1787694671.458924	worker	78082	gen5r	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j5b
+1787694672.464624	worker	78082	gen5r	synth_done	job=j5b wav=-
+1787694672.465776	worker	78082	gen5r	S2_prespawn_stat	job=j5b newer_waiting=0
+1787694673.472877	worker	78082	gen5r	P_popen	job=j5b player_pid=78148 pid_mode=shared record=pid
+1787694673.473474	worker	78082	gen5r	W_pid_write	job=j5b player_pid=78148 by=player result=deferred_to_player
+1787694676.546529	worker	78082	gen5r	player_exit	job=j5b player_pid=78148 rc=0 killed_by_sig=0 alive_s=3.0776
+1787694677.381934	worker	78171	gen6	election_won	gen=11 superseded=10 prev_owner=78082
+1787694677.382140	worker	78171	gen6	kill_attempt	by=election-sweep site=record target=78148 sig=31 result=ESRCH
+1787694677.382206	worker	78171	gen6	election_sweep_record	swept=0 rows=1 pids=78148
+1787694678.288836	worker	78171	gen6	ledger_truncated	held_at_truncate=78148 erased=-
+1787694678.993901	worker	78171	gen6	ready	after=1.6121
+1787694679.208461	worker	78171	gen6	S_claim	job=j6a
+1787694679.208816	worker	78171	gen6	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j6a
+1787694680.214534	worker	78171	gen6	synth_done	job=j6a wav=-
+1787694680.215944	worker	78171	gen6	S2_prespawn_stat	job=j6a newer_waiting=0
+1787694681.229168	worker	78171	gen6	P_popen	job=j6a player_pid=78242 pid_mode=shared record=pid
+1787694681.231836	worker	78171	gen6	worker_die	where=between_P_and_W
+1787694681.534603	worker	78244	gen6r	election_won	gen=12 superseded=11 prev_owner=78171
+1787694681.534843	worker	78244	gen6r	election_sweep_record	swept=0 rows=0 pids=-
+1787694682.440631	worker	78244	gen6r	ledger_truncated	held_at_truncate=78242 erased=78242
+1787694683.146252	worker	78244	gen6r	ready	after=1.6116
+1787694683.400856	worker	78244	gen6r	S_claim	job=j6b
+1787694683.401687	worker	78244	gen6r	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j6b
+1787694684.405210	worker	78244	gen6r	synth_done	job=j6b wav=-
+1787694684.405710	worker	78244	gen6r	S2_prespawn_stat	job=j6b newer_waiting=0
+1787694685.417331	worker	78244	gen6r	P_popen	job=j6b player_pid=78307 pid_mode=shared record=pid
+1787694685.419330	worker	78244	gen6r	W_pid_write	job=j6b player_pid=78307 by=player result=deferred_to_player
+1787694688.484916	worker	78244	gen6r	player_exit	job=j6b player_pid=78307 rc=0 killed_by_sig=0 alive_s=3.0755
+1787694689.343524	worker	78343	gen7	election_won	gen=13 superseded=12 prev_owner=78244
+1787694689.343733	worker	78343	gen7	kill_attempt	by=election-sweep site=record target=78307 sig=31 result=ESRCH
+1787694689.343818	worker	78343	gen7	election_sweep_record	swept=0 rows=1 pids=78307
+1787694690.250603	worker	78343	gen7	ledger_truncated	held_at_truncate=78307 erased=-
+1787694690.954847	worker	78343	gen7	ready	after=1.611
+1787694691.132205	worker	78343	gen7	S_claim	job=j7a
+1787694691.132566	worker	78343	gen7	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j7a
+1787694692.138786	worker	78343	gen7	synth_done	job=j7a wav=-
+1787694692.140442	worker	78343	gen7	S2_prespawn_stat	job=j7a newer_waiting=0
+1787694693.151981	worker	78343	gen7	P_popen	job=j7a player_pid=78412 pid_mode=shared record=pid
+1787694693.153588	worker	78343	gen7	worker_die	where=between_P_and_W
+1787694693.446291	worker	78414	gen7r	election_won	gen=14 superseded=13 prev_owner=78343
+1787694693.446528	worker	78414	gen7r	election_sweep_record	swept=0 rows=0 pids=-
+1787694694.351099	worker	78414	gen7r	ledger_truncated	held_at_truncate=78412 erased=78412
+1787694695.053845	worker	78414	gen7r	ready	after=1.6075
+1787694695.308663	worker	78414	gen7r	S_claim	job=j7b
+1787694695.310281	worker	78414	gen7r	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j7b
+1787694696.312036	worker	78414	gen7r	synth_done	job=j7b wav=-
+1787694696.312610	worker	78414	gen7r	S2_prespawn_stat	job=j7b newer_waiting=0
+1787694697.329461	worker	78414	gen7r	P_popen	job=j7b player_pid=78482 pid_mode=shared record=pid
+1787694697.333756	worker	78414	gen7r	W_pid_write	job=j7b player_pid=78482 by=player result=deferred_to_player
+1787694700.400607	worker	78414	gen7r	player_exit	job=j7b player_pid=78482 rc=0 killed_by_sig=0 alive_s=3.0817
+1787694701.222378	worker	78503	gen8	election_won	gen=15 superseded=14 prev_owner=78414
+1787694701.222634	worker	78503	gen8	kill_attempt	by=election-sweep site=record target=78482 sig=31 result=ESRCH
+1787694701.222736	worker	78503	gen8	election_sweep_record	swept=0 rows=1 pids=78482
+1787694702.129633	worker	78503	gen8	ledger_truncated	held_at_truncate=78482 erased=-
+1787694702.834209	worker	78503	gen8	ready	after=1.6116
+1787694703.022923	worker	78503	gen8	S_claim	job=j8a
+1787694703.023299	worker	78503	gen8	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j8a
+1787694704.024234	worker	78503	gen8	synth_done	job=j8a wav=-
+1787694704.025306	worker	78503	gen8	S2_prespawn_stat	job=j8a newer_waiting=0
+1787694705.038650	worker	78503	gen8	P_popen	job=j8a player_pid=78571 pid_mode=shared record=pid
+1787694705.040744	worker	78503	gen8	worker_die	where=between_P_and_W
+1787694705.334326	worker	78573	gen8r	election_won	gen=16 superseded=15 prev_owner=78503
+1787694705.334795	worker	78573	gen8r	election_sweep_record	swept=0 rows=0 pids=-
+1787694706.241618	worker	78573	gen8r	ledger_truncated	held_at_truncate=78571 erased=78571
+1787694706.948395	worker	78573	gen8r	ready	after=1.6136
+1787694707.202074	worker	78573	gen8r	S_claim	job=j8b
+1787694707.202865	worker	78573	gen8r	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j8b
+1787694708.207860	worker	78573	gen8r	synth_done	job=j8b wav=-
+1787694708.209073	worker	78573	gen8r	S2_prespawn_stat	job=j8b newer_waiting=0
+1787694709.219629	worker	78573	gen8r	P_popen	job=j8b player_pid=78636 pid_mode=shared record=pid
+1787694709.221659	worker	78573	gen8r	W_pid_write	job=j8b player_pid=78636 by=player result=deferred_to_player
+1787694712.289382	worker	78573	gen8r	player_exit	job=j8b player_pid=78636 rc=0 killed_by_sig=0 alive_s=3.0773
+1787694713.155259	worker	78675	gen9	election_won	gen=17 superseded=16 prev_owner=78573
+1787694713.155649	worker	78675	gen9	kill_attempt	by=election-sweep site=record target=78636 sig=31 result=ESRCH
+1787694713.155786	worker	78675	gen9	election_sweep_record	swept=0 rows=1 pids=78636
+1787694714.062070	worker	78675	gen9	ledger_truncated	held_at_truncate=78636 erased=-
+1787694714.768294	worker	78675	gen9	ready	after=1.6129
+1787694714.992727	worker	78675	gen9	S_claim	job=j9a
+1787694714.993149	worker	78675	gen9	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j9a
+1787694715.998654	worker	78675	gen9	synth_done	job=j9a wav=-
+1787694715.999535	worker	78675	gen9	S2_prespawn_stat	job=j9a newer_waiting=0
+1787694717.009415	worker	78675	gen9	P_popen	job=j9a player_pid=78745 pid_mode=shared record=pid
+1787694717.011020	worker	78675	gen9	worker_die	where=between_P_and_W
+1787694717.335718	worker	78747	gen9r	election_won	gen=18 superseded=17 prev_owner=78675
+1787694717.335935	worker	78747	gen9r	election_sweep_record	swept=0 rows=0 pids=-
+1787694718.238810	worker	78747	gen9r	ledger_truncated	held_at_truncate=78745 erased=78745
+1787694718.942412	worker	78747	gen9r	ready	after=1.6066
+1787694719.196648	worker	78747	gen9r	S_claim	job=j9b
+1787694719.197512	worker	78747	gen9r	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j9b
+1787694720.200687	worker	78747	gen9r	synth_done	job=j9b wav=-
+1787694720.201733	worker	78747	gen9r	S2_prespawn_stat	job=j9b newer_waiting=0
+1787694721.213764	worker	78747	gen9r	P_popen	job=j9b player_pid=78810 pid_mode=shared record=pid
+1787694721.215432	worker	78747	gen9r	W_pid_write	job=j9b player_pid=78810 by=player result=deferred_to_player
+1787694724.282786	worker	78747	gen9r	player_exit	job=j9b player_pid=78810 rc=0 killed_by_sig=0 alive_s=3.0758
+1787694725.098272	worker	78833	gen10	election_won	gen=19 superseded=18 prev_owner=78747
+1787694725.098459	worker	78833	gen10	kill_attempt	by=election-sweep site=record target=78810 sig=31 result=ESRCH
+1787694725.098522	worker	78833	gen10	election_sweep_record	swept=0 rows=1 pids=78810
+1787694726.003172	worker	78833	gen10	ledger_truncated	held_at_truncate=78810 erased=-
+1787694726.705682	worker	78833	gen10	ready	after=1.6075
+1787694726.884023	worker	78833	gen10	S_claim	job=j10a
+1787694726.884576	worker	78833	gen10	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j10a
+1787694727.888011	worker	78833	gen10	synth_done	job=j10a wav=-
+1787694727.888568	worker	78833	gen10	S2_prespawn_stat	job=j10a newer_waiting=0
+1787694728.899164	worker	78833	gen10	P_popen	job=j10a player_pid=78904 pid_mode=shared record=pid
+1787694728.900482	worker	78833	gen10	worker_die	where=between_P_and_W
+1787694729.221188	worker	78906	gen10r	election_won	gen=20 superseded=19 prev_owner=78833
+1787694729.221429	worker	78906	gen10r	election_sweep_record	swept=0 rows=0 pids=-
+1787694730.127920	worker	78906	gen10r	ledger_truncated	held_at_truncate=78904 erased=78904
+1787694730.833975	worker	78906	gen10r	ready	after=1.6127
+1787694731.088907	worker	78906	gen10r	S_claim	job=j10b
+1787694731.090385	worker	78906	gen10r	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j10b
+1787694732.096404	worker	78906	gen10r	synth_done	job=j10b wav=-
+1787694732.097331	worker	78906	gen10r	S2_prespawn_stat	job=j10b newer_waiting=0
+1787694733.108356	worker	78906	gen10r	P_popen	job=j10b player_pid=78974 pid_mode=shared record=pid
+1787694733.109486	worker	78906	gen10r	W_pid_write	job=j10b player_pid=78974 by=player result=deferred_to_player
+1787694736.180393	worker	78906	gen10r	player_exit	job=j10b player_pid=78974 rc=0 killed_by_sig=0 alive_s=3.0772
+1787694737.039636	worker	79010	gen11	election_won	gen=21 superseded=20 prev_owner=78906
+1787694737.039809	worker	79010	gen11	kill_attempt	by=election-sweep site=record target=78974 sig=31 result=ESRCH
+1787694737.039895	worker	79010	gen11	election_sweep_record	swept=0 rows=1 pids=78974
+1787694737.946402	worker	79010	gen11	ledger_truncated	held_at_truncate=78974 erased=-
+1787694738.652438	worker	79010	gen11	ready	after=1.6125
+1787694738.852022	worker	79010	gen11	S_claim	job=j11a
+1787694738.852632	worker	79010	gen11	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j11a
+1787694739.858580	worker	79010	gen11	synth_done	job=j11a wav=-
+1787694739.859818	worker	79010	gen11	S2_prespawn_stat	job=j11a newer_waiting=0
+1787694740.871787	worker	79010	gen11	P_popen	job=j11a player_pid=79077 pid_mode=shared record=pid
+1787694740.873512	worker	79010	gen11	worker_die	where=between_P_and_W
+1787694741.185670	worker	79079	gen11r	election_won	gen=22 superseded=21 prev_owner=79010
+1787694741.185878	worker	79079	gen11r	election_sweep_record	swept=0 rows=0 pids=-
+1787694742.092784	worker	79079	gen11r	ledger_truncated	held_at_truncate=79077 erased=79077
+1787694742.796448	worker	79079	gen11r	ready	after=1.6105
+1787694743.050660	worker	79079	gen11r	S_claim	job=j11b
+1787694743.051268	worker	79079	gen11r	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j11b
+1787694744.053288	worker	79079	gen11r	synth_done	job=j11b wav=-
+1787694744.054368	worker	79079	gen11r	S2_prespawn_stat	job=j11b newer_waiting=0
+1787694745.065250	worker	79079	gen11r	P_popen	job=j11b player_pid=79143 pid_mode=shared record=pid
+1787694745.066285	worker	79079	gen11r	W_pid_write	job=j11b player_pid=79143 by=player result=deferred_to_player
+1787694748.143883	worker	79079	gen11r	player_exit	job=j11b player_pid=79143 rc=0 killed_by_sig=0 alive_s=3.0836
+1787694749.010901	worker	79181	gen12	election_won	gen=23 superseded=22 prev_owner=79079
+1787694749.011124	worker	79181	gen12	kill_attempt	by=election-sweep site=record target=79143 sig=31 result=ESRCH
+1787694749.011220	worker	79181	gen12	election_sweep_record	swept=0 rows=1 pids=79143
+1787694749.917463	worker	79181	gen12	ledger_truncated	held_at_truncate=79143 erased=-
+1787694750.621888	worker	79181	gen12	ready	after=1.6103
+1787694750.854361	worker	79181	gen12	S_claim	job=j12a
+1787694750.855324	worker	79181	gen12	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j12a
+1787694751.858154	worker	79181	gen12	synth_done	job=j12a wav=-
+1787694751.858825	worker	79181	gen12	S2_prespawn_stat	job=j12a newer_waiting=0
+1787694752.872611	worker	79181	gen12	P_popen	job=j12a player_pid=79234 pid_mode=shared record=pid
+1787694752.873971	worker	79181	gen12	worker_die	where=between_P_and_W
+1787694753.173943	worker	79251	gen12r	election_won	gen=24 superseded=23 prev_owner=79181
+1787694753.174168	worker	79251	gen12r	election_sweep_record	swept=0 rows=0 pids=-
+1787694754.080064	worker	79251	gen12r	ledger_truncated	held_at_truncate=79234 erased=79234
+1787694754.785155	worker	79251	gen12r	ready	after=1.6112
+1787694755.037979	worker	79251	gen12r	S_claim	job=j12b
+1787694755.038872	worker	79251	gen12r	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j12b
+1787694756.042896	worker	79251	gen12r	synth_done	job=j12b wav=-
+1787694756.044304	worker	79251	gen12r	S2_prespawn_stat	job=j12b newer_waiting=0
+1787694757.054885	worker	79251	gen12r	P_popen	job=j12b player_pid=79302 pid_mode=shared record=pid
+1787694757.056361	worker	79251	gen12r	W_pid_write	job=j12b player_pid=79302 by=player result=deferred_to_player
+1787694760.140230	worker	79251	gen12r	player_exit	job=j12b player_pid=79302 rc=0 killed_by_sig=0 alive_s=3.0905

@@ -1,0 +1,4 @@
+cfg=C16a_pending_sweepfirst delay=1000 gap=1.4 ck=pidfile rechk=on die=popen respawn=yes
+respawn_delay=0.8 pidmode=perplayer pubdelay=1500 sweepmode=both
+sweepgap=0 reapdelay=0 unlinkreap=off ledger=off pidw=on
+pending=on playersetsid=off
