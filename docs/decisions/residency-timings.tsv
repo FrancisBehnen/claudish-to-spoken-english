@@ -1,0 +1,40 @@
+turn	run	driver	cold	ttfa_s	hook_to_worker_s	load_s	sanitize_ms	synth_ms	write_ms	spawn_ms	audio_s	rtf	chars_in	chars_spoken	load1	item	note
+1	A-stop-only	harness	1	5.441	1.196	1.003	0.8	4232.2	4.0	8.2	5.06	0.837	268	88		r01	first turn cold, then warm; no MessageDisplay warm-up hook; worker has no startup warm-up synthesis
+2	A-stop-only	harness	0	0.695	0.080	0.000	0.9	605.9	0.8	7.7	1.51	0.400	639	27		r05	first turn cold, then warm; no MessageDisplay warm-up hook; worker has no startup warm-up synthesis
+3	A-stop-only	harness	0	1.684	0.101	0.000	6.3	1559.2	1.9	15.6	2.07	0.753	1564	32		r10	first turn cold, then warm; no MessageDisplay warm-up hook; worker has no startup warm-up synthesis
+4	A-stop-only	harness	0	1.517	0.102	0.000	1.5	1402.4	1.1	9.9	2.07	0.678	2370	42		r11	first turn cold, then warm; no MessageDisplay warm-up hook; worker has no startup warm-up synthesis
+5	A-stop-only	harness	0	4.014	0.133	0.000	7.3	3857.8	1.7	14.2	4.37	0.882	2897	72		r12	first turn cold, then warm; no MessageDisplay warm-up hook; worker has no startup warm-up synthesis
+6	A-stop-only	harness	0	1.119	0.081	0.000	0.6	1027.3	0.9	8.6	3.14	0.328	334	62		r03	first turn cold, then warm; no MessageDisplay warm-up hook; worker has no startup warm-up synthesis
+7	A-stop-only	harness	1	5.496	1.699	1.433	2.1	3761.5	13.1	20.2	5.06	0.744	268	88	6.95	r01	worker restarted at turn 7; turn 7 cold, rest warm
+8	A-stop-only	harness	0	1.314	0.083	0.000	0.5	1191.8	0.9	38.3	3.24	0.368	275	62	8.68	r02	worker restarted at turn 7; turn 7 cold, rest warm
+9	A-stop-only	harness	0	0.646	0.065	0.000	0.4	572.6	0.6	7.7	1.64	0.349	369	19	8.68	r04	worker restarted at turn 7; turn 7 cold, rest warm
+10	A-stop-only	harness	0	1.085	0.059	0.000	0.5	1015.6	0.8	8.5	3.35	0.303	611	64	8.15	r06	worker restarted at turn 7; turn 7 cold, rest warm
+11	A-stop-only	harness	0	1.559	0.084	0.000	0.8	1463.5	1.4	9.4	3.67	0.399	669	64	7.20	r07	worker restarted at turn 7; turn 7 cold, rest warm
+12	A-stop-only	harness	0	1.628	0.071	0.000	0.7	1546.3	1.3	8.5	4.89	0.317	784	87	6.71	r08	worker restarted at turn 7; turn 7 cold, rest warm
+13	A-stop-only	harness	0	1.106	0.060	0.000	0.8	1033.7	0.9	11.3	3.31	0.313	1176	65	7.06	r09	worker restarted at turn 7; turn 7 cold, rest warm
+14	A-stop-only	harness	0	0.646	0.067	0.000	1.1	569.1	1.1	8.4	1.32	0.430	1241	15	6.99	r13	worker restarted at turn 7; turn 7 cold, rest warm
+15	A-stop-only	harness	0	0.691	0.084	0.000	5.4	591.9	1.0	8.4	1.34	0.440	1456	20	6.53	r14	worker restarted at turn 7; turn 7 cold, rest warm
+16	A-stop-only	harness	0	1.456	0.105	0.000	2.2	1328.6	2.1	17.7	4.37	0.304	2897	72	6.09	r12	worker restarted at turn 7; turn 7 cold, rest warm
+17	A-stop-only	harness	0	0.835	0.081	0.000	1.2	743.3	0.9	8.7	2.07	0.359	1564	32	5.03	r10	worker restarted at turn 7; turn 7 cold, rest warm
+18	A-stop-only	harness	0	0.855	0.080	0.000	1.9	765.1	0.9	7.7	2.07	0.370	2370	42	5.48	r11	worker restarted at turn 7; turn 7 cold, rest warm
+19	A-stop-only	harness	0	1.024	0.071	0.000	0.7	942.5	1.0	8.7	3.14	0.301	334	62	5.60	r03	worker restarted at turn 7; turn 7 cold, rest warm
+20	A-stop-only	harness	0	0.701	0.073	0.000	0.6	615.3	0.9	11.5	1.51	0.406	639	27	5.05	r05	worker restarted at turn 7; turn 7 cold, rest warm
+21	A-stop-only	harness	0	1.487	0.065	0.000	0.3	1412.6	1.1	7.6	5.06	0.279	268	88	5.20	r01	worker restarted at turn 7; turn 7 cold, rest warm
+29	C-concurrency	offline	1	3.072	0.991	0.794	0.5	2079.7	1.4	0.0	5.06	0.411	268	88	3.34	r01	8 hook processes fired simultaneously against an empty speak dir; not harness-driven
+30	D-slow-cold	harness	1	23.304	21.237	1.071	0.9	2049.4	1.8	14.8	5.06	0.405	268	88	3.34	r01	20 s artificial delay inserted before model load, against a 10 s declared hook timeout
+31	E-md-warmup	harness	1	4.489	1.465	1.295	1.4	3006.9	2.5	13.1	5.06	0.595	268	88	6.48	r01	MessageDisplay warm-up hook live but the message was 50 chars: no lead, still cold
+32	E-md-warmup	harness	0	2.227	0.077	0.000	0.6	2132.8	3.4	13.3	5.06	0.422	268	88	4.35	r01	MessageDisplay lead present; worker has no startup warm-up synthesis
+33	F-md-warmup+prewarm	harness	0	3.829	0.198	0.000	3.3	3620.1	1.6	6.0	5.06	0.716	268	88	3.55	r01	fresh session first turn, MessageDisplay lead present, worker does a startup warm-up synthesis
+34	F-md-warmup+prewarm	harness	0	1.373	0.073	0.000	0.8	1282.5	1.3	15.2	5.06	0.254	268	88	3.46	r01	fresh session first turn, MessageDisplay lead present, worker does a startup warm-up synthesis
+35	F-md-warmup+prewarm	harness	0	1.664	0.072	0.000	1.2	1580.1	1.4	8.5	5.06	0.313	268	88	3.11	r01	fresh session first turn, MessageDisplay lead present, worker does a startup warm-up synthesis
+36	F-md-warmup+prewarm	harness	0	1.710	0.082	0.000	1.4	1615.5	1.5	8.9	5.06	0.320	268	88	3.02	r01	fresh session first turn, MessageDisplay lead present, worker does a startup warm-up synthesis
+37	G-short-cold	harness	1	3.161	1.734	0.739	0.5	1413.5	1.6	10.6	5.06	0.280	268	88	2.43	r01	short reply so MessageDisplay gives no lead; worker does a startup warm-up synthesis
+38	G-short-cold	harness	1	2.954	1.614	0.666	0.5	1328.9	1.1	10.3	5.06	0.263	268	88	2.48	r01	short reply so MessageDisplay gives no lead; worker does a startup warm-up synthesis
+39	G-short-cold	harness	1	2.951	1.720	0.799	0.5	1218.2	1.2	11.0	5.06	0.241	268	88	3.14	r01	short reply so MessageDisplay gives no lead; worker does a startup warm-up synthesis
+40	G-short-cold	harness	1	2.657	1.383	0.547	0.5	1262.4	1.4	10.1	5.06	0.250	268	88	3.45	r01	short reply so MessageDisplay gives no lead; worker does a startup warm-up synthesis
+41	H-warm-quiet	harness	0	0.695	0.070	0.000	2.3	614.9	0.9	7.1	1.51	0.406	639	27	2.90	r05	steady warm, resident worker, low machine load
+42	H-warm-quiet	harness	0	0.994	0.066	0.000	1.4	917.7	0.9	8.2	3.31	0.278	1176	65	2.99	r09	steady warm, resident worker, low machine load
+43	H-warm-quiet	harness	0	0.777	0.069	0.000	2.0	696.8	1.0	8.1	2.07	0.337	2370	42	3.23	r11	steady warm, resident worker, low machine load
+44	H-warm-quiet	harness	0	1.404	0.099	0.000	2.0	1287.6	1.2	13.6	4.37	0.294	2897	72	3.45	r12	steady warm, resident worker, low machine load
+45	H-warm-quiet	harness	0	0.573	0.062	0.000	1.0	488.5	1.1	20.7	1.34	0.363	1456	20	3.45	r14	steady warm, resident worker, low machine load
+46	H-warm-quiet	harness	0	1.591	0.096	0.000	0.6	1485.1	1.2	7.7	5.06	0.294	268	88	3.49	r01	steady warm, resident worker, low machine load
