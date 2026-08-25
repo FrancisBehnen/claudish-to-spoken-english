@@ -11,8 +11,11 @@ environment. **No hook was modified.** `rewrite.sh`, `rewrite-md.sh`, `providers
 source line by line. One is confirmed exactly as stated; the other is confirmed in its *effect* and
 wrong in its *mechanism*, and the correction is section 2's whole point.**
 
-Everything here is a file read, a `printenv`, a checksum, or one timed subprocess. Nothing is
-inferred from how the plugin "probably" behaves except where the text says so.
+Everything here is a file read, a `printenv`, a checksum, a word count, or a subprocess that made no
+network request. Nothing is inferred from how the plugin "probably" behaves except where the text says
+so. **No LLM was called** — the one call #14 asks for was authorised and then blocked by this
+machine's permission classifier; section 4 records the instrument, the input, and what is still
+unknown.
 
 ## The source these line numbers refer to
 
@@ -208,14 +211,109 @@ Consequences:
 - Editing `settings.json` mid-session changes nothing until the next session starts.
 - `touch ~/.claude/claudish-off` **pauses** rewrites live, but cannot **reconfigure** them.
 - A provider trial therefore means either a new session, or calling the provider layer directly out
-  of band — which is what `corpus/bin/` does, and what section 4's measurement does.
+  of band — which is what `corpus/bin/` does, and what section 4's script does.
 
 ---
 
-## 4. The measurement: does `claude-cli` clear the size that fails on ollama?
+## 4. The measurement: prepared, authorised, and blocked before it ran
 
-*(Filled in below by the single authorised call. Its script, provenance and numbers are recorded
-there.)*
+**#14's open question is still open. The instrument exists; the call was not spent.**
+
+The one call was authorised mid-session. `corpus/bin/time-one-rewrite.sh` was written for it, the
+input was selected, and the whole path was dry-run — and then the invocation was refused by this
+machine's auto-mode permission classifier, on both attempts. The refusal is the harness declining to
+let an agent spawn a nested `claude` process, which is a guardrail against exactly the kind of
+quota-spending this measurement is, so it was not worked around. **A human running the same command
+by hand is not subject to it.**
+
+### The command that is ready to run
+
+```bash
+bash corpus/bin/time-one-rewrite.sh <input.txt> <output.txt>
+```
+
+Its guard refuses to overwrite an existing output file, so re-running it cannot silently spend a
+second call.
+
+### What was verified without spending the call
+
+A dry run with `CLAUDISH_CLAUDE_BIN` pointed at a non-existent path exercises everything up to the
+subprocess and stops there — no API request, no quota:
+
+```
+provider=claude-cli model=haiku timeout=120s input=1328w/8318c
+1328	8318	127	0	0	0.04	0
+```
+
+Two things fall out of that line, and they are findings in their own right:
+
+- **`model=haiku`, with `CLAUDISH_MODEL=qwen3:4b-instruct-2507-q4_K_M` live in the environment.**
+  This is trap 1's fix demonstrated rather than argued: `unset CLAUDISH_MODEL` before sourcing
+  `providers.sh` is sufficient, and the `providers.sh:92` default takes over.
+- **`rc=127`** is `providers.sh`'s "binary not on PATH" code, reached through the real
+  `_llm_run_bounded` path, so the timing, output and reporting machinery all work.
+
+### The input that was selected, and why
+
+| | |
+| --- | --- |
+| provenance | a real assistant message from this machine's transcripts, `subagents/agent-af1f27c6a64bc31d1`, uuid `b14a64f6-a2ca-40fb-9202-c231e43791cf`, 2026-08-04T02:16:53Z |
+| size | **1,328 words**, 8,318 bytes |
+| prose share | **100%** — zero fenced blocks, so `prose_len` = 6,855 |
+| how found | `corpus/bin/extract-real-sources.sh` over `~/.claude/projects`, then ranked by word count |
+| not generated | no model was asked to write it; it is a verbatim transcript message |
+
+**It is not from this repo's own sessions, and that is not a free choice.** The longest real
+assistant message in every claudish transcript on this machine — 410 messages across the project
+directory and its scratchpad — is **770 words**. Nothing in this repo's own history reaches the
+failing band at all, so a ~1,300-word real message has to come from another project. This one is an
+engineering report (git commits, measurements, file paths); the alternative closest to 1,300 was a
+1,299-word top-level message that is **52% fenced code**, which measures the wrong thing: the prompt
+tells the model to leave fences unchanged, so half of that message would be copied, not rewritten.
+The all-prose message is the harder and more honest test.
+
+### What the number would have to beat, and what would not be comparable
+
+`corpus/capture-log.tsv`, the 12 real rewrites, all on `claude-cli`/`haiku`:
+
+| item | source words | output bytes | seconds |
+| --- | ---: | ---: | ---: |
+| `r01` | 40 | 270 | 7 |
+| `r05` | **65** | 641 | 6 |
+| `r08` | 136 | 788 | 9 |
+| `r10` | 305 | 1576 | 10 |
+| `r11` | 383 | 2387 | 13 |
+| `r12` | **663** | 2933 | **13** |
+| *the pending measurement* | **1328** | ? | **?** |
+
+> **A correction to #14's copy of this table:** it lists `r05` at 96 source words. `corpus/source/r05.txt`
+> is **65** words by both `wc -w` and Python's `split()`. Every other row in that table matches the
+> files exactly. The slip does not change the shape of the curve.
+
+The threshold that matters is **45s** (`CLAUDISH_TIMEOUT`'s default), and the hard wall behind it is
+**60s** (section 2). `r12` at 663 words took 13s; the pending item is 2.0× that input.
+
+Three things that would **not** be comparable, stated in advance so the number is not over-read:
+
+1. **The ollama figure it is being set against is not a measurement in this table.** #14's
+   ~1,200–1,400 word failure threshold is a *reported* observation on
+   `qwen3:4b-instruct-2507-q4_K_M`, not a logged latency. This would be a claude-cli number next to
+   an ollama anecdote: different provider, network round-trip versus local inference, and a hosted
+   model versus a 4B local one.
+2. **The 12 corpus rows were captured in one warm run** on 2026-08-15; a single call today carries
+   whatever CLI start-up, auth and server-side conditions apply at that moment. `n=1` has no error
+   bar.
+3. **`LLM_TIMEOUT=120` is not the hook's budget.** The script uses 120 so that a slow result is a
+   *number* rather than the word "timeout". Read the result against 45, not against 120.
+
+### What it would settle
+
+- **Comfortably under 45s** → the flat-latency extrapolation holds at 2× the largest prior
+  measurement, and #14's failure is a **provider** problem, not a model-speed one.
+- **Between 45s and 60s** → the curve is not flat; `claude-cli` would need `CLAUDISH_TIMEOUT` raised
+  toward the ceiling, and section 2's ceiling becomes load-bearing rather than academic.
+- **Over 60s, or a non-zero `rc`** → switching provider does not fix long messages, and the honest
+  outcome is to let them fail open by design.
 
 ---
 
@@ -223,13 +321,15 @@ there.)*
 
 Listed so nobody mistakes an unchecked thing for a checked one.
 
-1. **That `claude --model <ollama-id>` fails, and how.** Section 1's pass-through is verified; the
+1. **The latency of a ~1,300-word rewrite on `claude-cli`** — #14's actual question. Section 4 has
+   the script, the input and the thresholds; only the call is missing.
+2. **That `claude --model <ollama-id>` fails, and how.** Section 1's pass-through is verified; the
    CLI's reaction is inference plus `capture-real-rewrites.sh`'s prior expectation.
-2. **Whether Claude Code imposes any absolute hook-timeout ceiling**, and whether it differs by event
+3. **Whether Claude Code imposes any absolute hook-timeout ceiling**, and whether it differs by event
    type. Section 2 does not need it.
-3. **The exact overhead between the 60s hook budget and the LLM call**, i.e. what `CLAUDISH_TIMEOUT`
+4. **The exact overhead between the 60s hook budget and the LLM call**, i.e. what `CLAUDISH_TIMEOUT`
    could safely be raised to if the ceiling *were* moved. Nobody has measured the hook's non-LLM
    time.
-4. **The ollama failure itself.** The ~1,200–1,400 word threshold in #14 is #14's reported figure and
+5. **The ollama failure itself.** The ~1,200–1,400 word threshold in #14 is #14's reported figure and
    was not reproduced here — reproducing it would mean deliberately timing out a local model, which
    costs a minute of GPU and proves a number already reported by the person who hit it.
