@@ -128,13 +128,17 @@ times"**. **[obs]** The default value 8 is real; it is the number of blocks *tol
 runs once more than that.
 
 > **Correction to [`speech-integration-spec.md` §5](speech-integration-spec.md).** The spec says a
-> blocking speech hook "gets re-fired up to 8 times, **speaking the same message up to 8 times**", and
-> §5.1 bounds the worst case at "at most 8 fires, so at most 8 utterances". **The observed number is
-> nine.** The reasoning was right and the arithmetic was one short: 8 is the cap on tolerated blocks,
-> and the invocation count is 8 + 1. Nothing in the spec's conclusions turns on the difference — a hook
-> that speaks nine times is as broken as one that speaks eight — but the spec states a number, the
-> number is now measured, and it is 9. Recorded here rather than silently patched, because #11 owns
-> that document.
+> blocking speech hook "gets re-fired up to 8 times, **speaking the same message up to 8 times**";
+> [`turn-finality-and-the-stop-hook.md`](turn-finality-and-the-stop-hook.md) bounds the same worst case
+> at "at most 8 fires, so at most 8 utterances". **The observed number is nine.** The reasoning was
+> right and the arithmetic was one short: 8 is the cap on tolerated blocks, and the invocation count is
+> 8 + 1.
+>
+> **Nine is the count of *fires*, and this document should not be read as saying nine utterances.**
+> [Run A below](#5--last_assistant_message-carries-the-newer-text-confirmed-on-the-wire) is the case that settles
+> it: nine fires, one distinct string — and under the spec's §5.1 text-hash dedup, **at most one
+> utterance**. Fires and utterances are different quantities and only coincide where the text changes
+> on every fire, nothing dedupes, and every synthesis attempt succeeds. Recorded here rather than silently patched, because #11 owns that document.
 
 `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` was **unset** in the driven session's environment; 9 is the default
 behaviour, not a configured one. **[obs]** The `0`-disables-the-cap branch was **not exercised** and
@@ -405,7 +409,10 @@ closed and the reasoning held.** Specifically:
    observed reason rather than an inferred one, and the text-hash dedup it specifies is shown to be
    correct in both directions: it suppresses run A's repetition and correctly does not suppress run
    A2's ladder.
-2. **§5's worst case is 9 utterances, not 8.** The only factual correction this probe produces.
+2. **§5's worst case is 9 *invocations*, not 8** — the only factual correction this probe produces.
+   **Not 9 utterances:** run A shows nine fires resolving to one distinct string, which §5.1's hash
+   speaks at most once. The invocation ceiling and the audio cost are different numbers, and §5 has
+   been corrected to say so.
 3. **§5's fail-open rule gains a second, sharper reason.** A blocking hook's stderr is *prompt input*
    to the model, not just log noise.
 4. Nothing in §3, §4, §6–§11 is touched.

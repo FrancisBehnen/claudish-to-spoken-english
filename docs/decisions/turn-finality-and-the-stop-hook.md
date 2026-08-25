@@ -32,7 +32,7 @@ Three sources, named per claim so the weak ones stay visible.
 | **[docs]** | <https://code.claude.com/docs/en/hooks.md>, fetched 2026-08-25 | states intent; can lag or lead the installed build |
 | **[bin]** | `/Users/francis.behnen/.local/share/claude/versions/2.1.245` (Mach-O arm64, 376 MB), read via `strings -n 6` | proves what **this** build contains — the compiled Zod schema and the dispatch code |
 | **[inferred]** | reading the minified control flow | a reading of code, not a run of it |
-| **[obs]** | one live `Stop` payload, captured 2026-08-25 on 2.1.245 by a throwaway hook, since removed | proves a field **was** present, with that value, in **one** turn; a single sample can never prove a field is always absent |
+| **[obs]** | two captures on 2.1.245, 2026-08-25, both by throwaway hooks since removed: **one** live `Stop` payload (everything below except Correction 3), and **28 fires across four driven block-loop runs** ([`stop-hook-block-mechanics.md`](stop-hook-block-mechanics.md), the source for Correction 3 and for the fire counts) | proves a field **was** present, with that value, in the turns actually observed; a single sample can never prove a field is always absent |
 
 Offsets below are byte offsets into the `strings -n 6` output, which is reproducible:
 
@@ -137,8 +137,12 @@ if (Or > 0 && Fr > Or) return … yield DI(
   + "it's true. Set CLAUDE_CODE_STOP_HOOK_BLOCK_CAP to raise this limit.", "warning")
 ```
 
-So: **the default block cap is 8** consecutive blocks, after which the runtime overrides the hook and
-ends the turn with a warning. Env override `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`; `0` disables the cap.
+So: **the default block cap is 8** consecutive blocks — but read the comparison, not just the number.
+`Fr > Or` is **strict**, so 8 blocks are *tolerated* and the **ninth** is the one overridden: a
+blocking hook is invoked **nine** times, one initial fire plus eight re-fires. **[obs]** This document
+originally read the 8 as the invocation count; see
+[Correction 3](#correction-3--the-block-cap-counts-tolerated-blocks-not-invocations). Env override
+`CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`; `0` disables the cap — **[bin]** only, never exercised.
 
 ### Only exit code 2 blocks — an earlier revision of this document got this wrong
 
@@ -204,8 +208,9 @@ content, `rewrite.sh:23-24`), but the reason to keep it on `Stop` is narrower:
 - **`jq` is the one to watch.** `jq` exits **2** on a usage or compile error in the filter (it uses 5
   for a filter that errors at runtime, and 1 for a false/null result under `-e`). A `Stop` hook whose
   first act is to parse its stdin with `jq` can therefore hand the harness a genuine 2 and really
-  block — and then really get re-fired, up to the cap of 8. That is the loop to design against, and
-  it is one specific mistake rather than a broad class.
+  block — and then really get re-fired **eight** times, **nine invocations in all** (**[obs]**;
+  [Correction 3](#correction-3--the-block-cap-counts-tolerated-blocks-not-invocations)). That is the
+  loop to design against, and it is one specific mistake rather than a broad class.
 
 Two rules follow, and they are still cheap — the second for a different reason than before:
 
@@ -235,8 +240,15 @@ stood:
 
 **The flag is a blocking-loop guard, not a de-duplication signal.** Deduplication, if wanted, has to
 compare the *text* — and the payload carries the text, so hashing `last_assistant_message` against
-the last thing spoken is both available and cheap. That also bounds the worst case properly: the
-8-block cap means at most 8 fires, so at most 8 utterances if nothing dedupes.
+the last thing spoken is both available and cheap. That also bounds the worst case properly — though
+this document first bounded it one short, and in the wrong unit. The cap tolerates 8 blocks, so the
+hook is invoked **nine** times
+([Correction 3](#correction-3--the-block-cap-counts-tolerated-blocks-not-invocations)); nine is a
+count of *fires*, and the utterances only match it if the text changes on every one of them and
+nothing dedupes. Observed: a run whose text never changed produced nine fires and **one** distinct
+string; a run whose stderr *asked* the model for a different word each fire produced nine fires and
+**eight**. **[obs]** The second shows the text can move, not how often it moves unprompted.
+([`stop-hook-block-mechanics.md`](stop-hook-block-mechanics.md).)
 
 Speak-first, speak-on-change, or speak-last (which needs knowing a fire is the last one, and it
 cannot) is a real choice with no obviously correct answer, and **it is #11's.** What is settled here
@@ -324,6 +336,32 @@ Two footnotes, so the claim is not overstated:
   `agent_id`-absent check is available if the design ever wants one; on `Stop` it is redundant, and
   the capture bears that out — `agent_id` and `agent_type` were both absent from the observed payload,
   on a turn that had a subagent running. **[obs]**
+
+---
+
+## Correction 3 — the block cap counts *tolerated* blocks, not invocations
+
+**An earlier revision of this document read `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP ?? 8` as the number of
+times a blocking hook runs. It is not, and the difference is one whole invocation.** Recorded here
+rather than silently repaired, for the same reason as Corrections 1 and 2 — and because the same wrong
+number reached [`speech-integration-spec.md`](speech-integration-spec.md) §5, which cites this document
+for its **[bin]** reading of the cap.
+
+The guard is `if (Or > 0 && Fr > Or)`. The comparison is **strict**, so a run of exactly 8 blocks is
+tolerated and the **ninth** is the one refused — which means the ninth block *executes*, and the hook
+has been invoked **nine** times by the time the runtime overrides it: **one initial fire plus eight
+re-fires.**
+
+This is now observed rather than read. A driven probe put a second `claude` session into the block
+loop on purpose and captured every fire: **exactly nine invocations, three times independently** —
+`exit 2`, varied-stderr, and the `{"decision":"block"}` JSON route all cap identically — with
+`stop_hook_active` `false` on fire 1 and `true` on fires 2–9, and the post-cap warning line naming
+the count as 9. **[obs]** The evidence is in
+[`stop-hook-block-mechanics.md`](stop-hook-block-mechanics.md), the companion this document asked for
+when it named the blocked-turn re-fire as the one part of `Stop` it had read but never seen.
+
+**What this does not change:** the cap's default (8), the env override, the `0`-disables branch
+(still **[bin]** only), and every conclusion in this document. Only the count moves, by one.
 
 ---
 
@@ -564,7 +602,9 @@ available.
    blocks** (**[bin]** @ 9557061; anything else non-zero is, in the harness's own words, a
    "non-blocking status code" that merely warns). The real trap is narrow: `jq` exits 2 on a malformed
    filter, so a hook that parses its stdin with `jq` can hand the harness a genuine block and get
-   re-fired up to 8 times. An explicit `exit 0` makes that unreachable.
+   re-fired **eight** times — **nine invocations in all**, not eight (**[obs]**;
+   [Correction 3](#correction-3--the-block-cap-counts-tolerated-blocks-not-invocations)). An explicit
+   `exit 0` makes that unreachable.
 6. **Do not use `stop_hook_active` as an "already spoken" flag.** It means "a previous stop attempt
    was blocked", and Claude replies to the block *before* the re-fire — so the later payload usually
    carries the **newer** text, which is the one the user wants. Blanket silence on `true` would speak
