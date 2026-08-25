@@ -841,7 +841,7 @@ State the consequence precisely, because it is what makes this acceptable rather
   are **optimistic by an unmeasured margin.** That phrasing belongs wherever a cold figure is quoted,
   not only in this section.
 - **It cannot flip any verdict the spec depends on.** Cold TTFA already exceeds the 3 s budget without
-  any page-cache penalty — 3 of 7 cold hook turns are over the line. A larger cold number makes an
+  any page-cache penalty — 4 of 7 cold hook turns are over the line. A larger cold number makes an
   already-failing case fail harder. There is no decision in §10.5, §10.6 or §13 whose outcome turns on
   the size of the margin, which is precisely why an unmeasured quantity is acceptable here rather than
   blocking.
