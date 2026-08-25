@@ -1,21 +1,28 @@
-# Switching the rewrite provider to `claude-cli`: two traps, verified
+# Switching the rewrite provider to `claude-cli`: two traps, and what checking them settled
 
 Evidence for [#14](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/14), follow-up
 to [#12](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/12), part of the
 [Kokoro speech map (#1)](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/1).
-Verified 2026-08-25 by reading the source, this machine's settings, and this machine's live
-environment. **No hook was modified.** `rewrite.sh`, `rewrite-md.sh`, `providers.sh` and
-`hooks/hooks.json` are untouched by this work.
+Checked 2026-08-25 against the source, this machine's settings, this machine's live environment, and
+one two-item `capture-real-rewrites.sh` run. **No hook was modified.** `rewrite.sh`, `rewrite-md.sh`,
+`providers.sh` and `hooks/hooks.json` are untouched by this work.
 
 **Two claims were carried into this document from a hand session. Both were re-checked against the
-source line by line. One is confirmed exactly as stated; the other is confirmed in its *effect* and
-wrong in its *mechanism*, and the correction is section 2's whole point.**
+source line by line, and neither survived unchanged. Trap 1's mechanism is confirmed — twice, by
+reading the source and by a live run — but its consequence ("breaks every rewrite") rests on one
+step nobody has measured. Trap 2 is confirmed in its *effect* and wrong in its *mechanism*, and that
+correction is section 2's whole point.**
 
-Everything here is a file read, a `printenv`, a checksum, a word count, or a subprocess that made no
-network request. Nothing is inferred from how the plugin "probably" behaves except where the text says
-so. **No LLM was called** — the one call #14 asks for was authorised and then blocked by this
-machine's permission classifier; section 4 records the instrument, the input, and what is still
-unknown.
+Everything here is a file read, a `printenv`, a checksum, a word count, a subprocess that made no
+network request, or — for trap 1's mechanism only — a two-item `capture-real-rewrites.sh` run whose
+resolved provider and model were observed. Nothing is inferred from how the plugin "probably" behaves
+except where the text says so.
+
+**#14's own call was still never made.** The ~1,300-word latency measurement was authorised and then
+blocked by this machine's permission classifier; section 4 records the instrument, the input, and
+what is still unknown. Trap 1 being confirmed live (section 1) settles the *provider/model
+resolution* and says nothing about the latency curve — the two are not the same finding and are kept
+apart on purpose.
 
 ## The source these line numbers refer to
 
@@ -40,13 +47,21 @@ The three files that matter are **byte-identical** to this checkout at `9355f45`
 
 | | trap | status |
 | --- | --- | --- |
-| **1** | `CLAUDISH_MODEL` travels with you across the provider switch and breaks every rewrite | **confirmed, exactly as described** |
+| **1** | `CLAUDISH_MODEL` travels with you across the provider switch, and the ollama model id reaches the Claude CLI verbatim | **pass-through confirmed in the source and observed live; that the CLI *rejects* the id, and so that every rewrite breaks, remains inference** |
 | **2** | the timeout notice advises raising a knob that cannot usefully move | **effect confirmed; mechanism misdescribed** |
 | **3** | neither variable can be changed mid-session | found while verifying the other two |
 
+Trap 1's row is deliberately split in two. The mechanism — a set `CLAUDISH_MODEL` overriding
+`providers.sh:92`'s `claude-cli` default and being handed to the CLI as `--model` at
+`providers.sh:267` — is established twice over, by reading the source and by a live run that
+confirms the resolution it predicts. What the CLI *does* with an ollama model id is a second claim,
+and nobody has spent a call to see it. The trap is worth defusing on the first half alone; the
+second half stays labelled all the way down (section 1's "Not verified" note, and item 2 of
+"What was not verified").
+
 ---
 
-## 1. The model variable travels with you — confirmed
+## 1. The model variable travels with you — pass-through confirmed, the CLI's reaction still inferred
 
 **`CLAUDISH_PROVIDER=claude-cli` alone is not the switch. It is half of it, and the other half is
 mandatory, not advisable.**
@@ -80,13 +95,41 @@ claude -p --model qwen3:4b-instruct-2507-q4_K_M --system-prompt ... --strict-mcp
 So the trap is live: set `CLAUDISH_PROVIDER=claude-cli` and change nothing else, and the ollama model
 id goes to the Claude CLI on every message.
 
+### The mechanism, observed rather than only read (2026-08-25)
+
+The source above predicts a specific resolution. A `corpus/bin/capture-real-rewrites.sh` run on
+2026-08-25 produced exactly it, with the ollama id still live in the environment:
+
+| | |
+| --- | --- |
+| environment during the run | `CLAUDISH_MODEL=qwen3:4b-instruct-2507-q4_K_M`, from the `env` block of `~/.claude/settings.json`, **unchanged** |
+| what the script does about it | `export CLAUDISH_PROVIDER=claude-cli` then `unset CLAUDISH_MODEL`, both **before** `providers.sh` is sourced (`capture-real-rewrites.sh:39-40`, `:50`) |
+| the banner it printed (`capture-real-rewrites.sh:59-60`) | `provider=claude-cli model=haiku` |
+| the calls | two items, both **`rc=0`**, at **9s** and **8s** |
+
+That is trap 1's fix demonstrated end to end rather than argued: the source-time `unset` is
+sufficient, `providers.sh:92`'s `haiku` default takes over even with a machine-wide `CLAUDISH_MODEL`
+set, and a real rewrite completes on that resolution — which means the whole `claude-cli` branch
+(`providers.sh:240-288`, including `_llm_run_bounded` and the output capture) works when the model id
+is right. Reading `providers.sh:92` and `:267` gives the same answer; this run is that answer
+observed.
+
+**Two things this run does not establish, stated here so the confirmation is not over-read:**
+
+1. **Nothing about the latency curve.** Both items were corpus sources, and the corpus tops out at
+   663 words (`corpus/source/r12.txt`); 9s and 8s land inside the 6–13s band `capture-log.tsv`
+   already records. #14's question is what happens at ~1,300 words, and section 4 is still where
+   that stands — unanswered. Confirming trap 1 and confirming flat latency are separate findings.
+2. **Nothing about what the CLI does with the qwen id.** The run's whole design is that the id never
+   reaches the child process. Observing the *fix* work cannot observe the *failure* it prevents.
+
 ### What the user would see
 
 The failure is loud in the log and quiet on screen. `rewrite.sh`'s fail-open contract holds
 (`rewrite.sh:22-24`, and the empty-rewrite branch at `rewrite.sh:199-232`): the original assistant
 text stays on screen untouched, so **nothing is lost** — the rewrite simply never appears. Once per
-session, `providers.sh:362-378`'s `claude-cli` branch appends one notice line. A non-zero CLI exit
-with a message on stderr lands on:
+session, `providers.sh:363-378`'s `claude-cli` branch appends one notice line. A non-zero CLI exit
+with a message on stderr lands on `providers.sh:373-374`:
 
 ```
 the claude CLI failed: <first non-empty line of stderr>
@@ -116,7 +159,8 @@ Three shapes, in descending order of how well they survive switching back:
 3. **Per-session override, for a trial rather than a change of default.** Launch one session with
    both variables set in its environment and leave `settings.json` alone. This is what a measurement
    should use, and what `corpus/bin/capture-real-rewrites.sh` does: `export
-   CLAUDISH_PROVIDER=claude-cli` then `unset CLAUDISH_MODEL`.
+   CLAUDISH_PROVIDER=claude-cli` then `unset CLAUDISH_MODEL`. It is also the shape that the
+   2026-08-25 run above exercised, so this option is the one with observational backing.
 
 **A `CLAUDISH_MODEL` set to the empty string also works** — `${CLAUDISH_MODEL:-haiku}` uses `:-`,
 not `-`, so an empty value takes the default. That is a fact about the code, not a recommendation:
@@ -219,9 +263,15 @@ Consequences:
 
 **#14's open question is still open. The instrument exists; the call was not spent.**
 
+Section 1's live run does not change that. It spent two calls on corpus-sized items and settled how
+`PROVIDER` and `MODEL` resolve; the question here is a latency at ~1,300 words, which no run on this
+machine has reached. Reading a confirmed trap 1 as a confirmed latency curve is the one misreading
+this section exists to prevent.
+
 The one call was authorised mid-session. `corpus/bin/time-one-rewrite.sh` was written for it, the
-input was selected, and the whole path was dry-run — and then the invocation was refused by this
-machine's auto-mode permission classifier, on both attempts. The refusal is the harness declining to
+input was selected, and the path *up to the subprocess* was dry-run — and then the invocation was
+refused by this machine's auto-mode permission classifier, on both attempts. The refusal is the
+harness declining to
 let an agent spawn a nested `claude` process, which is a guardrail against exactly the kind of
 quota-spending this measurement is, so it was not worked around. **A human running the same command
 by hand is not subject to it.**
@@ -232,8 +282,13 @@ by hand is not subject to it.**
 bash corpus/bin/time-one-rewrite.sh <input.txt> <output.txt>
 ```
 
-Its guard refuses to overwrite an existing output file, so re-running it cannot silently spend a
-second call.
+Its guard refuses to run at all when the output file already exists, and it **creates that file
+before the call rather than after it** (`time-one-rewrite.sh`, just above the timed section). So a
+second run is refused whichever way the first one ended — success, non-zero `rc`, empty rewrite, or a
+watchdog kill. An earlier revision of this script only wrote the file on success, which left the
+failure case — the one a human retries by reflex — unguarded; a retried latency measurement measures
+the retry. Spending a second call is now a deliberate `rm` of the output file, and the script says so
+on stderr when no rewrite lands.
 
 ### What was verified without spending the call
 
@@ -245,13 +300,23 @@ provider=claude-cli model=haiku timeout=120s input=1328w/8318c
 1328	8318	127	0	0	0.04	0
 ```
 
-Two things fall out of that line, and they are findings in their own right:
+Two things fall out of that line:
 
 - **`model=haiku`, with `CLAUDISH_MODEL=qwen3:4b-instruct-2507-q4_K_M` live in the environment.**
-  This is trap 1's fix demonstrated rather than argued: `unset CLAUDISH_MODEL` before sourcing
-  `providers.sh` is sufficient, and the `providers.sh:92` default takes over.
-- **`rc=127`** is `providers.sh`'s "binary not on PATH" code, reached through the real
-  `_llm_run_bounded` path, so the timing, output and reporting machinery all work.
+  The source-time `unset CLAUDISH_MODEL` is sufficient and `providers.sh:92`'s default takes over —
+  the same resolution the real run in section 1 later produced against a real call.
+- **`rc=127`** is `providers.sh`'s "binary not on PATH" code. **It is set by the guard at
+  `providers.sh:241-243`, which returns *before* the temp files are made and before
+  `_llm_run_bounded` is called at all** — so this dry run says nothing about the bounded runner, the
+  subprocess, or the output capture. What it does exercise is everything on either side of them:
+  source-time provider/model resolution, the input measurement, the sub-second timer, the TSV line,
+  and the `curl_rc = 127` notice branch at `providers.sh:365-366`.
+
+**An earlier revision of this section claimed the 127 came "through the real `_llm_run_bounded`
+path". It does not, and the correction matters:** a dry run whose whole point is to spend nothing
+cannot validate the machinery that spends. `_llm_run_bounded` (`providers.sh:146-172`) is instead
+covered by the real two-item run in section 1, which reached it with a working model id and returned
+`rc=0` twice.
 
 ### The input that was selected, and why
 
@@ -322,9 +387,13 @@ Three things that would **not** be comparable, stated in advance so the number i
 Listed so nobody mistakes an unchecked thing for a checked one.
 
 1. **The latency of a ~1,300-word rewrite on `claude-cli`** — #14's actual question. Section 4 has
-   the script, the input and the thresholds; only the call is missing.
-2. **That `claude --model <ollama-id>` fails, and how.** Section 1's pass-through is verified; the
-   CLI's reaction is inference plus `capture-real-rewrites.sh`'s prior expectation.
+   the script, the input and the thresholds; only the call is missing. The 2026-08-25 run in
+   section 1 spent two calls but on corpus-sized items (≤663 words), so it moved this not at all.
+2. **That `claude --model <ollama-id>` fails, and how.** Section 1's pass-through is verified twice
+   over — in the source and in a live resolution — but the CLI's reaction to a bad id is still
+   inference plus `capture-real-rewrites.sh`'s prior expectation. The live run cannot help here by
+   construction: it works precisely because it unsets the variable, so the bad id never reaches the
+   child.
 3. **Whether Claude Code imposes any absolute hook-timeout ceiling**, and whether it differs by event
    type. Section 2 does not need it.
 4. **The exact overhead between the 60s hook budget and the LLM call**, i.e. what `CLAUDISH_TIMEOUT`

@@ -14,8 +14,13 @@
 # latency measurement of the second attempt.
 #
 # COST: one call against the user's Claude Code subscription, on the same 5-hour
-# and 7-day windows as their real work. The guard below refuses to overwrite an
-# existing output file, so a re-run cannot silently spend a second call.
+# and 7-day windows as their real work. The guard below refuses to run at all if
+# the output file already exists, and it ARMS that file before the call rather
+# than after it -- so a second run is refused whether the first one succeeded,
+# failed, returned an empty rewrite, or was killed mid-flight. A guard that only
+# appears on success is not a spend guard: the failure case is exactly the one a
+# human retries by reflex, and a retried latency measurement measures the retry.
+# Spending a second call is therefore a deliberate `rm` of the output file.
 #
 # The two traps this shares with capture-real-rewrites.sh, both documented in
 # docs/decisions/provider-switch-traps.md:
@@ -66,6 +71,13 @@ chars="$(wc -c < "$SRC" | tr -d ' ')"
 printf 'provider=%s model=%s timeout=%ss input=%sw/%sc\n' \
   "$PROVIDER" "$MODEL" "$LLM_TIMEOUT" "$words" "$chars" >&2
 
+# Arm the re-run guard BEFORE spending the call (see COST above). Everything
+# that can fail without spending anything -- unreadable input, empty input,
+# sourcing providers.sh -- has already happened, so from here on $OUT exists
+# however the call ends, and the `-e` check at the top of this script refuses
+# the next run. A successful rewrite overwrites this empty file below.
+: > "$OUT" || { printf 'cannot create %s\n' "$OUT" >&2; exit 1; }
+
 # Sub-second, because the whole question is where between 13s and 45s this lands.
 # `date +%s` would report 45.9s as 45.
 now() { python3 -c 'import time; print("%.3f" % time.time())'; }
@@ -78,6 +90,7 @@ secs="$(python3 -c "print('%.2f' % ($t1 - $t0))")"
 
 if [ "$rc" = "2" ]; then
   printf '%s\t%s\treq-build-failed\t\t\t%s\t0\n' "$words" "$chars" "$secs"
+  printf 'the call was attempted; rm %s to spend another\n' "$OUT" >&2
   exit 1
 fi
 
@@ -91,4 +104,5 @@ fi
 printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
   "$words" "$chars" "${curl_rc:-}" "${ratelimited:-0}" "${truncated:-0}" "$secs" "$bytes"
 [ -n "${err:-}" ] && printf 'err: %s\n' "$(printf '%s' "$err" | head -1)" >&2
+[ "$bytes" = "0" ] && printf 'no rewrite landed, and %s stays as the spent-call marker — rm it to spend another\n' "$OUT" >&2
 exit 0
