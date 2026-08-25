@@ -17,11 +17,19 @@ plus one variant per open axis of #8, so each axis can be heard as an A/B.
 Those are not decisions either -- they are the alternatives, built so that a
 listener can pick one. See `docs/decisions/sanitizer-audition.md`.
 
-The last three variants (`flag-pause`, `ext-word`, `path-short-nolead`) are
-**#13's follow-up set**: two rules #8's listener asked for that had never been
-auditioned, and the one combination #8's decision left explicitly unmeasured.
-Same rule: not decisions, just the alternatives. See
+The three variants after that (`flag-pause`, `ext-word`, `path-short-nolead`)
+are **#13's follow-up set**: two rules #8's listener asked for that had never
+been auditioned, and the one combination #8's decision left explicitly
+unmeasured. Same rule: not decisions, just the alternatives. See
 `docs/decisions/sanitizer-audition-13.md`.
+
+**One thing in here IS a decision, and it says so on its face: `settled`.**
+It is #11's ship blocker 1 — every axis at the value #8, #13 and the listener's
+2026-08-25 axis-2 call chose, composed into the single variant that would
+actually ship, plus the conditional boundary **rule B'** that none of the 26
+one-axis variants could express. Registering it is what makes it possible to
+*hear* the combination; nothing about it has been heard yet. See
+`docs/decisions/settled-set-audition.md`.
 """
 
 from __future__ import annotations
@@ -155,6 +163,13 @@ def rule_D_strip_heading_marks(text: str) -> str:
 
 
 # Rule B. Runs AFTER D, which needs the line anchors D matches on.
+#
+# The pattern is shared with rule B' below, which has to count exactly the
+# breaks this rule is about to replace -- a second, independently-written
+# regex would let the count and the replacement drift apart.
+_B_BREAK_RE = re.compile(r"(\S)[ \t]*\n+[ \t]*")
+
+
 def rule_B_newlines_to_punct(text: str, boundary: str) -> str:
     def repl(m: re.Match) -> str:
         prev = m.group(1)
@@ -165,8 +180,94 @@ def rule_B_newlines_to_punct(text: str, boundary: str) -> str:
             return prev + " "
         return prev + boundary + " "
 
-    text = re.sub(r"(\S)[ \t]*\n+[ \t]*", repl, text)
+    text = _B_BREAK_RE.sub(repl, text)
     return re.sub(r"^[ \t]*\n+[ \t]*", "", text)
+
+
+# --------------------------------------------------------------------------
+# Rule B' -- the conditional boundary (#11 §4.1)
+# --------------------------------------------------------------------------
+#
+# Axis 2 was settled by the listener on 2026-08-25 as a CONDITIONAL: `,` when
+# the run is short, `.` when it is long. No variant in this file could express
+# that -- all 26 take a fixed `boundary` -- so this is the new capability #11's
+# ship blocker 1 asks for, not a variant selection. See
+# `docs/decisions/speech-integration-spec.md` §4.1 and
+# `docs/decisions/settled-set-audition.md`.
+#
+# WHAT IS COUNTED, and this is a decision made here rather than read off the
+# spec, because the spec's two statements of it disagree:
+#
+#   * §4's table and §4.1's evidence table count BULLETS: `s38` is "3 bullets"
+#     and takes `,`; `s37` is "8 bullets" and takes `.`.
+#   * §4.1's clause 3 counts SEGMENTS -- "the non-empty segments a `\n+` split
+#     produces". Measured here: `s38` has FOUR such segments (a lead-in line
+#     plus three bullets) and `s37` has NINE. Under clause 3 as written, `s38`
+#     counts 4, takes `.`, and CONTRADICTS the one verdict in the whole
+#     audition that chose `,`. Worse, it is not a one-item slip: every list in
+#     `corpus/spoken/` carries a lead-in line, so counting segments would make
+#     the conditional rule pick `.` for every list in the corpus -- i.e. it
+#     would collapse back onto `base` and buy nothing.
+#
+# So the count here is of BOUNDARIES -- how many line-break boundaries rule B
+# is about to plant between two items -- which is `segments - 1`, is
+# marker-free, and reproduces both discriminating verdicts (`s38` 3 -> `,`,
+# `s37` 8 -> `.`). It is also the acoustically relevant quantity: the question
+# the listener answered was how many stops in a row a passage plants, not how
+# many lines it has.
+#
+# WHAT A "RUN" IS: the whole message, one run, one boundary character for all
+# of its breaks. §4.1 clause 3 is explicit that a paragraph break is just
+# another item separator ("a paragraph-only run of two long paragraphs
+# therefore counts 2 and takes `,`") -- under the count here that pair of
+# paragraphs plants 1 boundary and also takes `,`, the same outcome by
+# different arithmetic. The alternative -- blank lines delimiting runs, so a
+# bullet block and the prose around it get different characters -- is NOT
+# implemented: it needs a rule for which character goes AT a run boundary, and
+# there is no verdict anywhere that bears on that. The one paragraph-heavy
+# item ever auditioned on this axis (`r09`) was a TIE, so nothing here is
+# heard; this is the most likely place the rule is wrong and §15 of the spec
+# already says so.
+#
+# NEITHER CHOICE CARRIES CRASH-SAFETY WEIGHT: `,` and `.` are both members of
+# `BOUNDARY_CHARS`, which is exactly what `kokoro_onnx._split_phonemes` splits
+# on, so the rule switches prosody without ever changing whether the text
+# chunks. Rule A is unaffected and keeps `opts.boundary`: it is a length guard
+# on a 400-character run, not an enumeration.
+
+CONDITIONAL = "auto"  # the `Axes.boundary` sentinel that selects rule B'
+
+# `,` at or below this many boundaries, `.` at or above it. The POSITION of
+# this cutoff is the listener's placement inside a gap, not an audited result:
+# nothing between 4 and 7 has ever been synthesized (spec §13 row 5). One
+# constant, so moving it is one edit.
+COND_CUTOFF = 4
+
+# Rule B's own pattern, restricted to breaks that separate two items: a break
+# at the very end of the text separates the last item from nothing, and a
+# trailing newline would otherwise inflate every count by one.
+_B_INNER_BREAK_RE = re.compile(r"(?<=\S)[ \t]*\n+[ \t]*(?=\S)")
+
+
+def count_boundaries(text: str) -> int:
+    """How many line-break boundaries rule B would plant between two items."""
+    return len(_B_INNER_BREAK_RE.findall(text))
+
+
+def rule_Bprime_conditional(text: str, fallback: str) -> str:
+    """Rule B with the boundary character chosen by the run's size.
+
+    `fallback` is used when the text holds NO boundary between two items --
+    there is no run, so there is nothing to be conditional about. That case is
+    not hypothetical: a one-line message with a trailing newline still matches
+    rule B's pattern once, at the very end, and without this branch it would
+    end on a comma instead of a full stop. Measured: it is what separates
+    `s35` (1281 chars, no line breaks at all) from every other item.
+    """
+    n = count_boundaries(text)
+    if n == 0:
+        return rule_B_newlines_to_punct(text, fallback)
+    return rule_B_newlines_to_punct(text, "." if n >= COND_CUTOFF else ",")
 
 
 # Rule G. Looped, because `1,234,567` needs three passes.
@@ -361,7 +462,7 @@ class Axes:
     ticks: str = "keep"  # keep | strip | pause
     flags: str = "keep"  # keep | pause          (#13)
     exts: str = "keep"  # keep | word            (#13)
-    boundary: str = ""  # "" -> opts.boundary
+    boundary: str = ""  # "" -> opts.boundary; "auto" -> rule B' (#11 §4.1)
 
 
 # --- code blocks (settled: skipped and announced; the WORDING is open) -----
@@ -697,7 +798,14 @@ def _pipeline(text: str, opts: Opts, ax: Axes) -> str:
         text = rule_MD_extra(text)
     text = rule_T_ticks(text, ax.ticks)
     text = rule_S_bare_spans(text, ax.flags)  # #13: axis 1's commas, no ticks
-    text = rule_B_newlines_to_punct(text, b)
+    if b == CONDITIONAL:
+        # Rule B' counts the text AS RULE B SEES IT -- after a fenced block has
+        # collapsed to one announcement line and after C/D have run -- which is
+        # the only count that describes the boundaries actually planted.
+        b = opts.boundary  # rule A is a length guard, not an enumeration
+        text = rule_Bprime_conditional(text, b)
+    else:
+        text = rule_B_newlines_to_punct(text, b)
     text = rule_P_paths(text, ax.paths)
     text = rule_X_extensions(text, ax.exts)  # #13: after P, so a surviving
     #                                          segment's extension still speaks
@@ -768,6 +876,17 @@ def san_lb_period(text: str, opts: Opts) -> str:
 @sanitizer("lb-comma", "base with ',' as the line-break replacement")
 def san_lb_comma(text: str, opts: Opts) -> str:
     return _pipeline(text, opts, Axes(boundary=","))
+
+
+# The settled rule itself, on `base` and nothing else, so the pair
+# (`base`, `lb-auto`) isolates B' the same way every other pair on the page
+# isolates its axis. `base` is a fixed '.', so this pair is TEXT-IDENTICAL on
+# any item that plants 4 boundaries or more -- the whole audible difference is
+# on the short runs, which is where the rule is the whole point.
+@sanitizer("lb-auto",
+           "base, but the line-break boundary is ',' under 4 breaks and '.' at 4 or more")
+def san_lb_auto(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, Axes(boundary=CONDITIONAL))
 
 
 # --- axis 3: paths (PATH-SLASH 7 real, PATH-EXT 5 real) -------------------
@@ -899,3 +1018,70 @@ def san_ext_word(text: str, opts: Opts) -> str:
            "base, but a path is its last two segments AND loses a leading dot")
 def san_path_short_nolead(text: str, opts: Opts) -> str:
     return _pipeline(text, opts, Axes(paths="shorten-nolead"))
+
+
+# ==========================================================================
+# The settled combination -- #11's ship blocker 1
+# ==========================================================================
+#
+# THIS ONE IS A DECISION, and it is the only thing in this file that is. Every
+# variant above moves exactly ONE axis against `base`, which is what made each
+# pair readable; none of them is the thing that would ship. `settled` is: all
+# nine axes at the value #8, #13 and the listener's 2026-08-25 axis-2 call
+# chose, composed.
+#
+#   axis 1  ticks    pause            tick-pause          #8, 2-0 + 1 tie
+#   axis 2  boundary CONDITIONAL      rule B'             listener, 2026-08-25
+#   axis 3  paths    shorten-nolead   path-short-nolead   #13, 4-0
+#   axis 4  markdown strip            rules C + D         #8, 5-0
+#   axis 5  scream   lower            rule J              #8, 7-0
+#   axis 6  urls     domain           url-domain          #8, 2-0
+#   axis 7  code     count            cb-count            #8, 4-0
+#   axis 8  flags    pause            flag-pause          #13, 4-0 (all synthetic)
+#   axis 9  exts     word             ext-word            #13, 5-0
+#
+# NOTHING HERE HAS BEEN HEARD AS A COMBINATION. Every margin above was earned
+# against `base` with one axis moved, so the compositions -- `tick-pause` and
+# `ext-word` on the same token (`` `hooks.json` `` -> `, hooks dot json,`),
+# `path-short-nolead` and `ext-word` on the same path, `tick-pause` and
+# `flag-pause` in the same sentence -- exist in no wav anyone has played. That
+# is exactly what the confirmation listen is for, and it is why this variant
+# exists at all rather than the shipping pipeline being assembled from the
+# axis table by hand at implementation time.
+#
+# Rule L does not ship (still gated behind --respell, still mis-fires on "the
+# lives of others", never auditioned), so `settled` does not set it.
+
+_SETTLED_RULES = """the settled set: all nine axes at their decided value
+  ticks    pause            each `span` set off with commas          #8
+  boundary conditional      ',' under 4 breaks, '.' at 4 or more     listener
+  paths    shorten-nolead   last two segments, no leading bare dot   #13
+  markdown strip            C + D
+  scream   lower            J
+  urls     domain           'github dot com'
+  code     count            'Code block, N lines.'
+  flags    pause            a flag or bare identifier set off        #13
+  exts     word             'hooks dot json'                         #13"""
+
+
+def settled_axes() -> Axes:
+    """A fresh `Axes` at the settled value on every axis."""
+    return Axes(
+        ticks="pause",
+        boundary=CONDITIONAL,
+        paths="shorten-nolead",
+        markdown="strip",
+        scream="lower",
+        urls="domain",
+        code="count",
+        flags="pause",
+        exts="word",
+    )
+
+
+@sanitizer("settled",
+           "the settled set, composed: all nine axes at the value #8, #13 and "
+           "the axis-2 call chose",
+           _SETTLED_RULES)
+def san_settled(text: str, opts: Opts) -> str:
+    return _pipeline(text, opts, settled_axes())

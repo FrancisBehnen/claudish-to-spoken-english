@@ -42,10 +42,13 @@ one and timing it with the same four-phase definition. Run it in the venv direct
 (`~/.local/share/kokoro/venv/bin/python bench/first-sentence.py --stream --whole`); results in
 [`docs/decisions/voice-and-pipelining.md`](../docs/decisions/voice-and-pipelining.md).
 
-`audition-page.py` builds four sections: #8's sanitizer pairs, #9's voice items, #10's length items,
+`audition-page.py` builds five sections: #8's sanitizer pairs, #9's voice items, #10's length items,
 and — added for #13 — a second pair section over `audition-13/`, which is a separate directory
 precisely because it is a separate *voice* (`bf_emma`, which #9 chose, against #8's rejected
 `af_heart`). Merging them would have paired one voice's reference against another voice's variant.
+Section 5, added for #11, is a third pair section over `audition-11/`: same voice as section 4, but
+its `settled` pairs move **seven** axes at once rather than one, so it is filed apart from a section
+whose whole readability comes from moving one.
 
 `audition-page.py` also imports `sanitizers.py` and edits nothing. It synthesizes nothing either —
 it globs the wavs `bench.py` already wrote and builds one self-contained HTML page for listening to
@@ -208,16 +211,22 @@ same item twice, back to back, plays both, and puts them on adjacent rows of the
 | `candidate` | rules **A–K** from the research doc's candidate list. |
 | `crashguard` | rules **B + A** only: the two that decide whether `create()` raises, and nothing else. Isolates the crash question from the prosody question. |
 | `base` + 19 axis variants | added for [#8](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/8). `base` is `candidate` with one *named* default per open axis; each variant moves **exactly one** axis (`tick-*`, `lb-*`, `path-*`, `md-*`, `scream-*`, `url-*`, `cb-*`). See [`docs/decisions/sanitizer-audition.md`](../docs/decisions/sanitizer-audition.md). |
+| `lb-auto` + `settled` | added for [#11](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/11). `lb-auto` is the conditional boundary **rule B′** on `base` and nothing else; `settled` is **the set that would ship** — all nine axes at their decided value, composed. `settled` is the one entry in this registry that *is* a decision rather than an alternative. See [`docs/decisions/settled-set-audition.md`](../docs/decisions/settled-set-audition.md). |
 | 3 follow-up variants | added for [#13](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/13): `flag-pause` and `ext-word` are two rules #8's listener asked for and nobody had heard; `path-short-nolead` is the one combination #8's decision left unmeasured. Same `base` reference, still one axis at a time. **All three were auditioned on `bf_emma` and all three are adopted** — `ext-word` 5–0, `flag-pause` 4–0, `path-short-nolead` 4–0, none of them beaten; `path-short-nolead` replaces `path-shorten` on axis 3. See [`docs/decisions/sanitizer-audition-13.md`](../docs/decisions/sanitizer-audition-13.md). |
 
-**26 sanitizers are registered**; `bench/bench --list-sanitizers` is the authoritative list.
+**28 sanitizers are registered**; `bench/bench --list-sanitizers` is the authoritative list.
 
-**None of the 26 is the settled set, and one settled rule none of them can even express.** Every variant
-moves exactly one axis against `base`, which is what made the pairs readable, so the composition that
-actually ships has never been synthesized. And axis 2 was settled on 2026-08-25 as a **conditional**
-boundary — `,` at 3 bullets or fewer, `.` at 4 and up — while `lb-period` and `lb-comma`, like every
-other variant, take a single fixed character for every line break. That is a capability to add here
-before the settled set can be put on a page at all.
+**Two of the 28 were added for #11, and they close the gap the paragraph below used to describe.**
+Rule B′ — the conditional boundary, `,` on a short run and `.` on a long one — is implemented and
+selectable as `lb-auto`; the composition that would actually ship is registered as `settled` and is
+synthesized in `audition-11/`. **It has not been heard yet**: the confirmation listen is the
+listener's, and until it happens `settled` is a set of individually-auditioned rules whose
+*interactions* are unheard. See
+[`docs/decisions/settled-set-audition.md`](../docs/decisions/settled-set-audition.md).
+
+**The other 26 are still one-axis-at-a-time variants and none of them is the settled set.** That is
+deliberate and stays: each moves exactly one axis against `base`, which is what made its pair
+readable.
 
 ### `candidate` is a candidate, not a decision
 
