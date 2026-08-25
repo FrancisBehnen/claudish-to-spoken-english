@@ -277,12 +277,14 @@ code for it and there is no code that emits that syntax.
 | --- | --- |
 | `FILE…` | any text files, positional |
 | `--id r09` / `--id r01,s37` | corpus items by id, repeatable |
-| `--all` | all 52 items of `corpus/spoken/` |
-| `--kind real` / `--kind synthetic` | the 12 `rNN` or the 40 `sNN` |
+| `--all` | all 54 items of `corpus/spoken/` |
+| `--kind real` / `--kind synthetic` | the 14 `rNN` or the 40 `sNN` |
 | `--text "…"` | a literal string |
 | `--corpus-dir` / `$CLAUDISH_CORPUS` | a different corpus |
 
-The corpus is [`corpus/`](../corpus/README.md) — 12 real rewrites and 40 synthetic hazard fixtures.
+The corpus is [`corpus/`](../corpus/README.md) — 14 real rewrites and 40 synthetic hazard
+fixtures. The two newest real items have no wavs on disk: every wav this directory’s pages play
+was synthesized when the corpus held 12.
 One `.txt` per utterance, no front matter; the harness reads `spoken/*.txt` and nothing else.
 
 ## Everything else

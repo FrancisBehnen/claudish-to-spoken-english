@@ -541,9 +541,9 @@ def rule_P_paths(text: str, mode: str) -> str:
 # the trailing lookahead hands those back.
 #
 # Two boundary bugs, found in review of #13 and fixed here. Both are about an
-# `=`, and both are TEXT-IDENTICAL FIXES on the whole corpus -- the 12 real
-# rewrites and all 33 synthetic items, `flag-pause` against `base`, unchanged on
-# every one, so #13's 4-0 still describes the rule below:
+# `=`, and both are TEXT-IDENTICAL FIXES on the whole corpus -- all 54 items of
+# `corpus/spoken/`, `flag-pause` against `base` unchanged on every one, so
+# #13's 4-0 still describes the rule below:
 #
 #   `--flag=value`  the flag arm won the alternation and stopped at `--flag`,
 #                   orphaning the value: ", --flag, =value". A flag now takes

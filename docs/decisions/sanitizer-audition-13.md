@@ -672,8 +672,17 @@ only one of the four that no registered sanitizer can currently produce.
 
 ### Still open after this decision
 
-- **Axis 8 has no real carrier.** The caveat above, as an open item: revisit when a corpus capture
-  produces a bare flag or `_`-joined identifier *outside* backticks.
+- **Axis 8 has no real carrier — and the first one has now appeared, unheard.** The caveat above, as
+  an open item. It was written as "revisit when a corpus capture produces a bare flag or `_`-joined
+  identifier *outside* backticks", and the corpus growing to 14 real items has produced one: on `r14`,
+  `flag-pause` is **no longer a no-op**. A single `_`-joined identifier reaches it —
+  `exceed_context_size_error`, which arrives from inside a fenced block body that the code-block rule
+  did not remove, so `base` speaks it and `flag-pause` sets it off with commas. Two things follow, and
+  neither changes a verdict above. **The 12 real rewrites this audition was decided on are still a
+  measured no-op, twelve for twelve**, so nothing here rests on `r14`. And **`r14` has not been
+  synthesized**, in any variant, so the rule has still never been *heard* on real output — the first
+  real carrier is a text measurement, not an audition result. Whether a token inside an unremoved
+  fence body is the shape this rule was meant for is axis 7's question before it is axis 8's.
 - **Axis 2's conditional boundary has to be built before it can be heard.** No registered sanitizer
   takes anything but a fixed boundary character, so the settled rule — `,` at 3 bullets or fewer, `.`
   at 4 and up — does not exist in code yet. It is a prerequisite for the confirmation listen below,
