@@ -49,7 +49,23 @@ trial_init() {   # proto N stall rep scenario
   local log="$dir/log.tsv"; : > "$log"
   "$PY" "$RIG/lockrace.py" --dir "$dir" --log "$log" --role winner --protocol "$pr" \
       --stall-ms "$stall" --hold-ms "$HOLD" --trial "$rep" --label "$sc" &
-  sleep 0.004
+  # Wait for the winner's CLAIM, not for the clock. `mkdir_ok` (current/spec) and
+  # `published` (proposed) are both recorded immediately after the claim and BEFORE
+  # the stall, so this places the racers inside the window rather than hoping 4 ms
+  # was enough. A fixed sleep let a passing `spec` cell degenerate into S5's
+  # empty-directory who-wins control -- the same staging defect documented for S3
+  # below. 2 s is a deadlock guard, not a timing assumption.
+  local waited=0
+  until grep -qE 'mkdir_ok|published' "$log" 2>/dev/null; do
+    sleep 0.002
+    waited=$((waited + 1))
+    if [[ $waited -ge 1000 ]]; then
+      echo "$sc $pr N$n s$stall r$rep: winner never claimed -- trial VOID" >&2
+      wait
+      emit "$sc" "$pr" "$n" "$stall" "$rep" "VOID"
+      return
+    fi
+  done
   local i
   for i in $(seq 1 "$n"); do
     "$PY" "$RIG/lockrace.py" --dir "$dir" --log "$log" --role racer --protocol "$pr" \

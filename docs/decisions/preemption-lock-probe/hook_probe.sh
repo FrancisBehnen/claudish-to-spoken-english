@@ -32,8 +32,14 @@ found=0
 if [[ -d "$SD/playerdir" ]]; then
   for f in "$SD"/playerdir/*; do
     [[ -e "$f" ]] || continue
-    b=${f##*/}; pid=${b%%.*}
-    [[ -n "$pid" ]] || continue
+    b=${f##*/}
+    # STRICT record shape: <pid>.<8 hex nonce>. A `<nonce>.pending` marker whose
+    # nonce happens to be all decimal parses as a pid otherwise -- it did, in the
+    # committed C17 run (02679968.pending -> 2679968) -- and after pid reuse this
+    # `kill` lands on a stranger. The worker-side parser rejects the same shape.
+    [[ $b == *.pending ]] && continue
+    [[ $b =~ ^[0-9]+\.[0-9a-f]{8}$ ]] || continue
+    pid=${b%%.*}
     if kill -TERM "$pid" 2>/dev/null; then res=sent; else res=esrch; fi
     printf '%s\thook\t%s\tkill_attempt\tby=hook via=perplayer target=%s sig=15 result=%s\n' \
       "$TAG" "$$" "$pid" "$res" >> "$MD/kills.log"

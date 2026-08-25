@@ -628,21 +628,50 @@ of `proposed`'s 20 S3 trials may never have exercised a stale observation, and t
 say which. `run_lock.sh` now waits for B's own `classified_stale` record before launching A and
 fails the trial if it never appears — **that change is UNRUN**, and the committed
 `lock-owners.tsv` was produced under the 4 ms sleep. To close: re-run S3 under the corrected
-harness. This does not touch S1, S2, S4, S5 or S6, none of which depends on the ordering of two
-reclaimers' startups.
+harness. S4, S5 and S6 are untouched: none depends on the ordering of two reclaimers' startups.
+
+**S1 and S2 had the same defect in a different place, and it is now fixed the same way.**
+`trial_init` staged the racers behind a fixed `sleep 0.004` after forking the winner, which is
+an assumption that the winner has claimed the lock, not a fact. When it does not hold the racers
+arrive at an *empty* directory and the trial silently degenerates into S5's who-wins control —
+so a **clean** S1/S2 cell could be clean because nothing was staged, not because the protocol
+held. That is the mirror image of the S3 problem: there the risk was a false pass for `proposed`,
+here it is a false *clean* for `current` and `spec`, whose S1/S2 cells at stall 0 and 5 ms are
+the ones reported clean. `trial_init` now waits for the winner's own `mkdir_ok` (`current`,
+`spec`) or `published` (`proposed`) record — both emitted immediately after the claim and
+**before** the stall, so the racers land inside the window by construction — and voids the trial
+if it never appears. **That change is UNRUN too**, on the same committed `lock-owners.tsv`. It
+does not put any *failure* in doubt: a mis-staged trial degenerates into the empty-directory
+control, which yields **1** owner, so any cell that produced 2 or 3 owners demonstrably staged
+correctly. That covers every wrong result reported here — `current` 121/400 (S1 at 50 ms, 60;
+S2, 40; S3, 20; S6, 1) and `spec` 61/400 (S2, 40; S3, 20; S6, 1). What it qualifies is the
+**clean** cells at stall 0 and 5 ms, plus `spec`'s S1 at 50 ms, which is clean on 60 of 60 and
+is one of the two places the document credits the spec's own fix with working.
 
 **S6's single failures (1 in 60, both protocols) are the same defect at its natural window
 width.** No stall was injected; the ABA simply happened on its own once per 60 trials under
 contention. That is the honest answer to *"the failure windows are microseconds wide"* — at
 N = 8, unprovoked, it fires at roughly 2 %.
 
-**`proposed` is clean on 400 of 400.** It never encounters the pid-less state, because a
+**`proposed` is clean on 400 of 400 — with 20 of them unconfirmed; see the qualification below.** It never encounters the pid-less state, because a
 `symlink`'s target is created with the object; it never removes a contested path, because a
 dead owner is superseded by a **new generation**; and it wins the who-wins race at N = 16.
 **S1 and S2 are structurally vacuous for it and this must be said rather than counted as a
 pass** — there is no `mkdir`→write window for a stall to sit in, so a stalled-but-live winner
 is simply seen as alive. The scenarios that genuinely test it are **S3 (20), S4 (20), S5 (80)
 and S6 (60)** — **180 of its 400 trials**; without S4's control that is 160.
+
+**And 20 of those 180 are not yet a validated pass.** S3's staging defect below is
+asymmetric: under `current`/`spec` a mis-staged trial degenerates into S4 and yields
+1 owner, so their 20/20 two-owner results are their own proof the staging held — but
+under `proposed` a mis-staged trial *also* yields 1 owner, and is indistinguishable
+from a genuine pass. So `proposed`'s S3 cell cannot, on the committed data, tell
+"survived a stale-observation reclamation" from "never saw one". The harness is fixed
+(`run_lock.sh` now waits for B's `classified_stale` record); the committed
+`lock-owners.tsv` predates the fix. **Read the headline as 400 of 400 with 20 of them
+unconfirmed, and the genuinely-exercised count as 160, not 180** — S4, S5 and S6 are
+unaffected, and they alone are 160 trials with `proposed` clean throughout. Re-running
+S3 under the synchronized driver is an open item, carried in §13 row 21.
 
 ---
 
@@ -709,7 +738,9 @@ annotate them.
 >   generation, so all 400 trials ran with every generation present. §13 row 21's closing
 >   condition now names it.
 >
-> **Measured: exactly 1 owner on 400 of 400 trials**, against 121/400 wrong for `current` and
+> **Measured: exactly 1 owner on 400 of 400 trials** — 20 of them (its S3 cell) staged under the
+> 4 ms sleep and so unconfirmed rather than validated, §2.6; the unaffected S4/S5/S6 are 160
+> trials clean — against 121/400 wrong for `current` and
 > **61/400 wrong for the clause this replaces**. Worst case observed for both of the others was
 > **3** owners, not 2.
 >
@@ -897,7 +928,8 @@ annotate them.
 > quarantine ABA** (`rename` is atomic on a *path*, so a reclaimer acting on a stale
 > observation renames a fresh lock and gets success, not `ENOENT`). A third protocol — owner
 > published by `symlink(2)`, dead owners superseded by generation rather than removed —
-> yielded **exactly 1 owner on 400/400**. **The measured 8/8 `mkdir` result is untouched and
+> yielded **exactly 1 owner on 400/400** (20 of those, its S3 cell, unconfirmed on the committed
+> data — the staging fix is in the harness, not in the run). **The measured 8/8 `mkdir` result is untouched and
 > is a different race**, re-run here at N ≤ 16 for all three protocols, 1 owner on 80/80 each
 > **[measured-here]** | **YES** — the shipped clause is now known false, and its replacement
 > is unreviewed. **Closing conditions:** (1) a review pass by someone other than §4a's author;
