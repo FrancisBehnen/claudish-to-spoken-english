@@ -15,6 +15,10 @@ of the [#1](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/1
 | **warm** — worker resident | **median 1.22 s**, range 0.57–4.01 s, n = 30 | **28/30 pass — holds** |
 | **cold, but warmed during the turn** (§the mechanism below) | **median 1.71 s**, range 1.37–3.83 s, n = 5 | **4/5 pass — holds** |
 
+Every row is derivable from `residency-timings.tsv` — see *Reproducing the leads* in §4. **Both cold
+rows assume the model file is already warm in the page cache** and are optimistic by an unmeasured
+margin; the reason that is a closed limitation rather than an open one is at the end of this document.
+
 **§4's headline number survives, but it has to be re-stated.** "Median 0.86 s" is not what a hook
 delivers; **1.22 s** is, and the gap is real and explained below. What does *not* survive is any
 reading of §4 that leaves the cold case implicit: **cold from a hook is a failure against the 3 s
@@ -53,6 +57,11 @@ made about thirty two-word Haiku turns, whose only purpose was to make a hook fi
   script's second line. The shipped `speak.sh` is specified as bash (§10.2) and this changes nothing
   about that — the substitution exists to get an honest `t0`, and the hook's own wall cost is reported
   separately below.
+- `warm-probe.sh` — a throwaway `MessageDisplay` hook that does **one** thing: ensure the resident worker
+  exists, then append a trace line. It **parses no payload** — it does not read `.final`, `.delta` or
+  anything else, and never invokes `jq`. This matters more than it looks: it means the warm-up trigger
+  the numbers below measure fires on **every** `MessageDisplay` invocation, not on §3.1's publish point,
+  which is why §4a exists.
 - `speakd.py` — a throwaway resident worker in the Kokoro venv, importing `bench/sanitizers.py` and
   `bench/first-sentence.py`'s `first_sentence()` so the text handed to `create()` is produced by
   literally the same code #9 and #13 ran. Neither bench file was edited.
@@ -89,8 +98,27 @@ afternoon, `bf_emma`, first-sentence mode, twelve real rewrites.
 | max TTFA | 1.20 s | **1.25 s** |
 | RTF | 0.22–0.29 | **0.242–0.295** |
 
-So the machine is the same machine. **Every difference between the bench column and the hook columns
-below is caused by the hook, not by the hardware.**
+So the machine is the same machine. **This is a comparability control, and that is all it is.** It
+establishes that today's hardware reproduces §4's published figures, so the bench column and the hook
+columns are measured against the same baseline and can be put side by side at all.
+
+**It does not isolate the hook as the cause of the difference, and an earlier draft of this document
+said it did.** That was wrong, it was caught in review of this PR, and the review was right. Same
+hardware is not causal isolation. Two confounds are visible in this document's own data:
+
+- **Load.** The paragraph immediately below reports the same bench item moving from **4.05 s to 1.25 s**
+  on nothing but machine load. A confound that large swamps the ~0.37 s bench-to-hook gap the
+  comparison is trying to attribute.
+- **Cadence.** The bench harness runs twelve items back-to-back in one process; the driven session
+  issued turns seconds to minutes apart. `Kokoro.create()` is measurably faster in a back-to-back loop
+  — that is part of what the gap is made of — so the two columns differ in *how* they were run, not
+  only in *whether a hook was involved*.
+
+**What would actually license a causal claim**, and was not run: **interleaved paired runs** — the
+same corpus item synthesized alternately through the bench harness and through the hook, A/B/A/B within
+one session, so load and cadence are shared between the arms and only the hook differs. Until that
+exists, read the bench-to-hook gap as *associated with* the hook path, decomposed below by reasoning
+rather than by isolation. Listed in *What I could not measure*.
 
 One caveat on the control and on every synthesis in this document: the sanitizer used is **`base`**,
 not the settled #13 combination, because §13 row 1 is still open — *the settled combination has never
@@ -112,7 +140,7 @@ footnote.
 
 **Picked: a lazy, self-electing, per-session resident worker, addressed by a file drop inside
 `$BUF_ROOT/<session_id>/speak/`, started by whichever hook first finds it missing — and started from
-the `MessageDisplay` publish point, not only from `Stop`.**
+*every* `MessageDisplay` invocation, including the non-final ones, not only from `Stop`.**
 
 Every part of that sentence is doing work. Taken in order:
 
@@ -195,21 +223,72 @@ next hook invocation before it drops its job. What changes is **who writes it.**
 child"; under residency there is no per-turn speech child, so **the worker writes the player's pid
 there** after spawning it. With that, playback already in progress dies within the hook's own wall cost
 — **median 0.086 s, max 0.219 s** measured — which is a *tighter* bound than the worker-side kill the
-probe used, because the hook runs before the worker has noticed anything at all. The probe put the kill
-in the worker (**[rig]**, `speak()`: `_PREV_PLAYER.kill()`), which works and is simpler, but pays the
-newer job's entire synthesis first. **§10.6 as written is the better design on this axis and residency
-should not quietly drop it.**
+probe used, because the hook runs before the worker has noticed anything at all. **But it is not a
+replacement for the worker-side kill, and an earlier draft of this document treated it as one.** That
+error is corrected in (d).
 
-**What remains genuinely OPEN, and it is smaller than it looks.** Interrupting an in-flight `create()`
-is not solved by any of (a)–(c), and I am **not** specifying it: the two candidates I can see both carry
-costs nothing here has measured — synthesizing in a killable child forfeits the residency this document
-just bought, since the child cannot hold the model, and chunking the text to check between chunks
-interacts with `kokoro_onnx._split_phonemes` in ways nobody has looked at. But note what (b) and (c)
-leave for it to do. With them, **no stale utterance is played and §10.6's semantics hold**; what
-synthesis cancellation would additionally buy is only the *newer* utterance's latency — up to one wasted
-`create()`, 0.49–4.23 s, of delay. That is a performance question, not a correctness one. **Routed to
-§10.6 as OPEN with that reduced scope stated.** The measurement that would confirm or refute (b) and (c)
-is named in *What I could not measure* below.
+**(d) Keep the worker-side kill as well, and move it to job-claim time. [inferred]** Review of this PR
+found a hole in (b)+(c) taken together, and the hole is real. Write out the two orderings. The hook, per
+§10.6, does *kill the pid in `speak/pid`*, then *rename the job onto `speak/job`*. The worker, per (b),
+does *`create()`*, then *`stat(speak/job)`*, then *`Popen`*, then *write `speak/pid`*. Now let the hook
+read the pid at time **R** and publish at time **W** (R < W), and let the worker stat at **S** and write
+the pid at **P**. The interleaving **R < S < P < W** is unguarded:
+
+1. The worker finishes `create()` for job J1 and stats `speak/job` — empty. It will spawn.
+2. The hook for J2 reads `speak/pid` — absent, or a pid from a player that already exited. **Its kill
+   hits nothing.**
+3. The worker spawns player P1 for the *stale* J1 and writes P1's pid to `speak/pid`.
+4. The hook renames J2 onto `speak/job`.
+
+**P1 is now playing stale audio and no specified step kills it.** The hook's one kill is spent; the
+worker's pre-spawn stat already passed. And R < S < P < W is not a hair-splitting window: the hook's own
+wall cost between its kill and its rename is **0.063–0.219 s, median 0.086 s** measured, while the
+worker's S→P gap is one `Popen` plus one small write. The wide window is the hook's, and it comfortably
+contains the narrow one.
+
+A *post*-spawn stat — repeating the check after writing `speak/pid` — closes step 3/4 but not this
+ordering, because the hook's rename can still land after that second stat. What closes it is not another
+stat but a standing rule:
+
+> **The worker kills the currently playing player as soon as it claims a newer job, before synthesizing
+> it** — the probe's `_PREV_PLAYER.kill()` (**[rig]**, `speak()`), retained, but hoisted from spawn time
+> to *claim* time.
+
+With that, the timeline has no gap, because the two kills partition it at the `speak/pid` write:
+
+| J2 published… | who kills the stale player |
+| --- | --- |
+| before the worker writes `speak/pid` | the **worker**, on claiming J2 — one kqueue wake after publication (handoff median **0.079 s**) |
+| after the worker writes `speak/pid` | the **hook**, directly — within its own wall cost, median **0.086 s** |
+
+So (c) is a latency optimisation that fires when it happens to see a live pid; **(d) is the correctness
+guarantee**, and it is the worker's, because the worker is the only party that knows it spawned a
+player. Adding a post-spawn stat as well is cheap and worth doing — it catches the common case without
+waiting for a wake — but it is not what makes the mechanism sound. **§10.6's semantics need both the pid
+file and the worker-side kill; residency should drop neither.**
+
+**What remains genuinely OPEN, and it is smaller than it looks — but not as small as the earlier draft
+claimed.** Interrupting an in-flight `create()` is not solved by any of (a)–(d), and I am **not**
+specifying it: the two candidates I can see both carry costs nothing here has measured — synthesizing in
+a killable child forfeits the residency this document just bought, since the child cannot hold the
+model, and chunking the text to check between chunks interacts with `kokoro_onnx._split_phonemes` in
+ways nobody has looked at.
+
+**The earlier draft said (b) and (c) leave "no stale utterance played" and reduce cancellation to
+"latency only, not correctness". That was wrong, because it depended on the hole (d) closes.** The
+corrected statement, and it is **[inferred]** throughout — none of (b), (c) or (d) has been measured:
+
+- With (a)–(d), **no stale utterance survives longer than one kqueue wake or one hook wall cost after
+  the newer job is published** — bounded by the measured **0.079 s** and **0.086 s** respectively, plus
+  a residual **6–38 ms** window between the pre-spawn stat and the spawn in which a player starts at all.
+  On that reading §10.6's semantics hold.
+- **Only then** is synthesis cancellation reduced to a latency question — the *newer* utterance waiting
+  out up to one wasted `create()`, 0.49–4.23 s. **Without (d) it is a correctness question**, because a
+  stale utterance plays to completion unkilled.
+
+**Routed to §10.6 as OPEN with that reduced scope stated, and with the reduction explicitly conditional
+on (d) shipping.** The measurement that would confirm or refute (b), (c) and (d) is named in *What I
+could not measure* below.
 
 ### 2. The election is `mkdir`, and it lives in the worker
 
@@ -236,6 +315,68 @@ keeping, because in the common case it saves a Python interpreter start on every
 one interpreter start each and were gone in under a second. The spec should say which of the two is
 load-bearing, because they look interchangeable and are not.
 
+#### 2a. The `mkdir` is sound. The *stale-lock recovery* around it is not.
+
+Review of this PR found a second race, downstream of the one measured above, and it is real. The
+`mkdir` decides the election correctly — that part is measured 8/8. What is unsound is what a *loser*
+does next. The probe's protocol, read out of its own source **[rig]**:
+
+```python
+try:
+    os.mkdir(LOCK)
+except FileExistsError:
+    try:
+        pid = int(LOCK_PID.read_text().strip())
+    except (OSError, ValueError):
+        pid = -1                      # <-- lock exists but has no pid yet
+    if pid > 0:
+        ... kill(pid, 0) ... return False
+    # stale: tear it down and retry once
+    LOCK_PID.unlink(missing_ok=True)
+    os.rmdir(LOCK)
+    continue
+LOCK_PID.write_text(f"{os.getpid()}\n")   # <-- winner writes the pid HERE
+return True
+```
+
+**The winner's `mkdir` and its pid write are two steps, and a loser that arrives between them sees a
+lock directory with no pid inside.** `read_text()` raises, `pid` becomes `-1`, the `pid > 0` branch is
+skipped, and the loser falls straight into *"stale: tear it down"*. It `rmdir`s the live winner's lock,
+`mkdir`s a replacement, writes its own pid, and returns `True`. **Two workers now believe they own the
+session**, both holding a ~340 MB model, both racing `read_job()`'s claim-rename for every job. This is
+not the same race as the 8/8 result above: that one is about who wins `mkdir`, this one is about a lock
+being *misclassified as abandoned while its owner is starting up*.
+
+It did not fire in anything measured here, and the reason is timing, not design: the winner's pid write
+follows its `mkdir` by microseconds, while the seven losers in the eight-hook race each had a whole
+Python interpreter start ahead of them. **A window that small is still a window**, and the mechanism is
+supposed to survive the adversarial case rather than the lucky one.
+
+**The corrected protocol, in two clauses. [inferred] — reasoned, not measured.**
+
+1. **A lock with no pid file yet is *initializing*, not stale, and must be retried rather than
+   reclaimed.** Absence of a pid is not evidence of an abandoned lock; it is the default state of a lock
+   for the first few microseconds of its life. Retry the read on a short bounded backoff — a handful of
+   attempts over a few tens of milliseconds is orders of magnitude more than the observed write
+   latency — and only if the pid is *still* absent at the end of it treat the lock as genuinely
+   abandoned, which is the narrow real case of a worker killed between its `mkdir` and its write.
+2. **Serialize stale reclamation with an atomic rename into quarantine, never `rmdir`-then-`mkdir`.**
+   To reclaim, first `rename(worker.lock, worker.lock.dead.<pid>.<nonce>)` — a unique target name, so no
+   two reclaimers can collide on it. `rename(2)` on a directory is atomic and the source path can only
+   be consumed once: exactly one racer's rename succeeds, every other gets `ENOENT` and restarts the
+   whole election from the top. Only the winner of the quarantine rename then `mkdir`s the fresh lock.
+   Clean up the quarantined directory afterwards, and let the 30-minute sweep of §6 catch any it misses.
+
+The `rmdir`-then-`mkdir` sequence the probe used has no such interlock: two reclaimers can both `rmdir`
+(one succeeds, one gets `ENOENT` and, in the probe, `return False` — which is at least safe) and, worse,
+a reclaimer can `rmdir` a lock that a *third* process has meanwhile legitimately re-`mkdir`'d. The
+rename makes "I am the one reclaiming this specific lock" a single atomic fact, which is the same
+property the `mkdir` gives the election itself.
+
+**Note what is *not* being changed.** The election stays `mkdir`, in the worker, and the hook's
+pre-check stays a best-effort optimisation. The measured 8/8 result is untouched — it is a result about
+`mkdir` under contention, and `mkdir` is still the guarantee.
+
 ### 3. The wake is `kqueue`, and it costs nothing worth naming
 
 The worker blocks on `kqueue(EVFILT_VNODE, NOTE_WRITE)` over the speak directory's fd, with a 1 s
@@ -245,52 +386,148 @@ timeout as a belt. A rename into the directory wakes it.
 interval contains the whole hook — `jq` three times, `shasum`, the job write, the rename — plus the
 kqueue wake. It is not the bottleneck and no cleverness is owed here.
 
-### 4. The warm-up trigger is `MessageDisplay`, and this is the part that closes the blocker
+### 4. The warm-up trigger is *every* `MessageDisplay` invocation — **not** §3.1's publish point
 
 **A worker started by `Stop` is warm for turns 2..n and cold for turn 1.** That is the whole of the
 residency problem, and started-by-`Stop` does not solve it: measured cold median **3.16 s**, over the
 line.
 
-But this plugin already has a hook that fires **during** the turn. §3.1 has `rewrite.sh` publishing
-the finished rewrite into `speak/` from `MessageDisplay` — seconds before `Stop` fires. If the publish
-also ensures the worker exists, the model load is paid **while the model is still talking**, and by
-the time `Stop` arrives the worker is resident.
+But this plugin already has a hook that fires **during** the turn. `MessageDisplay` is invoked once per
+streamed chunk, and on a long reply that is five to seven times before the turn ends. If one of those
+invocations ensures the worker exists, the model load is paid **while the model is still talking**, and
+by the time `Stop` arrives the worker is resident.
+
+**Which invocation, though? That question is the whole of this subsection, and an earlier draft of this
+document got it wrong.**
+
+#### 4a. The correction: the publish point has no lead at all
+
+The earlier draft said the trigger was §3.1's publish point — *"`rewrite.sh` publishing the finished
+rewrite into `speak/` from `MessageDisplay`, seconds before `Stop` fires"* — and cited the 5.16–6.23 s
+lead as evidence for it. **Review of this PR pointed out that the measurement does not measure that
+trigger. The review was right, and the gap is three orders of magnitude.** Read `rewrite.sh`:
+
+- **Non-final invocations return before doing anything else.** `rewrite.sh:127-132` — `if [ "$final"
+  != "true" ]; then ... emit_empty; else pass_through; fi`, and both of those `exit 0`. **[repo]**
+- **The rewrite is published only from the final invocation**, after reconstruction (`rewrite.sh:134`),
+  after the prose-length gate, and — decisively — **after `llm_complete` returns** (`rewrite.sh:192`),
+  whose default budget is `CLAUDISH_TIMEOUT=45` seconds (`rewrite.sh:66`). **[repo]**
+- **There is in fact no `speak/` publish in `rewrite.sh` at all today.** `grep -n 'speak' rewrite.sh`
+  returns nothing across all 245 lines. §3.1's publish is proposed spec, not shipped code — consistent
+  with `speak.sh` not existing. **[repo]**
+
+So the publish point is the *last* thing that happens in a turn's final `MessageDisplay` invocation.
+How much lead does that leave? The rig's own trace answers it, and the answer is: **none.**
+
+| trigger placement, same 5 turns | lead before `Stop` **[hook]** |
+| --- | --- |
+| **first** `MessageDisplay` invocation of the turn | **5.16 – 6.23 s** |
+| **last (final)** `MessageDisplay` invocation of the turn | **0.006 – 0.012 s**, median **0.008 s** |
+
+Across all sixteen turns that had the `MessageDisplay` hook installed, the final invocation's lead is
+**−0.066 s to +0.086 s, median 0.0075 s** (n = 16) — it can be *negative*. The final `MessageDisplay` hook process
+and the `Stop` hook process are dispatched essentially simultaneously; which one reads its clock first
+is a scheduling coin-flip. Every figure here is derivable from `residency-timings.tsv` columns
+`t_stop`, `t_first_md`, `t_last_md` (see *Reproducing the leads* below).
+
+**And §3.1's publish is later still than the final invocation's start**, by the whole of the LLM
+round-trip. A publish-point trigger would therefore start the worker *after* `Stop` has already fired,
+which is strictly worse than triggering on `Stop`.
+
+**Worse, on short turns the publish point never fires at all.** `rewrite.sh:145-155` gates on
+`prose_len < MIN_CHARS` (default **200**, `rewrite.sh:64`) and returns without producing a rewrite.
+A fifty-character reply produces no publish, ever — so a publish-point trigger provides exactly zero
+warm-up on precisely the turns that need it most. **[repo]**
+
+#### 4b. What was actually measured, and what it does support
+
+**The result stands; only the trigger's description changes.** The `MessageDisplay` hook the rig ran is
+`warm-probe.sh`, and it **parses no payload at all** — no `.final`, no `.delta`, no `jq`. It does one
+thing: ensure the worker exists, then append a trace line. **[rig]**
+
+```zsh
+[[ "$CLAUDISH_SPEAK" == "1" ]] || exit 0
+mkdir -p "$SPEAK_DIR" 2>/dev/null
+started=no
+if [[ -d "$SPEAK_DIR/worker.lock" ]] && kill -0 "$(<"$SPEAK_DIR/worker.lock/pid" 2>/dev/null)" 2>/dev/null; then
+  :
+else
+  "$PY" "$RES/speakd.py" "$SPEAK_DIR" "$REPO" </dev/null >>"$SPEAK_DIR/speakd.stderr" 2>&1 &
+```
+— `warm-probe.sh`, in full but for the clock and the trace line **[rig]**
+
+So what the 5.16–6.23 s lead measures is a **payload-independent ensure-worker step that runs on every
+`MessageDisplay` invocation**. That is a real, implementable trigger — and it is the one this document
+now specifies. In the trace it is visible directly: on each of those turns the *first* of five to seven
+invocations logged `started=yes` and every later one logged `started=no`. **[hook]**
+
+**The mechanism therefore has to be placed before `rewrite.sh:127`'s early return**, not at the publish.
+It is cheap enough to belong there: one `[[ -d ]]` test and one `kill -0` in the common case, on a hook
+that already runs `jq` several times.
 
 **Measured, on a fresh session with no worker running, driving a 400-word streaming reply:**
 
 | | measured **[hook]** |
 | --- | --- |
-| first `MessageDisplay` hook fires, before `Stop` | **5.16 – 6.23 s** |
+| first `MessageDisplay` invocation fires, before `Stop` | **5.16 – 6.23 s** |
 | worker becomes ready, before `Stop` | **3.05 – 4.62 s** |
 | `Stop` finds a resident worker | yes, `started=no`, every time |
 | TTFA on that first turn | **1.37 / 1.66 / 1.71 / 2.23 / 3.83 s** — median **1.71 s**, 4/5 under the line |
 
-That is the claim the blocker asks for, and it is measured rather than argued: **the mechanism moves
-the cold start out of the user-visible path on the first turn of a session, not merely on the second.**
+That is the claim the blocker asks for: **the mechanism moves the cold start out of the user-visible
+path on the first turn of a session, not merely on the second** — provided the trigger sits on every
+invocation. It is measured rather than argued, and the trigger it is measured for is now the trigger
+that is specified. The earlier draft's headline was not supported by its own data; this one is.
 
-**And here is where it fails, measured, not hypothesised.** Drive the same fresh session with a reply
-of fifty characters and the lead disappears:
+#### 4c. Where it still fails, measured, not hypothesised
+
+Drive the same fresh session with a reply of fifty characters and the lead disappears:
 
 ```
-1787668956.179   Stop hook    process starts
-1787668956.243   MessageDisplay hook process starts     <- 0.064 s LATER
+1787668956.179   Stop hook            process starts
+1787668956.243   MessageDisplay hook  process starts     <- 0.064 s LATER
 ```
-**[hook]** — TTFA that turn: **4.489 s, cold**.
+**[hook]** — turn 31, TTFA that turn: **4.489 s, cold**.
 
-**The `MessageDisplay` hook process started 64 ms *after* the `Stop` hook process, on a turn whose
-message had already been displayed.** I did not expect that and I cannot explain it from anything I
-have read; hook *dispatch* order is evidently not message order when the whole turn takes a second.
-It is recorded as observed and unexplained. The practical rule it yields is unambiguous and should go
-in the spec as a stated limit:
+The earlier draft recorded this as *unexplained*. **It is no longer unexplained, and §4a is the
+explanation.** The expectation it violated was that `MessageDisplay` precedes `Stop` by seconds — but
+that is only true of the *non-final* invocations. The final invocation is concurrent with `Stop`
+(median 7.5 ms across sixteen turns, sign not guaranteed), and a fifty-character reply streams in a
+single chunk, so its only invocation *is* the final one. On turn 31 all three of its invocations landed
+after `Stop`'s clock read, and all three found no worker and spawned one — the election then discarded
+two. There is nothing left to explain about hook dispatch ordering; the ordering is a consequence of
+chunk count, which is a consequence of message length.
 
-> **Warm-up-on-`MessageDisplay` covers the cold start if and only if the turn's message streams for
-> longer than the worker takes to start (**1.33–2.02 s** measured, n = 8). On a very short, very fast first turn
-> it provides no lead at all and the first utterance is cold.**
+The practical rule is unchanged and should go in the spec as a stated limit:
+
+> **Warm-up-on-`MessageDisplay` covers the cold start if and only if the turn's message streams in
+> more than one chunk *and* the first chunk arrives more than the worker's startup time
+> (**1.33–2.02 s** measured, n = 8) before the turn ends. On a very short, very fast first turn there
+> is one chunk, it is the final one, it is concurrent with `Stop`, and the first utterance is cold.**
 
 That limit is tolerable, and here is why, stated as reasoning rather than measurement
 **[inferred]**: a fifty-character first message is exactly the band §3.3 and §9 are about, and
 whichever way §3.5's table resolves it, one late first utterance per session is the worst case. It is
 not tolerable to leave *unstated*, which is what §10.5 does today.
+
+#### Reproducing the leads
+
+Every number in §4 is derivable from `residency-timings.tsv` with `awk`, which was not true before this
+revision — the file previously carried no absolute timestamps at all. The relevant columns are
+`t_stop`, `n_md`, `t_first_md`, `t_last_md`, `t_worker_ready`, the three pre-differenced `*_lead_*`
+columns, and `set`, which names the rows behind each published aggregate:
+
+| `set` | rows | reproduces |
+| --- | --- | --- |
+| `cold7` | 7 | cold: median 3.161 s, range 2.657–5.496 s, 3/7 under 3 s |
+| `warm30` | 30 | warm: median 1.216 s, range 0.573–4.014 s, 28/30 under 3 s |
+| `warm30+mdwarm5` | 5 | warmed-during-turn: median 1.710 s, range 1.373–3.829 s, 4/5 under 3 s |
+| `concurrency-probe`, `slow-cold-outlier` | 1 each | excluded from every aggregate above, by name |
+
+`ready_lead_s` is `t_stop − t_worker_ready`: **positive means the worker was resident before `Stop`
+fired**, which is the mechanism working. It is positive exactly on the five `mdwarm5` turns
+(3.051–4.619 s) and negative on every cold turn (−1.382 to −1.734 s), which is the mechanism's whole
+claim in one column.
 
 ### 5. The worker does a warm-up synthesis at startup
 
@@ -347,7 +584,9 @@ Turns 37–40 pay a startup warm-up synthesis that turns 1, 7 and 31 do not; tha
 
 **The honest reading: cold from a hook straddles the 3 s line and does not clear it.** On a quiet
 machine it lands at 2.7–3.2 s; on a busy one it goes to 5.5 s. #6's cold figure of **3.93 s** sits
-inside that range, so nothing here contradicts #6 — it locates it.
+inside that range, so nothing here contradicts #6 — it locates it. **All of these figures, #6's
+included, were measured with the model file already warm in the page cache and are optimistic by an
+unmeasured margin** — which pushes an already-failing case further over the line, never back under it.
 
 ### Warm — worker resident
 
@@ -449,20 +688,38 @@ The mechanism, in six clauses, each measured above:
    name. A read-then-unlink of `job` loses a job renamed in between, irrecoverably (§1b).
 2. **Election**: `mkdir $BUF_ROOT/<session_id>/speak/worker.lock` with the pid inside, performed
    **by the worker**. The hook's pre-check is an optimisation that loses races; the `mkdir` is the
-   guarantee. Eight simultaneous hooks → one worker, observed.
+   guarantee. Eight simultaneous hooks → one worker, observed. **Stale-lock recovery needs two clauses
+   of its own or it breaks the singleton the `mkdir` just won (§2a):** a lock whose `pid` file does not
+   exist yet is **initializing** and must be retried on a short bounded backoff, *never* classified as
+   stale — otherwise a racer arriving between the winner's `mkdir` and its pid write tears down a live
+   worker's lock and a second worker starts. And reclamation of a genuinely abandoned lock must be
+   **serialized by an atomic `rename` into a unique quarantine name** before a fresh lock is created,
+   never `rmdir`-then-`mkdir`; the rename can only succeed once, so exactly one reclaimer proceeds.
 3. **Wake**: `kqueue`/`NOTE_WRITE` on the speak dir, 1 s poll as a belt. Handoff median 0.079 s.
-4. **Warm-up trigger**: the `MessageDisplay` publish point already specified in §3.1 also ensures the
-   worker. **Stated limit:** this covers the cold start only when the message streams longer than the
-   worker's 1.33–2.02 s startup; on a very short first turn it provides no lead and the first utterance
-   is cold.
+4. **Warm-up trigger**: an ensure-worker step on **every `MessageDisplay` invocation**, placed **before
+   `rewrite.sh:127`'s non-final early return** — *not* on §3.1's publish point. The publish point is
+   unusable for this: non-final invocations exit at `rewrite.sh:127-132`, the publish happens only in the
+   final invocation and only after `llm_complete` returns, and the final invocation is **concurrent with
+   `Stop`** — measured lead 0.006–0.012 s, median 0.008 s, and negative on one turn — against
+   5.16–6.23 s from the first invocation. Below `MIN_CHARS` (200) `rewrite.sh` publishes nothing at all,
+   so a publish-point trigger gives zero warm-up on short turns. The step must be payload-independent:
+   one `[[ -d ]]` and one `kill -0`, before any parsing. **Stated limit:** this covers the cold start
+   only when the message streams in more than one chunk and the first chunk leads the end of the turn by
+   more than the worker's 1.33–2.02 s startup; on a very short first turn there is a single chunk, it is
+   the final one, and the first utterance is cold.
 5. **Startup warm-up synthesis**, per `bench/bench.py:471-475`. Costs 0.78–1.12 s of startup, saves
    ~0.7 s on the first real utterance.
 6. **Idle exit** at 30 minutes, matching `rewrite.sh:117`'s sweep. Re-introduces a cold start after
    half an hour of silence.
-7. **Preemption is §10.6's, not §10.5's**, but §10.5 owes it two hooks: the worker writes the player's
-   pid to `speak/pid` so §10.6's hook-side kill still has something to kill, and the worker re-checks
-   `speak/job` after `create()` and before `Popen`, discarding the audio if a newer job is waiting.
-   Both **[inferred]**, neither measured — §1b.
+7. **Preemption is §10.6's, not §10.5's**, but §10.5 owes it three hooks, all **[inferred]** and none
+   measured — §1b. (i) The worker writes the player's pid to `speak/pid` so §10.6's hook-side kill still
+   has something to kill. (ii) The worker re-checks `speak/job` after `create()` and before `Popen`,
+   discarding the audio if a newer job is waiting. (iii) **The worker also kills the currently playing
+   player the moment it claims a newer job**, before synthesizing it. (iii) is not redundant with (i):
+   a hook that reads `speak/pid` *before* the worker writes it kills nothing, and can then publish its
+   job *after* the worker's pre-spawn re-check — leaving a stale player running that no other step
+   touches (§1b (d)). The pid file bounds the case where the hook sees a live player; the worker-side
+   kill bounds the case where it does not. **Both are required.**
 
 And the closing condition §10.5 set for itself is now met, with this result:
 **cold from a hook is 2.66–5.50 s (median 3.16 s) and fails the 3 s line; warm from a hook is
@@ -480,14 +737,21 @@ therefore kill the previous one itself.
    kills it exactly as §10.6 already says. Playback in progress therefore dies within the hook's own
    wall cost, median **0.086 s**. Without this sentence an implementer reads §10.6 and finds nothing
    left in the design that writes the file.
-2. **"A newer message kills stale playback" needs one more clause to be true.** A message newer than a
-   synthesis *in progress* is not covered by the pid kill — no player exists yet to kill. It is covered
-   by the worker re-checking `speak/job` after `create()` and before `Popen` and **discarding** the
-   finished audio if a newer job is waiting. Add that clause, and state the residual: a job landing
-   inside the **6–38 ms** between that check and the spawn still plays.
+2. **"A newer message kills stale playback" needs two more clauses to be true, not one.** A message
+   newer than a synthesis *in progress* is not covered by the pid kill — no player exists yet to kill.
+   (i) The worker re-checks `speak/job` after `create()` and before `Popen`, **discarding** the finished
+   audio if a newer job is waiting; residual, a job landing inside the **6–38 ms** between that check and
+   the spawn still starts playing. (ii) **The worker also kills the current player when it claims a
+   newer job.** Without (ii) the rule is still false: the hook's kill and the worker's re-check can both
+   miss the same job — the hook reads `speak/pid` before the worker writes it, and publishes after the
+   worker re-checked — and the stale player then plays to completion with nothing specified to stop it
+   (§1b (d)). With (ii) the two kills partition the timeline at the `speak/pid` write and every
+   publication instant is covered by one of them.
 
-Cancelling an in-flight `create()` stays **OPEN** and stays in §10.6 rather than §10.5, with its scope
-reduced to the newer utterance's latency rather than the older one's suppression — §1b.
+Cancelling an in-flight `create()` stays **OPEN** and stays in §10.6 rather than §10.5. **Its scope
+reduces to the newer utterance's latency rather than the older one's suppression only once clause (ii)
+above is in — without it, stale suppression is itself unsolved and the OPEN is a correctness OPEN, not
+a performance one** — §1b.
 
 ### §4 — the headline number survives, restated
 
@@ -499,7 +763,9 @@ harness, and the difference has now been measured rather than assumed. Proposed 
 > measures; the ~0.37 s difference is 0.08 s of hook overhead and ~0.29 s of `Kokoro.create()` running
 > cooler outside a back-to-back loop. **Cold — no resident worker — is 2.66–5.50 s and fails the
 > line**; §10.5's mechanism exists to ensure the user is not in that case, and measurably succeeds on
-> the first turn of a session when the message streams for more than ~2 s (the worker needs 1.33–2.02 s to start).
+> the first turn of a session when the message streams in more than one chunk and its first chunk leads
+> the end of the turn by more than the worker's 1.33–2.02 s startup. **Both cold figures assume the
+> model file is already warm in the page cache and are optimistic by an unmeasured margin.**
 
 §4's existing block-quoted caveat (*"read the TTFA figure with its exclusion attached"*) should stay
 and get shorter: the sentence *"§10.5's unspecified worker lifecycle is what stands between the spec
@@ -524,34 +790,91 @@ cheap: the mechanism already has a warm-up trigger and a wake handler would reus
 
 - **Sleep/wake.** Requires actually sleeping the machine, which was out of scope and disruptive to
   four live sessions. #5's ~4.9 s stands unmeasured-here. §13 row 12 unchanged.
-- **A cold page cache.** Purging it needs `sudo`. Every "cold" row here has the 310 MB model file warm
-  in the page cache, so **every cold figure in this document is optimistic**, including #6's 3.93 s,
-  which was measured under the same condition. A genuinely cold first synthesis after a reboot is
-  slower than 5.5 s by an unknown amount.
 - **The settled #13 sanitizer combination**, because §13 row 1 has not shipped it. `base` was used;
   the sanitize phase is 0.2–9.2 ms and does not move the result.
 - **The shipped hook in bash.** The probe is `zsh -f`, for the clock. The hook's measured wall cost
   (0.063–0.219 s, median 0.086 s) is dominated by three `jq` invocations and a `shasum`, not by the interpreter, so I
   expect bash to land in the same band — **but that is an expectation, not a measurement.**
-- **Why `MessageDisplay`'s hook process started after `Stop`'s on a short turn.** Observed, twice,
-  reproducibly; unexplained. I did not read the binary for hook dispatch ordering.
+- **The hook's causal contribution to the bench-to-hook gap**, because the control shares hardware but
+  not load or cadence — see *The control* above. What is owed is **interleaved paired runs**: the same
+  corpus item synthesized alternately through `bench/first-sentence.py` and through the hook, A/B/A/B in
+  one session, so both arms see the same load and the same spacing. Until then the ~0.37 s gap is
+  decomposed by reasoning, not isolated by experiment.
 - **Preemption, in every case except coalescing.** Nothing here drove a second job at a worker that had
   already claimed the first: the driven session issued turns sequentially, and the eight-hook race
   dropped all eight before any worker was ready. So §1b's rows two and three are **reasoned, not
-  measured**, and §1b's (b) and (c) are proposals rather than results. The measurement owed is small and
-  specific — **fire two `Stop` hooks roughly 0.5 s apart at a warm worker and record whether the older
-  utterance is audible at all** — and it needs the hook-probe rig, which another agent holds an
-  exclusive lease on, so it was not run.
+  measured**, and §1b's (b), (c) and (d) are proposals rather than results. **The experiment owed is
+  larger than the earlier draft's version of it, because (d) changed what has to be recorded.** Firing
+  two `Stop` hooks ~0.5 s apart at a warm worker is still the setup, but "was the older utterance
+  audible" is no longer a sufficient observation — the interleaving in §1b (d) turns on *which* kill
+  fired, and a run can pass by luck with the mechanism still broken. What must be recorded per run:
+  1. the timestamps of the hook's `speak/pid` read and its job rename (**R** and **W**);
+  2. the timestamps of the worker's pre-spawn `stat`, its `Popen`, and its `speak/pid` write
+     (**S**, and **P**);
+  3. **which** step actually killed the first player — the hook's pid kill, the worker's claim-time
+     kill, or neither — not merely that it died;
+  4. whether the first utterance was audible, and for how long.
+  A run in which the hook's kill happened to see a live pid tells us nothing about (d); the case that
+  matters is deliberately provoking **R < S < P < W**, which means publishing the second job while the
+  first is *mid-`create()`* and timing the rename to land just after the worker's pre-spawn check. That
+  probably needs an instrumented `speakd.py` with a settable delay between the pre-spawn `stat` and the
+  `Popen`, so the window can be widened to something a shell script can reliably hit.
+- **The stale-lock recovery protocol in §2a.** Both clauses are **[inferred]**. Provoking the real
+  window means pausing a winning worker between its `mkdir` and its pid write, which again needs an
+  instrumented worker. Worth doing in the same run as the preemption experiment: **start N workers
+  against a lock held by a worker deliberately stalled before its pid write, and count how many end up
+  believing they own the session.** The current protocol should produce 2; the corrected one, 1.
 - **Whether any of this holds on hardware that is not an M3.** Nothing here is portable evidence.
 
-## One place my expectation was contradicted
+### One thing that cannot be measured here, and does not need to be
 
-I expected `MessageDisplay` to always precede `Stop` by seconds, because the message is displayed
-before the turn ends. **On a fifty-character reply it did not** — the `Stop` hook process started
-64 ms first. The mechanism still works, but it works *because the message is long*, not because the
-event ordering guarantees anything. Had I only tested long replies I would have written a stronger
-claim than the evidence supports, and it is worth saying that the short-reply case was an
-afterthought that turned out to be the interesting one.
+**A genuinely cold page cache — closed as an environment limitation, not owed.** Purging it needs
+`sudo`, which this machine's user does not have, and Darwin has no reliable userland equivalent. The
+sudo-free workaround — reading tens of gigabytes to force eviction — thrashes the machine for minutes
+and still yields an imprecise answer, so it was not attempted.
+
+State the consequence precisely, because it is what makes this acceptable rather than a hole:
+
+- **Every "cold" figure in this project means *no worker process resident*, with the 310 MB
+  `kokoro-v1.0.onnx` and 27 MB `voices-v1.0.bin` still warm in the file-system cache from an earlier
+  run.** So all cold numbers — the **3.16 s** median here, its 2.66–5.50 s range, and #6's **3.93 s** —
+  are **optimistic by an unmeasured margin.** That phrasing belongs wherever a cold figure is quoted,
+  not only in this section.
+- **It cannot flip any verdict the spec depends on.** Cold TTFA already exceeds the 3 s budget without
+  any page-cache penalty — 3 of 7 cold hook turns are over the line. A larger cold number makes an
+  already-failing case fail harder. There is no decision in §10.5, §10.6 or §13 whose outcome turns on
+  the size of the margin, which is precisely why an unmeasured quantity is acceptable here rather than
+  blocking.
+- **The residual scenario, on the record rather than implied:** the first turn after a boot, or after
+  genuine memory pressure — a large build, Docker, a heavy browser — on a 16 GB machine. **The residency
+  mechanism does not help there**, because it only pays off once a worker exists, and that is exactly the
+  case where no worker does.
+
+## Two places my expectation was contradicted
+
+**1. `MessageDisplay` does not precede `Stop` by seconds — only its non-final invocations do.** I
+expected the whole event to lead `Stop`, because the message is displayed before the turn ends. On a
+fifty-character reply it did not: the `Stop` hook process started 64 ms first. The mechanism still
+works, but it works *because the message is long enough to stream in several chunks*, not because the
+event ordering guarantees anything. Had I only tested long replies I would have written a stronger claim
+than the evidence supports, and the short-reply case was an afterthought that turned out to be the
+interesting one.
+
+**2. The lead I measured did not belong to the trigger I specified, and I did not notice until review
+said so.** The earlier draft named §3.1's publish point as the trigger and cited the 5.16–6.23 s lead
+as its evidence. Those are two different events: the lead is the *first* `MessageDisplay` invocation's,
+the publish happens in the *final* one, and the final one's lead is **8 ms**. The probe never measured
+the publish point at all — its `MessageDisplay` hook parses no payload, so it could not have
+distinguished final from non-final even in principle.
+
+What makes this worth recording rather than quietly fixing: **the error was invisible from inside the
+measurement.** Every number was correct, the mechanism worked, the table reproduced — and the sentence
+above the table described a different mechanism from the one that produced it. The 64 ms observation in
+(1) was the visible symptom, and the earlier draft filed it as *unexplained* rather than treating it as
+evidence that the event model was wrong. **An anomaly recorded honestly but not chased is still a missed
+finding**, and the cost was a headline claim the data did not support surviving into a PR. Both are
+corrected in §4a; the correction weakened nothing but the description, because the every-invocation
+trigger is what was measured and it is implementable.
 
 ## Safety record
 
