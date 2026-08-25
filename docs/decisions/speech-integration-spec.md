@@ -572,12 +572,23 @@ backticks in a real message. Recorded as a live caveat, not a footnote.
 present in the 2.1.245 binary, 4 occurrences. The `Stop` consumer drives its retry **only** from
 `blockingError`; any other failure renders as a **single warning line** and the turn ends normally.
 Exit-2 blocks are counted and capped at `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP ?? 8`, after which the
-runtime overrides. **[bin]**
+runtime overrides. **[bin]** The cap counts *tolerated* blocks and the comparison against it is
+**strict**, so the ninth block still runs before it is refused: the observed cost is **nine
+invocations — one initial fire plus eight re-fires** — measured at exactly nine in three independent
+runs. **[obs]** See [`stop-hook-block-mechanics.md`](stop-hook-block-mechanics.md).
 
 **So the hazard is not "any error holds the prompt hostage" — it is much more specific, and that
 makes it more real, not less.** A speech hook that exits 1 because a binary was missing loses nothing
-but the utterance. A speech hook that exits **2** holds the user's prompt open and gets re-fired up
-to 8 times, **speaking the same message up to 8 times.**
+but the utterance. A speech hook that exits **2** holds the user's prompt open and gets re-fired
+**eight** times — nine invocations in all — **speaking the same message nine times.**
+
+> **THIRD CORRECTION, observed rather than read.** This section previously said "up to 8 times,
+> speaking the same message up to 8 times", taking the cap's default as the invocation count. It is
+> **nine**. `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` bounds *tolerated* blocks under a strict comparison, so
+> the ninth block executes and is then refused. Counted at exactly nine in three independent driven
+> runs — `exit 2`, varied-stderr, and the `{"decision":"block"}` JSON route all cap identically.
+> **[obs]** The conclusion of §5 is unaffected; only the size of the cost changes, and it is one
+> utterance worse than stated.
 
 **And this plugin's own idiom can produce a 2 — but not by the route that was claimed.**
 
@@ -602,7 +613,7 @@ to 8 times, **speaking the same message up to 8 times.**
 
 - **A bash syntax error in `speak.sh` is exit 2.** This is the strongest form of the hazard and it was
   not in either earlier version: an unbalanced `fi`, `done`, or quote does not fail one turn, it
-  **blocks every turn** and speaks the same message 8 times each. It is also the single most likely
+  **blocks every turn** and speaks the same message 9 times each. It is also the single most likely
   defect in a shell script under edit. Mitigation is not a runtime guard — it is `bash -n` before the
   file ships, and keeping the file small.
 - **`jq` invoked with a bad option or an unreadable file is exit 2** — and this *is* the plugin's own
@@ -620,7 +631,8 @@ citing a measurement that says the opposite.
 > every path, including every error path**. On `MessageDisplay` this is what keeps a display hook from
 > swallowing the assistant's answer (`rewrite.sh:22-25`). On `Stop` the reason is different and
 > narrower: **exit code 2 is not a failure report, it is a request to block the turn** — capped at
-> `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` (default 8) re-fires, speaking the same message each time. The two
+> `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` (default 8) re-fires, which is **nine utterances of the same
+> message in total [obs]**, speaking it each time. The two
 > routes that actually produce a 2 are **a bash syntax error in the hook** and **`jq` given a bad
 > option or an unreadable file** (`rewrite.sh:87`'s `--rawfile` shape). Every other failure code — 1,
 > 3, 5, 127 — is explicitly *non-blocking* and costs only the utterance. **The `Stop` hook's exit must
@@ -657,7 +669,14 @@ protection transfers to `Stop`.**
 **Why it inverts.** Claude replies to a blocked turn **before** the hook re-fires, so the payload that
 arrives with `stop_hook_active: true` usually carries the **newer** text. A "stay silent while
 `stop_hook_active` is true" rule would therefore **speak the rejected answer and suppress the real
-one** — the exact opposite of what it appears to do. **[bin]**
+one** — the exact opposite of what it appears to do. **[obs]**
+
+**This is now observed, not reasoned.** When this section was written the inversion was inferred from
+the binary; a driven blocking run has since captured all nine payloads of a single turn and found
+**eight distinct `last_assistant_message` values across the nine fires**, with fires 1 and 9 differing
+in `stop_hook_active` and `last_assistant_message` and nothing else. `stop_hook_active` is `false` on
+fire 1 and `true` on fires 2–9, every run. **[obs]**
+[`stop-hook-block-mechanics.md`](stop-hook-block-mechanics.md)
 
 **Specification.**
 
