@@ -6,9 +6,10 @@ The instrument the listening tickets share. Built for
 Assembled 2026-08-16.
 
 **Throwaway by design.** This is an asset for *deciding* #8 (sanitizer rules), #9 (voice and the
-first-sentence-pipelining call) and #10 — not a component of the speech feature. It touches no hook,
-imports nothing from `rewrite.sh` / `rewrite-md.sh` / `providers.sh`, and never calls an LLM. Delete
-the directory when the decisions are made and nothing breaks.
+first-sentence-pipelining call), #10, and #13 (#8's three follow-up rules) — not a component of the
+speech feature. It touches no hook, imports nothing from `rewrite.sh` / `rewrite-md.sh` /
+`providers.sh`, and never calls an LLM. Delete the directory when the decisions are made and nothing
+breaks.
 
 **Nothing in here is a claim about how anything sounds.** Every number below is a stopwatch reading
 or a count. The `candidate` sanitizer is a candidate.
@@ -31,7 +32,7 @@ bench/
   bench.py           the harness: timing, synthesis, playback, reporting
   sanitizers.py      the pluggable sanitizer registry
   first-sentence.py  a sibling: TTFA for sentence one alone, for #9
-  audition-page.py   builds the local listening page for #8, #9 and #10
+  audition-page.py   builds the local listening page for #8, #9, #10 and #13
   README.md          this file
 ```
 
@@ -40,6 +41,11 @@ raises but cannot answer — what a *pipelined* worker's TTFA would be — by sy
 one and timing it with the same four-phase definition. Run it in the venv directly
 (`~/.local/share/kokoro/venv/bin/python bench/first-sentence.py --stream --whole`); results in
 [`docs/decisions/voice-and-pipelining.md`](../docs/decisions/voice-and-pipelining.md).
+
+`audition-page.py` builds four sections: #8's sanitizer pairs, #9's voice items, #10's length items,
+and — added for #13 — a second pair section over `audition-13/`, which is a separate directory
+precisely because it is a separate *voice* (`bf_emma`, which #9 chose, against #8's rejected
+`af_heart`). Merging them would have paired one voice's reference against another voice's variant.
 
 `audition-page.py` also imports `sanitizers.py` and edits nothing. It synthesizes nothing either —
 it globs the wavs `bench.py` already wrote and builds one self-contained HTML page for listening to
@@ -50,9 +56,11 @@ python3 bench/audition-page.py                       # re-execs itself into the 
 open ~/.local/share/kokoro/bench/audition.html
 ```
 
-The page is written **beside** `audition-8/`, `audition-9/` and `audition-10/` so every `<audio src>`
-is a relative sibling and it works from a `file://` URL with no server; if a browser refuses, the
-page carries the `python3 -m http.server` fallback. Everything on it is derived — the pairs from the
+The page is written **beside** `audition-8/`, `audition-9/`, `audition-10/` and `audition-13/` so
+every `<audio src>` is a relative sibling and it works from a `file://` URL with no server; if a
+browser refuses, the page carries the `python3 -m http.server` fallback (which is the route verified
+for #13, and the one to prefer — `localStorage` is per origin, so switching between `file://` and
+`http://localhost` hides earlier verdicts). Everything on it is derived — the pairs from the
 wavs on disk, the pronounced text from running the real sanitizer over the real corpus file, the
 durations from the wav headers, each variant's description from the registry — so a variant
 synthesized later shows up on a re-run with no edit here. Verdicts live in `localStorage` and export
@@ -200,8 +208,16 @@ same item twice, back to back, plays both, and puts them on adjacent rows of the
 | `candidate` | rules **A–K** from the research doc's candidate list. |
 | `crashguard` | rules **B + A** only: the two that decide whether `create()` raises, and nothing else. Isolates the crash question from the prosody question. |
 | `base` + 19 axis variants | added for [#8](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/8). `base` is `candidate` with one *named* default per open axis; each variant moves **exactly one** axis (`tick-*`, `lb-*`, `path-*`, `md-*`, `scream-*`, `url-*`, `cb-*`). See [`docs/decisions/sanitizer-audition.md`](../docs/decisions/sanitizer-audition.md). |
+| 3 follow-up variants | added for [#13](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/13): `flag-pause` and `ext-word` are two rules #8's listener asked for and nobody had heard; `path-short-nolead` is the one combination #8's decision left unmeasured. Same `base` reference, still one axis at a time. **All three were auditioned on `bf_emma` and all three are adopted** — `ext-word` 5–0, `flag-pause` 4–0, `path-short-nolead` 4–0, none of them beaten; `path-short-nolead` replaces `path-shorten` on axis 3. See [`docs/decisions/sanitizer-audition-13.md`](../docs/decisions/sanitizer-audition-13.md). |
 
-**23 sanitizers are registered**; `bench/bench --list-sanitizers` is the authoritative list.
+**26 sanitizers are registered**; `bench/bench --list-sanitizers` is the authoritative list.
+
+**None of the 26 is the settled set, and one settled rule none of them can even express.** Every variant
+moves exactly one axis against `base`, which is what made the pairs readable, so the composition that
+actually ships has never been synthesized. And axis 2 was settled on 2026-08-25 as a **conditional**
+boundary — `,` at 3 bullets or fewer, `.` at 4 and up — while `lb-period` and `lb-comma`, like every
+other variant, take a single fixed character for every line break. That is a capability to add here
+before the settled set can be put on a page at all.
 
 ### `candidate` is a candidate, not a decision
 
@@ -261,19 +277,21 @@ code for it and there is no code that emits that syntax.
 | --- | --- |
 | `FILE…` | any text files, positional |
 | `--id r09` / `--id r01,s37` | corpus items by id, repeatable |
-| `--all` | all 52 items of `corpus/spoken/` |
-| `--kind real` / `--kind synthetic` | the 12 `rNN` or the 40 `sNN` |
+| `--all` | all 54 items of `corpus/spoken/` |
+| `--kind real` / `--kind synthetic` | the 14 `rNN` or the 40 `sNN` |
 | `--text "…"` | a literal string |
 | `--corpus-dir` / `$CLAUDISH_CORPUS` | a different corpus |
 
-The corpus is [`corpus/`](../corpus/README.md) — 12 real rewrites and 40 synthetic hazard fixtures.
+The corpus is [`corpus/`](../corpus/README.md) — 14 real rewrites and 40 synthetic hazard
+fixtures. The two newest real items have no wavs on disk: every wav this directory’s pages play
+was synthesized when the corpus held 12.
 One `.txt` per utterance, no front matter; the harness reads `spoken/*.txt` and nothing else.
 
 ## Everything else
 
 | flag | default | |
 | --- | --- | --- |
-| `--voice` / `--list-voices` | `af_heart` | the assumed default, **unauditioned** — that is #9's job |
+| `--voice` / `--list-voices` | `af_heart` | the harness default, and the voice **#9 rejected**: it chose `bf_emma`, which is what #13's wavs are and what `-v bf_emma` selects |
 | `--speed` | `1.0` | |
 | `--lang` | `en-us` | |
 | `--tolerance` | `3.0` | the TTFA pass/fail line |

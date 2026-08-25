@@ -1,0 +1,130 @@
+# claudish audition verdicts
+# page generated 2026-08-25 10:41 UTC
+# exported 2026-08-25T11:37:42.869Z
+# blinding is currently ON; the per-row blinding column is the state when THAT verdict was recorded
+# progress: 20/87 pairs, 0/4 voice items, 0/27 length items
+# text_identical / phonemes_identical / wav_identical were measured at generation time and are NOT shown on the page while a pair is blinded
+
+section	axis	item	kind	chars_in	pair	side_a	side_b	reference_side	blinding	verdict	preferred_variant	text_identical	phonemes_identical	wav_identical	phonemes_a_b	note	judged_at
+sanitizer	axis1-ticks	r01	real	268	r01:none	none	base	b				true	true	true	290/290		
+sanitizer	axis1-ticks	r01	real	268	r01:tick-strip	base	tick-strip	a				false	true	true	290/290		
+sanitizer	axis1-ticks	r01	real	268	r01:tick-pause	base	tick-pause	a				false	false	false	290/299		
+sanitizer	axis1-ticks	r04	real	369	r04:none	base	none	a				false	true	true	440/440		
+sanitizer	axis1-ticks	r04	real	369	r04:tick-strip	tick-strip	base	b				false	true	true	440/440		
+sanitizer	axis1-ticks	r04	real	369	r04:tick-pause	tick-pause	base	b				false	false	false	443/440		
+sanitizer	axis1-ticks	s03	synthetic	185	s03:tick-strip	tick-strip	base	b				false	true	true	206/206		
+sanitizer	axis1-ticks	s03	synthetic	185	s03:tick-pause	base	tick-pause	a				false	false	false	206/223		
+sanitizer	axis2-linebreak	r09	real	1176	r09:none	none	base	b				false	false	false	1580/1277		
+sanitizer	axis2-linebreak	r09	real	1176	r09:lb-comma	base	lb-comma	a				false	false	false	1277/1277		
+sanitizer	axis2-linebreak	s37	synthetic	653	s37:lb-comma	base	lb-comma	a				false	false	false	662/662		
+sanitizer	axis2-linebreak	s38	synthetic	106	s38:none	none	base	b				false	false	false	108/112		
+sanitizer	axis2-linebreak	s38	synthetic	106	s38:lb-comma	base	lb-comma	a				false	false	false	112/112		
+sanitizer	axis3-paths	r06	real	611	r06:none	base	none	a	blind	A is better	base	false	false	false	645/654		2026-08-25T11:27:54.486Z
+sanitizer	axis3-paths	r06	real	611	r06:path-basename	base	path-basename	a				false	false	false	645/616		
+sanitizer	axis3-paths	r06	real	611	r06:path-shorten	path-shorten	base	b				false	false	false	632/645		
+sanitizer	axis3-paths	r06	real	611	r06:path-expand	path-expand	base	b				false	false	false	652/645		
+sanitizer	axis3-paths	s10	synthetic	172	s10:none	none	base	b				false	true	true	225/225		
+sanitizer	axis3-paths	s10	synthetic	172	s10:path-basename	base	path-basename	a				false	false	false	225/156		
+sanitizer	axis3-paths	s10	synthetic	172	s10:path-shorten	path-shorten	base	b				false	false	false	199/225		
+sanitizer	axis3-paths	s10	synthetic	172	s10:path-expand	base	path-expand	a				false	false	false	225/252		
+sanitizer	axis3-paths	s11	synthetic	144	s11:none	base	none	a				false	true	true	199/199		
+sanitizer	axis3-paths	s11	synthetic	144	s11:path-nolead	base	path-nolead	a				false	false	false	199/182		
+sanitizer	axis3-paths	s11	synthetic	144	s11:path-basename	path-basename	base	b				false	false	false	113/199		
+sanitizer	axis3-paths	s11	synthetic	144	s11:path-expand	base	path-expand	a				false	false	false	199/214		
+sanitizer	axis3-paths	s12	synthetic	189	s12:none	base	none	a				false	true	true	257/257		
+sanitizer	axis3-paths	s12	synthetic	189	s12:path-nolead	path-nolead	base	b				false	false	false	221/257		
+sanitizer	axis3-paths	s12	synthetic	189	s12:path-basename	base	path-basename	a				false	false	false	257/155		
+sanitizer	axis3-paths	s12	synthetic	189	s12:path-shorten	base	path-shorten	a				false	false	false	257/197		
+sanitizer	axis3-paths	s12	synthetic	189	s12:path-expand	path-expand	base	b				false	true	true	257/257		
+sanitizer	axis4-markdown	r09	real	1176	r09:md-swallow	md-swallow	base	b				false	false	false	1473/1277		
+sanitizer	axis4-markdown	r09	real	1176	r09:md-strip-plus	md-strip-plus	base	b				false	false	false	1265/1277		
+sanitizer	axis4-markdown	s01	synthetic	171	s01:none	none	base	b				false	false	false	263/162		
+sanitizer	axis4-markdown	s01	synthetic	171	s01:md-swallow	md-swallow	base	b				false	false	false	263/162		
+sanitizer	axis4-markdown	s01	synthetic	171	s01:md-strip-plus	md-strip-plus	base	b				false	true	true	162/162		
+sanitizer	axis4-markdown	s02	synthetic	209	s02:md-swallow	md-swallow	base	b				false	false	false	255/231		
+sanitizer	axis4-markdown	s06	synthetic	261	s06:md-strip-plus	md-strip-plus	base	b				false	true	true	282/282		
+sanitizer	axis5-scream	r11	real	2370	r11:scream-asis	base	scream-asis	a				false	true	true	2939/2939		
+sanitizer	axis5-scream	r11	real	2370	r11:scream-spell	scream-spell	base	b				false	false	false	3080/2939		
+sanitizer	axis5-scream	s15	synthetic	203	s15:none	none	base	b				false	false	false	251/228		
+sanitizer	axis5-scream	s15	synthetic	203	s15:scream-asis	base	scream-asis	a				false	false	false	228/251		
+sanitizer	axis5-scream	s15	synthetic	203	s15:scream-spell	scream-spell	base	b				false	false	false	398/228		
+sanitizer	axis5-scream	s15	synthetic	203	s15:scream-drop	scream-drop	base	b				false	false	false	137/228		
+sanitizer	axis5-scream	s16	synthetic	162	s16:scream-spell	scream-spell	base	b				false	false	false	292/248		
+sanitizer	axis5-scream	s16	synthetic	162	s16:scream-drop	base	scream-drop	a				false	false	false	248/229		
+sanitizer	axis6-urls	r09	real	1176	r09:url-full	base	url-full	a				false	false	false	1277/1395		
+sanitizer	axis6-urls	r09	real	1176	r09:url-domain	url-domain	base	b				false	false	false	1289/1277		
+sanitizer	axis6-urls	s26	synthetic	229	s26:none	none	base	b				false	false	false	416/132		
+sanitizer	axis6-urls	s26	synthetic	229	s26:url-full	url-full	base	b				false	false	false	416/132		
+sanitizer	axis6-urls	s26	synthetic	229	s26:url-domain	url-domain	base	b				false	false	false	167/132		
+sanitizer	axis7-code	r07	real	669	r07:none	none	base	b				false	false	false	872/891		
+sanitizer	axis7-code	r07	real	669	r07:cb-long	cb-long	base	b				false	false	false	739/891		
+sanitizer	axis7-code	r07	real	669	r07:cb-count	cb-count	base	b				false	false	false	733/891		
+sanitizer	axis7-code	r07	real	669	r07:cb-short	cb-short	base	b				false	false	false	721/891		
+sanitizer	axis7-code	r07	real	669	r07:cb-silent	cb-silent	base	b				false	false	false	709/891		
+sanitizer	axis7-code	s07	synthetic	250	s07:cb-long	cb-long	base	b				false	false	false	233/382		
+sanitizer	axis7-code	s07	synthetic	250	s07:cb-count	base	cb-count	a				false	false	false	382/227		
+sanitizer	axis7-code	s07	synthetic	250	s07:cb-short	base	cb-short	a				false	false	false	382/215		
+sanitizer	axis7-code	s07	synthetic	250	s07:cb-silent	base	cb-silent	a				false	false	false	382/203		
+sanitizer	axis7-code	s39	synthetic	483	s39:cb-long	cb-long	base	b				false	false	false	270/652		
+sanitizer	axis7-code	s39	synthetic	483	s39:cb-count	cb-count	base	b				false	false	false	265/652		
+sanitizer	axis7-code	s39	synthetic	483	s39:cb-short	cb-short	base	b				false	false	false	250/652		
+sanitizer	axis7-code	s39	synthetic	483	s39:cb-silent	cb-silent	base	b				false	false	false	238/652		
+sanitizer	axis7-code	s40	synthetic	294	s40:cb-long	cb-long	base	b				false	false	false	235/376		
+sanitizer	axis7-code	s40	synthetic	294	s40:cb-count	cb-count	base	b				false	false	false	230/376		
+sanitizer	axis7-code	s40	synthetic	294	s40:cb-short	base	cb-short	a				false	false	false	376/216		
+sanitizer	axis7-code	s40	synthetic	294	s40:cb-silent	base	cb-silent	a				false	false	false	376/204		
+sanitizer-13	axis3-paths	r06	real	611	r06:none	base	none	a	blind	A is better	base	false	false	false	645/654		2026-08-25T11:27:54.486Z
+sanitizer-13	axis3-paths	r06	real	611	r06:path-short-nolead	path-short-nolead	base	b	blind	A is better	path-short-nolead	false	false	false	632/645		2026-08-25T11:28:23.043Z
+sanitizer-13	axis3-paths	s09	synthetic	48	s09:path-short-nolead	path-short-nolead	base	b	blind	no audible difference		true	true	true	69/69		2026-08-25T11:29:01.244Z
+sanitizer-13	axis3-paths	s11	synthetic	144	s11:path-short-nolead	path-short-nolead	base	b	blind	A is better	path-short-nolead	false	false	false	158/199		2026-08-25T11:29:27.694Z
+sanitizer-13	axis3-paths	s12	synthetic	189	s12:path-short-nolead	path-short-nolead	base	b	blind	A is better	path-short-nolead	false	false	false	196/257		2026-08-25T11:29:44.938Z
+sanitizer-13	axis3-paths	s13	synthetic	145	s13:path-short-nolead	path-short-nolead	base	b	blind	A is better	path-short-nolead	false	false	false	171/175		2026-08-25T11:30:23.347Z
+sanitizer-13	axis8-flags	r04	real	369	r04:flag-pause	base	flag-pause	a	blind	no audible difference		true	true	true	440/440		2026-08-25T11:31:19.118Z
+sanitizer-13	axis8-flags	s03	synthetic	185	s03:flag-pause	flag-pause	base	b				true	true	true	206/206		
+sanitizer-13	axis8-flags	s15	synthetic	203	s15:flag-pause	flag-pause	base	b	blind	A is better	flag-pause	false	false	false	238/228		2026-08-25T11:32:03.928Z
+sanitizer-13	axis8-flags	s16	synthetic	162	s16:flag-pause	base	flag-pause	a	blind	B is better	flag-pause	false	false	false	248/256		2026-08-25T11:33:00.724Z
+sanitizer-13	axis8-flags	s17	synthetic	144	s17:flag-pause	base	flag-pause	a	blind	B is better	flag-pause	false	false	false	172/177		2026-08-25T11:33:41.310Z
+sanitizer-13	axis8-flags	s28	synthetic	137	s28:none	base	none	a	blind	no audible difference		false	true	true	167/167		2026-08-25T11:33:56.720Z
+sanitizer-13	axis8-flags	s28	synthetic	137	s28:flag-pause	base	flag-pause	a	blind	B is better	flag-pause	false	false	false	167/182		2026-08-25T11:34:48.470Z
+sanitizer-13	axis9-exts	r03	real	334	r03:none	none	base	b	blind	no audible difference		false	true	true	369/369		2026-08-25T11:35:31.317Z
+sanitizer-13	axis9-exts	r03	real	334	r03:ext-word	ext-word	base	b	blind	A is better	ext-word	false	false	false	375/369		2026-08-25T11:35:54.505Z
+sanitizer-13	axis9-exts	r06	real	611	r06:ext-word	base	ext-word	a	blind	B is better	ext-word	false	false	false	645/651		2026-08-25T11:36:21.541Z
+sanitizer-13	axis9-exts	s08	synthetic	148	s08:ext-word	base	ext-word	a	blind	B is better	ext-word	false	false	false	193/223		2026-08-25T11:36:36.461Z
+sanitizer-13	axis9-exts	s09	synthetic	48	s09:ext-word	ext-word	base	b	blind	no audible difference		true	true	true	69/69		2026-08-25T11:36:50.108Z
+sanitizer-13	axis9-exts	s10	synthetic	172	s10:ext-word	base	ext-word	a	blind	B is better	ext-word	false	false	false	225/243		2026-08-25T11:37:18.360Z
+sanitizer-13	axis9-exts	s13	synthetic	145	s13:ext-word	base	ext-word	a	blind	B is better	ext-word	false	false	false	175/187		2026-08-25T11:37:29.172Z
+
+section	item	chars_in	blinding	winner_voice	eliminated_voices	note	judged_at
+voice	r03	334					
+voice	r04	369					
+voice	r06	611					
+voice	r11	2370					
+
+section	group	item	chars_in	audio_s	verdict	note	judged_at
+length	ACK	ack01	23	1.45			
+length	ACK	ack02	50	2.82			
+length	ACK	ack03	61	3.37			
+length	ACK	ack04	74	3.58			
+length	ACK	ack05	90	5.21			
+length	ACK	ack06	130	8.11			
+length	ACK	ack07	177	10.50			
+length	ACK	ack08	240	15.62			
+length	CORPUS	fct01	40	2.50			
+length	CORPUS	s09	48	4.14			
+length	CORPUS	fct03	95	5.38			
+length	CORPUS	fct02	71	5.40			
+length	CORPUS	fct04	100	7.91			
+length	CORPUS	s21	122	12.01			
+length	CORPUS	fct05	115	12.39			
+length	CORPUS	fct07	147	13.25			
+length	CORPUS	s32	240	13.40			
+length	CORPUS	s15	203	13.74			
+length	CORPUS	s33	244	14.02			
+length	CORPUS	fct06	147	14.78			
+length	CORPUS	fct08	228	15.87			
+length	PAIR	raw-r01	241	15.21			
+length	PAIR	rew-r01	268	16.51			
+length	PAIR	rew-r03	334	20.80			
+length	PAIR	raw-r03	316	21.35			
+length	PAIR	raw-r06	532	30.93			
+length	PAIR	rew-r06	611	34.73			

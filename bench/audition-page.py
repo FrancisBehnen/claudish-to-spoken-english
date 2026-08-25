@@ -194,7 +194,8 @@ AXES = [
      "variants": ["lb-period", "lb-comma"],
      "classes": ["SPLIT-NEWLINE", "CHUNK-510-PUNCT"]},
     {"key": "paths", "n": 3, "title": "Paths",
-     "variants": ["path-nolead", "path-basename", "path-shorten", "path-expand"],
+     "variants": ["path-nolead", "path-basename", "path-shorten", "path-expand",
+                  "path-short-nolead"],
      "classes": ["PATH-SLASH", "PATH-EXT"]},
     {"key": "markdown", "n": 4, "title": "Markdown: swallowed or stripped",
      "variants": ["md-swallow", "md-strip-plus"],
@@ -208,7 +209,15 @@ AXES = [
     {"key": "code", "n": 7, "title": "How a skipped code block is announced",
      "variants": ["cb-long", "cb-count", "cb-short", "cb-silent"],
      "classes": ["MD-FENCE"]},
-    {"key": "other", "n": 8, "title": "Other registered variants",
+    # #13's two never-auditioned rules. Numbered on from #8's seven because
+    # they are additions to that set, not a re-run of it.
+    {"key": "flags", "n": 8, "title": "Commas around flag names and bare identifiers",
+     "variants": ["flag-pause"],
+     "classes": ["FLAG-SHORT", "FLAG-LONG", "ID-SCREAM", "ID-SNAKE", "ID-ASSIGN"]},
+    {"key": "exts", "n": 9, "title": "Pronounceable file extensions",
+     "variants": ["ext-word"],
+     "classes": ["PATH-EXT", "PATH-HYPHEN-EXT", "PATH-EXTBARE"]},
+    {"key": "other", "n": 10, "title": "Other registered variants",
      "variants": [], "classes": []},
 ]
 AXIS_OF = {v: ax["key"] for ax in AXES for v in ax["variants"]}
@@ -609,9 +618,31 @@ const el = (t, cls, txt) => { const n = document.createElement(t);
 const secs = s => (s == null ? '—' : s.toFixed(1) + 's');
 const mins = s => (s < 90 ? Math.round(s) + 's' : Math.round(s / 60) + ' min');
 
+/* A pair id is `item:variant`, which is only unique WITHIN one A/B section: a
+   second section over a second wav directory can carry the same pair against a
+   different voice. `r06:none` did, in #13's sitting -- so one click on the
+   bf_emma card also marked the af_heart card judged, revealed its labels,
+   counted twice in the progress line and exported twice, which is why that
+   export reads 20/87 for 19 verdicts. The store key is namespaced by section
+   from here on, with the export's own section name, and so is the DOM id. */
+const SEC1 = 'sanitizer', SEC4 = 'sanitizer-13';
+const pairKey = (section, id) => section + '/' + id;
+
 let S = { blinded: true, theme: 'auto', pairs: {}, voices: {}, len: {} };
 try { const raw = localStorage.getItem(KEY); if (raw) Object.assign(S, JSON.parse(raw)); }
 catch (e) { /* a corrupt or unavailable store must not stop the page */ }
+/* Verdicts saved under the old bare key belong to section 1: it was the only
+   A/B section that existed when they were recorded. */
+if (!S.keyed_by_section) {
+  const moved = {};
+  for (const k in S.pairs) moved[k.indexOf('/') < 0 ? pairKey(SEC1, k) : k] = S.pairs[k];
+  S.pairs = moved;
+  S.keyed_by_section = true;
+}
+/* The A/B pair sections, in page order, paired with the section name the export
+   writes. One list so the renderer, the counter and the exporter cannot drift. */
+const AB_SECTIONS = [[SEC1, D.s1]]
+  .concat(D.s4 && D.s4.pairs ? [[SEC4, D.s4]] : []);
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); }
   catch (e) { flash('could not save to localStorage: ' + e.message); } };
 
@@ -698,9 +729,42 @@ function verdictRow(store, id, options, onChange) {
 /* -------------------------------------------------------------- section 1 */
 const cards = [];   /* every card, in page order, for keyboard navigation */
 
-function pairCard(p) {
+/* Sections 1 and 4 are the same thing over two wav directories, so they are
+   one function. Adding a third A/B section is one more call. `section` is the
+   export's own section name, and it namespaces both the verdict key and the
+   DOM id -- pair ids repeat across sections. */
+function pairSection(section, heading, data, intro) {
+  const sec = el('section');
+  sec.appendChild(el('h2', null, heading));
+  sec.appendChild(el('p', 'small dim', intro));
+  data.axes.forEach(ax => {
+    sec.appendChild(el('h3', null, 'Axis ' + ax.n + ' — ' + ax.title));
+    const meta = el('p', 'small dim');
+    const bits = [ax.pairs.length + ' pairs', mins(ax.seconds) + ' of audio'];
+    if (ax.classes.length) {
+      bits.push(ax.classes.join(', ') + ': ' + ax.real_carriers.length + ' of '
+        + ax.real_total + ' real rewrites (' + (ax.real_carriers.join(' ') || 'none') + ')');
+    }
+    meta.textContent = bits.join(' · ');
+    sec.appendChild(meta);
+    const leg = el('p', 'small dim');
+    ax.legend.forEach((l, i) => {
+      if (i) leg.appendChild(document.createTextNode(' · '));
+      leg.appendChild(el('span', 'mono', l.variant));
+      leg.appendChild(document.createTextNode(' ' + l.doc));
+    });
+    sec.appendChild(leg);
+    ax.pairs.forEach(p => {
+      const c = pairCard(section, p); sec.appendChild(c); cards.push(c);
+    });
+  });
+  return sec;
+}
+
+function pairCard(section, p) {
+  const key = pairKey(section, p.id);
   const card = el('div', 'card');
-  card.id = 'p-' + p.id.replace(':', '-');
+  card.id = 'p-' + (section + '-' + p.id).replace(/[:/]/g, '-');
   const hd = el('div', 'hd');
   hd.appendChild(el('span', 'id', p.item));
   if (p.kind) hd.appendChild(tag(p.kind));
@@ -740,14 +804,14 @@ function pairCard(p) {
   const rv = el('div', 'reveal');
   card.appendChild(rv);
 
-  const v = verdictRow(S.pairs, p.id, [
+  const v = verdictRow(S.pairs, key, [
     ['a', 'A is better', '1'], ['b', 'B is better', '2'],
     ['same', 'no audible difference', '3'], ['unsure', 'unsure', '4'],
   ], () => { paintReveal(); progress(); });
   card.appendChild(v.row);
 
   function paintReveal() {
-    const r = S.pairs[p.id] || {};
+    const r = S.pairs[key] || {};
     const shown = !S.blinded || !!r.choice;
     revealBits.forEach(([n, name]) => { n.textContent = shown ? name : ''; });
     rv.textContent = '';
@@ -889,34 +953,13 @@ function render() {
   const main = document.getElementById('body');
   main.textContent = ''; cards.length = 0;
 
-  /* section 1 */
-  const s1 = el('section');
-  s1.appendChild(el('h2', null, 'Section 1 — #8 sanitizer axes'));
-  s1.appendChild(el('p', 'small dim',
+  /* section 1, and section 4 — the same machinery over a different wav dir */
+  main.appendChild(pairSection(SEC1, 'Section 1 — #8 sanitizer axes', D.s1,
     D.s1.pairs + ' pairs over ' + D.s1.axes.length + ' axes, in the audition '
     + 'document’s frequency order: the axis that shows up most often in the '
     + '12 real rewrites comes first. Each pair moves exactly one axis against the '
-    + 'same reference. Green is text the sanitizer added, red is text it removed.'));
-  D.s1.axes.forEach(ax => {
-    s1.appendChild(el('h3', null, 'Axis ' + ax.n + ' — ' + ax.title));
-    const meta = el('p', 'small dim');
-    const bits = [ax.pairs.length + ' pairs', mins(ax.seconds) + ' of audio'];
-    if (ax.classes.length) {
-      bits.push(ax.classes.join(', ') + ': ' + ax.real_carriers.length + ' of '
-        + ax.real_total + ' real rewrites (' + (ax.real_carriers.join(' ') || 'none') + ')');
-    }
-    meta.textContent = bits.join(' · ');
-    s1.appendChild(meta);
-    const leg = el('p', 'small dim');
-    ax.legend.forEach((l, i) => {
-      if (i) leg.appendChild(document.createTextNode(' · '));
-      leg.appendChild(el('span', 'mono', l.variant));
-      leg.appendChild(document.createTextNode(' ' + l.doc));
-    });
-    s1.appendChild(leg);
-    ax.pairs.forEach(p => { const c = pairCard(p); s1.appendChild(c); cards.push(c); });
-  });
-  main.appendChild(s1);
+    + 'same reference. Green is text the sanitizer added, red is text it removed. '
+    + 'Voice: af_heart, which #9 has since rejected.'));
 
   /* section 2 */
   const s2 = el('section');
@@ -943,6 +986,16 @@ function render() {
   });
   main.appendChild(s3);
 
+  /* section 4 */
+  if (D.s4 && D.s4.pairs) {
+    main.appendChild(pairSection(SEC4, 'Section 4 — #13 sanitizer follow-ups', D.s4,
+      D.s4.pairs + ' pairs over ' + D.s4.axes.length + ' axes: the two rules the '
+      + '#8 notes asked for and had never been auditioned, plus the one path '
+      + 'combination #8 left unmeasured. Same reference (base), same one-axis-'
+      + 'at-a-time rule as section 1 — but the voice is bf_emma, the voice #9 '
+      + 'settled on, so these are NOT comparable with a section 1 wav.'));
+  }
+
   main.appendChild(exportPanel());
   progress();
   setCur(0, false);
@@ -950,9 +1003,13 @@ function render() {
 
 /* -------------------------------------------------------------- progress */
 function counts() {
-  const p = D.s1.axes.reduce((n, a) => n + a.pairs.length, 0);
-  const pj = D.s1.axes.reduce((n, a) => n + a.pairs.filter(
-    x => (S.pairs[x.id] || {}).choice).length, 0);
+  /* Sections 1 and 4 are both A/B pairs and share one counter and one export
+     block; the `section` column tells them apart -- and so must the store key,
+     or a pair id that appears in both sections counts twice here. */
+  const axes1 = AB_SECTIONS.flatMap(([sec, d]) => d.axes.map(a => [sec, a]));
+  const p = axes1.reduce((n, [, a]) => n + a.pairs.length, 0);
+  const pj = axes1.reduce((n, [sec, a]) => n + a.pairs.filter(
+    x => (S.pairs[pairKey(sec, x.id)] || {}).choice).length, 0);
   const vj = D.s2.items.filter(x => (S.voices[x.id] || {}).winner).length;
   const lj = D.s3.groups.reduce((n, g) => n + g.items.filter(
     x => (S.len[x.id] || {}).choice).length, 0);
@@ -981,9 +1038,10 @@ const CHOICE1 = { a: 'A is better', b: 'B is better',
 const CHOICE3 = { worth: 'worth speaking', not: 'not worth speaking', unsure: 'unsure' };
 function rows1() {
   const out = [];
-  D.s1.axes.forEach(ax => ax.pairs.forEach(p => {
-    const r = S.pairs[p.id] || {};
-    out.push(['sanitizer', 'axis' + ax.n + '-' + ax.key, p.item, p.kind, p.chars_in,
+  const src = AB_SECTIONS.flatMap(([sec, d]) => d.axes.map(a => [sec, a]));
+  src.forEach(([section, ax]) => ax.pairs.forEach(p => {
+    const r = S.pairs[pairKey(section, p.id)] || {};
+    out.push([section, 'axis' + ax.n + '-' + ax.key, p.item, p.kind, p.chars_in,
       p.id, p.a.variant, p.b.variant, p.base_side,
       r.choice ? (r.blinded ? 'blind' : 'unblinded') : '',
       r.choice ? CHOICE1[r.choice] : '',
@@ -1159,7 +1217,14 @@ def build_html(data: dict, skipped: list[str]) -> str:
     e = html.escape
     total_s = (sum(a["seconds"] for a in data["s1"]["axes"])
                + sum(i["seconds"] for i in data["s2"]["items"])
-               + sum(g["seconds"] for g in data["s3"]["groups"]))
+               + sum(g["seconds"] for g in data["s3"]["groups"])
+               + sum(a["seconds"] for a in data.get("s4", {}).get("axes", [])))
+    # Sections 1 and 4 are both A/B pairs; the blinding note is about both.
+    ab_pairs = data["s1"]["pairs"] + data.get("s4", {}).get("pairs", 0)
+    ab_ident_ph = (data["s1"]["identical_phonemes"]
+                   + data.get("s4", {}).get("identical_phonemes", 0))
+    ab_ident_wav = (data["s1"]["identical_wavs"]
+                    + data.get("s4", {}).get("identical_wavs", 0))
     skip = ""
     if skipped:
         skip = ("<div class=\"note-box\"><b>Not on this page</b><ul class=\"small\">"
@@ -1211,9 +1276,9 @@ Click a card to make it current. Nothing autoplays.</p>
 <p class="small"><b>Blinding.</b> Which side is A and which is B is fixed but
 arbitrary, seeded off the pair id so it survives a regeneration. Variant names stay
 hidden until a verdict is recorded, or until you switch blinding off.
-<b>{data['s1']['identical_phonemes']} of the
-{data['s1']['pairs']} pairs phonemise to identical strings on both sides</b>, and
-{data['s1']['identical_wavs']} of those are byte-identical wavs, so
+<b>{ab_ident_ph} of the
+{ab_pairs} pairs phonemise to identical strings on both sides</b>, and
+{ab_ident_wav} of those are byte-identical wavs, so
 <b>&ldquo;no audible difference&rdquo; is a correct answer, not a cop-out.</b>
 Which pairs those are is in the export, not on the page, so an &ldquo;I heard a
 difference&rdquo; on one of them stays visible afterwards.</p>
@@ -1264,20 +1329,27 @@ def main(argv=None) -> int:
     w8 = scan(bench_dir / "audition-8")
     w9 = scan(bench_dir / "audition-9")
     w10 = scan(bench_dir / "audition-10")
-    if not (w8 or w9 or w10):
+    # #13's follow-up set. A SEPARATE directory and a separate section, not
+    # more wavs in audition-8, because it is a different voice: #9 settled on
+    # `bf_emma` and rejected `af_heart`, which every audition-8 wav is in.
+    # Merging the two would silently pair an af_heart reference against a
+    # bf_emma variant -- the pair would no longer isolate the rule.
+    w13 = scan(bench_dir / "audition-13")
+    if not (w8 or w9 or w10 or w13):
         raise SystemExit(f"audition-page: no wavs under {bench_dir}")
 
     skipped: list[str] = []
     s1 = build_section1(w8, resolve, manifest, phon, skipped)
     s2 = build_section2(w9, resolve, manifest, skipped)
     s3 = build_section3(w10, resolve, manifest, items_tsv, skipped)
+    s4 = build_section1(w13, resolve, manifest, phon, skipped)
 
     data = {
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "root": str(bench_dir),
-        "wavs": len(w8) + len(w9) + len(w10),
+        "wavs": len(w8) + len(w9) + len(w10) + len(w13),
         "phonemes_available": phon is not None,
-        "s1": s1, "s2": s2, "s3": s3,
+        "s1": s1, "s2": s2, "s3": s3, "s4": s4,
     }
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(build_html(data, skipped), encoding="utf-8")
@@ -1289,6 +1361,10 @@ def main(argv=None) -> int:
           f"{s1['identical_wavs']} byte-identical wavs")
     print(f"  section 2  {s2['count']} items x 6 voices        ({len(w9)} wavs)")
     print(f"  section 3  {s3['count']} single items            ({len(w10)} wavs)")
+    print(f"  section 4  {s4['pairs']} pairs over {len(s4['axes'])} axes"
+          f"   ({len(w13)} wavs)")
+    print(f"             {s4['identical_phonemes']} pairs phoneme-identical, "
+          f"{s4['identical_wavs']} byte-identical wavs")
     print("  phoneme identity: "
           + ("kokoro-onnx tokenizer" if phon else "UNAVAILABLE (text comparison only)"))
     for s in skipped:
