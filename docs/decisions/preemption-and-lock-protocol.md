@@ -33,8 +33,10 @@ measured on both sides of the ordering that matters.**
   a sound (36/36); without it, in the identical ordering, it runs to completion (12/12), and in
   real audio two utterances overlap for **3.25–3.50 s** **[measured-here]**.
 - **Uncovered region.** A worker dying between `Popen` and the pid write orphans a player
-  nothing can reach — **12/12 played to completion**. The window is **median 1.27 ms** (range
-  0.29–5.61), so this is a low-rate failure and is not presented as more.
+  nothing can reach — **12/12 played to completion**. The window is **median 1.41 ms** (range
+  0.43–5.61, n = 72), so this is a low-rate failure and is not presented as more. The figure is
+  over the **worker-published** arms only; the player-published arms cannot supply a real `W`
+  and pooling them was harness defect 4 (§1).
 - **The first revision's repair for it was wrong, and this is the correction that matters
   most.** It specified one player-written record and reported "12 of 12 orphans killed" — but
   it *measured* an append-only ledger, in an arm whose respawn delay guaranteed the sweep
@@ -43,8 +45,17 @@ measured on both sides of the ordering that matters.**
   player records alone fail the same way (`C12c`, 12/12).
 - **What does close it is process-group membership**, which `fork(2)` establishes before the
   child runs an instruction. `C12b`: sweep before publication, the player is **killed before it
-  can `exec`**, 12/12, and never appears in the player log — while the record sweep in the same
-  election reported `swept=0`, so only the group could have reached it.
+  can `exec`**, 12/12, and never appears in the player log. **The attribution does not rest on
+  the record sweep having found nothing** — it reported `swept=1` on **6 of its 25** elections,
+  against pids left by *earlier* trials. It rests on the `killpg` having been **sent**, exactly
+  once per election to the immediately superseded owner (24 of 25; every older generation's
+  group was already empty), and on `C12c` — the same timing with the pgid sweep removed —
+  running to completion 12/12 (§2.4).
+- **But the sweep that actually killed the orphan is not always the process-group one, and §4b
+  had to be corrected for that.** In the two arms where the player publishes promptly — `C15c`
+  and `C16b` — the `.pending` marker is gone before the election, `killpg` is skipped 25/25, and
+  the kill is attributed to the **record** sweep, 12/12 each. The election therefore owes **two**
+  sweeps, not one; the first revision of §4b specified only the `killpg` (§4b clause 7(iv-a)).
 - **Three measured qualifications on that repair.** A `.pending` marker created before the fork
   confines `killpg` to the window where an unnamed player can exist (`C16b` skipped it **25/25**
   when it was not needed; `C16a` used it 23/25 when it was). One keyword — spawning the player
@@ -78,8 +89,9 @@ owner's pid, which only row 21's generation protocol supplies — a protocol tha
 record of the worker it replaced cannot. They can no longer be signed off independently.
 
 **Both rows stay ship-blocking**, and the reason has changed: they are no longer unverified.
-**Three consecutive rounds of review have each found a real defect in the previous round's
-confident answer**, including in the repair this document proposed. See §6.
+**Four consecutive rounds of review have each found a real defect in the previous round's
+confident answer**, including in the repair this document proposed and in the *text* of the
+repair that replaced it. See §6.
 
 ---
 
@@ -116,7 +128,8 @@ handler is installed*, so the player's log stays empty and "killed instantly" is
 indistinguishable from "never started" **[measured-here]**. The parent's returncode is
 exact. Both are recorded and they agree.
 
-**Two arms, both committed.** All 24 configurations were run in one sweep. `C1`–`C10` were
+**Two arms, both committed.** All 26 configurations were run in one sweep — 26 distinct values
+of the `config` column over 312 data rows in `preemption-trials.tsv`. `C1`–`C10` were
 additionally run in an earlier round and are re-collected here with the *current* collector, so
 the two arms are compared under the same predicate rather than across a changed derivation:
 [`preemption-trials.tsv`](preemption-trials.tsv) is the published set,
@@ -142,15 +155,18 @@ document rested on.**
    `Rdone > S2` and `K < W`. `Rdone_b` is carried into `preemption-trials.tsv` so it can be
    re-checked by hand. **Re-deriving the earlier data under the corrected predicate reclassifies
    zero trials** on the replication arm, and the reason is quantitative: the rename itself
-   takes a median 11.2 ms there (12.8 ms on the published arm), while the margin from `Rdone`
-   to `P` on the adversarial trials is a median **446 ms** (range 419–473). The check was missing; it was never close to binding.
+   takes a median 11.1844 ms there (12.2745 ms on the published arm), while the margin from
+   `Rdone` to `P` on the adversarial trials is a median **446.21 ms** (range 418.46–472.67) on
+   that same replication arm. The check was missing; it was never close to binding.
+   `summarise.sh` section F now prints that margin, which round 2 quoted without deriving.
 3. **Section 2.6 had no derivation at all.** There was no input for the `REAL-*` traces, so the
    real-audio figures could not be re-derived. `collect_real.sh` now produces a committed
    [`real-audio-trials.tsv`](real-audio-trials.tsv) and `summarise.sh` has a section over it.
 
-**Three HARNESS defects were also found and are disclosed here, because two of them changed
+**Four HARNESS defects were also found and are disclosed here, because three of them changed
 results and one of them destroyed data.** They are listed rather than quietly fixed, since a
 reader deciding how much to trust these numbers should know what went wrong in producing them.
+The fourth was found in round 3 and it touches a published figure.
 
 1. **`nohup` made the process-group sweep a silent no-op.** The sweep used `SIGHUP`; `nohup`
    sets it to `SIG_IGN`, inherited across `fork` *and* `exec`. `killpg` returned success and
@@ -165,15 +181,46 @@ reader deciding how much to trust these numbers should know what went wrong in p
 3. **A `case` pattern over a multi-line list deleted four run directories.** `*" $cfg "*` does
    not match an entry adjacent to a newline. Those four configurations were simply re-run. This
    one cost time, not correctness.
+4. **`W` is not a publication instant in the player-published arms, and the `P`→`W` figure was
+   pooled across both.** For `pid_mode != worker` the probe stamps `W_pid_write` **in the
+   parent, immediately after `Popen` returns**, with `by=player result=deferred_to_player` — it
+   is a *deferral* record, not a write. The wrapper only publishes after sleeping `$PUBDELAY`
+   and renaming. `collect.sh`'s `$5=="W_pid_write" && V["by"]=="player"` branch nonetheless
+   takes that stamp as `W`, so `C14a` and `C14b` contributed **24 synthetic samples** to the
+   96-sample `P`→`W` window. Re-derived three ways by `summarise.sh` section C:
+
+   | sample | n | min | med | max |
+   | --- | --- | --- | --- | --- |
+   | pooled — **do not quote** | 96 | 0.3591 | 1.2681 | 5.6069 |
+   | **worker-published — the figure** | 72 | 0.4289 | 1.4119 | 5.6069 |
+   | player-published — synthetic | 24 | 0.3591 | 1.0430 | 2.3630 |
+
+   Every `P`→`W` figure in this document is now over the **72 worker-published trials**. The
+   defect is not fixable by re-deriving: **the player-published arms cannot supply a real `W`
+   at all**, because nothing in the wrapper acknowledges back to the worker after its `mv`.
+   Measuring publication on that side needs a handshake the harness does not have, and that is
+   an experiment, not a patch. **It disturbs no other figure**, and the reason is structural
+   rather than lucky: `collect.sh` tests `WPLAYER` *before* both the `W<R` and the adversarial
+   branches, so a player-published trial is labelled `record published by player` and the two
+   orderings that read `W` never see a synthetic one. It does not touch the `C14` results
+   either, which are about the *unlink*, not the write.
 
 **The first two are the reason this revision re-ran everything rather than patching numbers.**
 
 Rig: [`preemption-lock-probe/`](preemption-lock-probe/README.md). Every figure below re-derives
 from the committed TSVs with `awk` and `sort` only — `summarise.sh` and `analyse_round2.sh` are
 the derivations, and `verify_fires.sh` confirms every hook fired (25 entry markers per
-configuration: one warm-up plus two per trial) so that a null result can be distinguished from a
-hook that never ran. Unlike the residency run's `[rig]`, **this probe is in the repository**, so
-its protocol can be read as well as its output.
+configuration: one warm-up plus two per trial — **except `C14a` and `C14b`, which fire a third
+hook per trial to observe the TOCTOU's consequence and therefore want `1 + 3N = 37`;
+`verify_fires.sh` special-cases them and their committed `markers.tsv` files carry 37 entries
+each**) so that a null result can be distinguished from a hook that never ran. `analyse_c14.sh`
+is a third derivation, over the `C14` traces; **it was corrected in round 3** — it had tested
+only that a player's END record existed, which every completed player satisfies, instead of that
+the player was live at hook C. It now reads `tNc.entry` from `markers.tsv` and requires
+`start ≤ hook_c < end`. Under the real predicate the published figures are unchanged, **4 of 12
+and 0 of 12**, and all 12 trials of each arm did have a live player at hook C. Unlike the
+residency run's `[rig]`, **this probe is in the repository**, so its protocol can be read as
+well as its output.
 
 ---
 
@@ -186,6 +233,11 @@ played before the first trial. Then twelve trials of two `Stop` hooks (three, in
 `C14` arms). The second hook's launch time is what selects the ordering; nothing is
 sampled and hoped for. **26 configurations × 12 trials = 312 trials, and every
 configuration is uniform 12/12** on the outcome reported for it.
+
+**`run_all_preempt.sh` was one round behind the document and is fixed here.** Its loop listed
+**24** configurations — `C15c_norecheck_death_pgid` and `C17_setsid_player`, both added late and
+both load-bearing (`C15c` settles clause (ii); `C17` is the arm that defeats clause 7(iv)), were
+missing — so a fresh run did not reproduce the published set. Both are now in the loop.
 
 Nominal timeline of one trial, from hook A's rename `R_a = t0`, synth 1.0 s, pre-spawn
 delay `D`:
@@ -201,7 +253,7 @@ R_b = t0 + GAP + 0.126            hook B renames its job into place
 
 The kill-to-rename interval came out at **median 125.6 ms, range 103.8–206.1 ms**, n = 312
 **[measured-here]** — inside the real hook's measured **0.063–0.219 s** band **[hook]**, and
-near its middle. The rename itself takes a median **12.8 ms** (range 3.9–61.2), which is
+near its middle. The rename itself takes a median **12.2745 ms** (range 3.8891–61.1639), which is
 why `Rdone` rather than `R` is now the publication bound (§1).
 
 `RESPAWN_DELAY` — how long after hook B a replacement worker is elected — is the knob that
@@ -236,23 +288,27 @@ is a kill that landed before `exec`.
 | `C12c_perplayer_recordonly` | per-player records, **no** pgid sweep | **NOTHING** | 2.502–2.506, **full** |
 | `C13a_ledger_truncate` | publish inside the sweep's read→truncate gap | **NOTHING** | 2.501–2.504, **full** |
 | `C13b_perplayer_sametiming` | same timing, per-player + pgid | **killed before exec** | **0 — never started** |
-| `C14a_shared_unlink` | shared record, reap unlinks late | hook kill | 0.489–0.553 |
-| `C14b_perplayer_unlink` | per-player record, same timing | hook kill | 0.471–0.528 |
+| `C14a_shared_unlink` | shared record, reap unlinks late | hook kill | 0.503–0.539 |
+| `C14b_perplayer_unlink` | per-player record, same timing | hook kill | 0.501–0.537 |
 | `C15a_recheck_death` | recheck **on** + worker death | **no player spawned** | none |
 | `C15b_norecheck_death` | recheck **off** + worker death, no sweep | **NOTHING** | 2.501–2.504, **full** |
-| `C15c_norecheck_death_pgid` | the same **with** clause (iv) | election sweep (record) | 0.384–0.435, med 0.407 |
+| `C15c_norecheck_death_pgid` | the same **with `sweepmode=both`** — the name says pgid, the kill was the record sweep | election sweep (**record**) | 0.386–0.471, med 0.421 |
 | **`C16a_pending_sweepfirst`** | `.pending` marker, sweep before publish | **killed before exec** | **0 — never started** |
 | **`C16b_pending_pubfirst`** | `.pending` marker, sweep after publish | election sweep (record) | 0.693–0.804, med 0.781 |
-| **`C17_setsid_player`** | `C12b` + the player **leaves the group** | **NOTHING** | **2.501–2.504, full** |
+| **`C17_setsid_player`** | `C12b` + the player **leaves the group** | **NOTHING** | **2.502–2.510, full** |
 
 **[measured-here]**; `summarise.sh` sections A and B over `preemption-trials.tsv` re-derive
 every row.
 
 **The adversarial ordering was reached, not sampled.** `R < S2 < R_b < P < W` held on all
 **48** trials of `C3`–`C6` under the corrected predicate — publication demonstrably complete
-before `P`, with a margin of median **446 ms** — and on all 48 the hook's own kill returned
-`ESRCH`. **No trial in `C3`–`C6` saw a live pid**, which is the precondition §13 row 20
-insisted on.
+before `P`, with a margin of median **440.96 ms** (range 359.38–482.18) **on this arm** — and on
+all 48 the hook's own kill returned `ESRCH`. **No trial in `C3`–`C6` saw a live pid**, which is
+the precondition §13 row 20 insisted on. (§1's defect 2 quotes **446.21 ms**, range
+418.46–472.67: that is the *replication* arm, which is what the reclassification check was run
+against. The two are separate runs of the same 48 trials and the arm must be named — round 2
+quoted the replication figure here, in a section about the published one. `summarise.sh`
+section F prints whichever arm it is pointed at.)
 
 ### 2.3 What each clause is actually worth
 
@@ -264,8 +320,8 @@ insisted on.
   (`C10a` NOTHING vs `C10b` killed, 12/12 each way).
 - **Clause (i)'s independent value is latency.** In `C2` the hook reached the player a median
   **134 ms** sooner (range 123–143) than the worker's next claim would have.
-- **Clause (ii) is correctness-relevant only in the absence of clause (iv), and this now has
-  both arms.** The first revision claimed it was "an optimisation, not a correctness clause"
+- **Clause (ii) is correctness-relevant only in the absence of AN ELECTION-TIME SWEEP, and this
+  now has both arms — and round 2 got the sweep's identity wrong.** The first revision claimed it was "an optimisation, not a correctness clause"
   on the strength of `C5` alone; review pointed out that `C5` only removes the recheck while
   the worker *survives*. Staged properly:
   - `C15a` (recheck on, worker dies after the spawn): **no player is ever spawned**, 12/12 —
@@ -273,10 +329,19 @@ insisted on.
   - `C15b` (recheck off, same death, no sweep): the stale player is spawned and orphaned,
     and **NOTHING kills it**, 12/12. So the recheck *does* prevent an orphan the no-recheck
     arm creates. **The first revision's conclusion was wrong as stated.**
-  - `C15c` (recheck off, same death, **with** clause (iv)): the orphan is killed, 12/12, after
-    a median 0.407 s. **So clause (ii)'s correctness role is conditional on (iv) being
-    absent.** With (iv) it returns to being an optimisation — which is the accurate form of
-    the claim, and it needed three arms rather than one.
+  - `C15c` (recheck off, same death, **with the election-time sweeps on**): the orphan is
+    killed, 12/12, after a median **0.4207 s** (range 0.3864–0.4712). **So clause (ii)'s
+    correctness role is conditional on the election sweeping.** With the sweep it returns to
+    being an optimisation — which is the accurate form of the claim, and it needed three arms
+    rather than one.
+  - **But `C15c` does NOT credit the process-group sweep, and round 2 said it did.** `C15c` runs
+    `sweepmode=both` with `pending=on` and no publish delay, so the player renames its
+    `.pending` away before the replacement worker elects; `killpg` is **skipped 25/25** with
+    `skipped=no_pending_marker`, and `summarise.sh` section A attributes all 12 kills to
+    **`election-sweep-record`**. The clause this arm vindicates is therefore 7(iv-a), the
+    election-time *record* sweep — which §4b did not specify at all until this revision. Written
+    against §4b as it stood, an implementer whose player published and cleared its marker would
+    have had **nothing** run at election time.
 
 ### 2.4 The uncovered region, and what actually closes it
 
@@ -284,8 +349,12 @@ insisted on.
 it at the **pid record's publication**, which under clause 7(i) is a different instant from
 the spawn. `C8` measures the consequence: the worker dies between `Popen` and the write, the
 hook reads a pid that predates the orphan, a replacement worker's claim-time kill reads the
-same stale pid, and the orphan **plays to completion, 12/12**. The window is **median 1.27 ms,
-range 0.29–5.61 ms**, n = 96 — small, and this document does not inflate it.
+same stale pid, and the orphan **plays to completion, 12/12**. The window is **median 1.4119 ms,
+range 0.4289–5.6069 ms**, n = **72** — small, and this document does not inflate it. The 72 are
+the **worker-published** trials; the 24 player-published ones that round 2 pooled in are not a
+publication instant at all and were harness defect 4 (§1). Correcting it moves the median
+*up*, from 1.2681 to 1.4119 ms, so the pooled figure was understating the window rather than
+inflating it.
 
 **The first revision's repair for this does not work, and that is the most important
 correction in this revision.** It specified *one replaceable record, written by the player
@@ -303,9 +372,26 @@ the player published. Staged on both sides:
 descheduled between `Popen` returning and its own first instruction, and a one-time sweep in
 that gap sees nothing. **What closes it is process-group membership, which is established by
 `fork(2)` before the child executes an instruction.** In `C12b` the player never appears in
-`player.log` at all, and the trace shows why it could only have been the group: the record
-sweep in the same election reported `swept=0`, having found nothing but the previous, dead
-player.
+`player.log` at all.
+
+**Round 2's stated proof of that attribution was false, and is replaced here.** It wrote that
+*"the record sweep in the same election reported `swept=0`, having found nothing but the
+previous, dead player"*. The committed `C12b` trace says otherwise: of its **25** elections,
+**6 report `swept=1`** — the record sweep does reach processes, just never the current player,
+whose record does not exist yet. The conclusion survives on three other legs, all in the same
+committed trace and all printed by `analyse_round2.sh`:
+
+- the player was **spawned** (`P_popen` carries its pid) and **never logged `player_start`**,
+  and a player that survives to run always logs;
+- exactly **one `killpg` was `sent` per election, on 24 of 25** — to the *immediately*
+  superseded owner, the dead worker whose group the player is still in. All 276 other pgid
+  attempts returned `ESRCH`, because every older generation's group was already empty;
+- and `C12c` is the control: identical timing, `sweepmode=record`, **zero** pgid sweeps, and
+  the orphan runs to completion 12/12.
+
+The pids the record sweep did reach are from *earlier trials* — which is the same unbounded
+target list §5 now prices (`C12b`'s list grows monotonically to **12** names within one 12-trial
+run, and the warm-up player `94309` is in **24 of the 25** sweeps).
 
 **Three qualifications, all measured.**
 
@@ -323,7 +409,7 @@ player.
    exactly the line an implementer adds for unrelated reasons.
 3. **The sweep signal must not be one anything ignores.** See §2.5.
 
-### 2.5 Five things the run found that nobody asked about
+### 2.5 Six things the run found that nobody asked about
 
 **1. `kill(2)` on an unreaped zombie SUCCEEDS.** In `C7` the worker never `wait()`s its
 player; both kill sites then reported success on all 12 trials against a process the hook had
@@ -339,11 +425,16 @@ Recycling was not observed (**[inferred]**), but the stale read that precedes it
 
 **3. Unlinking a SHARED record is a TOCTOU, and its consequence is observed.** `C14a` gives
 the reaper a 1.2 s delay: on **12 of 12** trials an older player's reap unlinked the shared
-path **after** a newer player had published into it, 31–76 ms later. A third hook fired while
-that newer player was still playing then **found no record at all on 4 of 12 trials** — unable
-to preempt a live player. With per-player records (`C14b`, identical timing) every one of 25
-unlinks removed only its own name, **0 of another player's**, and the third hook reached the
-live player **12 of 12**.
+path **after** a newer player had published into it. **24 unlinks** destroyed a newer player's
+record — the trials fire three hooks each, so there are two reaps per trial — and the lag from
+publication to destruction is **41.3–1754.4 ms**, or **41.3–82.3 ms** excluding the four reaps
+that landed a whole trial-gap late. (Round 2 quoted "31–76 ms", which re-derives from nothing;
+`analyse_round2.sh` now prints the lag.) A third hook fired while that newer player was still
+playing then **found no record at all on 4 of 12 trials** — unable to preempt a live player,
+and on the corrected `analyse_c14.sh` predicate all 12 of those trials did have a live player
+at hook C. With per-player records (`C14b`, identical timing) every one of **37** unlinks
+removed only its own name, **0 of another player's**, and the third hook reached the live
+player **12 of 12**.
 
 **4. The ledger's truncate erases registrations it never signalled.** `C13a` stages a
 publication inside the gap between the sweep's read and its truncate. Of 25 truncations,
@@ -363,6 +454,21 @@ signal it depends on is ignored**, so the same false negative cannot recur silen
 recorded here because it is the exact failure mode the brief warns about — a mechanism that
 never fired, producing a null indistinguishable from a real negative — and because it would
 have been published as a design result.
+
+**6. The record sweep can be made to signal a pid nobody ever published, by a filename.**
+`read_player_records()` did `int(name.split(".")[0])` over **every** entry in `playerdir/`. A
+record is `<pid>.<nonce>`, so that is right for records — and wrong for `<nonce>.pending`,
+which splits to the *nonce*. An 8-hex nonce is all-decimal about 2.3 % of the time, and when it
+is, the sweep signals it as a pid. It happened: **2 of the 100 committed `.pending` nonces are
+all-decimal**, and one of them was still on disk at an election — `C17`'s `02679968.pending`,
+targeted twice as pid **2679968**, `ESRCH` both times. Blast radius **1 trial across the 23
+committed traces**, and harmless there only because that number named nothing. `read_player_records()`
+now matches the record shape (`^\d+\.[0-9a-f]{8}$`) and excludes `.pending` by construction.
+**This does NOT overturn `C17`.** `C17`'s result comes from the *pgid* sweep, and the pgid sweep
+targets the superseded **worker**'s group: `killpg(19781) → ESRCH` is *positive* evidence that
+the player left that group, because a process group persists while any member lives. The
+mis-parse touched only the separate record sweep, which in `C17` legitimately had no record to
+find — the player publishes 1.5 s later. It is a defect in the rig's parser, not in the arm.
 
 ### 2.6 The real-audio arm
 
@@ -451,7 +557,11 @@ Totals:
 | `spec` | 400 | **3 owners** | 61 | **15.2 %** |
 | **`proposed`** | 400 | **1 owner** | **0** | **0.0 %** |
 
-`summarise.sh` sections A–C over `lock-owners.tsv` re-derives every cell.
+`summarise.sh` sections A–C over `lock-owners.tsv` re-derives every cell. **Both rates land exactly on a
+half and are printed round-half-to-EVEN** — 121/400 is 30.25 % and 61/400 is 15.25 %, both
+exactly representable, and `%.1f` rounds each to the even digit: 30.2 and 15.2, not 30.3 and
+15.3. They do re-derive from the script; the document rounds half-up elsewhere, so the
+difference is named here rather than silently carried.
 
 ### 3.3 What each row means
 
@@ -504,6 +614,23 @@ one owner, 60/60 across all three protocols. So it is not *concurrent* reclamati
 S4, S3 could have been read as "two reclaimers is unsafe", which is a different and wrong
 conclusion.
 
+**S3's staging is not guaranteed per trial, and this is a limitation on `proposed`'s S3 result
+specifically.** `run_lock.sh` launched reclaimer B, slept **4 ms**, then launched A. 4 ms does
+not guarantee that B — a fresh Python interpreter — has started, read the directory and
+classified the incumbent as dead; B can be descheduled straight through startup and instead
+observe A's *live* record, which is not a stale observation at all. **For `current` and `spec`
+the result is its own evidence that the staging worked:** S3 produced 2 owners on 20/20 of each,
+while S4 — the same two reclaimers with the asymmetry removed — produced 1 owner on 20/20. A
+trial where B failed to go stale would have behaved like S4 and shown 1. **For `proposed` that
+argument is not available**, because a mis-staged trial and a correctly staged one both produce
+1 owner: `elect_proposed` sees a live owner, records `lost`, and returns. So some unknown number
+of `proposed`'s 20 S3 trials may never have exercised a stale observation, and the run cannot
+say which. `run_lock.sh` now waits for B's own `classified_stale` record before launching A and
+fails the trial if it never appears — **that change is UNRUN**, and the committed
+`lock-owners.tsv` was produced under the 4 ms sleep. To close: re-run S3 under the corrected
+harness. This does not touch S1, S2, S4, S5 or S6, none of which depends on the ordering of two
+reclaimers' startups.
+
 **S6's single failures (1 in 60, both protocols) are the same defect at its natural window
 width.** No stall was injected; the ABA simply happened on its own once per 60 trials under
 contention. That is the honest answer to *"the failure windows are microseconds wide"* — at
@@ -549,10 +676,38 @@ annotate them.
 >   whatever is at the path now — including a fresh lock a different process legitimately
 >   just created — and gets success rather than `ENOENT`. Measured.
 > - **Ownership is "I created the highest generation record"**, read with one `readdir` and
->   one `readlink`. A worker may unlink generation `g` once `g+1` exists, and
->   `rewrite.sh:117`'s 30-minute sweep catches the rest — removing an *obsolete* generation
->   cannot affect who owns the current one, which is exactly why this cleanup is safe where
->   the quarantine rename was not.
+>   one `readlink`. **A loser retries; it does not fail.** `symlink` returning `EEXIST` means
+>   only that someone else got to this generation number first, so the elector re-reads the
+>   highest generation and starts over — `lockrace.py:243` and `:249` both `rec("publish_lost")`
+>   and `continue`, bounded at 60 attempts. **This is what gives S3, S4 and S6 their liveness**
+>   and the old clause never stated it: without the restart, a legitimate reclaimer that lost a
+>   generation race would conclude nothing rather than re-examine a lock that is now live.
+> - **Obsolete generations, and the ordering the round-2 text left out. `rewrite.sh:117` does
+>   NOT reclaim them, and citing it as the backstop was wrong.** Verbatim **[repo]**:
+>
+>   ```
+>   find "$BUF_ROOT" -mindepth 2 -maxdepth 2 -type d -mmin +30 -exec rm -rf {} + 2>/dev/null || true
+>   ```
+>
+>   A generation record is `$BUF_ROOT/<sid>/speak/worker.lock.<gen>` — **depth 3**, which
+>   `-maxdepth 2` excludes, and **a symlink**, which `-type d` excludes again (`find` without
+>   `-L` types a symlink as `l`). That sweep can never remove an obsolete generation. The one
+>   thing at depth 2 it *can* match is `speak/` itself — which takes the **current** generation
+>   with it, and is precisely the hazard PR #27's §10.5 clause 6 exists to exclude by keeping
+>   the worker's idle exit strictly shorter than the sweep window. So there is no backstop:
+>   **generation cleanup has to be specified, and it has to be ordered.**
+> - **The ordering, stated. [inferred] and UNRUN.** A worker may unlink generation `g` **only
+>   after it has completed BOTH halves of its election sweep against `g`'s owner** — 7(iv) and
+>   7(iv-a) — and **only the worker that created `g+1` may do it**. The reason is §5's own
+>   safety argument: the sweep walks *every* generation down to zero
+>   (`speakd_probe.py`'s `for gg in range(g, -1, -1)`), and an unlinked generation is a `continue`,
+>   not a signal. Unordered, the interleaving is the `C11b`/`C12c` failure by another door: `W1`
+>   owns `gen1`, forks `P1`, dies in the `P`→`W` region; `W2` is elected at `gen2`, unlinks
+>   `gen1`, then dies before finishing its own sweep; `W3` is elected at `gen3`, finds `gen1`
+>   gone, `continue`s, never `killpg`s `pid1` — and `P1` plays to completion, which is the
+>   12/12 those two arms measured. **Nothing here is measured:** `lockrace.py` never unlinks a
+>   generation, so all 400 trials ran with every generation present. §13 row 21's closing
+>   condition now names it.
 >
 > **Measured: exactly 1 owner on 400 of 400 trials**, against 121/400 wrong for `current` and
 > **61/400 wrong for the clause this replaces**. Worst case observed for both of the others was
@@ -575,9 +730,17 @@ annotate them.
 > is the target and POSIX requires the create to be exclusive** — both properties in one call,
 > in one line of Python or one `ln -s`.
 
-### 4b. §10.5 clause 7 — five hooks, and two of the first revision's are wrong
+### 4b. §10.5 clause 7 — six hooks, and three of the first revision's are wrong
 
-> **7. §10.5 owes §10.6 five hooks. Every clause below names the arm that measured it.**
+> **7. §10.5 owes §10.6 six hooks. Every clause below names the arm that measured it.**
+>
+> **Read (iv) and (iv-a) together.** Round 2 specified the process-group sweep as the whole of
+> what an election does. **No arm ran that.** Of the 26 configurations, twelve sweep at all:
+> seven run `sweepmode=both`, four run `sweepmode=record`, and `C9` reaches `record` through the
+> legacy `--sweep-on-election` alias — **`sweepmode=pgid` is set by nothing** **[rig]**. So the
+> pgid sweep has never been measured on its own, and in two of the
+> `both` arms — `C15c` and `C16b` — `killpg` was **skipped 25/25** and the **record** sweep did
+> the killing, 12/12 each. (iv) and (iv-a) are not alternatives, and (iv) alone is unmeasured.
 >
 > - **(i) The pid record is per-PLAYER, at a unique path, published by the player before it
 >   can make a sound. REQUIRED.** `speak/playerdir/<pid>.<nonce>`, written by a wrapper that
@@ -586,40 +749,90 @@ annotate them.
 >   in that window could not reach a live player on 4/12 (`C14a`); with per-player names, 0/12
 >   (`C14b`). **An append-only ledger must not be used either:** its truncate erased
 >   registrations it had never signalled on 12 of 25 truncations (`C13a`).
-> - **(ii) The pre-spawn re-`stat` of `speak/job` is an optimisation GIVEN (iv), and a
->   correctness clause without it.** With the worker surviving, removing it changes nothing
->   (`C5`, 12/12). With the worker dying after the spawn and no sweep, removing it **creates an
->   orphan that nothing kills** (`C15b` 12/12 versus `C15a`, where no player is spawned at
->   all). With clause (iv) present the orphan is caught anyway (`C15c`, 12/12). Keep it; state
->   the condition.
+> - **(ii) The pre-spawn re-`stat` of `speak/job` is an optimisation GIVEN AN ELECTION-TIME
+>   SWEEP, and a correctness clause without one.** With the worker surviving, removing it
+>   changes nothing (`C5`, 12/12). With the worker dying after the spawn and **no sweep at
+>   all**, removing it **creates an orphan that nothing kills** (`C15b` 12/12 versus `C15a`,
+>   where no player is spawned at all). With the election sweeping, the orphan is caught anyway
+>   (`C15c`, 12/12). Keep it; state the condition. **The condition is (iv-a), not (iv)** — round
+>   2 wrote "given (iv)" and credited the process-group sweep, but `C15c` skipped `killpg` on
+>   every one of its 25 elections and the kill is attributed to the **record** sweep. A reader
+>   who implemented (iv) alone and dropped (ii) on the strength of this bullet would have got
+>   `C15b`'s result, not `C15c`'s.
 > - **(iii) The worker kills the current player the moment it claims a newer job. REQUIRED,
 >   and it must kill BOTH targets** — its own handle *and* every published record. Measured
 >   load-bearing (`C4`: without it, 12/12 run to completion). The two targets are
 >   indistinguishable while a record exists (24/24) and opposite when none does (12/12 each
 >   way, `C10a`/`C10b`).
 > - **(iv) A newly elected worker kills the PROCESS GROUP of each superseded owner, before it
->   loads the model. REQUIRED, and it is the only thing that closes the spawn-to-record
->   region.** Membership is established by `fork(2)`, before the child executes an instruction,
->   so it reaches a player that has published nothing and has not been scheduled. Measured on
->   both sides of publication: `C12a` killed 12/12, `C12b` killed before `exec` 12/12 — where
->   the single-record and record-only repairs both fail 12/12 (`C11b`, `C12c`). The placement
+>   loads the model. REQUIRED, and it is the only thing that reaches a player which has
+>   published nothing.** Membership is established by `fork(2)`, before the child executes an
+>   instruction, so it reaches a player that has not been scheduled. Measured on both sides of
+>   publication: `C12a` killed 12/12, `C12b` killed before `exec` 12/12 — where the
+>   single-record and record-only repairs both fail 12/12 (`C11b`, `C12c`). The placement
 >   before the model load is normative: the load is 0.80–2.02 s **[hook]**, and a sweep after
 >   it would let the orphan talk through all of it.
+>   - **The WORKER detaches; the player does not. This is one rule with two halves, and round 2
+>     stated neither half.** The whole clause depends on an uncited line of the probe —
+>     `os.setsid()` on the worker's own first statement, before it elects — because the sweep
+>     signals the owner's **pid as a pgid**: `killpg(owner_pid, TERM)`, never
+>     `killpg(getpgid(owner_pid), TERM)`. Both halves are normative and both fail loudly if
+>     dropped:
+>     - **Omit the worker's `setsid()` and the sweep is a silent no-op.** A worker started the
+>       natural way — `nohup … &` from the hook — inherits the *hook's* process group and is not
+>       a group leader, so `killpg(owner_pid, …)` returns `ESRCH` and signals nothing. This is
+>       the same class of failure as §2.5 item 5's `nohup`/`SIG_IGN` arriving by a different
+>       door, and the probe's own `signal_dispositions` guard **cannot** detect it. macOS ships
+>       no `setsid(1)`, so it must be done in-process (`os.setsid()`, or `setsid()` between
+>       `fork` and `exec`).
+>     - **Write the clause's English as `killpg(getpgid(owner_pid), …)` and it is catastrophic,
+>       deterministically.** "Kills the process group of each superseded owner" reads as a
+>       `getpgid` lookup; without the worker's own `setsid()` that group is the **hook's** —
+>       under Claude Code, the harness's own process group. This is not a race; it fires every
+>       time.
+>     - **Never detach the PLAYER.** `start_new_session=True`, or any `setsid()` on the child,
+>       removes it from the group and defeats (iv) completely — measured, orphan plays to
+>       completion 12/12 (`C17`). Round 2's only sentence on detachment was "Never detach the
+>       player", which reads as *nothing detaches*, and that reading breaks the clause.
 >   - **Bound it with a `.pending` marker.** The worker creates `playerdir/<nonce>.pending`
 >     *before* the fork; the wrapper renames it away as its first act. `killpg` is used only
 >     while such a marker exists, which confines its blast radius to the window where an
 >     unnamed player can exist. Measured: skipped 25/25 when not needed (`C16b`), used 23/25
 >     and effective when needed (`C16a`).
->   - **Never detach the player.** `start_new_session=True`, or any `setsid()`, removes it from
->     the group and defeats (iv) completely — measured, orphan plays to completion 12/12
->     (`C17`). This is normative.
 >   - **Requires row 21's generation protocol.** (iv) reads the *superseded* owner's pid. A
 >     lock protocol that deletes the record of the worker it replaced cannot supply it, so
 >     §10.5 clause 2 and clause 7(iv) must ship together.
+> - **(iv-a) The same newly elected worker ALSO sweeps the published player records, in the same
+>   election and also before the model load. REQUIRED. NOT an alternative to (iv).** One
+>   `readdir` of `playerdir/`, then `kill(pid, TERM)` for every name that parses as a record.
+>   **It unlinks nothing** — removal belongs to (v) and to §5's garbage collection, and a sweep
+>   that unlinks is the `C13a` truncation defect in another shape.
+>   - **The two clauses cover disjoint players and that is why both are required.** (iv) covers
+>     the player that has published **nothing** — no record exists, only group membership does.
+>     (iv-a) covers the player that **has** published, and whose `.pending` marker is therefore
+>     already gone, so (iv) is *skipped by its own bound*. Measured, and the arithmetic closes:
+>     in **both** `C15c` and `C16b` the `.pending` was created 25 times and found at **0 of 25**
+>     sweeps, `killpg` was skipped **25/25**, and the record sweep signalled on exactly **12** of
+>     its 25 elections — the twelve trials. `summarise.sh` section A attributes the kill in both
+>     arms to **`election-sweep-record`**, 12/12 each; `analyse_round2.sh` prints the counts.
+>     Without (iv-a), §4b as round 2 wrote it specifies **nothing at all** for that case: the
+>     orphan survives the election and is not reached until the next claim — after the
+>     0.80–2.02 s model load, which (iv) itself says is fatal.
+>   - **Placement, same as (iv): before the model load.** Same reason, same measurement.
+>   - **Its target list is bounded by nothing** — see §5. This is a real cost of requiring it,
+>     not a footnote.
 > - **(v) The worker must `wait()` its player, and unlink that player's own record when it
 >   does.** `kill(2)` on an unreaped **zombie succeeds**, so an unreaping worker makes every
 >   kill site report success while killing nothing (`C7`, both sites 12/12 against a process
 >   already dead). Unlink by exact name only — see (i).
+>   - **The REQUIRED unlink is specified but UNMEASURED in combination with the sweeps.**
+>     `unlinkreap=on` is set by exactly two configurations, `C14a` and `C14b`, and both run
+>     `sweepmode=off` **[rig]**. Every arm that measured either sweep ran `unlinkreap=off`, so
+>     records accumulated and nothing ever raced an unlink against a `readdir`. What (v) and
+>     (iv-a) do to each other is therefore **[inferred]**: reaping removes exactly the name it
+>     published, so a concurrent `readdir` can only miss a player that is already dead, which is
+>     harmless — but that argument has no arm behind it. To close: re-run `C12b`, `C16a` and
+>     `C16b` with `unlinkreap=on`.
 >
 > **§10.5's *"Both are required"* about (i) and (iii) should go.** (iii) with both targets
 > covers every case where the worker survives the spawn; (i) exists so a *different* process
@@ -640,12 +853,15 @@ annotate them.
 > first instruction, and a sweep in that gap sees nothing. Measured: the orphan plays to
 > completion, 12/12. **The third region closes on process-group membership** (clause 7(iv)),
 > which `fork(2)` establishes before the child executes an instruction: measured, the player is
-> killed before it can `exec`, 12/12.
+> killed before it can `exec`, 12/12. **It closes on 7(iv) AND 7(iv-a) together**, because
+> 7(iv)'s `.pending` bound switches it off for exactly the players that 7(iv-a) covers.
 >
 > **And *"cancellation is latency only, not correctness"* is true with its condition
 > discharged** — conditional on 7(iii) with both targets, 7(i) as per-player records, 7(iv)
-> with its `.pending` bound, and 7(v)'s reaping. All are measured. The residual cost is the
-> newer utterance waiting out the older synthesis.
+> with its `.pending` bound *and* the worker's own `setsid()`, 7(iv-a)'s record sweep, and
+> 7(v)'s reaping. All are measured **except (v)'s unlink in combination with either sweep**,
+> which is `[inferred]`. The residual cost is the newer utterance waiting out the older
+> synthesis.
 
 ### 4d. §13 — proposed row text
 
@@ -656,15 +872,19 @@ annotate them.
 > any sound) and its absence fatal (**12/12** run to completion; two real utterances overlap
 > **3.25–3.50 s**). **The two-kill partition leaves a third region** — a worker dying between
 > `Popen` and the record write orphans a player nothing reaches, **12/12**, window median
-> **1.27 ms**. **The first proposed repair does not close it:** a single player-written record
-> fails **12/12** when the sweep lands before publication, and per-player records alone fail the
-> same way. **What closes it is a process-group sweep** (`fork` establishes membership before
-> the child runs): killed before `exec` **12/12**, bounded by a pre-fork `.pending` marker
-> (`killpg` skipped **25/25** when unneeded), and defeated entirely by one `setsid()`
-> (**12/12** orphans survive). Also measured: `kill` on an unreaped **zombie succeeds**; a
-> shared record's unlink is a **TOCTOU** (12/12 destroyed a newer record, hook blind to a live
-> player 4/12); the ledger's truncate **erases unsignalled registrations** (12/25); clause (ii)
-> is a correctness clause **only without** clause (iv). Requires row 21's generation protocol —
+> **1.41 ms** over the 72 worker-published trials. **The first proposed repair does not close
+> it:** a single player-written record fails **12/12** when the sweep lands before publication,
+> and per-player records alone fail the same way. **What closes it is a process-group sweep
+> PLUS a record sweep, both at election time** (`fork` establishes membership before the child
+> runs, and the `.pending` bound switches the group sweep off for exactly the players the
+> record sweep covers): killed before `exec` **12/12** where the group sweep fires, killed
+> **12/12** by the record sweep where it does not (`C15c`, `C16b`, `killpg` skipped **25/25**).
+> The group sweep is defeated entirely by one `setsid()` on the player (**12/12** orphans
+> survive) and requires one on the *worker*, which no round before this one stated. Also
+> measured: `kill` on an unreaped **zombie succeeds**; a shared record's unlink is a **TOCTOU**
+> (12/12 destroyed a newer record, hook blind to a live player 4/12); the ledger's truncate
+> **erases unsignalled registrations** (12/25); clause (ii) is a correctness clause **only
+> without an election-time sweep**. Requires row 21's generation protocol —
 > [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md) **[measured-here]** |
 > **YES** — the repair is measured but it is the third proposed repair in three rounds, and it
 > has had one round of review |
@@ -680,7 +900,12 @@ annotate them.
 > yielded **exactly 1 owner on 400/400**. **The measured 8/8 `mkdir` result is untouched and
 > is a different race**, re-run here at N ≤ 16 for all three protocols, 1 owner on 80/80 each
 > **[measured-here]** | **YES** — the shipped clause is now known false, and its replacement
-> is unreviewed |
+> is unreviewed. **Closing conditions:** (1) a review pass by someone other than §4a's author;
+> (2) **the generation garbage collection is specified but UNRUN** — `lockrace.py` never
+> unlinks a generation, so all 400 trials ran with every generation present, and the ordering
+> rule §4a now states (unlink `g` only after completing both halves of the election sweep
+> against `g`'s owner, and only from the worker that created `g+1`) has no arm behind it.
+> `rewrite.sh:117` is **not** a backstop for it and §4a no longer claims it is |
 
 ---
 
@@ -725,38 +950,71 @@ Each of these is named with the experiment that closes it, not softened.
   on.** It is POSIX-required, and it was measured on this machine's APFS. A network or
   case-insensitive volume was not tested. To close: run `run_lock.sh` with the buffer root
   on the target filesystem.
-- **Process-group REUSE, which is the pgid sweep's own worst case, is unmeasured.** The sweep
-  `killpg`s the superseded owner's pid. If that pid has been recycled *as a process-group
-  leader* of an unrelated group, the sweep signals strangers — and the blast radius is a whole
-  group rather than one process, which is **worse than the pid-reuse hazard it inherits**. The
-  `.pending` marker bounds *when* `killpg` is used to the narrow window where an unnamed
-  player can exist — measured, skipped 25/25 when unneeded (`C16b`) and used 23/25 when needed
-  (`C16a`) — but **the reuse itself is not measured**. To
-  close: the same pid-space-wrap experiment named above, with the check being whether a
-  recorded owner pid ever names a live unrelated group leader. Until then this is the one place
-  where the repair could do more damage than the defect it fixes, and it is the reason
-  `.pending` is specified as normative rather than optional.
+- **REUSE is unmeasured for BOTH sweeps, and round 2 priced it for only one of them.** The
+  hazard has two shapes and they are not equally bounded:
+  - **Process-group reuse, clause 7(iv).** The sweep `killpg`s the superseded owner's pid. If
+    that pid has been recycled *as a process-group leader* of an unrelated group, the sweep
+    signals strangers — the blast radius is a whole group rather than one process, which is
+    **worse than the pid-reuse hazard it inherits**. The `.pending` marker bounds *when*
+    `killpg` is used to the narrow window where an unnamed player can exist — measured, skipped
+    25/25 when unneeded (`C16b`) and used 23/25 when needed (`C16a`).
+  - **Pid reuse in the record sweep, clause 7(iv-a), which nothing bounds at all.** It is
+    `os.kill` over **every name in `playerdir/`**, on **every** election, gated by no marker and
+    by no liveness check. **The leak §5's second garbage-collection bullet calls untidiness IS
+    this sweep's target list** — the two are the same object, and round 2 never said so. Its
+    measured cardinality, from the committed `C12b` trace: the list grows **monotonically to 12
+    pids within a single 12-trial run** — 11 of them long dead by the last election — and the
+    warm-up player `94309` is a target in **24 of the 25** sweeps, from the moment it exists
+    until the run ends. `analyse_round2.sh` prints both. Nothing in the design causes that list
+    to shrink; §5's `.pending`/record cleanup below is what would, and it is unimplemented.
+  - **Neither reuse is measured.** To close: the same pid-space-wrap experiment named above,
+    checking both whether a recorded owner pid ever names a live unrelated *group leader* and
+    whether a stale record name ever names a live unrelated *process*. Until then this is the
+    one place where the repair could do more damage than the defect it fixes, and it is the
+    reason `.pending` is specified as normative rather than optional — and the reason 7(iv-a)'s
+    unboundedness is stated in the clause itself rather than left here.
 - ~~A player that leaves its process group defeats clause 7(iv) entirely — normative and
   untested.~~ **MEASURED (`C17`): the orphan plays to completion 12/12.** Not an open item any
   more; it is a normative constraint with an arm behind it.
-- **There are now TWO garbage collections, and neither is implemented or measured. Both are
-  cleanup steps acting on a path, which is the exact shape of the two races review has already
-  found, so this is where I would expect a fourth defect.**
-  - **Lock generations.** `lockrace.py` never unlinks an obsolete generation, so every trial
-    ran with all of them present. The argument that unlinking generation `g` once `g+1` exists
-    is safe — the highest generation always exists while its owner lives, because an owner only
-    ever removes generations *below* its own — is **[inferred]**. To close: add the unlink and
-    re-run S3, S4 and S6 with a reclaim delay straddling it.
+- **There are TWO garbage collections, neither is implemented or measured, and round 3 named
+  this as where it expected the next defect. It was right — round 4 found one in each.** Both
+  are cleanup steps acting on a path, which is the exact shape of the two races review had
+  already found. The bullets below are the corrected forms; **the prediction still stands for
+  the round after this one**, because both remain unimplemented.
+  - **Lock generations.** `lockrace.py` never unlinks an obsolete generation, so **all 400
+    trials ran with every generation present** — the ordering §4a now specifies has no arm
+    behind it at all. Round 2 offered `rewrite.sh:117` as the backstop; it is not one, and
+    §4a now says why: a generation record is a **symlink at depth 3**, which `-maxdepth 2` and
+    `-type d` each exclude on their own, so that sweep can never remove one. The safety
+    argument is also stronger than round 2's "the highest generation always exists while its
+    owner lives", because the sweep walks *every* generation down to zero and an unlinked one
+    is a `continue` rather than a signal: **unlink `g` only after completing both halves of the
+    election sweep against `g`'s owner, and only from the worker that created `g+1`.** All
+    **[inferred]**. To close: add the unlink and re-run S3, S4 and S6 with a reclaim delay
+    straddling it, and add an arm that kills the electing worker between the unlink and the
+    sweep.
   - **Player records and `.pending` markers.** `playerdir/` accumulates a record per player and
     nothing removes the records of players that died without reaping (the warm-up player's
     record is visible in the committed `C12b` trace, still present several generations later).
     A stale `.pending` is worse than untidy: it makes every later election take the `killpg`
     path, so the bounding property `C16` measures **degrades to unbounded after one worker dies
-    before forking**. The fix — a newly elected worker removes the `.pending` entries it has
-    just swept, and unlinks records whose pid is dead — is **[inferred]**, and its safety
-    argument depends on the sweep covering *all* superseded generations rather than only the
-    most recent. To close: implement both cleanups and re-run `C12b`, `C16a` and `C16b` with a
-    pre-seeded stale `.pending` and a pre-seeded dead record.
+    before forking**.
+    **Round 2's fix was not implementable as written, and this is the correction.** It said "a
+    newly elected worker removes the `.pending` entries it has just swept" — but *"the entries
+    it has just swept"* is not a determinable set. `sweep_pgid()` reads `.pending` as a
+    **boolean**: it `listdir`s, and if the list is non-empty it signals **every** superseded
+    owner. The nonce binds to no generation and to no owner pid, so when `killpg` fires there is
+    no mapping from a marker to the owners the marker prompted it to signal. Specify it
+    concretely instead:
+    - **Remove exactly the `.pending` names returned by the `listdir` that gated THIS sweep** —
+      the list is already in hand at that point and is the only set with a defensible meaning.
+    - **Do it BEFORE the electing worker forks any player of its own.** Otherwise the GC
+      deletes the marker for a fork that has not happened yet, the next election sees no
+      `.pending`, skips `killpg`, and the design collapses into `C12c` — the record-sweep-only
+      arm that fails 12/12.
+    Both are **[inferred]**; nothing removes a `.pending` in any committed arm. To close:
+    implement both cleanups and re-run `C12b`, `C16a` and `C16b` with a pre-seeded stale
+    `.pending` and a pre-seeded dead record.
 
 ### One thing this run deliberately did not re-open
 
@@ -772,9 +1030,9 @@ and cannot be conflated.
 ## 6. Should rows 20 and 21 stay ship-blocking?
 
 **Both stay ship-blocking. The case is now much stronger than it was, and it is no longer an
-argument about labels — it is an induction over three rounds of review.**
+argument about labels — it is an induction over four rounds of review.**
 
-### What the three rounds actually did
+### What the four rounds actually did
 
 | round | the clause it examined | verdict |
 | --- | --- | --- |
@@ -782,25 +1040,31 @@ argument about labels — it is an induction over three rounds of review.**
 | PR #28 rev 1 | those clauses, measured | `current` **and** the spec-corrected protocol both produce 2–3 owners; clause (ii) mis-specified; the `P`→`W` region uncovered |
 | PR #28 rev 2 (this) | **the repair rev 1 proposed** | reviewer found the repair **was not the one measured**, and that the arm which "closed" the region **could not fail**. Staged properly, **rev 1's repair fails 12/12** — and two further protocol defects in it (shared-record TOCTOU, ledger truncation) both reproduce |
 | PR #28 rev 2, self-review | **the repair THIS revision proposes** | `killpg` blast radius under pid reuse (bounded, measured); one `setsid()` defeats it (measured); and the sweep signal itself was a silent no-op under `nohup` (found only by chasing a null) |
+| **PR #28 rev 3 (this)** | **§4b as rev 2 wrote it, read as an implementer would** | **§4b specified ONE election-time action and its own data credits a second one with the kill** — `C15c` and `C16b` skip `killpg` 25/25 and are killed by the *record* sweep, which §4b never mentioned (clause 7(iv-a)). **§4b never required the worker to `setsid()`**, without which the sweep either signals nothing or signals the harness's own process group. **§4a's garbage collection cited `rewrite.sh:117`, which cannot reach a depth-3 symlink**, and specified no ordering against the sweep — the unordered interleaving is `C11b`/`C12c` at 12/12. **§5's `.pending` GC was not implementable as written.** Plus a fourth harness defect touching a published figure (`W` in the player-published arms), a parser that signalled a filename as a pid, a run script one round behind the document, and two derivations that did not derive what they claimed |
 
-**Three consecutive rounds, and every round found a real defect in the previous round's
+**Four consecutive rounds, and every round found a real defect in the previous round's
 confident answer.** Rev 1's own headline — *"a repair was built and measured: 12 of 12 orphans
 killed"* — was wrong in the way that matters most: the repair specified was a single replaceable
 record, the thing measured was an append-only ledger, and the arm that measured it had a 1.2 s
 delay that guaranteed the sweep always ran after publication. When the ordering rev 1 claimed to
 close was finally staged (`C11b`), **the single-record form failed.**
 
-### So the counter-argument is now refuted three times over
+### So the counter-argument is now refuted four times over
 
 The original argument for non-blocking was that these clauses are *"cheap, obviously correct on
 inspection, and their failure windows are microseconds wide."*
 
-1. **"Obviously correct on inspection" has now failed on seven distinct clauses** — the two
-   lock clauses, clause (ii)'s scope, the shared-record lifecycle, the append-only ledger's
-   truncate, the player-authored-record repair, and the process-group sweep's own blast radius.
-   Inspection is what produced all seven. The player-authored-record repair is the sharpest
+1. **"Obviously correct on inspection" has now failed on eleven distinct clauses** — the two
+   lock clauses, clause (ii)'s scope (twice: first mis-scoped, then credited to the wrong
+   sweep), the shared-record lifecycle, the append-only ledger's truncate, the
+   player-authored-record repair, the process-group sweep's own blast radius, the sweep's
+   dependence on an unstated `setsid()`, the missing record sweep at election time, the
+   generation GC's non-existent reclaimer, and the `.pending` GC's undeterminable set.
+   Inspection is what produced all eleven. The player-authored-record repair is the sharpest
    case: it was proposed *in response to* a measured defect, read as obviously correct by its
-   author, and **fails 12/12** once the ordering it was written for is actually staged.
+   author, and **fails 12/12** once the ordering it was written for is actually staged. The
+   `setsid()` omission is the second-sharpest, because it is the *invisible* kind: the clause
+   reads correctly, and the line it silently depends on is in the probe rather than in the text.
 2. **"Microseconds wide" is false for most of them.** The pid-less lock window is a scheduling
    delay (unbounded). The ABA window is a reclaimer's own think-time. The publication window is
    as wide as the wrapper stays descheduled — `C11b` widened it deliberately, but nothing bounds
@@ -808,7 +1072,7 @@ inspection, and their failure windows are microseconds wide."*
    so plainly rather than inflating it.
 3. **"Cheap" is true of writing them and false of getting them right.** Getting to a repair that
    survives staging on both sides of publication took three protocol variants for row 21, six
-   configuration families for row 20, and two rounds of adversarial review.
+   configuration families for row 20, and three rounds of adversarial review.
 
 ### What would take them off the list
 
@@ -818,18 +1082,30 @@ adversarial reader who did not write the text.** Concretely, before rows 20 and 
 non-blocking:
 
 - **§4a and §4b need one review pass by someone other than their author**, on the standard that
-  found the defects in rounds 1–3. The most likely place for a fourth defect is named in §5:
-  the proposed protocol's garbage collection, which is still unimplemented and unmeasured, and
-  which is a cleanup step acting on a path — the same shape as the two races already found.
-- **Row 20's clause 7(iv) is the newest thing in this document, and it is the THIRD proposed
-  repair for the same region.** The first (player-authored single record) is measured to fail;
-  the second (per-player records alone) is measured to fail; this one is measured to work. That
-  history is the argument for a review pass, not against it. It has had one round of review,
-  and the two rounds before it each broke their predecessor.
-- **One clause depends on a primitive whose failure mode is worse than the defect.** `killpg`
-  under pid reuse signals a whole group of unrelated processes. The `.pending` marker bounds
-  when it fires and that bounding is measured; the reuse is not. A reviewer should decide
-  whether that trade is acceptable, because I cannot settle it by measurement here (§5).
+  found the defects in rounds 1–4. **Round 3 predicted the garbage collection as the most likely
+  place for the next defect, and that is where two of round 4's landed** — `rewrite.sh:117`
+  cannot reach a generation record, and the `.pending` GC named a set that does not exist. Both
+  are now specified rather than gestured at, and **both are still unimplemented and unmeasured**,
+  so the prediction stands for the round after this one.
+- **Row 20's clauses 7(iv) and 7(iv-a) are the newest things in this document, and they are the
+  THIRD proposed repair for the same region.** The first (player-authored single record) is
+  measured to fail; the second (per-player records alone) is measured to fail; this one is
+  measured to work — **but not in the shape round 2 wrote it**, which specified only the group
+  sweep. **`sweepmode=pgid` was never run by any arm**, so "the group sweep alone" has no
+  evidence either way, and what is actually measured is the *pair*. That history is the argument
+  for a review pass, not against it.
+- **One clause depends on a primitive whose failure mode is worse than the defect, and a second
+  depends on a line that was never in the text.** `killpg` under pid reuse signals a whole group
+  of unrelated processes; the `.pending` marker bounds when it fires and that bounding is
+  measured, the reuse is not. And the whole clause requires the *worker* to be a process-group
+  leader — `os.setsid()` before it elects — which round 2 never stated, and without which the
+  same clause either signals nothing (`ESRCH` against a non-leader) or, written the other
+  obvious way, signals the hook's own group. A reviewer should decide whether that trade is
+  acceptable, because I cannot settle it by measurement here (§5).
+- **Two evidence-side items are open and neither is a design question.** `run_lock.sh`'s S3 no
+  longer times B's classification by a 4 ms sleep, but **the committed `lock-owners.tsv` was
+  produced before that fix**, so `proposed`'s S3 cell cannot rule out mis-staged trials (§3.3).
+  And clause (v)'s unlink has never run in combination with either sweep (§4b).
 - **Row 21's replacement changes the lock's on-disk shape**, and row 20 now *depends* on that
   change: the process-group sweep has to read the superseded owner's pid, which a protocol that
   deletes the record it replaced cannot supply. **The two rows can no longer be signed off
@@ -838,8 +1114,8 @@ non-blocking:
 **One thing I will state as a judgement rather than a measurement.** If a reviewer decides to
 ship anyway, the least-bad subset is **clause (iii) with both kill targets, clause (i) as
 per-player records, and clause (v)'s reaping** — each is measured, each is falsified when
-removed, and none depends on the newest mechanism or on `killpg`. The process-group sweep would then be the one deferred piece, and the honest
-cost of deferring it is stated in §2.4: a worker dying in a sub-2 ms window orphans one
-utterance, which plays to completion. That is a *bounded, single-utterance, low-rate* failure —
+removed, and none depends on the newest mechanism or on `killpg`. The two election-time sweeps
+would then be the one deferred piece, and the honest cost of deferring them is stated in §2.4:
+a worker dying in a sub-2 ms window orphans one utterance, which plays to completion. That is a *bounded, single-utterance, low-rate* failure —
 which is a defensible thing to ship, and a very different thing from shipping the lock clauses,
 where the failure is two resident workers each holding a 340 MB model.

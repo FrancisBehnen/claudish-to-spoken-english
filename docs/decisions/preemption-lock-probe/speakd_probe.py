@@ -268,17 +268,25 @@ def sweep_pgid():
     rec("election_sweep_pgid", groups=n, superseded=len(superseded))
 
 
+# A per-player record is EXACTLY `<pid>.<8-hex-nonce>`. Matching the shape rather than
+# splitting on the first dot is not pedantry: `<nonce>.pending` also splits to something
+# int()-able whenever the 8-hex nonce happens to be all decimal (~2.3% of nonces), and
+# the record sweep then signals a pid nobody ever published. It happened once in the
+# committed set -- C17's `02679968.pending` was targeted twice as pid 2679968, ESRCH
+# both times. Harmless there; not harmless once that number names a live process.
+RECORD_RE = re.compile(r"^(\d+)\.[0-9a-f]{8}$")
+
+
 def read_player_records():
     """Every pid currently published, with the path that published it."""
     out = []
     if A.pid_mode == "perplayer":
         try:
             for name in os.listdir(PLAYERDIR):
-                try:
-                    out.append((int(name.split(".")[0]),
+                m = RECORD_RE.match(name)
+                if m:
+                    out.append((int(m.group(1)),
                                 os.path.join(PLAYERDIR, name)))
-                except ValueError:
-                    pass
         except OSError:
             pass
         return out

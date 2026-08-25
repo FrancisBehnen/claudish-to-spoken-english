@@ -60,6 +60,22 @@ trial_init() {   # proto N stall rep scenario
 }
 
 # ---- S3: legitimate reclamation, one reclaimer acting on a STALE observation
+#
+# CORRECTED in round 3's review, and NOT YET RE-RUN. The earlier version slept a flat
+# 4 ms between launching B and launching A, and then asserted that B had classified the
+# dead generation before A superseded it. 4 ms guarantees nothing: B is a fresh Python
+# interpreter and can be descheduled straight through startup, in which case it observes
+# A's LIVE record instead and the trial never exercises a stale observation at all.
+#
+# That matters asymmetrically. Under `current`/`spec` a mis-staged trial degenerates
+# into S4 and yields 1 owner, so the published 20/20 two-owner result is its own proof
+# the staging held. Under `proposed` a mis-staged trial ALSO yields 1 owner -- the
+# elector sees a live owner and records `lost` -- so it is indistinguishable from a
+# genuine pass, and `proposed`'s S3 cell cannot distinguish them.
+#
+# The fix is to wait for B's own `classified_stale` record rather than for the clock,
+# and to fail the trial loudly if it never appears. The committed lock-owners.tsv was
+# produced under the old 4 ms sleep; re-running S3 is the open item.
 trial_aba() {    # proto rep
   local pr=$1 rep=$2 sc=S3_aba
   local dir; dir=$(newdir "$sc-$pr-r$rep")
@@ -70,8 +86,20 @@ trial_aba() {    # proto rep
   # B classifies now, then sits on the decision for 120 ms
   "$PY" "$RIG/lockrace.py" --dir "$dir" --log "$log" --role racer --protocol "$pr" \
       --classify-stall-ms 120 --hold-ms "$HOLD" --trial "$rep" --label "$sc" &
-  sleep 0.004
-  # A classifies and reclaims immediately
+  # Wait for the OBSERVATION, not for the clock. B's classify stall is 120 ms, so
+  # there is ample room; 2 s is a deadlock guard, not a timing assumption.
+  local waited=0
+  until grep -q 'classified_stale' "$log" 2>/dev/null; do
+    sleep 0.002
+    waited=$((waited + 1))
+    if [[ $waited -ge 1000 ]]; then
+      echo "S3 $pr r$rep: B never recorded classified_stale -- trial VOID" >&2
+      wait
+      emit "$sc" "$pr" 2 0 "$rep" "VOID"
+      return
+    fi
+  done
+  # A classifies and reclaims immediately, on top of an observation B has already made
   "$PY" "$RIG/lockrace.py" --dir "$dir" --log "$log" --role racer --protocol "$pr" \
       --hold-ms "$HOLD" --trial "$rep" --label "$sc" &
   wait

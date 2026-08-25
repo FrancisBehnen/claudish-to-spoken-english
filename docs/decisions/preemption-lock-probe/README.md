@@ -17,12 +17,14 @@ Nothing here calls an LLM. Nothing here touches `rewrite.sh`, `providers.sh`,
 | `hook_probe.sh` | stand-in for `speak.sh`'s `Stop` body, in **bash**, doing only the two things §10.6 gives the hook: read `speak/pid` and kill (**K**), then publish by atomic rename (**R**) |
 | `lockrace.py` | row 21. Three election protocols — `current`, `spec`, `proposed` — plus a winner that can be stalled in the `mkdir`→pid-write window and racers that can be stalled *after* classifying a lock stale |
 | `run_preempt.sh` | row 20 driver. One warm worker per configuration; the second hook's launch time picks which ordering the trial lands in |
-| `run_all_preempt.sh` | all twenty-two configurations in sequence |
+| `run_all_preempt.sh` | all **twenty-six** configurations in sequence. Round 3 fixed it: the loop listed 24, omitting `C15c_norecheck_death_pgid` and `C17_setsid_player`, so a fresh run did not reproduce the published set |
 | `run_real.sh` | real-audio confirmation: real Kokoro synthesis on `bf_emma`, `afplay` as the player |
-| `run_lock.sh` | row 21 driver. **Six** scenarios (S1 `init`, S2 `longstall`, S3 `aba`, S4 `dualreclaim`, S5 `scratch`, S6 `deadN`) × three protocols × N × stall |
+| `run_lock.sh` | row 21 driver. **Six** scenarios (S1 `init`, S2 `longstall`, S3 `aba`, S4 `dualreclaim`, S5 `scratch`, S6 `deadN`) × three protocols × N × stall. **S3's staging was fixed in round 3 and NOT re-run:** it slept a flat 4 ms before launching the second reclaimer instead of waiting for the first one's `classified_stale` record, so a trial could silently fail to exercise a stale observation. The committed `lock-owners.tsv` predates the fix |
 | `collect.sh` | joins the marker files, `kills.log`, `player.log` and `worker.trace` into one `trials.tsv` per run |
 | `collect_real.sh` | turns the `REAL-*` traces into `real-audio-trials.tsv`, so section 2.6's figures re-derive like every other figure |
-| `summarise.sh` | every published figure, from the committed TSVs, with `awk` and `sort` only. **Medians average the two middle observations** — round 1 took the lower middle, which for these even-sized samples was not the median |
+| `summarise.sh` | every published figure, from the committed TSVs, with `awk` and `sort` only. **Medians average the two middle observations** — round 1 took the lower middle, which for these even-sized samples was not the median. Round 3 added section F (the `Rdone`→`P` adversarial margin) and split section C's `P`→`W` window by who published, both because the document quoted a figure the script did not print |
+| `analyse_round2.sh` | the round-2 protocol facts, from the committed `traces/`. Round 3 added the `C12b` attribution (the `killpg`s actually sent, and the record sweep's unbounded target list), the `C14a` publish→destroy lag, and `C15c` alongside `C16` |
+| `analyse_c14.sh` | hook C's reachability of a live player in the `C14` arms. **Corrected in round 3** — it had tested only that an END record existed, which every completed player satisfies. It now reads `tNc.entry` from `markers.tsv` and requires `start <= hook_c < end`. Reads the committed `traces/` directly: `analyse_c14.sh traces` |
 
 ## Timestamp names
 
@@ -35,7 +37,7 @@ Named as §13 row 20 names them.
 | **S** | the worker claims: `rename(job, job.taken.<pid>)` |
 | **S2** | the worker's pre-spawn re-`stat` of `speak/job` (clause ii) |
 | **P** | the player `Popen` |
-| **W** | the worker writes `speak/pid` (clause i) |
+| **W** | the worker writes `speak/pid` (clause i). **Only meaningful in the worker-published arms** — for `--pid-mode shared`/`perplayer` the probe stamps `W` in the *parent* right after `Popen`, before the wrapper has slept or renamed, so it is a deferral record and not a publication instant. `summarise.sh` splits the `P`→`W` window three ways for exactly this reason |
 
 Hook-side stamps use the fork-free `: > file` marker technique the residency run
 validated (~90 µs granularity, agreed with `$EPOCHREALTIME` to 47–277 µs); worker-side

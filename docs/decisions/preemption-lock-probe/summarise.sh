@@ -11,6 +11,15 @@
 #    re-derive section 2.6. `real-audio-trials.tsv` is now a committed evidence file
 #    and section E summarises it.
 #
+# Two more added in round 3's review, both because the document quoted a figure this
+# script did not print, which is the same defect one level down:
+#  * The Rdone->P adversarial margin (section F). It was quoted in the text as the
+#    reason the corrected predicate was never close to binding, with no derivation.
+#  * The P->W window SPLIT BY WHO PUBLISHED (section C). For a player-published
+#    record the probe stamps W in the PARENT immediately after Popen, before the
+#    wrapper has slept or renamed, so those samples are not a publication instant at
+#    all. They must not be pooled with the worker-published ones -- harness defect 4.
+#
 # usage: summarise.sh <evidence_dir>
 set -u
 E=${1:?evidence dir}
@@ -64,7 +73,14 @@ done
 
 echo
 echo "== ROW 20 / C: window widths, ms =="
-awk -F'\t' '$1=="config"{next} $9!="-" && $10!="-" {printf "%.4f\n", ($10-$9)*1000}'  "$P" | stats "P->W_pid_write_window"
+# P->W, three ways. The pooled figure is NOT the one to quote: in a player-published
+# arm the probe stamps W in the parent right after Popen (speakd_probe.py, the
+# `by=player result=deferred_to_player` branch), so the sample is the Popen return
+# rather than the record's publication. Only the worker-published arms measure the
+# real window.
+awk -F'\t' '$1=="config"{next} $9!="-" && $10!="-" {printf "%.4f\n", ($10-$9)*1000}'  "$P" | stats "P->W_pooled_DO_NOT_QUOTE"
+awk -F'\t' '$1=="config"{next} $9!="-" && $10!="-" && $26!="record published by player" {printf "%.4f\n", ($10-$9)*1000}' "$P" | stats "P->W_worker_published"
+awk -F'\t' '$1=="config"{next} $9!="-" && $10!="-" && $26=="record published by player" {printf "%.4f\n", ($10-$9)*1000}' "$P" | stats "P->W_player_SYNTHETIC"
 awk -F'\t' '$1=="config"{next} $7!="-" && $8!="-"  {printf "%.4f\n", ($8-$7)*1000}'   "$P" | stats "S->S2_claim_to_prespawn"
 awk -F'\t' '$1=="config"{next} $4!="-" && $5!="-"  {printf "%.4f\n", ($5-$4)*1000}'   "$P" | stats "K->R_hook_kill_to_rename"
 awk -F'\t' '$1=="config"{next} $5!="-" && $6!="-"  {printf "%.4f\n", ($6-$5)*1000}'   "$P" | stats "R->Rdone_rename_itself"
@@ -88,6 +104,14 @@ if [[ -f "$R" ]]; then
 else
   echo "   MISSING: $R"
 fi
+
+echo
+echo "== ROW 20 / F: the corrected adversarial predicate's own margin, ms =="
+echo "   (Rdone_b is stamped AFTER the external mv returns, so publication is"
+echo "    demonstrably complete. This is how far it precedes P on the trials the"
+echo "    predicate accepts -- the reason the missing check was never close to"
+echo "    binding. Quote it per ARM: the two arms differ by ~5 ms of median.)"
+awk -F'\t' '$1=="config"{next} $26=="R<S2<R_b<P<W (adversarial)" && $6!="-" && $9!="-" {printf "%.4f\n", ($9-$6)*1000}' "$P" | stats "Rdone_b->P adversarial"
 
 echo
 echo "== ROW 21 / A: owner counts per scenario x protocol x N x stall =="
