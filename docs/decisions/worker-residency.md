@@ -127,6 +127,16 @@ Both are facts about **latency**, and none of them depends on which file a playe
    where the orphan runs for the **full duration of its utterance** (2.50 s in the trial rig, the whole
    thing). Every sentence below of the form *"no stale utterance survives longer than one kqueue wake or
    one hook wall cost"* is wrong for that reason, not because either number is wrong.
+   - **The same range was ALSO used the other way round, and that use is withdrawn as of the tenth
+     review round.** §1b (d)'s interleaving argument cited 0.063–0.219 s as *"the hook's own wall cost
+     between its kill and its rename"* to show the `R → W` window is **wide** enough to contain the
+     worker's `S → P`. The range is `t0` to the hook's **last trace line** — the whole process — and
+     `R → W` is a strict sub-interval, so the number does not measure that window; and a whole-hook
+     duration is an **upper** bound on a sub-interval that ends inside the hook, which licenses no
+     lower bound at all. **The direction is what has to be checked, not the presence of a caveat**: the
+     same range used as a *ceiling* on time-to-kill (§1b (c), and the two-row table) is sound and is
+     separately qualified; using it as a *floor* is not. The conclusion is carried by
+     `C4_noclaimkill` — 12/12 at full length — and the site now says so.
 4. **§2a's stale-lock recovery was falsified as well, both clauses.** The probe's own protocol ended
    without exactly one owner in **121/400** trials; **the two clauses §2a proposes, in 61/400.** The
    initializing-lock retry is clean to a 50 ms stall (180/180) and then **40/40 wrong** at 200 ms and
@@ -163,7 +173,7 @@ falls in. **The verdict column is the snapshot and will go stale; the rule colum
 | section | its design, against the spec | its measurement |
 | --- | --- | --- |
 | **§1** — the address is a file | **RE-DERIVED UNCHANGED.** Spec §10.5 clause 1 and §10.2 specify the same temp-name-plus-`rename` onto `speak/job`, the same coalescing account, and the same consumer claim by `rename(job, job.taken.<pid>)` unlinked only by its private name | **stands on its own.** 116 bytes against a 104-byte `sun_path`, `bind()` fails **[obs]**. Nothing in the replacement shortens that path — the generation records and `playerdir/` go *deeper* than the flat `speak/` this was measured in (spec §10.2) — so the figure is a floor |
-| **§1b** — coalescing and claiming | **(a) re-derived; (c) and (d) FALSIFIED**, items 1–3 above and the block already at that section | the eight-hook coalescing result stands; the two intervals do **not** bound stale audio (rule 3, item 3) |
+| **§1b** — coalescing and claiming | **(a) re-derived; (c) and (d) FALSIFIED**, items 1–3 above and the block already at that section. **(b) and (d)'s clause list re-scored in review round ten**: the pre-spawn re-check is an **optimisation given the election sweep**, not a requirement (spec §10.5 clause 7(ii)), and *"(i) and (ii) are both required"* is corrected at the site | the eight-hook coalescing result stands; the two intervals do **not** bound stale audio (rule 3, item 3), **and (d)'s use of the hook's whole-process range as a FLOOR on its own `kill`-to-`rename` sub-interval is withdrawn** — item 3's sub-bullet |
 | **§2** — the election | **SUPERSEDED in its primitive.** `mkdir` with a pid written inside and checked by `kill -0` became a `symlink`ed `worker.lock.<gen>` carrying `<pid>.<starttime>`, superseded rather than removed (spec §10.5 clause 2). The two sentences that survive are which of the pre-check and the exclusive create is load-bearing, and that the pre-check is worth keeping anyway | **survives CONTINGENTLY, and the contingency is worth seeing rather than rediscovering: 8 hooks → 1 owner is a result about exclusive create under contention, and it survives only because the replacement also elects by exclusive create.** Had the spec elected by anything else the result would have been about a primitive nobody uses. It is also **no longer the only evidence for that property** — spec §10.5 clause 2 re-measured it on `symlink(2)` at N = 2, 4, 8 and 16, **1 owner on 80 of 80** **[trials]** |
 | **§2a** — stale-lock recovery | **BOTH CLAUSES FALSIFIED**, item 4 above and the block already at that section | the *diagnosis* stands — the probe's own protocol ends without exactly one owner in 121/400 — and the *repair* does not, at 61/400 |
 | **§3** — the `kqueue` wake | **RE-DERIVED UNCHANGED, and its role WIDENED.** Spec §10.5 clause 3 specifies the same `EVFILT_VNODE`/`NOTE_WRITE` over the speak directory with the same 1 s poll as a belt, and adds two jobs this document did not know it was doing: it is the primitive §3.5.1's bounded wait runs on, and the 1 s poll is the belt that fires when `rewrite.sh:117` sweeps a live worker's directory (spec §10.5 clause 6, §13 row 24). **A widened role owes no qualification** — nothing here is withdrawn | median 0.079 s, range 0.059–0.198 s **[hook]**, stands as a latency figure. Rule 3 applies to it and only there: it does **not** bound how long stale audio can last (item 3) |
@@ -445,13 +455,28 @@ the pid at **P**. The interleaving **R < S < P < W** is unguarded:
 4. The hook renames J2 onto `speak/job`.
 
 **P1 is now playing stale audio and no specified step kills it.** The hook's one kill is spent; the
-worker's pre-spawn stat already passed. And R < S < P < W is not a hair-splitting window: the hook's own
-wall cost between its kill and its rename is **0.063–0.219 s, median 0.086 s** measured — and here the
-as-of note under *What the hook itself costs* cuts the argument's way rather than against it: the added
-`readdir`s and `ps` fork **widen** this window, and the point being made is that it is wide enough to
-contain the other one — while the
-worker's S→P gap is one `Popen` plus one small write. The wide window is the hook's, and it comfortably
-contains the narrow one.
+worker's pre-spawn stat already passed.
+
+> **The interval arithmetic that used to close this paragraph is WITHDRAWN, and the trials carry the
+> conclusion instead.** It read: *"R < S < P < W is not a hair-splitting window: the hook's own wall
+> cost between its kill and its rename is 0.063–0.219 s, median 0.086 s measured … the wide window is
+> the hook's, and it comfortably contains the narrow one."* **Two things are wrong with it.** The range
+> is `t0` to the hook's **last trace line** (*What the hook itself costs*) — the whole process — and
+> `R → W` is `kill` to `rename`, a strict **sub-interval** of it, so the number was cited for a
+> quantity it does not measure. And the argument needs `R → W` to be **large** enough to contain
+> `S → P`; a whole-hook duration is an **upper** bound on a sub-interval that ends inside the hook and
+> therefore licenses no lower bound at all. Nothing in this document measures `R → W`, and the `S → P`
+> side had no number here either (the spawn is measured at **6–38 ms, median 9.15 ms**, n = 38, under
+> §1b (b), but a comparison needs both sides). **What does carry it is `C4_noclaimkill`: with the
+> claim-time kill removed, the stale player runs to completion 12/12 at a full 2.50 s** **[trials]** —
+> which the review block at the head of **(d)** already says, and which is a demonstration that the
+> hole is reachable rather than an argument that the window is wide. **Third instance of one shape in this document** —
+> the 0.079 s / 0.086 s pair quoted as a bound on how long stale audio can last (item 3 above), the
+> withdrawn *"lower bound"* on the specified hook, and now this: a measured number cited for a quantity
+> it does not measure. **The direction is the thing to check.** The same
+> range used as a *ceiling* on a sub-interval that ends inside the hook — §1b (c) and the table below —
+> is sound in direction, and is separately qualified as a historical baseline; it is using it as a
+> *floor* that has no support.
 
 A *post*-spawn stat — repeating the check after writing `speak/pid` — closes step 3/4 but not this
 ordering, because the hook's rename can still land after that second stat. What closes it is not another
@@ -1150,8 +1175,12 @@ measured above; clause 7 is reasoned from §1b:
    touches (§1b (d)). The pid file bounds the case where the hook sees a live player; the worker-side
    kill bounds the case where it does not. **Both are required.**
    - **SUPERSEDED: three hooks became FIVE, and the last sentence of this clause is the falsified one**
-     (*SUPERSEDED* at the top; spec §10.5 clause 7, §13 row 20). Both are still required and neither is
-     sufficient: *"the case where the hook sees a live player"* and *"the case where it does not"* are not
+     (*SUPERSEDED* at the top; spec §10.5 clause 7, §13 row 20). **Its *"Both are required"* about (i)
+     and (iii) does not survive either, and the spec withdraws it by name**: (iii) with both targets
+     covers every case in which the worker survives the spawn, and (i) exists so that a *different*
+     process can do the killing — a measured latency value, not an independent necessity. What is
+     falsified outright is the **partition**: *"the case where the hook sees a live player"* and *"the
+     case where it does not"* are not
      the whole timeline, because a worker that dies between `Popen` and the record's publication leaves a
      player in neither case — `C8`, 12/12 at full length. (i)'s single `speak/pid` is replaced by a
      per-player `playerdir/<pid>.<nonce>` published by the player's own wrapper; (ii) survives as an
@@ -1257,9 +1286,17 @@ therefore kill the previous one itself.
    (§1b (d)). With (ii) the two kills partition the timeline at the `speak/pid` write and every
    publication instant is covered by one of them.
    - **The last sentence is the falsified one, and it is falsified 12/12** (*SUPERSEDED* at the top; spec
-     §13 row 20). Everything before it holds: (i) and (ii) are both required, (ii) is measured
-     load-bearing (`C4_noclaimkill`, 12/12 at full length), and the hole this paragraph identifies is
-     real. **But "every publication instant is covered by one of them" is false** — a worker that dies
+     §13 row 20). Everything before it holds *as a description of the hole*, and the hole this paragraph
+     identifies is real — but **the two clauses are not both required, and saying they are contradicts
+     this document's own per-hook restatement** (*§10.5 — the OPEN heading comes off*, clause 7, its
+     bullet for hook (ii)) **and spec §10.5 clause 7(ii)**. **(ii), the claim-time kill, is required and measured
+     load-bearing**: `C4_noclaimkill` runs to completion 12/12 at 2.50 s. **(i), the pre-spawn
+     re-check, is an OPTIMISATION given the election sweep**: `C5_norecheck` still kills before the
+     player can `exec`, 12/12, and where the worker dies after the spawn the sweep catches the orphan
+     anyway — `C15c`, 12/12, audible 0.386–0.471 s — while `C15b` (no re-check, **no** sweep) runs to
+     completion 12/12 at 2.50 s against `C15a`, which spawns no player at all. **Keep it; do not call
+     it required.** §1b (b)'s own review note says the same and this cell said the opposite; that is a
+     defect in the commit that wrote §1b (b)'s note, one commit old. **But "every publication instant is covered by one of them" is false** — a worker that dies
      between `Popen` and the record's publication leaves a player nothing reaches, `C8`, which plays to
      completion. So this rule needs **three** more clauses to be true, not two, and the third is the
      election-time **process-group sweep**: `C12b` kills before `exec`, 12/12, never started.

@@ -22,13 +22,25 @@ content-addressed `speak/rw.<H>`. **Two results have to be separated here, and a
 this note ran them together.** The **timing** survives the change untouched: it is a fact about when
 `Stop` runs relative to the publish, and the publish is still seconds after the final chunk. The
 **staleness** does not, and cannot: under content addressing a consumer for `H` finds `rw.<H>`
-**absent** until publication — it cannot read the previous message from that path at all, unless
-identical text was published earlier — so the 29-of-30 "the buffer held the previous message" figure
+**absent** until publication — it cannot read the previous **message** from that path at all — so the
+29-of-30 "the buffer held the previous message" figure
 is **historical**, and what the same timing now implies is a **miss**, not a stale read.
 **The distinction is not pedantry: it is why the current design is in a better position than the
 measured one.** With a mutable buffer §3.2's compare is what stops the wrong answer being spoken;
-with content addressing there is no wrong answer at that path to speak, because the path is not
-there. Every remaining analysis of `speak/source` in this document is historical.) The hashes
+with content addressing there is no *other message* at that path to speak, because the path is not
+there.
+**One exception, and the version of this sentence that named it in a subordinate clause — *"unless
+identical text was published earlier"* — was hiding the whole of it.** If the same source text was
+published earlier in the session the path **is** there, and what it holds is an earlier
+**generation**: `rewrite.sh:183-188` splices the transcript's last user message into the system prompt,
+so a rewrite is a function of **(assistant text, last user message)** and `H` names only the first
+half. The path is therefore empty of other *messages* and not of other *generations*, and under this
+same timing an already-present file is always the earlier turn's. **The one-line dismissal this
+document gave that case — section 3's *"the utterance is correct anyway"* — was FALSE, and it and the
+spec's copies of it are corrected**: the utterance is a rewrite of the right text conditioned on the
+wrong question, which is a quality defect with a correctness tail rather than nothing at all. Section 3
+carries it, and so do [`speech-integration-spec.md`](speech-integration-spec.md) §3.2 and §13 row 28.
+Every remaining analysis of `speak/source` in this document is historical.) The hashes
 then correctly disagree, §3.5's last row fires, and the feature is quiet — for a reason that has
 nothing to do with the match rate and everything to do with ordering.
 [Section 4](#4--the-finding-that-outranks-the-rate-stop-does-not-wait-for-messagedisplay) is that
@@ -244,9 +256,23 @@ string the hook already holds. `turn_id` cannot be a key at all — `Stop` does 
 
 **One collision worth naming.** Two of the 44 captured messages were byte-identical to an earlier one
 (the same prompt re-driven, answered the same way), and both were long enough to publish. A stale
-buffer therefore *can* produce a false hit — but only when the earlier message had identical text, in
-which case the buffered rewrite is a rewrite of that same text and the utterance is correct anyway.
-Benign, and worth a line in §3.2 rather than a mechanism.
+buffer therefore *can* produce a false hit — but only when the earlier message had identical text.
+
+> **CORRECTED in review round ten, and the sentence that stood here was wrong.** It read *"…in which
+> case the buffered rewrite is a rewrite of that same text and the utterance is correct anyway. Benign,
+> and worth a line in §3.2 rather than a mechanism."* **Same text does not give the same rewrite.**
+> `rewrite.sh:183-188` reads the transcript's last `type=="user"` string message, truncates it to 800
+> codepoints in `jq`, and splices it into the system prompt **[repo]**, so a generation is a function of
+> **(assistant text, last user message)** and the hash covers only the first of the two. Two
+> generations under two different questions are two different rewrites at one name. **What the residual
+> is:** a rewrite of the right text conditioned on an earlier turn's question — a **quality** defect,
+> with a **correctness tail** where the assistant text is anaphoric and the wrong antecedent gets
+> resolved into it. It is **not** the previous turn's answer, which is the failure §3.2 exists to
+> prevent, and that is why the spec keeps the key unchanged and re-argues the acceptance (§3.2, §13
+> row 28) rather than treating it as benign. **Both of these two captures had the SAME last user
+> message** — the same prompt re-driven — so both fall in the case the old sentence accidentally
+> described correctly; **the hazardous variant, identical text under a DIFFERENT question, was not
+> observed here and its rate is unmeasured.**
 
 ---
 
@@ -379,8 +405,11 @@ the rate of a comparison that, in production, would mostly not get the chance to
 
 **Not "every turn", and the difference matters.** Three of 32 turns had a dispatch-gap tail long
 enough for an immediate publish to win, and one of those was late enough that `Stop` started after the
-display hook had wholly returned. §2's benign collision adds another exception: when the source text
-repeats verbatim, a stale buffer hashes equal and speaks correctly anyway. So the honest claim is
+display hook had wholly returned. Section 3's repeated-text collision adds another exception: when the
+source text repeats verbatim within the session `rw.<H>` is already there and the consumer resolves
+immediately — **on the generation the earlier turn published**, which is a rewrite of the right text
+conditioned on the earlier turn's question rather than a correct utterance outright (section 3's
+blockquote; spec §3.2, §13 row 28). So the honest claim is
 **"silent on the large majority of qualifying turns, unpredictably"** — which for a speech feature is
 no better than always, and is worse to diagnose. It is not an exceptionless law, and stating it as one
 invites a reader to disprove the blocker with a single counter-example.
@@ -773,6 +802,7 @@ no user data was read by the driven session**, which is why the tally can be pub
    dispatch gap does not change when the display hook is made 65× slower. So §3.1's buffer is
    published after §3.2 would have read it, measured stale in 29 of 30 turns. §3.5's last row then
    silences **the large majority of qualifying turns** — not all of them: a ~10% dispatch-gap tail and
-   §2's repeated-text collision both let a turn through, which is why the blocker is stated as a rate
-   and not as a law. **The strings agree. The timing does not.** Filing it is #11's; section 4 now
+   section 3's repeated-text collision both let a turn through, which is why the blocker is stated as a
+   rate and not as a law — and the collision lets it through on an **earlier generation** rather than on
+   a guaranteed-correct utterance (spec §13 row 28). **The strings agree. The timing does not.** Filing it is #11's; section 4 now
    also says which of the repairs the measurement actually supports.

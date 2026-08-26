@@ -43,7 +43,7 @@ own decision doc. What they changed, in the order the sections appear:
 
 | document | what it settles here | what it does **not** settle |
 | --- | --- | --- |
-| [`handoff-match-rate.md`](handoff-match-rate.md) | §3.2's key is **LOCKED** at the content hash — the rate is 35/35 byte-identical. And the finding that outranks it: **`Stop` does not wait for `MessageDisplay`**, so §3.5 adopts a **bounded wait** (§3.5.1) | the wait has never been implemented or measured end-to-end. §13 row 17 |
+| [`handoff-match-rate.md`](handoff-match-rate.md) | §3.2's key is **LOCKED** at the content hash — the rate is 35/35 byte-identical. And the finding that outranks it: **`Stop` does not wait for `MessageDisplay`**, so §3.5 adopts a **bounded wait** (§3.5.1) | the wait has never been implemented or measured end-to-end (§13 row 17); **and it did not settle what an identical-text collision costs** — its one-line *"the utterance is correct anyway"* was false, because the rewrite is conditioned on the last user message as well as the text (§3.2, §13 row 28) |
 | [`settled-set-audition.md`](settled-set-audition.md) | §4.2 **closes** — the settled combination was built, registered and heard 9–0 blind. §4.1 clause 3 is corrected from **segments** to **boundaries** | `COND_CUTOFF`'s position, now *contradicted* at 4 (§13 row 5); a slash-terminated path, which has no rule at all (§13 row 18); and §4.3, which is **false as written** |
 | [`worker-residency.md`](worker-residency.md) | §10.5 **closes** — a lazy, self-electing, per-session resident worker, with the first TTFA ever measured from a hook. §10.6 gains the two clauses that make its own rule true | ~~three measurements the mechanism's correctness clauses rest on are [inferred]~~ **two of the three have since been run and falsified four clauses** — [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md). What is left from this file is the bench-to-hook gap (§13 row 22) |
 | [`stop-hook-block-mechanics.md`](stop-hook-block-mechanics.md) | §5's cap is **nine invocations**, and nine is never an utterance count | `async: true`, `SubagentStop`, a raised cap, and two blocking hooks at once |
@@ -309,8 +309,10 @@ the design in which the hook spawned the speech child, contradicting §10.2, §1
 qualifier (1), all of which put those writes in the worker. The conclusion survives; the writer named
 in it did not.
 
-**Lifecycle: one `speak/` per session; one `rw.<hash>` per distinct rewritten message, never
-overwritten with different provenance.** This is a change from an earlier draft that kept a single
+**Lifecycle: one `speak/` per session; one `rw.<hash>` per distinct rewritten *source text*, never
+overwritten by a rewrite of different text** — which is not the same as never overwritten by a
+different **generation** of the same text, and clause 3 below draws that line.
+This is a change from an earlier draft that kept a single
 `speak/rewrite` overwritten in place, and the reason for the change is in the install block below:
 **a reused path is what made the mixed-generation race possible.** `speak.sh` never deletes anything;
 the existing sweep does.
@@ -367,17 +369,32 @@ because it is the argument for the design:
    file — **it never reads a mutable file, compares two reads, or observes any other generation.**
 3. **The correctness argument, stated without reference to read order.** A file at `rw.<H>` can only
    have been installed by a publisher that computed `H` over the text it rewrote, so **its contents are
-   a rewrite of exactly that text.** The path is a function of provenance, so it is never reused for a
-   different generation: **the mixed-generation state draft 2 admitted cannot be named**, and a
-   consumer for `H` cannot reach a rewrite for any other hash even in principle. The rename makes
-   appearance atomic, so no partial file is ever visible.
-4. **Where "immutable" is loose, said plainly rather than glossed.** The *path-to-provenance* mapping is
-   immutable; the bytes are not guaranteed unique. The same source text can be rewritten twice — an
+   a rewrite of exactly that text.** The path is a function of the SOURCE TEXT, so it is never reused
+   for a rewrite of *different* text: **the mixed-generation state draft 2 admitted — a consumer for
+   `H` reading a rewrite of some other text — cannot be named**, and a consumer for `H` cannot reach a
+   rewrite for any other hash even in principle. The rename makes appearance atomic, so no partial
+   file is ever visible.
+   - **What this does NOT give is one generation per path, and this clause used to claim it did by
+     calling the path a function of *provenance*.** A generation is a function of **(source text, last
+     user message)** — `rewrite.sh:183-188` reads the transcript's last user message and splices it
+     into the system prompt **[repo]** — and the path names only the first half of that pair. So two
+     generations conditioned on two different user questions share one path: a mixed generation one
+     layer below the layer this argument works at, reachable, and **not** covered by anything above.
+     §3.2 prices it and §13 row 28 carries it. The ordering conclusion is untouched — no read order
+     is involved in either half.
+4. **Where "immutable" is loose, said plainly rather than glossed.** The *path-to-source-text* mapping
+   is immutable — that is the whole of it, and clause 3 says why the stronger *path-to-provenance*
+   reading does not hold; the bytes are not guaranteed unique. The same source text can be rewritten twice — an
    identical message on two turns, or a retry — and the LLM is not deterministic, so the second install
-   may differ in wording. **Both are valid rewrites of that source text**, which is precisely what §3.2
-   guarantees, so which one a consumer gets is immaterial; and rename-install means it gets one of them
-   whole. **This is the one property a reader should check against intent**, because "immutable" would
-   otherwise be read as "byte-stable".
+   may differ in wording. **Where the two installs differ only by that nondeterminism — the same text
+   under the same last user message — both are valid rewrites of that source text, which is precisely
+   what §3.2 guarantees, so which one a consumer gets is immaterial**; and rename-install means it
+   gets one of them whole. **Where they differ because the LAST USER MESSAGE differed, that argument
+   does not reach them, and this bullet used to assert it over both cases at once.** The second
+   install was conditioned on a different question (`rewrite.sh:183-188`), so the two are not
+   interchangeable in the way *"valid rewrite of that source text"* suggests — §3.2 prices that case,
+   §13 row 28 carries it. **This is the one property a reader should check against intent**, because
+   "immutable" would otherwise be read as "byte-stable".
 5. **Fail-open still falls out of the structure.** A publisher that dies before its rename leaves no
    `rw.<H>` at all, so the turn reads as "not yet published" and §3.5.1's wait handles it — the same
    branch as a rewrite that timed out. A half-written temp file is never at a name anything looks up.
@@ -508,12 +525,51 @@ tested against the 35 and every one was a no-op, so there is nothing to rescue *
 place and loses its emphasis: 44 message streams, zero edge whitespace, so it is defensive and
 unexercised rather than load-bearing.
 
-**One benign collision, named rather than mechanised.** Two of the 44 captured messages were
-byte-identical to an earlier one — the same prompt re-driven, answered the same way — and both were
-long enough to publish. A stale buffer therefore *can* produce a false hit. But it can only do so when
-the earlier message had identical text, in which case the buffered rewrite is a rewrite of that same
-text and **the utterance is correct anyway**. **[obs]** No mechanism is owed; this line is the whole
-treatment.
+**One repeated-text collision — and the one-line dismissal it used to carry rested on a FALSE
+premise.** Two of the 44 captured messages were byte-identical to an earlier one — the same prompt
+re-driven, answered the same way — and both were long enough to publish **[obs]**. So `speak/rw.<H>`
+can already exist when this turn's consumer computes `H`, and under §3.5.1's measured ordering — the
+publish lands seconds later, on the far side of an LLM call — the consumer's first look at that path
+then resolves **immediately, on a generation installed by an earlier turn**. §3.5's **hit** row is
+that case: it is not *"the rewrite was ready"*, it is *"an earlier generation of this text is still on
+disk"*, and it is the only way that row is reached in practice.
+
+**Why the sentence this replaces was wrong.** It read *"the buffered rewrite is a rewrite of that same
+text and the utterance is correct anyway"* — same text, therefore same correct rewrite. **The rewrite
+is not a function of the text alone.** `rewrite.sh:183-188` pulls the transcript's **last**
+`type=="user"` string message, truncates it to 800 codepoints inside `jq`, and splices it into the
+system prompt — *"For context, the user asked the assistant: … Use this only to understand the
+message. Do NOT rewrite, answer, or repeat the user's question"* **[repo]**. A generation is therefore
+a function of **(assistant text, last user message)**, and `H` covers only the first of the two. §3.1
+clause 3 and clause 4 carried the same premise and are corrected there.
+
+**What the residual actually is, argued from what the rewrite is rather than from that premise.** It
+is **not** the failure this section exists to prevent: the utterance is a rewrite of *this* turn's
+final message, never the previous turn's answer, so nothing fluently describes the wrong turn. What is
+stale is the **disambiguating context**, and the prompt scopes that context to comprehension and
+forbids reproducing it. So the effect is a **quality** defect — word choice and referent resolution
+tuned to a question the user did not just ask — with a **correctness tail** confined to assistant text
+whose sense depends on the antecedent in that question, where a resolved referent can come out wrong.
+**The direction of harm is not even consistent**: the most plausible way identical text recurs is a
+re-ask (*"show me that again"*), and there the earlier question is the better context of the two.
+
+**The acceptance is KEPT and the key does not move — and the acceptance is [inferred], not measured.**
+What is measured is only that identical text recurs at all: **2 of 44** messages, and both are
+recorded as *the same prompt re-driven*, so both had the same last user message and both fall inside
+the case §3.1 clause 4's nondeterminism argument really does cover. **That last step is [inferred]
+from the capture's own description rather than measured** — `userq` was never recorded, because the
+probe was instrumenting the handoff and not the prompt — which is a second reason the rate below is
+what is owed. **The hazardous variant has never been observed
+and its rate is unmeasured** — it needs byte-identical assistant text at or above `MIN_CHARS` of prose
+(`rewrite.sh:63`, `:147`) twice in **one** session, under a **different** last user message, with an
+intervening spoken message so that §5.1's dedup does not silence the second one first. Three repairs
+are available and **none** is derivable from evidence already in this document: put the turn in the
+name (`rw.<prompt_id>.<H>` — both sides carry the same `prompt_id`, 35/35 **[obs]** — at the cost of a
+key that goes silent altogether if a future build stops carrying the field); require the file to be no
+older than the job's fire time (which §3.5.1 clause 2 forbids as written, *"not a timestamp"*); or
+have the consumer unlink what it consumed (which §3.1's no-pruning rule was written against, one
+party over). **Choosing between them is a decision, so it is not made here**, and the key stays as
+measured. **§13 row 28** carries the closing condition.
 
 ### 3.3 LOCKED — below `CLAUDISH_MIN_CHARS`, speak raw, gated on hazards
 
@@ -682,6 +738,12 @@ the two hooks agree about the threshold without coordinating.
 | miss | `< MIN_CHARS` | ≥ 1 disqualifying | **silent** |
 | miss | `≥ MIN_CHARS` | any | **BOUNDED WAIT (§3.5.1)**, then: publish arrives and matches → speak it; deadline passes → **silent** |
 
+**Row one is not *"the rewrite was ready"*, and reading it that way hides the only case that reaches
+it.** Under §3.5.1's ordering this turn's publish lands seconds after the consumer looks, so a
+`speak/rw.<H>` present at that first look was installed by an **earlier** turn — which makes row one
+reachable only through §3.2's repeated-text collision, with the residual §3.2 prices and §13 row 28
+carries. On every other qualifying turn it is the **last** row that runs.
+
 **The last row changed on 2026-08-25 and it is the largest change this revision makes.** It used to
 read **silent**, on the reasoning that a missing rewrite above the threshold means the provider failed.
 That reasoning is still right about a *failed* rewrite and it is now known to be wrong about the common
@@ -759,8 +821,9 @@ message**: on the *Clocks* turn the slow-published buffer still read `# The Hist
    did exactly the right thing at every one of those 29 reads.
 2. **It is not "every turn", and stating it as a law invites a reader to disprove a real blocker with
    one counter-example.** A **~10% tail** of turns escapes: the +261 / +298 / +322 ms dispatch gaps are
-   the same three turns where an immediate publish won. §3.2's benign repeated-text collision is a
-   fourth kind of exception. **So it is a rate, not a law:** silent on the large majority of qualifying
+   the same three turns where an immediate publish won. §3.2's repeated-text collision is a
+   fourth kind of exception — no longer called *benign*, because the reason that word rested on turned
+   out to be false (§3.2, §13 row 28). **So it is a rate, not a law:** silent on the large majority of qualifying
    turns, unpredictably — which for a speech feature is no better than always and is harder to
    diagnose.
 3. **`MessageDisplay` fires once per streamed chunk, not once per message** (`rewrite.sh:5-10`
@@ -817,6 +880,11 @@ one. Not adopted.
    *same* job shape, differing only in how long the wait turns out to be — which is a simplification,
    not an extra case: on a buffer **hit** the worker simply finds the file already there, and it opens
    the same content-addressed path either way, so there is nothing to re-verify (§3.1 draft 3).
+   - **What *"nothing to re-verify"* covers, and what it does not.** It covers the **text**: that path
+     can hold no rewrite of any other text, which is the whole of §3.1 draft 3's argument. It does
+     **not** cover the **generation** — by this subsection's own ordering, a file already there was
+     installed by an earlier turn, and §3.2's repeated-text collision is the only way that happens.
+     The residual is priced in §3.2 and carried by §13 row 28.
 2. **What it waits on: `speak/rw.<expected hash>` coming into existence. Nothing else.** Not "the
    buffer changed", not a timestamp, not `prompt_id`, and **not a mutable `speak/source`** — that file
    no longer exists (§3.1). On each wake, `stat` the one path the job's expected hash names; if it is
@@ -1566,8 +1634,13 @@ the best behaviour available. The old rule would have spoken A and swallowed B.
 **One accepted cost:** if Claude legitimately ends two consecutive turns with byte-identical text, the
 second is silent. Rare, and silence is the safe direction. **Observed twice in 44 captured messages**
 (the same prompt re-driven, answered the same way) **[obs]**, so "rare" now has a number against it
-rather than being an assertion — and in those two cases the buffered rewrite was a rewrite of that same
-text, which is §3.2's benign collision seen from the other side.
+rather than being an assertion. **Those two are §3.2's repeated-text collision seen from the other
+side, and what it costs there is no longer *"nothing"*:** the buffered rewrite is a rewrite of the same
+text, but a rewrite conditioned on the user question of the turn that published it
+(`rewrite.sh:183-188`), so §3.2 now carries it as a priced residual rather than as a benign one.
+**On the CONSECUTIVE case this section is about, that residual is unreachable** — the dedup silences
+the second turn before anything reaches synthesis. It becomes reachable only with an intervening
+spoken message, which is §3.2's case and §13 row 28's.
 
 **A scope note, so the blocked-turn ladder is not read into the ordinary case.** `stop_hook_active` was
 **`false` on all 35 fires** of the handoff measurement **[obs]** — none of those turns was blocked. The
@@ -1845,7 +1918,7 @@ its override per backend** rather than assuming "unset is safe".
 | `speak.sh` (plugin root, beside `rewrite.sh`) | new | the `Stop` hook. Bash, `curl`/`jq` idiom, no `set` options (§5). |
 | `$HOME/.claude/claudish-speak-off` | user | runtime mute flag; existence is the whole signal |
 | `$BUF_ROOT/<session_id>/speak/` | `rewrite.sh` and `speak.sh` write, the worker reads and writes | §3.1. Depth-2 directory so `rewrite.sh:117`'s existing sweep reclaims it. **Everything below lives under this one directory**, which is what keeps the whole feature inside a single sweep-reclaimed path. **It is no longer flat** — `playerdir/` is one level deeper (§10.5 clause 7(i)) — but the `rm -rf` that reclaims `speak/` reclaims it too, and nothing at depth 3 is separately selectable by `:117`'s `-maxdepth 2 -type d`. |
-| `$BUF_ROOT/<session_id>/speak/rw.<hash>` | `rewrite.sh` writes, **behind `CLAUDISH_ENABLED`, the global off-file, and `CLAUDISH_SPEAK`** (§10.3, §11) | §3.1. **Content-addressed: `<hash>` is `sha256( trim( original text ) )`, so the path is the proof of provenance.** Installed by temp-file rename inside this directory. **Never overwritten with different provenance, and there is no `speak/source`** — a consumer opens the single path its own expected hash names and compares nothing. Not pruned by the producer; the sweep reclaims the directory. |
+| `$BUF_ROOT/<session_id>/speak/rw.<hash>` | `rewrite.sh` writes, **behind `CLAUDISH_ENABLED`, the global off-file, and `CLAUDISH_SPEAK`** (§10.3, §11) | §3.1. **Content-addressed: `<hash>` is `sha256( trim( original text ) )`, so the path is the proof of the SOURCE TEXT.** Installed by temp-file rename inside this directory. **Never overwritten by a rewrite of different text, and there is no `speak/source`** — a consumer opens the single path its own expected hash names and compares nothing. **It IS overwritten by a later generation of the same text, and a generation is a function of `(source text, last user message)`** (`rewrite.sh:183-188`), so the path proves the text and not the turn: §3.2, §13 row 28. Not pruned by the producer; the sweep reclaims the directory. |
 | `$BUF_ROOT/<session_id>/speak/prompt_id` | `rewrite.sh` writes, same gates | §3.1. **Diagnostic only — nothing keys on it** (§3.2, §13 row 4). |
 | `$BUF_ROOT/<session_id>/speak/job` | `speak.sh` writes by atomic rename; the **worker** claims by renaming it to `job.taken.<pid>` | §3.5.1 clause 1, §10.5 clause 1. Carries the fire time, the expected source hash, and the mode. A read-then-unlink of `job` would lose a job renamed in between, irrecoverably. |
 | `$BUF_ROOT/<session_id>/speak/worker.lock.<gen>` | the **worker** creates, by `symlink` | §10.5 clause 2. A **symlink whose target is `<pid>.<starttime>`** — verifiable process identity, not a bare pid: `symlink(2)` publishes the record and its content in one exclusive-create, so there is no pid-less and no starttime-less state to interpret. The owner is the creator of the **highest** generation; a dead owner is superseded by `<gen>+1`, never removed. **Not reclaimed by `rewrite.sh:117`** — a symlink at depth 3 is selected by neither `-maxdepth 2` nor `-type d`. |
@@ -1947,7 +2020,9 @@ Specified as an order because the cheap rejections must precede everything, for 
     `H = sha256( trim( last_assistant_message ) )`, test `[[ -f speak/rw.<H> ]]`, and run the
     eight-class hazard gate if the buffer missed and `prose_len` is below `MIN_CHARS`. `exit 0` if the
     table says silent. **The hit test is an existence check on one computed path, not a
-    read-and-compare** (§3.1).
+    read-and-compare** (§3.1) — and it identifies the **text**, not the generation: a path that
+    already exists at this step was installed by an earlier turn, which is §3.2's repeated-text
+    collision and §13 row 28.
 11. **~~Dedup on the resolved text~~ — MOVED.** On the waiting row the resolved text is not known here,
     so the hook cannot hash it. The dedup check against `speak/spoken` happens in the worker, at the
     moment text goes to synthesis (§5.1 as amended, §3.5.1 clause 6). **Nothing in the hook reads or
@@ -2988,9 +3063,16 @@ prevent. **See §15 for the ten, and §13 for the rows.**
   as per-player records, clause 7(iv) with its `.pending` bound, and clause 7(v)'s reaping. **All four
   are measured** **[trials]**. With them, the cost of not cancelling reduces to the newer
   utterance waiting out the older synthesis — latency, on the newer utterance, not a wrong utterance.
-  **Do not quote the reassuring half of that sentence without naming the four clauses it rests on**,
-  because with any one of them removed an arm of the run produces a stale utterance that plays to
-  completion.
+  **Do not quote the reassuring half of that sentence without naming the four clauses it rests on** —
+  but name what each removal actually cost, because this sentence used to generalise one outcome across
+  all four and **the arms do not support it for clause 7(v)**. Removing (iii), (i) or (iv) produces a
+  stale utterance that plays to completion: `C4_noclaimkill` **12/12** at 2.50 s, `C13a`'s append-only
+  ledger **12/12** at 2.50 s, `C11b` and `C12c` **12/12** at full length. **Removing (v) produces no
+  surviving utterance at all** — `C7_noreap` produces a *kill site that cannot fail*, the hook's kill
+  landing at 0.549–0.577 s and every later site then reporting success against an unreaped zombie on
+  all 12 trials where `C2` reports `ESRCH` **[trials]**. So (v) is what makes the other three
+  **checkable**, which is clause 7(v)'s own claim and is a different claim from stopping stale
+  audio. **Same shape as §13 row 9's**: a per-hook role restated as one role for every hook.
 - **Escape / interrupt barge-in stays out of scope**, as #1 already records, because which events
   Claude Code fires on interrupt is unknown. Related and also unknown: **whether `Stop` fires on user
   interrupt at all**, and what the separate **`StopFailure`** event (carrying `error`,
@@ -3162,6 +3244,7 @@ closed row keeps its number rather than being deleted and the numbering never sh
 | **25** | **The 20-minute idle exit has an enqueue/termination race, and the retirement protocol that closes it is [inferred]** (§10.5 clause 6). The naive exit loses a turn outright: the worker decides to leave, a hook then renames a job in and reads a still-live owner so starts nothing, and the worker exits without claiming it — **silent, not late**, which falsifies §10.7's *"the job file outlives the hook, so the utterance is late, not lost"* on this path. The repair is announce-then-re-check: a `worker.retiring.<gen>` symlink published **before** the worker stops accepting work, then one `stat` of `speak/job` **after** it and before exiting, starting a successor if a job is there. Nothing has run it — no worker has been idle for twenty minutes and `lockrace.py` has no retirement arm | add a retirement arm to `lockrace.py`: enqueue a job inside the announce-to-exit window at **both** orderings — hook's owner-read before the announce, and after it — and confirm the job is served in each. The property to check is the one clause 6(c) states: **each of the two files is written once by one party, and each side reads the other's after writing its own.** Same rig, one more scenario | no — the failure needs the twenty minutes of silence row 24 needs, and it costs one lost utterance rather than a wrong one. **Scheduled, not dismissed**, and it is the reason clause 6 is a protocol rather than a `return` |
 | **26** | **The bounded wait's ceiling now takes the `min` of the LLM budget and the publisher's declared hook timeout (§3.5.1 clause 3) — and that a declared hook timeout is ENFORCED is [inferred].** `hooks/hooks.json:9` declaring 60 s for `MessageDisplay` is **[repo]**; that the harness stops a hook that overruns it has never been watched here, and [`turn-finality-and-the-stop-hook.md`](turn-finality-and-the-stop-hook.md) is explicit that declared numbers are *"not evidence about a runtime ceiling in either direction"*. Row 15 is the adjacent but different question, about an **absolute** ceiling rather than about enforcement of the declared one | one probe, and it needs no `speak.sh`: declare a small `MessageDisplay` timeout, make the hook sleep past it, and record whether it is stopped and whether its writes land. Then the `min` is either derived or withdrawn | no — it bites only at a non-default `CLAUDISH_TIMEOUT` of 58 or more, and only on a rewrite that overran the publisher's own declared budget. At the default the `min` is 50 s either way, which is what the old formula gave |
 | **27** | **§10.5 clause 7(iv)'s `.pending` marker does not actually bound `killpg`, because nothing removes one — and the leak is MEASURED.** The marker is created before the fork and removed by the wrapper once its record is published, so any player that never gets that far leaves a marker no wrapper will remove, no reap will reach, and no specified path removed until round five. (Round five's own draft said the wrapper removes it *as its first act*; **round six found that unsatisfiable** — clause 7(i) requires the wrapper to obtain its pid and start time, write them as the record's content and `rename(2)` it into place, so a marker removed before all three is removed *inside* the very window it bounds. The ordering is forced the other way, and the consequence below is unchanged by the correction: a player killed before it publishes still leaves a marker, which is exactly what should happen — the marker's presence is what tells the next election an unnamed player may exist.) **That includes the ordinary success path, which is the part round five did not expect**: a `killpg` that works kills the wrapper *before* it can rename, so the clause strands the very marker that authorised it. It also includes the worker that dies after creating a marker and before `Popen` completes. `sweep_pgid()` reads the directory as a **boolean** — non-empty means signal every superseded owner — so a single stale marker makes **every later election take the `killpg` path**, for the rest of the session, long after the unnamed-player window the marker was supposed to bound. **`C16a`'s committed worker trace creates 25 markers and removes none**: `pending_found` climbs monotonically **1 → 12** across twelve generations, `33f62e9b.pending` is created at `gen1` and is still on disk at `gen12r`, and every election in the arm reports `groups=1` **[trials]**. **The two halves are separable in that same trace**: the leaked names are exactly the players the sweep killed, while `6fad43e5.pending` — whose player published normally and renamed — does not appear in any later `pending_found`. **The earlier form of the cleanup was not implementable as written** — *"remove the entries it just swept"* is not a determinable set when the marker binds to no generation and no owner pid (that wording is #28's own second round, not this document's) | **the repair, specified in review round five and [inferred]**: name the marker `<gen>.<nonce>.pending`, and have the worker elected at `<gen>+1` unlink by exact name every `<g'>.<nonce>.pending` with `g' ≤ g`, **after** both halves of the election sweep against `g` and **before** forking any player of its own. Later than its own fork and the cleanup deletes a marker for a fork that has not happened, the next election skips `killpg`, and the design collapses into `C12c` — 12/12 at full length. The generation prefix is what makes the set determinable and is what reaches the pre-fork-death marker; nothing else in the name does. To close: implement the tag and the cleanup, then re-run `C12b`, `C16a` and `C16b` with a **pre-seeded stale `.pending`** and a pre-seeded dead record, and confirm `pending_found` returns to zero after each election rather than climbing. Same rig, one seeded file. **This is a deliberate DIVERGENCE from [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md) §5 and must be reconciled when that document lands**: #28 diagnoses the same defect and reaches the same cleanup, but names the set by *"the `.pending` names returned by the `listdir` that gated THIS sweep"* and protects it with an ordering rule (before the electing worker's own fork). That set is only well defined while no other worker is forking, which is the shape §13's own lesson calls a smell — a cleanup ordered around a mutable directory. **The generation prefix makes the set a name rather than an ordering**, and keeps the ordering rule as a belt rather than the guarantee. Whichever survives, the two documents must specify one marker name | **YES — but not independently, and the distinction matters.** It adds no hazard of its own; it **removes the bound on row 20(b)'s**. With a stale marker on disk, `killpg` fires at every election instead of only inside the unnamed-player window, so the case that can signal a stranger's process group goes from rare to constant. Marking it "no" while row 20 blocks for the unbounded form of the same hazard would be inconsistent |
+| **28** | **§3.2's identical-text exception was ACCEPTED ON A FALSE PREMISE, and the premise stood in LOCKED text across SEVEN SECTIONS.** The exception said a repeated source text can only produce a false hit *“in which case the buffered rewrite is a rewrite of that same text and the utterance is correct anyway”* — same text, therefore same correct rewrite. **The rewrite is not a function of the text alone**: `rewrite.sh:183-188` reads the transcript's last `type=="user"` string message, truncates it to 800 codepoints in `jq`, and splices it into the system prompt **[repo]**, so a generation is a function of **(assistant text, last user message)** while `H` names only the first half. Two generations under two different questions therefore share one path — the mixed generation §3.1 draft 3 says *“cannot be named”*, one layer below the layer that argument works at. **And under §3.5.1's own ordering the collision does not merely permit the stale generation, it selects it**: this turn's publish lands seconds later, so a `rw.<H>` present at the consumer's first look is always an earlier turn's, which makes §3.5's **hit** row that case and nothing else. The premise stood at §3.1 (clause 3, clause 4 and the lifecycle sentence), §3.2, §3.5's table, §3.5.1 (clause 1 and consequence 2), §5.1, §10.2's file table and §10.3 step 10, and at three sites in `handoff-match-rate.md` | **the acceptance is re-argued and marked `[inferred]`; the key does NOT move.** What the residual is: a rewrite of *this* turn's text conditioned on an earlier turn's question — never the previous turn's answer, so not the failure §3.2 exists to prevent. A **quality** defect in general, with a **correctness tail** where the assistant text is anaphoric and the wrong antecedent gets resolved into it. **To close, and it is a measurement first**: instrument one driven session for byte-identical assistant messages at or above `MIN_CHARS` of prose recurring under a **different** last user message, with an intervening spoken message so §5.1's dedup does not silence the second, and record the rate; then, only if it is non-zero, rewrite the two generations against each other and score whether the mis-conditioned one is materially different. **Only that second step opens a decision**, and the three candidates are named in §3.2 with their costs: `rw.<prompt_id>.<H>`, a freshness test against the job's fire time (which §3.5.1 clause 2 forbids as written), or unlink-on-consume. **Do not pick one before the rate is known** — each costs something the current key does not | **no**, and the reason is the residual's shape rather than its rarity: the utterance is a rewrite of the text on screen, so the worst case is a badly disambiguated rendering of the right answer rather than a fluent statement about the wrong turn. Rarity is a second reason and a weaker one, since the rate is exactly what is unmeasured. #23 builds the key unchanged. **What this row does owe the lock is stated in *Can #11 lock?*:** its second step, if reached, is a decision, which is one more than the other rows carry |
 
 **FIVE of these now block shipping: 17, 20, 21, 24 and 27 — the count has now moved twice in this
 revision, both times UP, and the second move came from a measurement rather than a read.** **Row 24 is
@@ -3246,15 +3329,20 @@ on are made:**
 4. **§5's unit** — nine invocations, never nine utterances.
 
 **What #11 does NOT have, stated plainly so the lock is not read as more than it is.** Nothing in §13 is
-a decision the listener still owes; rows 17, 20, 21, 24 and 27 are **verification of specified mechanisms**, and
-row 18 is **parked by explicit decision** rather than unresolved. So #11 can lock and **#23 can start**
+a decision the listener owes **now**; rows 17, 20, 21, 24 and 27 are **verification of specified mechanisms**, and
+row 18 is **parked by explicit decision** rather than unresolved. **Row 28 is the one row that could
+become a decision, and it is scored that way rather than folded in**: its closing condition is a
+measurement, and only a non-zero result would put a choice between three named mechanisms in front of
+the listener. That is a conditional debt rather than an outstanding one, and the lock's own test —
+*"a closing condition that does not require re-deciding anything"* — is met by the measurement and would
+not be met by the choice, so the row says so. So #11 can lock and **#23 can start**
 — but #23 finishes at row 17, not at "the hook runs". **An implementer who builds `speak.sh` and does
 not measure the wait has not finished the ship blocker, they have moved it.**
 
-**RE-EXAMINED THIRTEEN TIMES AND MEASURED TWICE — fifteen occasions across the fourteen round labels in the table below, `#28` standing for two of them — and the measurements are still the ones that matter.** The
-answer above was written before anyone had read this revision back. **Eleven reads of this document, two review
+**RE-EXAMINED FOURTEEN TIMES AND MEASURED TWICE — sixteen occasions across the fifteen round labels in the table below, `#28` standing for two of them — and the measurements are still the ones that matter.** The
+answer above was written before anyone had read this revision back. **Twelve reads of this document, two review
 rounds of its sibling carried across, and two experiments** have since gone over it, and between them they
-found **thirty-four correctness defects in text this revision marked LOCKED** — with the second round finding
+found **thirty-six correctness defects in text this revision marked LOCKED** — with the second round finding
 defects **in the first round's repairs**, the first experiment finding that **two of the first round's repairs were
 themselves wrong**, the fourth round finding **five more, in four different sections, none of them
 in a repair**, the fifth round finding **four, of which two are defects in round three's and round
@@ -3296,7 +3384,22 @@ direction, because *adding operations increases work* holds only under otherwise
 two wall-time samples from two implementations are not that. **At §10.6 the qualifier was also the wrong
 direction for its own sentence** — a *"dies within"* claim needs a ceiling and was handed a floor. **The
 class now has two members and both are the same lesson**: the round that repairs a claim is the round least
-able to audit its own repair. **Two of the fifteen occasions are not reads of this document at all** — they are review rounds
+able to audit its own repair. **The tenth round found two, and the first of them is the only finding in this
+table that reached a KEY.** §3.2's identical-text exception was accepted because *"the buffered rewrite is a
+rewrite of that same text"* — and the rewrite is not a function of the text alone: `rewrite.sh:183-188`
+splices the transcript's last user message into the system prompt **[repo]**, so a generation is a function
+of **(assistant text, last user message)** and `H` names only the first half. Two generations under two
+different questions share one path, which is the mixed generation §3.1 draft 3 says cannot be named, arriving
+one layer below the layer that argument works at — **and §3.5.1's ordering does not merely permit it, it
+selects it**, because a `rw.<H>` present at the consumer's first look is always an earlier turn's. **The key
+did not move**: the residual is a rewrite of the right text conditioned on the wrong question — a quality
+defect with a correctness tail, never the wrong-turn utterance §3.2 exists to prevent — so the acceptance is
+re-argued from what the rewrite is, marked `[inferred]`, and given row 28 with a measurement-first closing
+condition. **That is the discipline this table asks for and it is worth naming: a false premise under a
+LOCKED decision does not by itself license changing the decision.** The second is §10.6 restating one
+removal outcome as the outcome for all four clauses it rests on, false for clause 7(v) — `C7_noreap`
+produces a kill site that cannot fail rather than a stale utterance — which is row 9's shape again, a
+per-hook role restated as one role for every hook. **Two of the sixteen occasions are not reads of this document at all** — they are review rounds
 24 and 25 of [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md), whose findings landed here
 because the two documents specify one mechanism and this one had the defect.
 
@@ -3336,12 +3439,17 @@ because the two documents specify one mechanism and this one had the defect.
 | **8** | **the process-group sweep's case list was missing its fourth case — and so was the ONE rule that governs every other signalling site.** Clause 2 and §10.3 step 6 grew an `unverifiable` branch for a failed `ps` lookup, and the two sites that inherit from them did not: **clause 7(iv)'s owner test stayed on three cases and clause 7(i)'s *“skips in silence on a mismatch”* stayed on one**, and that sentence is the only rule clause 7(iii) and 7(iv-a) have — neither enumerates cases of its own. A failed lookup therefore fell through into *“no such process”*, which is the one outcome on that list that **signals**: `killpg` could address a recycled pid's unrelated process group — the catastrophic blast radius §13 row 20(b) blocks shipping for — and (iii) and (iv-a) could `kill` a stranger, both reached through a **transient `ps` failure** rather than through pid reuse being likely, and the trigger correlates with the hazard exactly as #28 argued for clause 2. **Step 6's own text asserting *“the same four as clause 7(iv)'s owner test”* while 7(iv) had three is what made it findable.** The rule is restated as **signal only on a positive match**, so the branch cannot be dropped again by enumeration; the skip's cost — an orphan surviving one election, `C12a`'s 2.50 s — is priced in the clause, and the marker-retention question it raises is left to rows 20(a)/21(a) rather than half-imported | §10.5 cl. 7(i), cl. 7(iv), §10.3 step 6 |
 | **8** | **a measurement this document had already withdrawn was still quoted as current at two sites.** §10.3 restated the hook's **0.063–0.219 s, median 0.086 s** as a **lower bound** — the figure predates the two `readdir`s and the `ps` fork clause 2 added — while **§3.5.1 went on saying the cost *“stays”* that range** and **§10.6's review block went on bounding playback death by *“median 0.086 s”***. Tag honesty: a figure tagged **[hook]** measures the body that was measured, and quoting it as current for a changed body is not that measurement. **Same shape as row R** — one number corrected in one place — and the same shape as the three as-of commits this table deliberately does not count, except that these two sites are in **this** document's LOCKED text, which is what makes them rows. §6 now carries the as-of note so the caveat has one home rather than none. **The repair this round applied was itself wrong and is row 9 below**: *lower bound* is a bound, and the withdrawal's whole point was that no bound is available | §3.5.1, §10.6, §6 |
 | **9** | **the repair that withdrew that measurement OVERCLAIMED IN THE OPPOSITE DIRECTION, and the overclaim reached four LOCKED sites.** §10.3 introduced *“the range is a **lower bound** on the hook as now specified”* when clause 2's `ps` fork landed, and **round eight propagated that framing to §3.5.1, §6 and §10.6 rather than questioning it** — and **an old observed range bounds a changed hook body in neither direction**. *Adding operations increases work* holds only **under otherwise identical conditions**; two wall-time samples taken on two implementations under different scheduling, load and cache state are not that comparison, so a 0.063 s floor is a fact about forty-seven processes that ran rather than a law about processes that have not. **The correct statement is a HISTORICAL BASELINE plus an UNMEASURED current cost**, with only the *direction* of the change **[inferred]**. **At §10.6 the qualifier was also the wrong direction for its own sentence**: that bullet needs a **ceiling** on how long a stale player keeps playing (*“dies within the hook's own wall cost”*) and the caveat attached to it was a **floor**, which licenses no ceiling at all — a qualifier that reads as a bound smuggled back exactly the currency the withdrawal removed. **Not a new shape but the SECOND instance of `M2′`'s** — a defect in a repair one round old, breaking the opposite way to the defect it fixed — and it is counted for row 8's own reason: §3.5.1, §6, §10.3 and §10.6 are **this** document's LOCKED text. The two evidence documents carried it too and that half is **not** a row, per the EIGHTH note below | §10.3, §6, §3.5.1, §10.6, §10.5 cl. 4, §15 |
+| **10** | **§3.2's identical-text exception was ACCEPTED ON A FALSE PREMISE, and the premise stood in LOCKED text across SEVEN SECTIONS — §3.1, §3.2, §3.5, §3.5.1, §5.1, §10.2 and §10.3.** The exception licensed the collision because *“the buffered rewrite is a rewrite of that same text and the utterance is correct anyway”* — same text, therefore same correct rewrite. **The rewrite is not a function of the text alone**: `rewrite.sh:183-188` splices the transcript's last user message into the system prompt **[repo]**, so a generation is a function of **(assistant text, last user message)** while `H` names only the first half — two generations under two different questions at one path, which is the mixed generation §3.1 draft 3 says *“cannot be named”*, one layer below the layer that argument works at. **And §3.5.1's own ordering does not merely permit the stale generation, it selects it**: this turn's publish lands seconds later, so a `rw.<H>` present at the consumer's first look is always an earlier turn's, which makes §3.5's **hit** row that case and nothing else. Sites: §3.1 clauses 3 and 4, §3.2, §3.5's table, §3.5.1 clause 1, §5.1, §10.3 step 10. **The key is NOT changed** — the residual is a rewrite of the right text conditioned on the wrong question, a quality defect with a correctness tail, never the wrong-turn utterance §3.2 exists to prevent — so the acceptance is re-argued from what the rewrite is, marked `[inferred]`, and given row 28 with a measurement-first closing condition | §3.1, §3.2, §3.5, §3.5.1, §5.1, §10.2, §10.3, row 28 |
+| **10** | **§10.6 restated ONE removal outcome as the outcome for all four clauses it rests on, and the arms score clause 7(v) differently.** *“Cancellation is latency only, not correctness”* was guarded by *“with any one of them removed an arm of the run produces a stale utterance that plays to completion”* — true of (iii) (`C4_noclaimkill` 12/12 at 2.50 s), of (i) (`C13a` 12/12 at 2.50 s) and of (iv) (`C11b`, `C12c` 12/12 at full length), and **false of (v)**: `C7_noreap` produces **no surviving utterance**, it produces a kill site that cannot fail — every later site reporting success against an unreaped zombie on all 12 trials where `C2` reports `ESRCH` **[trials]** — which is clause 7(v)'s own claim, two subsections above, and is about EVIDENCE rather than audio. **A `[trials]` claim asserted over an arm that scored something else is a tag-honesty defect**, and it is the same shape as row 9's: a per-hook role restated as one role for every hook. Found while sweeping the evidence document for the `(ii)`-is-required claim of the NINTH note below, which is why the two are one round | §10.6 |
 
 **The lock still holds on its own test, and the test is worth restating rather than assumed:** *every
 section is either LOCKED with the evidence that decided it, or OPEN with a closing condition that does
-not require re-deciding anything.* **All thirty-four defects were repairable without a new decision from
-the listener** — and the thirty-four split two ways rather than one, which the old *"all six"* framing hid:
-**thirty were repairable from evidence already in the document or in the committed rig**, and **the four marked M and M2 were
+not require re-deciding anything.* **All thirty-six defects were repairable without a new decision from
+the listener — and round ten's first row is the closest the table has come to an exception, which is why it
+is scored rather than asserted.** Its repair removed a false premise and disclosed a residual; the decision
+the residual might force is *conditional on a measurement nobody has taken*, and row 28's closing condition
+puts the measurement first for exactly that reason. **The thirty-six split two ways rather than one, which the old *"all six"* framing hid:**
+**thirty-two were repairable from evidence already in the document or in the committed rig**, and **the four marked M and M2 were
 falsified by the run that found them and repaired from that same run's evidence**, which is a stronger
 position rather than a weaker one. The judgements between competing repairs are recorded with their
 costs — clause 6's separation, clause 5's required-versus-recommended, round four's choice to
@@ -3369,12 +3477,13 @@ on. So #11 can lock and #23 can start — with two more blockers than it had yes
 > two, three in the first measurement round, two in round three, five in round four, four in round
 > five, four in round six, two carried across from #28, one in the sleep measurement, one in the
 > review of that measurement's own repair, two in round seven, one in the recount of 2026-08-26, two in
-> round eight, one in round nine — thirty-four.**
+> round eight, one in round nine, two in round ten — thirty-six.**
 > Re-derived from the table on each revision rather than incremented, which is the only way this note
 > stays true of itself. **Round eight's total was derived by counting the table's own rows with `awk`
 > and grouping them by label**, not by adding two to thirty-one: at round eight that produced
-> `4+2+3+2+5+4+4+2+1+1+2+1+2 = 33` over thirteen labels, and the same script at round nine produces
-> `4+2+3+2+5+4+4+2+1+1+2+1+2+1 = 34` over **fourteen**, `#28` standing for two occasions.
+> `4+2+3+2+5+4+4+2+1+1+2+1+2 = 33` over thirteen labels, at round nine
+> `4+2+3+2+5+4+4+2+1+1+2+1+2+1 = 34` over fourteen, and at round ten
+> `4+2+3+2+5+4+4+2+1+1+2+1+2+1+2 = 36` over **fifteen**, `#28` standing for two occasions.
 >
 > **This total was carried as a FLOOR of twenty-three until 2026-08-26, and the floor is now SETTLED
 > rather than restated.** The table had no row for round six, none for the two rounds of #28 whose
@@ -3444,8 +3553,8 @@ on. So #11 can lock and #23 can start — with two more blockers than it had yes
 > single-chunk narration of a turn its own data records at three; and three `rewrite.sh` line citations
 > — two off by one, one off by two — against the same lines this document cites correctly.
 > **The count is unchanged by it, for
-> the reason the notes above give**, and the reason is worth restating now that the class has **eight**
-> entries, counting the two recorded below: the table counts defects in this document's LOCKED text, and an
+> the reason the notes above give**, and the reason is worth restating now that the class has **nine**
+> entries, counting the three recorded below: the table counts defects in this document's LOCKED text, and an
 > evidence document's re-qualification is a defect in a *record of what was measured*, not in a
 > specification. **What the eight entries do say, and it is why they are tracked here rather than
 > discarded, is that the rate at which this class recurs has not fallen** — every round that has looked
@@ -3489,6 +3598,50 @@ on. So #11 can lock and #23 can start — with two more blockers than it had yes
 > instance and not closed**: the scope column it asks a future change to re-check is exactly what failed
 > here, and it failed by being re-qualified rather than by being left stale — so the check has to read what
 > the new qualifier *claims*, not only whether one is present.
+>
+> **A NINTH of that class landed on 2026-08-26 and is likewise not a row — and for the first time the
+> class arrived in TWO documents at once, from one round.** **Six sites in three shapes**, every one of
+> them a *record* rather than a specification:
+>
+> - [`worker-residency.md`](worker-residency.md) **§1b (d) still said *"(i) and (ii) are both
+>   required"*** of §10.6's own numbering — where (i) is the **pre-spawn re-check** — against its own
+>   per-hook restatement, which calls that clause **an optimisation given the election sweep**
+>   (`C5_norecheck` 12/12; `C15b` against `C15a` against `C15c`), and against §10.5 clause 7(ii), which
+>   says the same. **A defect in the repair that landed that per-hook restatement**, one commit old.
+>   **Its clause-7 routing note carried the mirror of it** — *"Both are still required"* of (i) and
+>   (iii) — which §10.5 clause 7 withdraws by name. **And §1b (b)'s own review note had the
+>   classification right all along**, which is what made the contradiction findable.
+> - **the same document used the hook's 0.063–0.219 s range to argue that the `R < S < P < W` window
+>   is WIDE.** That range is `t0` to the hook's last trace line; the window is `kill` to `rename`, a
+>   strict sub-interval. A whole-hook duration is an **upper** bound on a sub-interval that ends inside
+>   the hook, so it cannot establish that the sub-interval *contains* anything. **The claim is carried
+>   by the trials instead** — `C4_noclaimkill`, 12/12 at full length — which is what the paragraph two
+>   above it already says. **Third instance of one shape as this table records it**: the 0.079 s /
+>   0.086 s pair quoted as a bound on how long stale audio can last (the FOURTH note above, row 8),
+>   then the withdrawn *"lower bound"* (row 9), and now a whole-hook duration used as a **floor** under
+>   a sub-interval — a measured number cited for a quantity it does not measure. **The
+>   preceding round forecast this class would recur and named `:418` as the live site; it recurred at
+>   `:454`, and `:418` turned out to be sound** — it uses the whole-hook duration as a ceiling on a
+>   sub-interval that ends inside the hook, which is the one direction the arithmetic allows. **The
+>   forecast was right about the class and wrong about the site, and the direction is the thing to
+>   check.**
+> - [`handoff-match-rate.md`](handoff-match-rate.md) carried §3.2's false premise at three sites of its
+>   own — *"unless identical text was published earlier"* standing under *"there is no wrong answer at
+>   that path to speak"*, *"the utterance is correct anyway"*, and *"a stale buffer hashes equal and
+>   speaks correctly anyway"*.
+>
+> **Not a row, and the total is unchanged by it**, for the reason the notes above give. **The spec half
+> of the same round IS two rows** — the false premise across seven LOCKED sections (row 10, §13 row 28) and
+> §10.6's over-generalised removal claim (row 10) — and the split is the EIGHTH note's demonstration
+> repeated on the first of the three shapes: **one wrong idea, seven sections of *specification* and
+> three sites of *record*, and the table counts the specification half.** The other two shapes are
+> record only, which is why they add nothing to the total. **What is new is that the second bullet is the SEVENTH note's stated
+> residual arriving a second time**, so that residual is now narrower by two instances and still not
+> closed; and the third bullet is the first time this class has been a *premise* rather than a
+> *number*, which the residual's own wording — *"a measurement whose number survives while its
+> evidential scope does not"* — does not reach. **The residual is widened accordingly: a re-check has
+> to read the qualifier's direction and the reasoning's premises, not only whether a number is still
+> quoted.**
 >
 > **The same pass re-derived the total and found §15's tally still reading NINE
 > reads and THIRTY-ONE over a twelve-item list** while this note and the rest of §15 had moved to
@@ -3824,7 +3977,14 @@ Stated so a reviewer can attack the right parts.
   claim was withdrawn from §10.5 clause 6, then from §13 row 24, and reached this list only third; the
   two predicates are still evaluated by two processes at two instants, so a discontinuous **forward**
   adjustment past 30 minutes makes both true at once. **That replacement is itself `[inferred]` and
-  unrun**, which is why the count below does not fall. §13 row 24. (4) **§3.1's content-addressed publish.** (5) **§3.5.1
+  unrun**, which is why the count below does not fall. §13 row 24. (4) **§3.1's content-addressed publish — WIDENED in round ten, and the widening is a
+  stated limit rather than a new clause.** The mechanism is unchanged: a consumer for `H` can reach no
+  rewrite of any other text, and no read order is involved. What round ten removed is the stronger
+  reading clauses 3 and 4 had put on it — that the path is a function of *provenance* and so holds one
+  generation. A generation is a function of **(source text, last user message)**
+  (`rewrite.sh:183-188`), so two generations under two different user questions share one path, and
+  §3.5.1's ordering makes an already-present file always the earlier one. §3.2 prices that residual and
+  §13 row 28 carries it; the count does not move, because nothing was added to make a rule true. (5) **§3.5.1
   clause 7, the worker's re-check of both off-files at the point of synthesis.** (6) **§10.5 clause 2's
   start-time-validated owner record** — `<pid>.<starttime>` rather than a bare pid, with `ps -o lstart=`
   as the reader; new in round four, and the clause without which clause 2's own one-live-owner rule is
@@ -3842,7 +4002,7 @@ Stated so a reviewer can attack the right parts.
   before its own first fork; new in round five, and the clause without which that bullet's own
   *"confines the blast radius"* is false from the clause's first successful preemption onward — a
   `killpg` that works kills the wrapper before it can rename its own marker away. §13 row 27.
-  **What the count deliberately EXCLUDES, so that a recount lands on ten rather than fourteen.** Four
+  **What the count deliberately EXCLUDES, so that a recount lands on ten rather than fifteen.** Five
   other things in this document carry an `[inferred]` tag and are **not** correctness clauses: §10.5
   clause 4's claim that the `readdir` stays negligible on a long session's directory, §10.3's claim
   that the two `readdir`s and the `ps` fork which replaced two `stat`s raise the hook's cost **above**
@@ -3850,22 +4010,26 @@ Stated so a reviewer can attack the right parts.
   cost is unmeasured and neither bounds it, §10.7's row for a worker that can never start, and **§3.5.1 clause 3's assumption that a
   declared hook timeout is enforced** (§13 row 26) — which sets how long the wait runs, not whether any
   rule here is true, and whose worst outcome is silence a few seconds early on a non-default
-  configuration. The first two are latency, the third is a disclosed failure path, the fourth is a
-  bound. **A clause counts here only if a rule stated elsewhere in this document is FALSE without it.**
-  **The count went 3 → 6 → 5 → 8 → 10 → 10 → 10 → 10 → 10 → 10 → 10, and the composition has turned over almost
+  configuration; and **§3.2's acceptance of the repeated-text collision** (§13 row 28), new in round
+  ten — the residual is a rewrite of the right text conditioned on an earlier turn's question, and
+  accepting it makes no rule true, it prices one. The first two are latency, the third is a disclosed
+  failure path, the fourth is a bound, and the fifth is an accepted cost.
+  **A clause counts here only if a rule stated elsewhere in this document is FALSE without it.**
+  **The count went 3 → 6 → 5 → 8 → 10 → 10 → 10 → 10 → 10 → 10 → 10 → 10, and the composition has turned over almost
   completely twice.** **This chain read `3 → 6 → 5 → 8 → 10 → 10 → 10` until the recount of 2026-08-26**,
   which is the same debt §13's table carried: the steps for round six, for #28's two carried rounds, for
   the review of the sleep measurement's repair and for the recount itself were simply absent, and every
-  one of them turns out to be flat. **Six consecutive flat steps is the fact to read here, and it is not
+  one of them turns out to be flat. **Seven consecutive flat steps is the fact to read here, and it is not
   a fact about calm**: round five took the count to ten and nothing has moved it since, while the entries
-  underneath it were rewritten twice and widened three times. Round six **widened** entry (10) — the
+  underneath it were rewritten twice and widened four times. Round six **widened** entry (10) — the
   generation-tagged marker grew the rule that its removal must follow the record's atomic publication;
   #28 **widened** (6) and (9) — the owner and player identity tests grew a fail-closed branch for a
   lookup that fails rather than a process that is absent; the sleep measurement **rewrote** (3) by
   falsifying it; the review of that repair **rewrote** (3) again, because the repair's own claim was too
   strong; round seven **widened** (1) — the ordering that entry already carried grew a second clause, the
-  order of the two sweep halves against each other; and the recount changed (3)'s wording and nothing
-  else. **A flat count can hide a widened entry as
+  order of the two sweep halves against each other; the recount changed (3)'s wording and nothing
+  else; and round ten **widened** (4) — the content-addressed publish keeps its mechanism and loses the
+  one-generation-per-path reading two of its own clauses had put on it. **A flat count can hide a widened entry as
   easily as a rewritten one**, which is the same failure this list found in (9): arithmetic that is
   honest and entries that are wrong about what they cover — and six flat steps in a row is that failure
   at its largest scale so far. **The first flat step is the one worth naming on its own, and the reason is worth stating rather
@@ -3910,15 +4074,15 @@ Stated so a reviewer can attack the right parts.
     finding out what it did not know. **Ten is the number to be uncomfortable about only if the
     alternative reading is that eight was ever the true one**; it was not, and the two entries round
     five added were false before it wrote them down.
-- **ELEVEN reads of this document, TWO review rounds of its sibling carried across, and TWO measurement
-  rounds have now found THIRTY-FOUR
+- **TWELVE reads of this document, TWO review rounds of its sibling carried across, and TWO measurement
+  rounds have now found THIRTY-SIX
   correctness defects in text this revision itself marked LOCKED, and the rate — not any one defect — is
   the weakness.** Counted so the number is checkable, off §13's table rather than off this sentence:
   **four in round one, two in round two, three in the first measurement round,
   two in round three, five in round four, four in round five, four in round six, two carried across
   from #28's rounds 24 and 25, one in the sleep measurement, one in the review of that measurement's
-  own repair, two in round seven, one in the recount that settled these numbers, and two in round
-  eight and one in round nine** — fourteen labels, `4+2+3+2+5+4+4+2+1+1+2+1+2+1 = 34`, derived by counting the table's own rows
+  own repair, two in round seven, one in the recount that settled these numbers, two in round
+  eight, one in round nine and two in round ten** — fifteen labels, `4+2+3+2+5+4+4+2+1+1+2+1+2+1+2 = 36`, derived by counting the table's own rows
   and grouping them by label rather than by adding to the previous total. **This bullet said NINE reads
   and THIRTY-ONE, over a twelve-item tally, until 2026-08-26**, when round eight's two rows had been
   added to §13 and its note re-derived and this sentence had not: a miscount rather than
@@ -3942,6 +4106,15 @@ Stated so a reviewer can attack the right parts.
   *Round nine*: that withdrawal was itself wrong — **no** bound on the specified hook is available in
   either direction, and at §10.6 the *lower* bound was also the wrong direction for a *"dies within"*
   sentence, which needs a ceiling. §13 row 9, and the second member of class `M2′`.
+  *Round ten*: §3.2's identical-text exception accepted on the premise that a rewrite of the same text
+  is the same correct rewrite, when `rewrite.sh:183-188` makes a generation a function of **(assistant
+  text, last user message)** and `H` names only the first half — LOCKED text in seven sections, and the
+  first finding in this table to reach a **key**; the key did not move, the acceptance was re-argued from
+  what the rewrite is and marked `[inferred]`, and §13 row 28 carries a measurement-first closing
+  condition. And §10.6 restating one removal outcome as the outcome for all four clauses it rests on,
+  false for clause 7(v), which is row 9's shape again. **The first of the two WIDENED entry (4) below**
+  rather than adding an eleventh: §3.1's content-addressed publish is unchanged as a mechanism and its
+  immutability claim now has a stated limit.
   *The recount*: the `[inferred]` entry (3) above still carrying the
   *"ordering by construction"* claim that `M2′` had withdrawn from §10.5 clause 6 and round seven had
   withdrawn from §13 row 24 — one withdrawal, three sites, the third reached only by re-deriving these
@@ -4046,10 +4219,11 @@ Stated so a reviewer can attack the right parts.
   shape appeared, §13 rows 20 and 21 were pointed at it, and the run confirmed the smell** — both of
   its ordering rules failed, and the repair that held is §3.1's repair again: a record that is created
   and never mutated, with ownership carried by a name.
-- **All thirty-four are repaired in place, none needed a new decision from the listener, and that is why
-  §13 still answers *"can #11 lock?"* with yes.** But eleven reads of this document, two reads of its
+- **All thirty-six are repaired in place, none needed a new decision from the listener, and that is why
+  §13 still answers *"can #11 lock?"* with yes — with one qualification round ten added, that row 28's
+  closing condition is a measurement whose *result* could put a choice in front of the listener.** But twelve reads of this document, two reads of its
   sibling and two experiments on the
-  same text found thirty-four real defects; the second read found defects **in the first read's repairs**;
+  same text found thirty-six real defects; the second read found defects **in the first read's repairs**;
   the experiment found that **two of the first read's repairs were themselves wrong**; the fourth
   read — the only one to find nothing wrong in anybody's repair — still found **five**, in four
   sections, every one of them in text that had been read at least twice already; the fifth read
@@ -4063,10 +4237,15 @@ Stated so a reviewer can attack the right parts.
   list; **and the eighth read found two, both of them a repair that landed at one of two parallel sites**
   — the `unverifiable` branch added to clause 2 and §10.3 step 6 and to neither of the two sites that
   inherit from them, which is
-  the only one of the nine rounds' findings whose stale copy still **signals a process**, and the
+  the only one of the ten rounds' findings whose stale copy still **signals a process**, and the
   hook's withdrawn 0.063–0.219 s range still quoted as measured two sections away; **and the ninth read
   found one — that round eight's own withdrawal had overclaimed the other way**, restating an unusable
-  measurement as a *lower bound* at four LOCKED sites.
+  measurement as a *lower bound* at four LOCKED sites; **and the tenth read found two, the first of
+  which is the only finding in ten rounds to reach a KEY** — §3.2's identical-text exception resting on
+  *same text, therefore same correct rewrite* when `rewrite.sh:183-188` makes the rewrite a function of
+  the text **and the last user message** — **and the key still did not move**, because the residual is a
+  rewrite of the right text under the wrong question rather than the wrong-turn utterance §3.2 exists to
+  prevent, so the acceptance was re-argued and row 28 opened instead.
   **The rate is not falling, and round four's clean sheet on repairs did not hold as a trend.**
   **Round six is the sharpest datum on that**: two of its four are defects in round five's repairs and
   the other two are LOCKED bookkeeping that had drifted from the tables it summarised, so not one of the
