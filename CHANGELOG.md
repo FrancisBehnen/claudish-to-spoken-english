@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Speech, off by default.** With `CLAUDISH_SPEAK=1` the plugin speaks each
+  turn's plain-English rewrite aloud through a local Kokoro voice (`bf_emma`).
+  A new `Stop` hook, `speak.sh`, gates, classifies, drops a job and forks a
+  detached speaker in ~0.11 s; the speaker waits for the rewrite to be
+  published, sanitizes it with the settled rule set, splits it into sentences
+  and plays sentence one while sentence two is still being synthesised.
+  Measured hook-invocation-to-wav: 2.08–2.68 s. `touch
+  ~/.claude/claudish-speak-off` mutes it mid-utterance;
+  `~/.claude/claudish-off` still stops both speech and rewriting. New vars:
+  `CLAUDISH_SPEAK`, `CLAUDISH_SPEAK_OFF_FILE`, `CLAUDISH_VOICE`,
+  `CLAUDISH_PLAYER`, `CLAUDISH_SPEAK_TIMEOUT`, `KOKORO_ROOT`
+  (FrancisBehnen/claudish-to-spoken-english#23). This is the **cold path**: the
+  spec's resident worker and its preemption protocol are deliberately not
+  built — see [`docs/decisions/speak-cold-path.md`](docs/decisions/speak-cold-path.md).
+- `speak-key.sh`: the one definition of the rewrite→speech handoff key,
+  `sha256( trim( text ) )`, sourced by `rewrite.sh` and `speak.sh` alike so the
+  publisher and the consumer cannot compute different paths and leave the
+  plugin silently mute. Pinned by `tests/speak-key-cases.tsv` against an
+  independent Python implementation, under both hooks' shell regimes.
+- `tests/`: a `Stop` payload fixture and two scripts that exercise the speech
+  hook with no Claude Code session involved.
 - `claude-cli` provider: rewrites can run through the local `claude` binary in
   print mode, on your existing Claude Code subscription instead of a metered API
   key or a local model (~8–12 s per message on an M3, versus ~15–25 s for a
@@ -23,6 +44,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   answer and break the fail-open contract.
 - `ratelimited` is now part of the `llm_complete` contract, so a subscription
   quota refusal gets its own once-per-session notice rather than a generic one.
+
+### Changed
+- `bench/sanitizers.py` moved to `speech/sanitizers.py`, and
+  `bench/first-sentence.py`'s `_SENT_END` / `first_sentence` moved to
+  `speech/split.py`. Both are now at the plugin root so the shipped `Stop` hook
+  imports the same code the bench harness measures, rather than reaching into
+  `bench/` by path. The registry, `run()`, and every rule are unchanged; the
+  bench scripts are now callers rather than owners.
 
 ## [0.3.0] - 2026-08-13
 

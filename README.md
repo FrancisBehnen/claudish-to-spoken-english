@@ -501,6 +501,101 @@ see — much slower for identical output quality on this simple task. Keep it of
 
 ---
 
+## Speech (optional third hook) — hear the rewrite spoken aloud
+
+**Off by default.** With `CLAUDISH_SPEAK=1` the plugin speaks the plain-English rewrite of
+each turn's final message through [Kokoro](https://github.com/thewh1teagle/kokoro-onnx), a
+local neural TTS. Nothing is sent anywhere; synthesis runs on your machine.
+
+```bash
+export CLAUDISH_SPEAK=1        # in your shell profile, or "env" in ~/.claude/settings.json
+```
+
+That is the whole enable. The plugin ships a `Stop` hook that fires on every turn for every
+user; when `CLAUDISH_SPEAK` is not `1` it exits before it reads stdin, before it needs `jq`,
+and before it parses anything. The residual cost of having speech installed but off is **one
+bash process per turn**. Small, new, not zero.
+
+### Requirements
+
+- **macOS.** `afplay` is the only verified player. The player is configurable and other
+  platforms are not promised.
+- **A Kokoro venv at `$KOKORO_ROOT`** (default `~/.local/share/kokoro`) containing
+  `kokoro-v1.0.onnx`, `voices-v1.0.bin`, and `venv/bin/python` with `kokoro_onnx`,
+  `onnxruntime` and `soundfile` installed. See
+  [`docs/research/kokoro-onnx-provisioning.md`](docs/research/kokoro-onnx-provisioning.md).
+- **`espeak-ng` is not a prerequisite.** `libespeak-ng.dylib` ships inside the
+  `espeakng-loader` wheel.
+- `jq`, as for the rewrite hook.
+
+If any of that is missing, speech is silent — there is no on-screen notice, because a `Stop`
+hook has no way to write to the screen. `CLAUDISH_DEBUG=1` and
+`$TMPDIR/claudish-to-english/debug.log` are the only diagnostic.
+
+### Configuration
+
+| variable | default | note |
+| --- | --- | --- |
+| `CLAUDISH_SPEAK` | **`0`** | off by default. The only variable in this plugin whose default is "feature off". |
+| `CLAUDISH_SPEAK_OFF_FILE` | `~/.claude/claudish-speak-off` | runtime mute, **separate from `claudish-off`**. Checked fresh every invocation, and again before every sentence. |
+| `CLAUDISH_VOICE` | `bf_emma` | chosen blind against real content; `af_heart`, `af_nicole`, `af_bella` and `am_michael` were all rejected. |
+| `CLAUDISH_PLAYER` | `afplay` | `wav` plays directly; no `sox`/`ffmpeg` needed. |
+| `CLAUDISH_SPEAK_TIMEOUT` | `30` | bounds **synthesis**, not the hook. |
+| `KOKORO_ROOT` | `~/.local/share/kokoro` | the same name the bench harness uses; there is no second one. |
+| `CLAUDISH_DEBUG` | `0` | reuses the rewrite hook's flag and its log file. There is no separate speech debug flag. |
+| `CLAUDISH_SPEAK_MIN_CHARS` | — | **deliberately does not exist.** A separate length gate for speech was considered and declined: the existing `CLAUDISH_MIN_CHARS` already decides whether a message is rewritten, and below it a short clean message is spoken raw rather than skipped. A knob nobody has justified does not ship. |
+| `CLAUDISH_TTS_URL` | — | **deliberately does not exist.** The HTTP-server branch was measured and declined; there is no endpoint to point at. Synthesis is in-process. |
+
+The wait for the rewrite has **no knob of its own**, on purpose: it is derived as
+`min(CLAUDISH_TIMEOUT + 2, 60) + 3` seconds — 50 s at the defaults — from the same variable
+the rewrite's own LLM call uses and from the display hook's declared 60 s timeout. Raising
+`CLAUDISH_TIMEOUT` above **58** does not extend it, because at that point the display hook's
+own budget binds first and a rewrite that overruns it publishes nothing at all. (Moving *that*
+timeout means editing `hooks/hooks.json` in the plugin.)
+
+### Mute vs disable
+
+```bash
+touch ~/.claude/claudish-speak-off   # stop speaking, keep rewriting on screen
+rm    ~/.claude/claudish-speak-off   # resume
+
+touch ~/.claude/claudish-off         # stop BOTH: no speech and no rewrite
+```
+
+`claudish-speak-off` takes effect **mid-utterance** — the speaker re-checks both files before
+every sentence and while a sentence is playing, so audio that is already sounding stops within
+about a fifth of a second.
+
+### The speech arrives after the rewrite, and that is not a bug
+
+The `Stop` event fires *concurrently with* the last chunk of the assistant's message — measured
+a median 6.7 ms **before** it — and the text that gets spoken is the rewrite, which takes an LLM
+call. So the answer appears on screen and is spoken a few seconds later. If the rewrite never
+arrives, speech gives up silently at the derived deadline above.
+
+Two consequences worth knowing:
+
+- **Only the rewrite is ever spoken**, never Claude's raw markdown — with one exception: a
+  message too short to be rewritten at all is spoken raw, and only if it carries none of eight
+  disqualifying constructs (code fences, URLs, and paths, whose spoken form drops information
+  a rewrite would have said in words).
+- **Subagents never speak.** The `Stop` event does not fire for them, and the plugin ships no
+  `SubagentStop` hook. A turn that ends while a background task is still running stays silent
+  too.
+
+### Trying it without Claude Code
+
+```sh
+tests/speak-selftest.sh        # six cases, real audio
+tests/speak-selftest.sh -q     # same, silent
+tests/speak-key-test.sh        # pin the rewrite→speech handoff key
+```
+
+[`docs/decisions/speak-cold-path.md`](docs/decisions/speak-cold-path.md) is what was built,
+what was deliberately deferred, and the measured latency.
+
+---
+
 ## Privacy / egress
 
 With the default provider the rewriter runs **entirely locally** against
@@ -524,10 +619,15 @@ claudish-to-english/
 │   ├── plugin.json         # plugin manifest
 │   └── marketplace.json    # so the repo can be added as a marketplace directly
 ├── hooks/
-│   └── hooks.json          # MessageDisplay -> rewrite.sh ; PostToolUse -> rewrite-md.sh
+│   └── hooks.json          # MessageDisplay -> rewrite.sh ; Stop -> speak.sh ; PostToolUse -> rewrite-md.sh
 ├── rewrite.sh              # display-rewrite hook
 ├── rewrite-md.sh           # markdown-file rewrite hook (opt-in)
 ├── providers.sh            # provider layer (ollama/anthropic/openai/claude-cli), sourced by both hooks
+├── speak.sh                # speech hook (opt-in, off by default)
+├── speak-key.sh            # the rewrite->speech handoff key, sourced by rewrite.sh AND speak.sh
+├── speak-child.py          # the detached speaker: waits, sanitizes, splits, synthesises, plays
+├── speech/                 # sanitizer + sentence splitter, shared with the bench harness
+├── tests/                  # payload fixture + standalone hook tests
 ├── CHANGELOG.md            # notable changes per version (Keep a Changelog)
 ├── LICENSE
 └── README.md
