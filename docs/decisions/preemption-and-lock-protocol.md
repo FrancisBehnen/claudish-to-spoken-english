@@ -179,16 +179,19 @@ owner's pid, which only row 21's generation protocol supplies — a protocol tha
 record of the worker it replaced cannot. They can no longer be signed off independently.
 
 **Both rows stay ship-blocking**, and the reason has changed: they are no longer unverified.
-**Thirteen consecutive rounds of review have each found a real defect in the previous round's
+**Fourteen consecutive rounds of review have each found a real defect in the previous round's
 confident answer** — §6 counts them off its own table, which is a floor rather than a total, and
 round 27 replaced the three different numbers this document used to carry for the one tally.
 Among them: a defect in the repair this document proposed, one in the *text* of the repair
 that replaced it, round 16's defect in the identity check round 15 added to repair the repair,
 round 17's in the *derivations* of two published figures rather than in any mechanism, round
 27's in the document's own **choice of noun** — a quantity called *audibility*, tagged
-`[measured-here]`, derived entirely from process stamps by a rig in which nothing listens — and
+`[measured-here]`, derived entirely from process stamps by a rig in which nothing listens —
 round 28's in that correction's **reach**: the noun was fixed in thirteen sentences and left
-standing in the published **column name** those sentences describe. See §6.
+standing in the published **column name** those sentences describe; and round 29's in the
+**reach of three more of this branch's own repairs** — a fail-closed path with no consumer, a
+rule fixed in one of its three copies, and a denominator check that counts rows and never reads
+the trial column. See §6.
 
 ---
 
@@ -238,21 +241,29 @@ the two arms are compared under the same predicate rather than across a changed 
 [`preemption-trials-replication.tsv`](preemption-trials-replication.tsv) the replication, and
 `preemption-lock-probe/compare_passes.sh` prints them side by side.
 
-**Fifteen derivation defects have been found by review, and all fifteen are addressed here —
-fourteen fixed, and the fourteenth re-labelled because it cannot be fixed by deriving anything.
+**Sixteen derivation defects have been found by review, and all sixteen are addressed here —
+fifteen fixed, and the fourteenth re-labelled because it cannot be fixed by deriving anything.
 Five of them made the reproducibility claim false, which was the claim the whole document rested
 on.** The first three came from review of the first revision; the next two from round 5, the sixth
 from round 15, the seventh and eighth from round 16, the ninth and tenth from round 17, the
 eleventh from round 21, the twelfth from round 24, the thirteenth from round 26, the fourteenth
-from round 27, the fifteenth from round 28, and all of them are of
+from round 27, the fifteenth from round 28, the sixteenth from round 29, and all of them are of
 the same kind — a figure whose
 name and whose derivation are not the same quantity, or a derivation that does not reach the
 figure it is cited for.
-**One entry in this list has also RECURRED rather than merely been found: number 8's claim that the
-committed TSVs suffice on their own was fixed in `summarise.sh`'s header in round 16 and was then
-written into `collect.sh`'s header, where round 28 found it again** (see the note under 8). A
-disclosure list whose entries can come back needs to say so, because "addressed" is otherwise read
-as "gone".
+**TWO entries in this list have also RECURRED rather than merely been found, and both recurrences
+are the same mistake: a fix applied to one site and not to its sibling.** Number 8's claim that
+the committed TSVs suffice on their own was fixed in `summarise.sh`'s header in round 16 and was
+then written into `collect.sh`'s header, where round 28 found it again (see the note under 8).
+Number 7's attribution chain was fixed in `summarise.sh` in round 16 and left standing in the
+**two other scripts that carried their own copy of the same rule** — `compare_passes.sh`, which
+this document cites as the replication-agreement check, and `peek_one.sh` — where round 29 found
+it, still wrong, thirteen rounds later (see the note under 7). A disclosure list whose entries can
+come back needs to say so, because "addressed" is otherwise read as "gone" — and a list where two
+of sixteen have come back **the same way** is saying something about the shape of the repairs
+rather than about either entry. **Round 29's response to number 7 was therefore not to fix the two
+copies**: the rule now has exactly one definition, in `preemption-lock-probe/attrib.sh`, which is
+the only change that makes the recurrence unrepeatable.
 **Numbers 11, 12 and 13 are all defects in the fix for number 9**, on the same figure, and that is
 worth saying plainly: `C14a`'s destruction count has now been through a withdrawal and four
 repairs. It has not moved through any of them, and that is a fact about this data rather than
@@ -333,6 +344,32 @@ symptom would have been the *opposite* claim about the same trial.
    bite on a **re-run**, on an arm that has already produced the doubly-signalled process once.
    Fed a hand-crafted `rc=-14, plog=31` row, the old chain reports `election-sweep-record` and
    the new one `election-sweep-pgid`.
+
+   **THIS DEFECT HAS RECURRED, AND ROUND 29 FOUND IT IN TWO MORE COPIES OF THE SAME RULE.**
+   Round 16 fixed `summarise.sh` and did not look for siblings. There were two, both reading the
+   same two columns of the same TSV to answer the same question:
+   `compare_passes.sh:27` — **the script this document cites as the replication-AGREEMENT
+   check** — and `peek_one.sh:27`. Thirteen rounds later both still had the override, and
+   `peek_one.sh` had it in a **worse order**, testing `-31/31` first, which is the precise
+   ordering the paragraph above describes. `compare_passes.sh` also **omitted SIGALRM
+   entirely** — no `-14/14` arm at all — which is a second and separate failure: it is not that
+   the weaker source won, it is that the rule had no answer, so every `rc=-14` row scored
+   `unknown` and two passes could appear to agree on a bucket meaning *this script has no rule*.
+   **Unlike the override half, that half was NOT latent**: the 12 `C12a_pgid_pubfirst` rows at
+   `(rc=-, plog=14)` scored `unknown` in the committed comparison and score
+   `election-sweep-pgid` now. **Nine** of `compare_passes.sh`'s printed lines change, across
+   **eight** configurations: four move off `unknown` — `C12a` to `election-sweep-pgid`, and
+   `C12b`, `C13b` and `C16a` to `killed-before-exec`, an arm this script never had at all — and
+   four are the single `election-sweep` bucket splitting into `-record`/`-pgid` (`C9_ledger`,
+   `C11a`, `C15c`, `C16b`). Nine lines for eight configurations because `C9_ledger` appears in
+   both per-file blocks. **The agreement verdict does not change** — 11 shared configurations,
+   attribution for attribution — because seven of the eight are published-arm-only and outside
+   the intersection it diffs, and the eighth (`C9_ledger`) changes identically on both sides.
+   The rule is now defined **once**, in `preemption-lock-probe/attrib.sh`, and all three scripts
+   source it; each refuses to run if it is missing or defines nothing, because an empty `awk`
+   program is a legal one and would have normalised every row to the same blank value and
+   *passed*. Filing it as a recurrence rather than as a new number is deliberate: it is one rule
+   that was fixed in one of its three copies.
 8. **`summarise.sh`'s own header claimed more coverage than the script has — round 16.** Line 2
    read *"Every published figure, re-derived from the committed TSVs"*. It is not every figure.
    The aggregate TSVs are one row per **trial**, and several published figures are counts of
@@ -596,12 +633,55 @@ symptom would have been the *opposite* claim about the same trial.
    name. Both moved with it. **The pattern is defect 14's own, one level down** — *one claim,
    corrected in one place* — and filing it as four rows would have counted one mislabel four
    times.
+16. **A DENOMINATOR CHECK THAT COUNTS ROWS AND NEVER READS THE TRIAL COLUMN — round 29, in the
+   one place this rig had left.** Round 17 validated row 21's denominator and round 19 row 20's,
+   and **both check trial IDs**: each accepts a cell only if it carries each ID exactly once,
+   precisely because *"the right number of rows"* and *"the right rows"* are different claims and
+   a duplicate makes the first true while the second is false. Round 19's own comment says so —
+   *"a duplicated row collapses to the same key, so `n[c]` still reaches 12 while every summary
+   below counts the row twice"*. **Section E was never brought up to that rule.** Its guard
+   (`summarise.sh:388` before this revision) counted rows per arm and compared the total to
+   `REAL_TRIALS`, so an arm whose trials are **`1, 1, 2`** has three rows, passes at `want=3`
+   while **trial 3 is absent**, and every `stats` call below it then reads trial 1 **twice**.
+   Section E's whole content is two medians of three observations, so one double-weighted
+   observation moves a published figure outright — demonstrated on the committed data, where the
+   `REAL-off timerstart_to_exit_s` median reads **5.4803** from the `1,1,2` input against the
+   true **5.4824**. The guard now requires each arm to carry each ID from 1 to `want` exactly
+   once, in the same vocabulary as its two siblings.
 
-**Five HARNESS defects were also found and are disclosed here, because three of them changed
+   **THE SAME GAP WAS IN THE GENERATOR OF THE FILE SECTION E READS, and there it is reachable
+   without anyone hand-editing anything.** `collect_real.sh`'s three checks (`n_off`, `n_pid`,
+   `rows`) are all counts. Its loop walks `"$O"/REAL-*` and re-keys the arm from each **directory
+   name**, so three run directories that each yielded only trial 1 produce three `REAL-off` rows
+   all numbered 1: `n_off == 3`, every existing check passes, and the section-E median of three
+   is one observation counted three times. Demonstrated, refusing with *"REAL-off has 1 DISTINCT
+   trial id(s), expected 3"* on exactly that input while still reproducing the committed
+   `real-audio-trials.tsv` byte-for-byte from `traces/`.
+
+   **A third site has the shape and gets a narrower claim.** `verify_fires.sh`'s `check()` counts
+   `entry`/`K`/`Rdone` markers against `1 + 2N` (or `1 + 3N`) and never reads the **tag**, so
+   `entry=25` passes whether the tags are `warmup + t1..t12` or `warmup + t1..t11 + t99`, and it
+   passes a marker set where `t3a` appears twice and `t7b` not at all — a trial whose hook never
+   fired, reported as *"all hooks fired"*, which is the sentence this document quotes from this
+   script. The tag set is now checked against the hook contract in the script's own header. It is
+   filed as part of this defect and not as its own, and the claim is deliberately weaker: in a
+   live run tree the tags are marker **filenames** in one directory and so unique by
+   construction, so only the *set* can go wrong there, and a duplicate can reach the committed
+   `*.markers.tsv` only by hand. Both are checked anyway, on the same ground every other guard
+   here rests on — validate the input, do not trust how it was produced. **No committed figure
+   moves under any of the three**: the committed marker sets are exactly `warmup` + `t1a..t12b`
+   (`+ tNc` for `C14a`/`C14b`) with no duplicate anywhere, the committed `real-audio-trials.tsv`
+   carries `1,2,3` per arm, and `verify_fires.sh traces 12` still prints its 21 `OK` lines and
+   the same five `MISSING` configurations and exits 2.
+
+**Six HARNESS defects were also found and are disclosed here, because three of them changed
 results and one of them destroyed data.** They are listed rather than quietly fixed, since a
 reader deciding how much to trust these numbers should know what went wrong in producing them.
-The fourth was found in round 3 and it touches a published figure; the fifth, in round 27, is
-the only one that could have contaminated a *future* run rather than a past one.
+The fourth was found in round 3 and it touches a published figure; the fifth, in round 27, and
+the sixth, in round 29, could only have contaminated a *future* run rather than a past one — and
+the sixth is the only one on this list that would have produced **affirmative evidence for a
+mechanism out of a failure to measure it**, which is why it is the sharpest of the six despite
+moving nothing.
 
 1. **`nohup` made the process-group sweep a silent no-op.** The sweep used `SIGHUP`; `nohup`
    sets it to `SIG_IGN`, inherited across `fork` *and* `exec`. `killpg` returned success and
@@ -672,6 +752,55 @@ the only one that could have contaminated a *future* run rather than a past one.
    contamination it enables would have been invisible in the run that suffered it.
    (`run_lock.sh` was checked for the same shape and does **not** have it: every background
    `lockrace.py` is `wait`ed, including on its VOID paths, and none carries an idle timeout.)
+6. **A REFUSED PUBLICATION WAS COLLECTED AS A SUCCESSFUL HOOK PREEMPTION — round 29. This one
+   does not mislabel evidence, it MANUFACTURES it, and it is defect 4's branch one round on.**
+   Round 25 made `speakd_probe.py` fail closed on a failed identity lookup: rather than publish a
+   pid record no signaller would act on, it stops the player **through the Popen handle** and
+   records `publish_refused`. The trial then measured nothing — no record was published, and the
+   player died by the worker's own hand. **That fix had no consumer anywhere.** The chain, each
+   step of which was verified:
+
+   1. the probe emits `W_pid_write … by=worker result=refused identity=lookup_failed`;
+   2. `collect.sh`'s middle `W` branch tested `V["result"] != "disabled"` — **a blind else** — so
+      `refused` fell straight through it and stamped `W[job]`, recording a publication that was
+      *refused* as one that *happened*, at the instant of the refusal;
+   3. the refusal path calls `Popen.terminate()`, i.e. `SIGTERM`, so the parent reaps `rc=-15`;
+   4. the attribution rule maps `rc=-15` to **`hook-pid-kill`**. No hook ran.
+
+   So a transient `ps` failure could be published as a successful hook-side pid kill — direct
+   support for the very mechanism row 20 certifies — and **nothing refused it**: `publish_refused`
+   appears in no collector, no validator and no analyser. **It is defect 4's own branch, and
+   defect 4's own mistake.** Defect 4 is `collect.sh` reading a `W_pid_write` that is not a
+   publication as `W`; this is `collect.sh` reading a `W_pid_write` that was *refused* as `W`. The
+   `by=player` arm of that branch was disclosed in round 3 and the `result=` arm was left blind,
+   which is the pattern the derivation list's recurrence note describes. It gets its own number
+   because its consequence is new: defect 4 contributed synthetic *samples* to a window, this
+   fabricates support for a *mechanism*.
+
+   **The committed figures are NOT affected, and that was checked rather than assumed**: `grep`
+   over `traces/` finds **zero** occurrences of `publish_refused` and **zero** of
+   `result=refused`, so no committed trial took this path. Like defect 5, it could only have
+   contaminated a *future* run.
+
+   **The repair rejects the run rather than carrying a VOID outcome, and the cost is stated.** A
+   VOID flowing through the schema is more informative and was the other candidate; it loses on
+   consumers. Adding a column means teaching `summarise.sh` sections A–F, `compare_passes.sh` and
+   `peek_one.sh` to refuse a VOID row, and **missing one of them would recreate exactly this
+   defect — a new outcome with no consumer — inside the fix for it.** Rejecting needs no new
+   consumer: every caller of `collect.sh` already checks its exit status (`assemble.sh:36`,
+   `assemble_pass1.sh`, `peek.sh:13`, `peek_one.sh:20`), a set that was verified to be complete.
+   **The cost is that the whole configuration is refused, not the one void trial**: its other
+   eleven good trials are discarded with it and the configuration must be re-run, where a VOID
+   column would have let those eleven be analysed. There is deliberately **no override flag** — a
+   refused publication measured nothing, so there is no reading of the trial a flag could make
+   valid. `publish_refused_kill_failed` is rejected on the same line and is strictly worse: the
+   `terminate()` itself raised, so the player may still be **running** and is unreachable by every
+   signaller, no record having been published. The `W` branch now names every value of `result`
+   instead of testing `!= "disabled"`, and an unrecognised value is refused too, so a value added
+   later cannot inherit the published-successfully path by default. `analyse_round2.sh:129` was
+   the third consumer of this event and had the same reading — it anchored `C14a`'s
+   *"a record that certainly existed"* argument on any `W_pid_write`, refusals included — and now
+   skips them.
 
 **The first two are the reason this revision re-ran everything rather than patching numbers.**
 
@@ -2856,9 +2985,10 @@ a real defect** is the rule, `PR #27`'s pre-measurement round included, and the 
 | **PR #28 rev 8** | **the two derivations that carry `C14a`'s destruction count and row 21's denominator** | **Two findings, and both are the same shape: a published number whose own script does not establish it.** `analyse_round2.sh` printed *"PROVEN destructions of a published record: N + M"* by adding two **global** counters that share no key — not the trial, not the unlink — and then **asserted** that the two witnesses fell in the same trials and saw distinct unlinks. Neither half was derived, and the figure resting on it, **8 across 4 trials**, is itself the correction that replaced a withdrawn 24-across-12/12. The join keys were in the traces all along, including a **third file the block never opened**: `markers.tsv`'s `tNc entry` is the timestamp `hook-kills.log` does not carry. It is now a three-way join on `(trial, unlink timestamp)` that binds each hook-C witness to **one** unlink and prints the **union** with the intersection computed and each event's **rank** in its trial; the committed traces give intersection **0**, ranks **#1 and #2**, and the **same 8 across 4** — unchanged, now derived, and narrowing rather than asserting where a window is ambiguous. And `summarise.sh` checked only that `lock-owners.tsv` was **non-empty**, so an interrupted run or one missing a whole protocol × scenario cell re-derived the **1200-trial / 400-per-protocol** result over a smaller denominator and still exited 0. The matrix — **60 cells × 20 reps**, transcribed from `run_lock.sh` and deliberately *not* derived from the file under test — is now checked, rep numbers included, before any section prints. Its own first draft passed everything by **failing to run** (a literal newline in an `awk -v` assignment, which BWK awk rejects with no output); it now refuses when it cannot run |
 | **PR #28 rev 9, review round 21** | **the PROTOCOL, for the first time in ten rounds — two clauses and the derivation that carries `C14a`** | **Three findings, and the first two are in the design rather than in a script.** **(1) The player records never had an identity.** Round 20 anchored the record *name* to `<pid>.<8-hex>` so a `.pending` marker could not be parsed as a pid, and that parsing fix was read as though it made the pid an identity. It does not: nothing removes a player record when its player dies, so a record outlives its process for the whole session — the committed `C12b` warm-up record is in the election sweep's target list on **24 of its 25** elections — and **three** sites then signal a number taken straight from it (the hook, the election-time record sweep, and the claim-time kill the review did not name). The content is now the player's own `<pid>.<starttime>`, matching **PR #27 clause 7(i)** field for field so the two documents specify one scheme, and all three sites skip in silence on a mismatch. **(2) Superseding an `unverifiable` owner was not fail-safe, and the reason given for it was false.** Round 16 argued the election may supersede freely because the sweep refuses that verdict separately — but superseding is the licence to **consume jobs**, so a bare record belonging to a live legacy worker produces **two owners and overlapping audio**, which is the single invariant this document exists to hold. Nor can superseding be made into a drain: nothing in the protocol re-reads the lock after winning, and no notice can reach a worker that by definition predates it. The election now supersedes a **vacant** pid and refuses a **held** one, mixed-mode operation is declared **out of contract**, and the cost is stated — a session that **wedges** when a bare record's pid has been recycled, bounded to one session and loud in the trace. **(3) The repair for rev 8's own finding used an invalid bound.** The hook-C witness was bound to one unlink by `(W_pid_write[jNb], tNc entry)`, and `W` is the **parent's** deferral stamp taken after `Popen` returns while the wrapper is already running — harness defect 4, reintroduced as a bound by the block that had just withdrawn a lag figure for it. There is no observed publication instant in these traces to substitute, so the binding no longer needs one: it is now a **uniqueness** argument over `(S2_prespawn_stat[jNb], tNc entry)` with the trial filter removed. **The figure survives byte-identical at 8 across 4** — on this data the invalid bound happened to select the same events (nearest unlink **+41.258 ms**, bound uncertainty at most **2.687 ms**), so it was latent exactly as defect 7 was. All three are bench-demonstrated in both directions, 18 arms; all three stay **`[inferred]`** |
 | **PR #28 rev 10, review round 27** | **the two clauses round 4 and round 21 left behind, and the DOCUMENT'S OWN WORDS** | **Four findings, and the one that matters most is not in any script.** **(1) The real-audio arm never measured audibility, and said it did.** Every figure in §2.6 is an `afplay` **process** stamp — `overlap_s` is a reap stamp minus a `Popen`-return stamp, so **both endpoints over-count** — and nothing in this rig listens at any point. §2.6 had already conceded exactly that, for the *millisecond* figure only, in the paragraph under its own table; the concession never reached the **3.25–3.50 s** overlap figure or any of the places either number is quoted. The audio wording stood at **nine sites in this document and four in the rig**, including the §2.2 attribution table's entire last column (*"stale audio, s"*, over 26 rows of **stub** arms that open no audio device) and the §4d row-20 text that would have shipped into the spec. All thirteen are now process observations with audibility **`[inferred]`**; no figure moves and none is withdrawn (derivation defect **14**, the first in that list that is in the prose rather than in a script, and the second — after harness defect 4 — that **re-deriving cannot fix**). **(2) Round 4's own tightening of generation cleanup made it NON-RECOVERABLE.** *"Only the worker that created `g+1`"* means a creator that crashes between its terminal sweep and its unlink strands `g` **forever** — this document having already established that nothing external reaches a depth-3 symlink — so a crash loop accumulates generations without bound. The permission is recovered with a **condition rather than an exception**: a worker at generation `n` may unlink `g < n` only after **its own** sweep of `g`'s owner terminates, which is the ordering rule with the sweeper's identity dropped and not a hole in it. Four costs are stated, including the one it does **not** fix — `recycled` is deliberately non-terminal, so those generations still accumulate for the life of the session. **(3) *"A loser retries; it does not fail"* contradicted the 60-attempt bound in both implementations.** There are **three** terminal outcomes, not two, and the third — budget exhausted — left **no trace record at all**: measured on the committed probe, a `worker.lock.0` whose target does not parse made the worker **exit 0 after 0.12 s with `signal_dispositions` as the only line in its trace**. The exhaustion is now recorded with its breakdown, the unreadable-record path gets a backoff so the budget spans a **stated** 1.2 s instead of microseconds, and the recovery policy is named along with the caller property it rests on (§10.5 clause 4's per-invocation ensure step) and the wedge it accepts. **(4) Four fatal paths across two drivers left a worker running** under `--idle-exit-s 600` — ten minutes, and in the real arm holding a loaded ~340 MB model into the retry that was meant to diagnose the failure. `EXIT` traps installed at `WPID` capture, reading `$WPID` at trap time so a restarted worker is covered; demonstrated in both directions on both drivers plus the pre-fix contrast. `run_lock.sh` was checked and does not have the shape. Findings 2 and 3 stay **`[inferred]`** and unrun; finding 1 is a label correction; finding 4 is **[measured-here]** |
-| **PR #28 rev 11 (this), review round 28** | **round 27's own correction, and the unsafe-pid branch round 26 added to the hook** | **Two findings, and the first is round 27's failure mode applied to round 27.** **(1) The audibility correction reached thirteen SENTENCES and not the SCHEMA.** `audible_s` was still the name of column 18 in both committed preemption TSVs — **444 rows** of stub arms whose player opens no audio device — with `collect.sh` writing that header, `summarise.sh` section B headed *"was the stale utterance audible"* and glossing `0(never_started)` as *"no audio device was ever opened"* (true of every value in the column, so as a distinction it asserted the opposite), and `player_probe.py`'s docstring calling its own `player_start` an *"audible from"* stamp. A column name is what a downstream consumer reads, and a list of prose sites could not contain one. Renamed **`pstart_to_pend_s`** — its own derivation, `p_end_ts − p_start_ts`, both columns beside it — with the two TSVs differing from their committed versions **on line 1 and no other line**, data-row `sha256` identical. Filed as **one** derivation defect (15), not four: one mislabel with four copies. **(2) The hook reported, for one invocation, both that a record was found and refused AND that there was no record.** Round 26's unsafe-pid domain gate copied the `record_skipped` row from the identity branch beside it and not that branch's `found=1`, so a per-player invocation whose only record was unsafe fell through to `result=norecord` as well. `analyse_round2.sh`'s C14b hook-read summary counts the two with independent per-line counters and would have put that invocation in **both buckets**; `analyse_c14.sh` would have seen two hook-C rows and dropped the trial from both denominators. **Latent** — no committed trace carries a `record_skipped` row of any verdict — and latent the way defects 7, 11 and 13 were: the row it corrupts exists only because round 21 added the identity test. The three `continue`s beside it were audited and are correct; the question is *did a player record exist on disk*, and a `.pending` marker and an unparseable name answer no. **No committed figure moves under either finding**; the regression set is byte-identical apart from the two corrected headings |
+| **PR #28 rev 11, review round 28** | **round 27's own correction, and the unsafe-pid branch round 26 added to the hook** | **Two findings, and the first is round 27's failure mode applied to round 27.** **(1) The audibility correction reached thirteen SENTENCES and not the SCHEMA.** `audible_s` was still the name of column 18 in both committed preemption TSVs — **444 rows** of stub arms whose player opens no audio device — with `collect.sh` writing that header, `summarise.sh` section B headed *"was the stale utterance audible"* and glossing `0(never_started)` as *"no audio device was ever opened"* (true of every value in the column, so as a distinction it asserted the opposite), and `player_probe.py`'s docstring calling its own `player_start` an *"audible from"* stamp. A column name is what a downstream consumer reads, and a list of prose sites could not contain one. Renamed **`pstart_to_pend_s`** — its own derivation, `p_end_ts − p_start_ts`, both columns beside it — with the two TSVs differing from their committed versions **on line 1 and no other line**, data-row `sha256` identical. Filed as **one** derivation defect (15), not four: one mislabel with four copies. **(2) The hook reported, for one invocation, both that a record was found and refused AND that there was no record.** Round 26's unsafe-pid domain gate copied the `record_skipped` row from the identity branch beside it and not that branch's `found=1`, so a per-player invocation whose only record was unsafe fell through to `result=norecord` as well. `analyse_round2.sh`'s C14b hook-read summary counts the two with independent per-line counters and would have put that invocation in **both buckets**; `analyse_c14.sh` would have seen two hook-C rows and dropped the trial from both denominators. **Latent** — no committed trace carries a `record_skipped` row of any verdict — and latent the way defects 7, 11 and 13 were: the row it corrupts exists only because round 21 added the identity test. The three `continue`s beside it were audited and are correct; the question is *did a player record exist on disk*, and a `.pending` marker and an unparseable name answer no. **No committed figure moves under either finding**; the regression set is byte-identical apart from the two corrected headings |
+| **PR #28 rev 12 (this), review round 29** | **three fixes THIS BRANCH made, and the sites each one was not applied to** | **Three findings, and they are one pattern: a repair applied to one site and not to its sibling, or a new outcome with nothing taught to read it. That pattern is already the most frequent entry in this list, so the response is structural where it can be.** **(1) A refused publication was collected as a successful hook preemption.** Round 25's fail-closed identity path stops the player through the `Popen` handle and records `publish_refused`; **nothing consumed it.** `collect.sh`'s `W` branch tested `result != "disabled"` — a blind else — so `refused` stamped `W` as a publication that happened, the `terminate()` produced `rc=-15`, and the attribution rule called that **`hook-pid-kill`** although no hook ran. A transient `ps` failure would have been published as affirmative evidence for the mechanism row 20 certifies. It is **harness defect 4's own branch making harness defect 4's own mistake** — the `by=player` arm of it was disclosed in round 3 and the `result=` arm left blind — and it is filed as harness defect **6** because the consequence is new: defect 4 contributed synthetic samples to a window, this fabricates support for a mechanism. Zero occurrences in `traces/`, so **no committed figure moves**; the run is now rejected outright rather than carrying a VOID column, because a VOID would need five consumers taught to refuse it and missing one would recreate this defect inside its own fix. Two more consumers of the same event were swept: the `W` branch now names every `result` value, and `analyse_round2.sh:129` no longer anchors `C14a`'s *"a record that certainly existed"* on a refusal. **(2) The attribution rule had three copies and round 16 fixed one.** `compare_passes.sh` — **the script this document cites as the replication-agreement check** — and `peek_one.sh` each carried their own copy of derivation defect 7's chain, still wrong thirteen rounds after it was fixed in `summarise.sh`; `peek_one.sh` had it in the *worse* order, testing `-31/31` first. `compare_passes.sh` also **omitted SIGALRM entirely**, and that half was **not** latent: the 12 `C12a_pgid_pubfirst` rows at `(rc=-, plog=14)` scored `unknown` and score `election-sweep-pgid` now, with nine printed lines changing across eight configurations in the two per-file blocks. **The agreement verdict is unchanged at 11 shared configurations** — seven of the eight configurations are published-arm-only and outside the intersection it diffs, and the eighth changes identically on both sides. Filed as a **recurrence of 7**, not a new number, and repaired by giving the rule exactly one definition (`attrib.sh`) rather than by fixing two copies. **(3) A denominator check that counts rows and never reads the trial column.** Rounds 17 and 19 validated row 21's and row 20's denominators and **both check IDs**; section E was never brought up to it. An arm with trials `1,1,2` has three rows, passed at `want=3` with **trial 3 absent**, and every median below it then read trial 1 twice — demonstrated on the committed data, where the `REAL-off` median reads **5.4803** against the true **5.4824**. The same gap was in `collect_real.sh`, the **generator** of the file section E reads, where three run directories each yielding only trial 1 pass every count; and the shape is in `verify_fires.sh`, whose `entry=25` passes a marker set with `t3a` twice and `t7b` never — *"all hooks fired"* over a trial whose hook did not. Filed as derivation defect **16**, three sites, one rule. **No committed figure moves under any of the three**; all five regression checks are byte-identical except `compare_passes.sh`'s per-file blocks, which change for the reason stated |
 
-**Thirteen rows, and every one of them a round that found a real defect in the previous round's
+**Fourteen rows, and every one of them a round that found a real defect in the previous round's
 confident answer** — counted off the table rather than carried, and a floor rather than a total
 for the reason stated above. **Round 27 is the sharpest form of the pattern in the DOCUMENT**:
 two of its four findings are defects in clauses this document itself proposed as repairs (round
@@ -2882,7 +3012,7 @@ record, the thing measured was an append-only ledger, and the arm that measured 
 delay that guaranteed the sweep always ran after publication. When the ordering rev 1 claimed to
 close was finally staged (`C11b`), **the single-record form failed.**
 
-### So the counter-argument is now refuted in every round in that table — thirteen of them
+### So the counter-argument is now refuted in every round in that table — fourteen of them
 
 The original argument for non-blocking was that these clauses are *"cheap, obviously correct on
 inspection, and their failure windows are microseconds wide."*

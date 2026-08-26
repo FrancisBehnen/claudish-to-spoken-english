@@ -5,7 +5,30 @@
 # (BWK awk will not accept a line break after a ternary ':', hence the long lines.)
 # usage: compare_passes.sh <evidence_dir>
 set -u
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 D=${1:?dir}
+
+# THE ATTRIBUTION RULE IS NOT WRITTEN HERE ANY MORE, and that is the point of this
+# revision. This script carried its own copy of the attribution chain in summarise.sh,
+# over the same two columns of the same TSV. Round 16 fixed the copy in summarise.sh and
+# this one kept both of the defects that fix was about -- in the script the decision
+# document cites as the replication-AGREEMENT check. See attrib.sh for the rule, the
+# defect and its blast radius.
+if [[ ! -f "$HERE/attrib.sh" ]]; then
+  echo "compare_passes.sh: missing $HERE/attrib.sh -- the attribution rule lives there." >&2
+  echo "Without it every row would normalise to the same value and the two passes would" >&2
+  echo "agree trivially. Refusing to report agreement that was never tested." >&2
+  exit 2
+fi
+# shellcheck source=attrib.sh
+. "$HERE/attrib.sh"
+if [[ -z ${ATTRIB:-} ]]; then
+  echo "compare_passes.sh: $HERE/attrib.sh defined no ATTRIB. An empty awk program is a" >&2
+  echo "LEGAL one, so the comparison would run over blank attributions and PASS on every" >&2
+  echo "input. Refusing." >&2
+  exit 2
+fi
+
 TMP=$(mktemp -d) || { echo "compare_passes.sh: cannot make a temp dir" >&2; exit 2; }
 trap 'rm -rf "$TMP"' EXIT
 for f in preemption-trials-replication.tsv preemption-trials.tsv; do
@@ -20,11 +43,29 @@ for f in preemption-trials-replication.tsv preemption-trials.tsv; do
     echo "compare_passes.sh: $D/$f is missing or has no data rows -- nothing to compare." >&2
     exit 2
   fi
-  # Columns, from the TSV header: 13 player_pid, 14 rc, 16 alive_s, 17 player_log_sig.
-  # These offsets predated the insertion of Rdone_b and were reading player_pid as rc
-  # and alive_s as player_log_sig, so every row scored "unknown" and this comparison
-  # silently compared nothing.
-  awk -F'\t' '$1=="config"{next}{ a="unknown"; if ($14=="-15"||$17=="15") a="hook-pid-kill"; else if ($14=="-30"||$17=="30") a="worker-claim-kill"; else if ($14=="-31"||$17=="31") a="election-sweep"; else if ($14=="0"||$17=="0") a="NOTHING-ran-to-end"; else if ($13=="-") a="no-player-spawned"; printf "%s\t%s\n", $1, a }' "$D/$f" \
+  # Columns, from the TSV header: 13 player_pid, 14 rc, 17 player_log_sig, 18
+  # pstart_to_pend_s. These offsets predated the insertion of Rdone_b and were reading
+  # player_pid as rc and alive_s as player_log_sig, so every row scored "unknown" and
+  # this comparison silently compared nothing.
+  #
+  # ROUND 29. THE EXPRESSION THAT USED TO BE ON THE NEXT LINE HAD TWO MORE DEFECTS, and
+  # both were fixed in summarise.sh at round 16 and left standing here:
+  #
+  #   * `$14=="-15"||$17=="15"` let the PLAYER LOG OVERRIDE a conflicting wait status.
+  #     The wait status is the kernel`s, written once; the player log is the LAST of
+  #     possibly several `sig=` lines the player wrote. A row with rc=-14 and a final
+  #     player-log value of 31 scored as a record sweep.
+  #   * SIGALRM was OMITTED ENTIRELY -- no -14/14 arm at all -- so the 12
+  #     C12a_pgid_pubfirst rows at (rc=-, plog=14) scored `unknown`, and two runs could
+  #     appear to agree or disagree on a bucket that means "this script has no rule".
+  #
+  # It now calls the one shared rule, so the two passes are normalised by the same
+  # function summarise.sh publishes section A with, and a future correction cannot reach
+  # one and miss the other. The labels are summarise.sh`s, which splits the sweep into
+  # `election-sweep-record` and `election-sweep-pgid` where this script had a single
+  # `election-sweep`; both sides of the comparison are normalised by the same call, so
+  # the split cannot manufacture a disagreement.
+  awk -F'\t' "$ATTRIB"'$1=="config"{next}{ printf "%s\t%s\n", $1, attrib($14,$17,$13,$18) }' "$D/$f" \
     | sort | uniq -c | awk '{printf "%-5s %-20s %s\n",$1"x",$2,$3}' > "$TMP/$f.norm"
   sed 's/^/   /' "$TMP/$f.norm"
 done

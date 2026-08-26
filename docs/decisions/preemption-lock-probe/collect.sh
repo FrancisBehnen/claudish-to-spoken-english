@@ -45,6 +45,86 @@ for f in "$MD" "$MD/kills.log" "$D/player.log" "$D/worker.trace"; do
   [[ -e "$f" ]] || { echo "collect.sh: $D is not a complete run -- missing $f" >&2; exit 2; }
 done
 
+# ---- publish_refused: A VOID TRIAL THAT USED TO COLLECT AS SUCCESSFUL PREEMPTION
+#
+# ROUND 29, AND THIS IS THE SHARPEST OF THE THREE THIS REVISION CLOSES, because it does
+# not mislabel evidence -- it MANUFACTURES it.
+#
+# Round 25 made speakd_probe.py fail closed on a failed identity lookup: rather than
+# publish a pid record no signaller would act on, it stops the player through the Popen
+# handle and records `publish_refused`. The player is then dead, the record was never
+# published, and the trial measured NOTHING about preemption. THAT FIX HAD NO CONSUMER.
+# Downstream, every step read the void as a success:
+#
+#   1. speakd_probe.py emits `W_pid_write ... result=refused`.
+#   2. This collector`s W branch tested `result != "disabled"` -- a BLIND ELSE -- so
+#      `refused` fell through it and stamped W[job]. A publication that was REFUSED was
+#      recorded as a publication that HAPPENED, at the instant of the refusal.
+#   3. The refusal path calls Popen.terminate(), i.e. SIGTERM, so the parent reaps
+#      rc=-15.
+#   4. attrib.sh maps rc=-15 to `hook-pid-kill`. NO HOOK RAN. The trial is published as
+#      a successful hook-side pid kill -- direct support for the very mechanism row 20
+#      certifies -- out of a transient `ps` failure.
+#
+# A transient identity-lookup failure could therefore be published as evidence FOR
+# hook preemption. Nothing anywhere refused it: `publish_refused` appears in no
+# collector, no validator and no analyser, and it is absent from every committed trace
+# (grep over traces/ finds zero occurrences of `publish_refused` and zero of
+# `result=refused`), so the committed figures are NOT affected. This is a defect that
+# would bite on the next re-run.
+#
+# WHY REJECT THE RUN RATHER THAN CARRY A VOID COLUMN. A VOID flowing through the schema
+# is more informative, and it was the other candidate. It loses on consumers: adding
+# column 27 means teaching summarise.sh sections A-F, compare_passes.sh and peek_one.sh
+# to refuse a VOID row, and MISSING ONE OF THEM RECREATES EXACTLY THIS DEFECT -- a new
+# outcome with no consumer -- inside the fix for it. Rejecting the run needs no new
+# consumer, because every caller of this script already checks its exit status:
+# assemble.sh (:36), assemble_pass1.sh, peek.sh (:13) and peek_one.sh (:20) each refuse
+# to publish or print when collection fails. That consumer set is complete today and was
+# verified to be.
+#
+# THE COST, stated: the whole configuration is refused, not the one affected trial. Its
+# eleven good trials are discarded with the void one and the configuration must be
+# re-run, where a VOID column would have let the other eleven be analysed. That is the
+# price of a guard that cannot be misread, and a re-run of one configuration is cheap
+# next to a published row-20 arm that never happened.
+#
+# `publish_refused_kill_failed` is rejected on the SAME line and is strictly worse: the
+# terminate() itself raised OSError, so the player may still be RUNNING and is now
+# unreachable by every signaller, since no record was ever published.
+refused=$(awk -F'\t' '$5 == "publish_refused" || $5 == "publish_refused_kill_failed" { print $5 }' \
+          "$D/worker.trace" | sort | uniq -c)
+if [[ -n $refused ]]; then
+  echo "collect.sh: $D contains a REFUSED publication -- these trials are VOID." >&2
+  printf '%s\n' "$refused" | sed 's/^/  /' >&2
+  echo "The worker could not obtain the player identity, so it stopped the player through" >&2
+  echo "the Popen handle and published NO record. The resulting rc=-15 would be collected" >&2
+  echo "as a hook-side pid kill although no hook ran, turning a void trial into evidence" >&2
+  echo "for the mechanism row 20 certifies. Refusing to collect it." >&2
+  echo "Re-run $CFG. There is no override: a refused publication measured nothing, so" >&2
+  echo "there is no reading of the trial that a flag could make valid." >&2
+  exit 2
+fi
+# And any OTHER value in that field. The recognised set is exactly {absent, disabled,
+# refused, deferred_to_player} (speakd_probe.py:1554-1566). The W branch below now
+# dispatches on those names rather than on "not disabled", so a value added later must
+# stop here instead of silently taking the published-successfully path -- which is the
+# blind else that made `refused` a defect in the first place.
+unknown_w=$(awk -F'\t' '
+  $5 != "W_pid_write" { next }
+  { n = split($6, f, " "); r = ""
+    for (i = 1; i <= n; i++) { split(f[i], kv, "="); if (kv[1] == "result") r = kv[2] }
+    if (r != "" && r != "disabled" && r != "refused" && r != "deferred_to_player") print r }' \
+  "$D/worker.trace" | sort -u)
+if [[ -n $unknown_w ]]; then
+  echo "collect.sh: $D has W_pid_write result value(s) this collector has no rule for:" >&2
+  printf '%s\n' "$unknown_w" | sed 's/^/  result=/' >&2
+  echo "The recognised set is {absent, disabled, refused, deferred_to_player}. An" >&2
+  echo "unrecognised value must not default to <published successfully>. Teach the W" >&2
+  echo "branch what it means, then re-collect." >&2
+  exit 2
+fi
+
 # ---- markers.tsv
 {
   printf 'tag\tevent\tts\n'
@@ -105,9 +185,20 @@ FILENAME ~ /worker\.trace$/ {
   else if ($5 == "P_popen")      { P[job] = $1; PPID[job] = V["player_pid"] }
   # a disabled pid write is NOT a pid write: recording it would mislabel the
   # ordering of any configuration that switches clause (i) off
+  #
+  # ROUND 29: THESE BRANCHES NOW NAME EVERY RESULT VALUE. The middle one used to read
+  # `V["result"] != "disabled"`, a blind else that answered "did a publication happen"
+  # with "well, it was not switched off". A REFUSED publication -- the round-25 fail-closed
+  # path, which stops the player and writes no record -- fell straight through it and
+  # stamped W as though the record had been published, at the instant it was refused. The
+  # shell guard at the top of this file rejects such a run outright; these branches are
+  # the second half of the same repair, so that a result value added later cannot inherit
+  # the published-successfully path by default. `refused` is listed here for that reason
+  # even though the guard above means it is never reached.
   else if ($5 == "W_pid_write" && V["by"] == "player") { WPLAYER[job] = 1; W[job] = $1 }
-  else if ($5 == "W_pid_write" && V["result"] != "disabled") { W[job] = $1 }
-  else if ($5 == "W_pid_write") { WOFF[job] = 1 }
+  else if ($5 == "W_pid_write" && V["result"] == "")         { W[job] = $1 }
+  else if ($5 == "W_pid_write" && V["result"] == "disabled")  { WOFF[job] = 1 }
+  else if ($5 == "W_pid_write" && V["result"] == "refused")   { WREF[job] = 1; nref++ }
   else if ($5 == "player_exit")  { RC[job] = V["rc"]; SIG[job] = V["killed_by_sig"];
                                    ALIVE[job] = V["alive_s"] }
   else if ($5 == "kill_attempt" && V["by"] == "worker-claim") {
@@ -127,6 +218,12 @@ END {
   # of this script already look for the completeness complaints below.
   if (nskip)
     printf "collect.sh: %d hook `record_skipped` row(s) in kills.log -- the hook refused a\n            player record on identity grounds. Not a kill and not a `nopid`; see the\n            raw kills.log, since no trials.tsv column carries it.\n", nskip > "/dev/stderr"
+  # Unreachable: the shell guard at the top of this file rejects any run with a refused
+  # publication before this awk starts. It is printed anyway, because the whole lesson of
+  # this file is that an outcome nothing reports is an outcome nobody knows happened, and
+  # a future edit that moves or weakens that guard must not make this silent again.
+  if (nref)
+    printf "collect.sh: %d W_pid_write row(s) with result=refused reached the parser. The\n            guard that rejects a refused publication did NOT run. These trials are\n            VOID and the W column for them is meaningless.\n", nref > "/dev/stderr"
   printf "config\ttrial\tR_a\tK_b\tR_b\tRdone_b\tS\tS2\tP\tW\tnewer_at_S2\tdiscarded\t"
   printf "player_pid\trc\tkilled_by_sig\talive_s\tplayer_log_sig\tpstart_to_pend_s\t"
   printf "p_start_ts\tp_end_ts\t"

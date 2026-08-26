@@ -126,7 +126,16 @@ need "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.worker.trace" && 
   # pass 1: the player log, keyed by pid.
   FNR==NR { if ($4=="player_start") START[$2]=$1; next }
   { n=split($6,f," "); delete V; for(i=1;i<=n;i++){split(f[i],kv,"="); V[kv[1]]=kv[2]} }
-  $5=="W_pid_write" { last=V["player_pid"]; last_t=$1 }
+  # ROUND 29: `result=refused` is NOT a publication, and this line used to accept every
+  # W_pid_write as one. It is the third consumer of this event to make that mistake (the
+  # others were collect.sh with its W branch, which tested `result != "disabled"`, and one level
+  # down the attribution that reads the rc a refusal produces -- see harness defect 6).
+  # The whole argument below is "a record that CERTAINLY EXISTED was
+  # then destroyed"; anchoring `last` on a write that was REFUSED would date that
+  # certainty to a record which was never written, and the unlink counted against it
+  # would be of some other player. A refused write leaves the previous anchor standing,
+  # which is correct: nothing was published, so nothing changed about what exists.
+  $5=="W_pid_write" && V["result"]!="refused" { last=V["player_pid"]; last_t=$1 }
   $5=="record_unlinked" {
       if (last != "" && V["player_pid"] != last && $1 > last_t) {
         cross++

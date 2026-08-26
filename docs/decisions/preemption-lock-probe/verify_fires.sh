@@ -33,6 +33,67 @@ check() {   # cfg entry K Rdone
   fi
 }
 
+# ROUND 29. `check` ABOVE COUNTS AND DOES NOT LOOK AT WHICH TRIALS THE MARKERS BELONG TO.
+# That is the same count-without-identity defect this revision closes in summarise.sh's
+# section E and in collect_real.sh, and it is the reason those two were found: this
+# script's own duplicate check (below) works at the level of CONFIGURATIONS and there was
+# nothing at the level of trials. `entry=25` passes whether the tags are warmup + t1..t12
+# or warmup + t1..t11 + t99, and it passes a file where t3a appears twice and t7b not at
+# all. The document reads "all hooks fired" off this script, and "the right NUMBER of
+# hooks fired" is a weaker statement.
+#
+# THIS IS DELIBERATELY A NARROWER CLAIM THAN THE OTHER TWO. In a live run tree the tags
+# come from marker FILENAMES in one directory, so they are unique by construction and only
+# the SET can be wrong; a duplicate can only reach the committed *.markers.tsv by hand.
+# Both are checked anyway, because every other guard in this rig validates its input
+# rather than trusting how the input was produced.
+#
+# The expected set is transcribed from the hook contract in this file's header (1 warmup +
+# 2 per trial, 3 per trial for C14a/C14b), NOT derived from the file being checked --
+# deriving it there would make the check vacuous, the same trap summarise.sh's row-21
+# matrix documents.
+expected_tags() {   # cfg
+  local cfg=$1 t
+  echo warmup
+  for ((t = 1; t <= N; t++)); do
+    echo "t${t}a"; echo "t${t}b"
+    case "$cfg" in C14a_*|C14b_*) echo "t${t}c" ;; esac
+  done
+}
+
+# The tag list arrives as an ARGUMENT, not on stdin. A function on the right-hand side of
+# a pipe runs in a SUBSHELL, so `fail=1` below would be set and discarded and this script
+# would print every complaint and still exit 0 -- a guard that reports and does not fail,
+# which is the exact shape of every defect this rig has been closing. It cost one
+# revision of this very function.
+check_tags() {   # cfg event newline-separated-tags
+  local cfg=$1 ev=$2 got exp dupes missing extra
+  got=$(printf '%s\n' "$3" | grep -v '^$' | sort)
+  exp=$(expected_tags "$cfg" | sort)
+  if [[ -z $got ]]; then
+    echo "TAG NONE   $cfg $ev -- no $ev markers carry a tag at all. NOT a pass." >&2
+    fail=1
+    return
+  fi
+  dupes=$(printf '%s\n' "$got" | uniq -d | tr '\n' ' ')
+  missing=$(comm -13 <(printf '%s\n' "$got" | sort -u) <(printf '%s\n' "$exp") | tr '\n' ' ')
+  extra=$(comm -23 <(printf '%s\n' "$got" | sort -u) <(printf '%s\n' "$exp") | tr '\n' ' ')
+  if [[ -n ${dupes// } ]]; then
+    echo "TAG DUP    $cfg $ev -- these tags appear more than once:${dupes% }" >&2
+    echo "           The count can still reach the expected total, so a duplicate here" >&2
+    echo "           hides a trial that never fired. This is NOT a pass." >&2
+    fail=1
+  fi
+  if [[ -n ${missing// } ]]; then
+    echo "TAG MISSING $cfg $ev -- no marker for:${missing% }" >&2
+    fail=1
+  fi
+  if [[ -n ${extra// } ]]; then
+    echo "TAG EXTRA  $cfg $ev -- markers for trials the run never numbers:${extra% }" >&2
+    fail=1
+  fi
+}
+
 if [[ -f "$O/RUNS.txt" ]]; then
   while read -r cfg d; do
     [[ -n "${d:-}" ]] || continue
@@ -40,6 +101,9 @@ if [[ -f "$O/RUNS.txt" ]]; then
       "$(ls "$d/markers" 2>/dev/null | grep -c '\.entry$')" \
       "$(ls "$d/markers" 2>/dev/null | grep -c '\.K$')" \
       "$(ls "$d/markers" 2>/dev/null | grep -c '\.Rdone$')"
+    for ev in entry K Rdone; do
+      check_tags "$cfg" "$ev" "$(ls "$d/markers" 2>/dev/null | sed -n "s/\\.$ev\$//p")"
+    done
   done < "$O/RUNS.txt"
 else
   for m in "$O"/*.markers.tsv; do
@@ -49,6 +113,9 @@ else
       "$(awk -F'\t' 'NR>1 && $2=="entry"' "$m" | wc -l | tr -d ' ')" \
       "$(awk -F'\t' 'NR>1 && $2=="K"'     "$m" | wc -l | tr -d ' ')" \
       "$(awk -F'\t' 'NR>1 && $2=="Rdone"' "$m" | wc -l | tr -d ' ')"
+    for ev in entry K Rdone; do
+      check_tags "$cfg" "$ev" "$(awk -F'\t' -v e="$ev" 'NR>1 && $2==e {print $1}' "$m")"
+    done
   done
 fi
 

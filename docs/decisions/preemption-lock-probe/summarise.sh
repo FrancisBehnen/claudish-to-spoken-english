@@ -244,58 +244,28 @@ stats() {   # label < numbers-on-stdin
   sort -n | awk "$MED"'{v[NR] = $1} END { if (NR) printf "%-28s n=%-4d min=%-11.4f med=%-11.4f max=%.4f\n", L, NR, v[1], med(v, NR), v[NR] }' L="$1"
 }
 
-# attribution rule, written once. Darwin signal numbers.
-#
-# ROUND 16 -- THE TWO SOURCES WERE INTERLEAVED, AND THE WEAKER ONE COULD WIN.
-# `rc` is the parent's wait status: one value, written once, by the kernel. `player_log_sig`
-# is the LAST `sig=` the player wrote to its own log, and collect.sh keeps only the last
-# (`PSIG[$3] = V2["sig"]`), so a player that is signalled twice reports the second.
-# THAT HAPPENS: the committed C12b log has pid 94309 writing `player_end sig=14` and then
-# `player_end sig=31` 69 us later -- one process, two sites, both recorded.
-#
-# The old chain tested `sig=="-15" || plog=="15"`, then -30/30, then -31/31, then -14/14,
-# so a row with rc=-14 and a final player-log value of 31 matched the RECORD-sweep arm
-# first and was published as a record sweep although the wait status said process group.
-# The player log outranked the kernel purely because 31 was tested before 14.
-#
-# The wait status now decides ALONE whenever it exists, and the player log is consulted
-# ONLY as a fallback for the rows that have no wait status -- the player-published arms,
-# where the parent never reaped the process it is asking about.
-#
-# BLAST RADIUS, verified over the committed preemption-trials.tsv: the only (rc,
-# player_log_sig) pairs present are (-,0) x72, (-,-) x60, (-,31) x48, (-30,-) x36,
-# (-15,15) x36, (0,0) x24, (-30,30) x12, (-,15) x12, (-,14) x12. NO row has both fields
-# present and disagreeing, so NO published attribution changes and the output of this
-# script is byte-identical. This is a LATENT defect that would bite on a re-run -- the
-# C12b arm is one scheduling accident away from producing exactly the row that breaks
-# it -- not a correction to any figure.
-ATTRIB='function attrib(sig, plog, ppid, prun) {
-  # 1. The wait status, if the parent has one. Authoritative and sufficient.
-  if (sig != "-") {
-    if (sig=="-15") return "hook-pid-kill"
-    if (sig=="-30") return "worker-claim-kill"
-    if (sig=="-31") return "election-sweep-record"
-    if (sig=="-14") return "election-sweep-pgid"
-    if (sig=="0")   return "NOTHING-ran-to-end"
-    # A status this rig has no kill site for. Falling back to the player log here would
-    # be the same defect again, so name it instead. Unreached on the committed evidence:
-    # rc is one of -, -30, -15, 0 on all 312 rows.
-    return "unrecognised-wait-status:" sig
-  }
-  # 2. No wait status: the player log is the only witness. It is the LAST value the
-  #    player wrote, so where two sites reached one process this under-reports the
-  #    first -- which is why it is the fallback and not the rule.
-  if (plog=="15") return "hook-pid-kill"
-  if (plog=="30") return "worker-claim-kill"
-  if (plog=="31") return "election-sweep-record"
-  if (plog=="14") return "election-sweep-pgid"
-  if (plog=="0")  return "NOTHING-ran-to-end"
-  if (ppid=="-")                return "no-player-spawned"
-  # Spawned, never logged a start, no exit status: killed BEFORE it could exec.
-  # A player that survived to run always logs player_start, so this is unambiguous.
-  if (prun=="0(never_started)")  return "killed-before-exec"
-  return "unknown"
-}'
+# The kill-attribution rule. It USED TO BE DEFINED HERE, and that was the whole
+# problem: compare_passes.sh and peek_one.sh each carried their own copy of the same
+# rule over the same two columns, round 16 fixed this one, and both of the others were
+# still wrong thirteen rounds later. It now lives in attrib.sh and all three call it,
+# so it cannot be fixed in one place again. The rule itself is unchanged and section A
+# below is byte-identical.
+if [[ ! -f "$HERE/attrib.sh" ]]; then
+  echo "summarise.sh: missing $HERE/attrib.sh -- the attribution rule lives there and" >&2
+  echo "section A cannot be derived without it. Refusing to print a summary with the" >&2
+  echo "kill attribution silently absent." >&2
+  exit 2
+fi
+# shellcheck source=attrib.sh
+. "$HERE/attrib.sh"
+# A sourced file that failed to define what it exists to define must not read as a pass:
+# `awk ""` is a legal empty program, so an unset ATTRIB would make section A print one
+# blank attribution per row rather than fail.
+if [[ -z ${ATTRIB:-} ]]; then
+  echo "summarise.sh: $HERE/attrib.sh defined no ATTRIB -- section A would print a blank" >&2
+  echo "attribution for every row and still exit 0. Refusing." >&2
+  exit 2
+fi
 
 echo "== ROW 20 / A: which step killed the player, per configuration =="
 awk -F'\t' "$ATTRIB"'
@@ -378,17 +348,44 @@ if [[ -f "$R" ]]; then
     # collect_real.sh enforces the 3+3 shape when it GENERATES the file; that does not
     # protect this consumer from a truncated committed input. Section E's whole content
     # is a comparison of two arms, so one arm, or a short one, is not a re-derivation.
+    #
+    # ROUND 29. THIS COUNTED ROWS AND NEVER LOOKED AT THE TRIAL COLUMN, which is the
+    # defect round 19 fixed for the row-20 manifest and round 17 fixed for the row-21
+    # matrix -- both of which validate IDs and not just totals. Section E was the one
+    # denominator check left counting. An arm with trials `1,1,2` has three rows, so it
+    # passed at want=3 while trial 3 was ABSENT, and every `stats` call below then read
+    # trial 1 TWICE: n=3 with one observation double-weighted, over an arm that measured
+    # two trials. Both of the columns section E quotes are medians of three, so one
+    # duplicated observation moves the published median outright.
+    #
+    # The rule is now the same as its two siblings: each arm carries each id from 1
+    # through `want` exactly once. Rows and distinct ids are BOTH reported, because they
+    # fail differently -- equal-but-wrong (1,1,2) shows as a distinct-id shortfall with
+    # the row count intact, while a truncated arm shows as both.
+    #
+    # SUBSEP, not T[a][b]: BWK awk (which is /usr/bin/awk on Darwin) has no
+    # multidimensional arrays, and the row-20 block above takes the same care.
     e_bad=$(awk -F'\t' -v want="${REAL_TRIALS:-3}" '
-      NR>1 { c[$1]++ }
+      NR>1 { c[$1]++
+             k = $1 SUBSEP $2
+             if (k in T) DUP[$1] = DUP[$1] " " $2; else { T[k] = 1; n[$1]++ }
+             if ($2 !~ /^[0-9]+$/ || $2+0 < 1 || $2+0 > want) BADID[$1] = BADID[$1] " " $2 }
       END { bad=0
             for (a in c) if (a != "REAL-off" && a != "REAL-pidfile") {
               printf "   UNEXPECTED real-audio arm: %s\n", a > "/dev/stderr"; bad++ }
             split("REAL-off REAL-pidfile", W, " ")
-            for (i=1; i<=2; i++) if (c[W[i]]+0 != want) {
-              printf "   %s has %d trials, expected %d\n", W[i], c[W[i]]+0, want > "/dev/stderr"; bad++ }
+            for (i=1; i<=2; i++) { a = W[i]
+              if (c[a]+0 != want) {
+                printf "   ROW COUNT %s: %d row(s) for %d expected trial(s)\n", a, c[a]+0, want > "/dev/stderr"; bad++ }
+              if (n[a]+0 != want) {
+                printf "   SHORT %s: %d distinct trial(s), expected %d\n", a, n[a]+0, want > "/dev/stderr"; bad++ }
+              if (a in DUP) {
+                printf "   DUPLICATE trial rows in %s:%s\n", a, DUP[a] > "/dev/stderr"; bad++ }
+              if (a in BADID) {
+                printf "   TRIAL ID out of 1..%d in %s:%s\n", want, a, BADID[a] > "/dev/stderr"; bad++ } }
             print bad+0 }' "$R")
     if [[ ${e_bad:-1} -ne 0 ]]; then
-      echo "   INCOMPLETE: section E needs both arms at ${REAL_TRIALS:-3} trials each" >&2
+      echo "   INCOMPLETE: section E needs both arms carrying each trial id 1..${REAL_TRIALS:-3} exactly once" >&2
       MISSING_E=1
     fi
   fi

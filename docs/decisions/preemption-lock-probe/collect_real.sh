@@ -124,5 +124,39 @@ if [[ $rows -ne $(( n_off + n_pid )) ]]; then
     "$DEST/real-audio-trials.tsv" | sort -u >&2
   exit 2
 fi
+# ROUND 29. THE THREE CHECKS ABOVE COUNT ROWS AND NEVER LOOK AT THE TRIAL COLUMN, which
+# is the same defect summarise.sh had in its section-E consumer, in the generator of the
+# very file that consumer reads. It is reachable HERE and not only in a hand-edited
+# input: the loop above iterates `"$O"/REAL-*` and re-keys the arm from each directory
+# name, so THREE run directories that each yielded only trial 1 produce three REAL-off
+# rows all numbered 1. n_off is then 3, every check above passes, and the section-E median
+# of three is a median of one observation counted three times.
+#
+# Trial ids are emitted by the awk loop above, so within ONE trace they are unique by
+# construction. Across several traces mapping to the same arm they are not, and that is
+# exactly the case the arm re-keying creates.
+#
+# SUBSEP, not T[a][b]: BWK awk on Darwin has no multidimensional arrays.
+id_bad=$(awk -F'\t' -v want="$REAL_TRIALS" '
+  NR > 1 { k = $1 SUBSEP $2
+           if (k in T) DUP[$1] = DUP[$1] " " $2; else { T[k] = 1; n[$1]++ }
+           if ($2 !~ /^[0-9]+$/ || $2+0 < 1 || $2+0 > want) BADID[$1] = BADID[$1] " " $2 }
+  END { bad = 0
+        split("REAL-off REAL-pidfile", W, " ")
+        for (i = 1; i <= 2; i++) { a = W[i]
+          if (n[a]+0 != want) {
+            printf "  %s has %d DISTINCT trial id(s), expected %d\n", a, n[a]+0, want > "/dev/stderr"; bad++ }
+          if (a in DUP) {
+            printf "  %s repeats trial id(s):%s\n", a, DUP[a] > "/dev/stderr"; bad++ }
+          if (a in BADID) {
+            printf "  %s has trial id(s) outside 1..%d:%s\n", a, want, BADID[a] > "/dev/stderr"; bad++ } }
+        print bad+0 }' "$DEST/real-audio-trials.tsv")
+if [[ ${id_bad:-1} -ne 0 ]]; then
+  echo "collect_real.sh: the row counts are right but the TRIAL IDS are not." >&2
+  echo "Each arm must carry each id 1..$REAL_TRIALS exactly once. A repeated id means two" >&2
+  echo "run directories were folded into one arm, and section E would weight one" >&2
+  echo "observation as several. This is NOT a successful collection." >&2
+  exit 2
+fi
 echo "$rows data rows (REAL-off=$n_off REAL-pidfile=$n_pid)"
 wc -l < "$DEST/real-audio-trials.tsv"

@@ -41,6 +41,15 @@ RIG=${RIG:-$HOME/.local/share/kokoro/bench/preempt-lock-2026-08-25}
 # `summarise.sh` section E -- which fails the whole re-derivation when that file is
 # absent -- has no producer. The list is now closed under "every committed TSV has the
 # script that builds it, and every derivation the document cites is present".
+#
+# ROUND 29 -- and the criterion needed a third clause, because round 29 introduced the
+# first file in this rig that is a DEPENDENCY of a listed script rather than a script in
+# its own right. `attrib.sh` holds the kill-attribution rule that `summarise.sh`,
+# `compare_passes.sh` and `peek_one.sh` all source. All three refuse to run without it,
+# by design -- so a rig published without it satisfies every name below and re-derives
+# NOTHING, which is precisely the failure the round-16 note above is about, one level of
+# indirection down. The criterion is now closed under "and every file those scripts need
+# in order to run".
 REQUIRED=(
   speakd_probe.py         # the worker under test
   player_probe.py         # the player it spawns; its exit status IS the attribution
@@ -56,6 +65,10 @@ REQUIRED=(
   assemble_pass1.sh       # builds preemption-trials-replication.tsv, the fourth TSV
   compare_passes.sh       # the document's derivation of the two arms' agreement
   summarise.sh            # the advertised re-derivation of every published figure
+  attrib.sh               # the kill-attribution rule the two above and peek_one.sh
+                          #   SOURCE; all three refuse to run without it, so a rig
+                          #   without this file passes every other name and derives
+                          #   nothing
   verify_fires.sh         # the completeness check
   analyse_round2.sh       # the round-2 protocol facts the document quotes
   analyse_c14.sh          # the document's "third derivation", over the C14 traces
