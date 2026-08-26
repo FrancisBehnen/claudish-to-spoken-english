@@ -1313,19 +1313,50 @@ while True:
             # which one occurred:
             #   PS_ABSENT -- the child is already gone. Nothing is left to signal.
             #   PS_ERROR  -- the lookup failed and the child's state is unknown.
-            # Writing a bare record is fail-safe in BOTH, and for the same reason, so the
-            # action does not split: every reader treats a bare record as `unverifiable`
-            # and refuses to signal it. But an operator reading `identity=lookup_failed`
-            # is looking at a live-and-unreachable player, and one reading
-            # `identity=absent` is not, so the two must not print the same word.
+            # The two outcomes must not print the same word: `identity=absent` names a
+            # player that is already gone, `lookup_failed` names one we could not identify.
+            # An earlier revision of this comment concluded from that distinction that
+            # writing a bare record was "fail-safe in BOTH" -- see immediately below for
+            # why that was wrong.
             outcome, st = (ps_starttime(player.pid) if A.player_identity == "on"
                            else (None, None))
-            with open(PIDF, "w") as fh:
-                fh.write(f"{player.pid}.{st}\n" if st else f"{player.pid}\n")
-            rec("W_pid_write", job=jid, player_pid=player.pid, by="worker",
-                identity=(st if st else
-                          "off" if A.player_identity == "off" else
-                          "lookup_failed" if outcome == PS_ERROR else "absent"))
+            # A BARE RECORD IS NOT FAIL-SAFE HERE, and the comment above used to claim it
+            # was. It is fail-safe for the SIGNALLER -- every reader treats a bare record
+            # as `unverifiable` and refuses to signal it, so no stranger is killed. It is
+            # fail-OPEN for PREEMPTION, which is the property this record exists to
+            # provide: with identity on, all three record-based signallers skip it, so a
+            # LIVE player becomes unreachable by the hook, by the claim-time kill and by
+            # the election sweep at once. The old comment even named that outcome and
+            # shipped it anyway.
+            #
+            # The wrapper already resolves the same failure the other way: it refuses to
+            # `exec` if it cannot publish, so nothing plays that cannot be stopped. This
+            # path holds the child's Popen handle, so it can do better than the wrapper --
+            # retry the lookup, and if it still fails, stop the player through the handle
+            # and void the trial rather than publish a record no signaller will act on.
+            if A.player_identity == "on" and outcome == PS_ERROR:
+                for _ in range(4):
+                    time.sleep(0.002)
+                    outcome, st = ps_starttime(player.pid)
+                    if outcome != PS_ERROR:
+                        break
+            if A.player_identity == "on" and outcome == PS_ERROR:
+                rec("publish_refused", job=jid, player_pid=player.pid,
+                    why="identity_lookup_failed",
+                    action="player_terminated_via_handle")
+                try:
+                    player.terminate()
+                except OSError as e:
+                    rec("publish_refused_kill_failed", job=jid,
+                        player_pid=player.pid, err=type(e).__name__)
+                rec("W_pid_write", job=jid, player_pid=player.pid, by="worker",
+                    result="refused", identity="lookup_failed")
+            else:
+                with open(PIDF, "w") as fh:
+                    fh.write(f"{player.pid}.{st}\n" if st else f"{player.pid}\n")
+                rec("W_pid_write", job=jid, player_pid=player.pid, by="worker",
+                    identity=(st if st else
+                              "off" if A.player_identity == "off" else "absent"))
         else:
             rec("W_pid_write", job=jid, player_pid=player.pid, result="disabled")
     else:
