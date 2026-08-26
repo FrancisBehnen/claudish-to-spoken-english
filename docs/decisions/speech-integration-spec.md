@@ -1849,9 +1849,14 @@ Specified as an order because the cheap rejections must precede everything, for 
      specifies the same regex, so the two documents cannot drift on what a record is.
    - **Content: the record's `<pid>.<starttime>`, tested against the process that currently holds that
      pid** — clause 7(i) requires the wrapper to publish its own start time inside the record, for
-     exactly this reader. Three cases, the same three as clause 7(iv)'s owner test: start time
+     exactly this reader. **Four** cases, the same four as clause 7(iv)'s owner test: start time
      **matches** → signal; a process exists with that pid and a **different** start time → the player
-     is gone and its pid recycled, **skip in silence**; **no such process** → nothing to signal, skip.
+     is gone and its pid recycled, **skip in silence**; **a confirmed absence** → nothing to signal,
+     skip; and **the lookup itself failed** → `unverifiable`, **skip in silence**. The fourth case is
+     not the third: a signaller that treats "I could not ask" as "nothing is there" would send the
+     signal, and the whole point of the identity test is that the pid may now name a stranger. Every
+     non-matching outcome here declines to signal, so the fourth case costs nothing beyond a stale
+     record surviving one more election — which clause 7(v)'s reap already handles.
    A record that fails either test is **skipped in silence, never signalled and never removed.**
    **The hook removes nothing at all**: unlinking is clause 7(v)'s, by exact name,
    after the worker reaps. A hook that tidied records it did not write would be the shared-`speak/pid`
@@ -2067,9 +2072,24 @@ pre-check is not the guarantee.** `symlink(f"{os.getpid()}.{start_time}", speak/
   write cannot have this property, because it is two steps.
 - **Liveness is decided on a complete record, with NO backoff and NO timeout, and it takes BOTH halves
   of that record.** A reader accepts an owner as live only if the target parses as `<pid>.<starttime>`,
-  a process with that pid exists, **and** that process's start time equals the recorded one. Any other
-  outcome — an unparseable target, no such process, or a start-time mismatch — is a **dead** owner, and
-  the reader supersedes it with `gen+1`. **Clause 6's retirement marker outranks all of this**: a
+  a process with that pid exists, **and** that process's start time equals the recorded one. An
+  unparseable target, **a confirmed absence** or a start-time mismatch is a **dead** owner, and the
+  reader supersedes it with `gen+1`.
+  **A FAILED LOOKUP IS NOT A CONFIRMED ABSENCE, and collapsing the two fails open on exactly the
+  input this test exists to be careful about — corrected here to match
+  [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md) §4a as of its round 24.**
+  If the start-time lookup itself errors — `ps` cannot fork, the process table is full, the call is
+  interrupted — the reader knows nothing about that owner, and treating "I could not ask" as "it is
+  dead" is what would supersede a **live** owner and hand two workers the licence to consume jobs.
+  Worse, the trigger correlates with the hazard: `ps` fails under the same fork pressure that recycles
+  pids fastest. So a failed lookup is **`unverifiable`, and it fails closed**: the reader retries a
+  bounded number of times and then **loses the election**, consuming nothing. That is deliberately not
+  the rule for a *bare* record — a bare record is unverifiable forever, so its holder has to decide
+  terminally on the weakest evidence there is, whereas a failed lookup is unverifiable only at this
+  instant and the response the bare case cannot have, ask again, is available. **Cost, stated:** on a
+  machine that cannot fork `ps` no worker starts, so nothing is spoken — bounded by the retry budget,
+  and a machine that cannot fork `ps` could not have forked a player either. Silence is this document's
+  accepted failure mode; two owners is not. **[inferred]** — §13 row 20(c). **Clause 6's retirement marker outranks all of this**: a
   `speak/worker.retiring.<gen>` present for the highest generation means that generation's owner is
   dead for the purpose of this test, however healthy `ps` reports it. The no-backoff half **replaces
   clause (a), which is measured FALSE:** a bounded retry is a bet that a live process makes
