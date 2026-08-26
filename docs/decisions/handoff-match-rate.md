@@ -18,9 +18,17 @@ concurrently with the final streamed chunk — a median of 6.7 ms after that hoo
 its buffer only after an LLM call that takes seconds, so at the moment `speak.sh` runs, the buffer
 holds the **previous** message: measured stale in 29 of 30 turns, identified by content. (This was
 measured against the mutable `speak/source` the spec then had; §3.1 has since replaced it with a
-content-addressed `speak/rw.<H>`. **The staleness result is unaffected** — it is a fact about when
-`Stop` runs relative to the publish, not about which path holds the text — but `speak/source` is not
-the current design and is named here only where the measurement is described.) The hashes
+content-addressed `speak/rw.<H>`. **Two results have to be separated here, and an earlier revision of
+this note ran them together.** The **timing** survives the change untouched: it is a fact about when
+`Stop` runs relative to the publish, and the publish is still seconds after the final chunk. The
+**staleness** does not, and cannot: under content addressing a consumer for `H` finds `rw.<H>`
+**absent** until publication — it cannot read the previous message from that path at all, unless
+identical text was published earlier — so the 29-of-30 "the buffer held the previous message" figure
+is **historical**, and what the same timing now implies is a **miss**, not a stale read.
+**The distinction is not pedantry: it is why the current design is in a better position than the
+measured one.** With a mutable buffer §3.2's compare is what stops the wrong answer being spoken;
+with content addressing there is no wrong answer at that path to speak, because the path is not
+there. Every remaining analysis of `speak/source` in this document is historical.) The hashes
 then correctly disagree, §3.5's last row fires, and the feature is quiet — for a reason that has
 nothing to do with the match rate and everything to do with ordering.
 [Section 4](#4--the-finding-that-outranks-the-rate-stop-does-not-wait-for-messagedisplay) is that
@@ -390,7 +398,7 @@ honest way to retire it is to build `speak.sh` and watch.
 
 | repair | verdict after re-measurement |
 | --- | --- |
-| a bounded wait in `speak.sh` for a matching `speak/source` | **the only one the measurement supports.** It is the only option that does not depend on winning a race. Cost is real — it puts a wait on the hook §6 spends its length keeping non-blocking — and the wait must cover the *LLM* call (§4 measured [52.50 s](provider-switch-traps.md) once), so it needs a deadline and a give-up-and-stay-quiet branch, not an unbounded block. |
+| a bounded wait in `speak.sh` for a matching `speak/source` **(the mechanism as it then was; under §3.1's content addressing the same repair is a bounded wait for `rw.<H>` to appear, and the verdict is unchanged because it turns on not needing to win a race, not on which path is waited for)** | **the only one the measurement supports.** It is the only option that does not depend on winning a race. Cost is real — it puts a wait on the hook §6 spends its length keeping non-blocking — and the wait must cover the *LLM* call (§4 measured [52.50 s](provider-switch-traps.md) once), so it needs a deadline and a give-up-and-stay-quiet branch, not an unbounded block. |
 | `rewrite.sh` publishes the **original** hash immediately at the final chunk, the rewrite later | **now known to be a race, not a fix — but a winnable one.** As instrumented it lost 27 of 30, because publishing cost ~52 ms against `Stop`'s ~24 ms read. The budget is now known: **get the bytes on disk within ~20 ms of hook entry.** That means writing the delta concatenation *before* any metadata parsing — the probe's three `jq` forks came first, which is why it lost. Viable only if measured at the real publish path, and it can never be better than a race, so it needs the wait above as a backstop. |
 | move speech off `Stop` onto whatever fires after the display hook completes | **unevaluated, and the measurement neither helps nor hurts it.** No such event was identified in this probe. `MessageDisplay` firing per chunk means "after the display hook completes" is a per-chunk notion, so this needs an event that exists before it can be scored. |
 
