@@ -329,8 +329,14 @@ unchanged, and the corrected statement is the stronger one.
 
 ### Why this breaks §3.1's handoff as written
 
-§3.1 has `rewrite.sh` publish `speak/rewrite` and `speak/source` at its publication point, which is
-after `$rewrite` has been obtained — that is, **after the LLM call**. `CLAUDISH_TIMEOUT` defaults to
+**As written when this was measured** — §3.1 then had `rewrite.sh` publish `speak/rewrite` and
+`speak/source` at its publication point, which is after `$rewrite` has been obtained, that is
+**after the LLM call**. §3.1 has since replaced both with a content-addressed `speak/rw.<H>`, and
+the qualification below applies to this whole subsection, not only to the step numbers: the
+mechanism named here is the one that was measured, not the locked design. **What the measurement
+establishes survives the change untouched, because it is a fact about WHEN the publish happens
+relative to `Stop`, not about which path it writes** — and the publish is still after the LLM call
+under content addressing. `CLAUDISH_TIMEOUT` defaults to
 45 s (`rewrite.sh:65`) **[repo]**, `hooks/hooks.json:9` declares a 60 s timeout for the display hook
 **[repo]**, and the one end-to-end rewrite anybody has timed took
 [**52.50 s**](provider-switch-traps.md) for ~1,300 words. Whatever the provider, the publish is
