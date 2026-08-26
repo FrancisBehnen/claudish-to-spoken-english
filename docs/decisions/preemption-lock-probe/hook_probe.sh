@@ -135,6 +135,16 @@ else
     pid=${line%%.*}
     [[ $line == *.* ]] && rec_st=${line#*.}
   fi
+  # DOMAIN CHECK BEFORE ANY SIGNAL. `kill -TERM 0` signals every process in THIS hook's
+  # process group -- under Claude Code, the harness's -- and negative values are group or
+  # broadcast targets. A truncated or forged record reading `0.<starttime>` is enough. Only
+  # a decimal integer above 1 (1 is init) may reach identity_verdict or kill.
+  if [[ -n "$pid" && ! $pid =~ ^[0-9]+$ ]] || [[ -n "$pid" && $pid -le 1 ]] 2>/dev/null; then
+    printf '%s\thook\t%s\trecord_skipped\tby=hook via=shared target=%s verdict=unsafe_pid\n' \
+      "$TAG" "$$" "$pid" >> "$MD/kills.log"
+    pid=""
+    exit_after_skip=1
+  fi
   if [[ -n "$pid" ]]; then
     v=$(identity_verdict "$pid" "$rec_st")
     if [[ $v == recycled || $v == unverifiable ]]; then

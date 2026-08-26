@@ -44,9 +44,19 @@ mkdir -p "$OUT"
 REPS=${1:-20}
 HOLD=500
 RESULTS="$OUT/owners.tsv"
-printf 'scenario\tprotocol\tN\tstall_ms\trep\towners\n' > "$RESULTS"
+# A RESULT THAT WAS NEVER WRITTEN IS NOT A RESULT. Both writes were unchecked, so an
+# unwritable or full output filesystem let all 1200 trials run to completion, every emit
+# fail, and the closing `echo DONE` exit 0 -- presenting a missing or truncated owners.tsv
+# as a finished run. The header is checked here; emit() below aborts the run on the first
+# append it cannot make, rather than continuing for another 1199 trials it cannot record.
+printf 'scenario\tprotocol\tN\tstall_ms\trep\towners\n' > "$RESULTS" || {
+  echo "run_lock.sh: cannot write the header to $RESULTS -- refusing to run 1200 trials" >&2
+  echo "that could not be recorded." >&2
+  exit 2; }
 
-emit() { printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" "$5" "$6" >> "$RESULTS"; }
+emit() { printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" "$5" "$6" >> "$RESULTS" || {
+    echo "run_lock.sh: cannot append to $RESULTS -- aborting; the run so far is incomplete" >&2
+    exit 2; }; }
 
 # `awk ... | wc -l` counts 0 just as happily over a log that does not exist as over one
 # in which nobody claimed ownership, and `wc` succeeds either way -- so a trial whose

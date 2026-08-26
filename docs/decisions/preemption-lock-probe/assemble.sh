@@ -60,7 +60,13 @@ fi
 # wc below report it as part of this assembly. Say so and fail, rather than publishing
 # one run's row 20 beside another run's row 21.
 if [[ -f "$O/lock/owners.tsv" ]]; then
-  cp "$O/lock/owners.tsv" "$DEST/lock-owners.tsv"
+  # Unchecked, with no `set -e`, a failed copy (permissions, full filesystem) left any
+  # existing destination file in place, the wc below counted THAT, and the final exit 0
+  # reported a successful assembly over the previous run's row-21 evidence.
+  cp "$O/lock/owners.tsv" "$DEST/lock-owners.tsv" || {
+    echo "assemble.sh: cp of $O/lock/owners.tsv failed -- refusing to report success" >&2
+    echo "over whatever was already at $DEST/lock-owners.tsv." >&2
+    exit 2; }
 elif [[ -f "$DEST/lock-owners.tsv" ]]; then
   echo "assemble.sh: no lock run in $O, but $DEST/lock-owners.tsv already exists." >&2
   echo "Refusing to report a stale row-21 file as part of this assembly." >&2
