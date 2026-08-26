@@ -231,6 +231,31 @@ if [ -z "$rewrite" ]; then
   pass_through
 fi
 
+# ---- publish the rewrite for speak.sh (speech handoff) -------------------
+# Content-addressed: the path is sha256( trim( the text we just rewrote ) ), so
+# it is the proof that this rewrite belongs to that source text. Installed by
+# temp-write + rename inside the speak dir (atomic), and guarded throughout so
+# a full disk can never change this hook's exit path — the display hook's
+# fail-open contract outranks the speech feature absolutely. Gated on
+# CLAUDISH_SPEAK, so with speech off this block is one variable test and
+# nothing else. speak-key.sh holds the ONE definition of the key and speak.sh
+# sources the same file, so the two sides cannot drift apart; a missing or
+# unreadable speak-key.sh just means no publish.
+if [ "${CLAUDISH_SPEAK:-0}" = "1" ]; then
+  . "$(cd "$(dirname "$0")" 2>/dev/null && pwd)/speak-key.sh" 2>/dev/null
+  _sh=""
+  command -v speak_key >/dev/null 2>&1 && _sh="$(speak_key "$full")"
+  _sd="$BUF_ROOT/$sid/speak"
+  if [ -n "$_sh" ] && mkdir -p "$_sd" 2>/dev/null; then
+    _st="$_sd/.rw.$$.$RANDOM"
+    { printf '%s' "$rewrite" > "$_st" 2>/dev/null \
+      && mv -f "$_st" "$_sd/rw.$_sh" 2>/dev/null; } || rm -f "$_st" 2>/dev/null
+    printf '%s' "$(printf '%s' "$payload" | jq -r '.prompt_id // empty' 2>/dev/null)" \
+      > "$_sd/prompt_id" 2>/dev/null
+  fi
+  dbg "speak: published rw.$_sh"
+fi
+
 # ---- build displayContent for the final chunk ----------------------------
 out="$BUF_ROOT/$sid.$mid.out"
 if [ "$MODE" = "replace" ]; then
