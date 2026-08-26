@@ -339,7 +339,9 @@ after `$rewrite` has been obtained — that is, **after the LLM call**. `CLAUDIS
 §10.3 had `speak.sh` read the buffer at **step 8** and exit at **step 9** without waiting. **Both the
 step numbers and the mechanism below are quoted as they stood when this was measured, and neither is
 the locked protocol any more** — §10.3 renumbered when preemption moved above the content-based exits
-(read is now step 10, enqueue step 12), and §3.1 replaced the mutable `speak/source` this scenario
+(the hook no longer reads a buffer at all — step 10 classifies and tests for `rw.<H>`, step 12
+enqueues, and the resident worker does the eventual read), and §3.1 replaced the mutable
+`speak/source` this scenario
 walks with a content-addressed `speak/rw.<H>`. Renumbering the sentence alone would make superseded
 evidence read as a description of the current design. **What the measurement establishes is the
 timing** — that `Stop` reads milliseconds after the display hook is entered and the publish lands
