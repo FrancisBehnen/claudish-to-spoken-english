@@ -3344,6 +3344,22 @@ on. So #11 can lock and #23 can start — with two more blockers than it had yes
 > [`turn-finality-and-the-stop-hook.md`](turn-finality-and-the-stop-hook.md), which this table does not
 > count because it counts defects in **this** document's LOCKED text.
 >
+> **A FOURTH commit of that class landed on 2026-08-26 and is likewise not a row, and it is the largest
+> of the four.** [`worker-residency.md`](worker-residency.md) still presented row 20's falsified design
+> as current — a **shared `speak/pid` written by the worker**, with a hook-side and a claim-time kill said
+> to **partition** the timeline and to **bound** stale audio by the measured 0.079 s and 0.086 s — and
+> §2a still presented row 21's two falsified lock clauses as *"the corrected protocol"*. That commit marks
+> both historical, states what the residency arm's measurements still establish (synthesis and playback
+> latency from a seeded buffer, and the hook's own wall cost) and what they never established (any bound
+> on how long stale audio can last, since in `C8`'s orphan region the stale player runs for its full
+> duration), and changes nothing here. **It is not a row for the same reason the other three are not:
+> the defect was in an evidence document, and this table counts defects in this document's LOCKED text.**
+> Counting it would inflate the total against the table's own stated basis, which is the defect class the
+> table exists to police. **The same pass re-derived the total and found §15's tally still reading NINE
+> reads and THIRTY-ONE over a twelve-item list** while this note and the rest of §15 had moved to
+> thirty-three; that is corrected in §15 and is a **miscount rather than a defect**, on the round-four
+> *"all six defects"* precedent — one number stale in one place, not a rule stale in one place.
+>
 > **Two of the eight are recorded as AMBIGUOUS in their own cells rather than resolved silently** —
 > §10.5's stale four-item `[inferred]` subset, which is a tag-honesty failure in the shape of the
 > miscount class this table twice declined to count, and row 21's *"never confirmed to run at all"*,
@@ -3758,14 +3774,20 @@ Stated so a reviewer can attack the right parts.
     finding out what it did not know. **Ten is the number to be uncomfortable about only if the
     alternative reading is that eight was ever the true one**; it was not, and the two entries round
     five added were false before it wrote them down.
-- **NINE reads of this document, TWO review rounds of its sibling carried across, and TWO measurement
-  rounds have now found THIRTY-ONE
+- **TEN reads of this document, TWO review rounds of its sibling carried across, and TWO measurement
+  rounds have now found THIRTY-THREE
   correctness defects in text this revision itself marked LOCKED, and the rate — not any one defect — is
   the weakness.** Counted so the number is checkable, off §13's table rather than off this sentence:
   **four in round one, two in round two, three in the first measurement round,
   two in round three, five in round four, four in round five, four in round six, two carried across
   from #28's rounds 24 and 25, one in the sleep measurement, one in the review of that measurement's
-  own repair, two in round seven, and one in the recount that settled these numbers.**
+  own repair, two in round seven, one in the recount that settled these numbers, and two in round
+  eight** — thirteen labels, `4+2+3+2+5+4+4+2+1+1+2+1+2 = 33`, derived by counting the table's own rows
+  and grouping them by label rather than by adding to the previous total. **This bullet said NINE reads
+  and THIRTY-ONE, over a twelve-item tally, until 2026-08-26**, when round eight's two rows had been
+  added to §13 and its note re-derived to thirty-three and this sentence had not: a miscount rather than
+  a defect, in the shape §13's note describes and for the reason it gives — a count written twice will
+  disagree with itself — and corrected here where it lives rather than counted as a fourteenth occasion.
   **Both numbers were FLOORS — *at least seven* rounds and *at least twenty-three* defects — until
   2026-08-26, and they are now SETTLED rather than restated.** §13's table had no row for round six, none
   for #28's two carried rounds and none for the review of the sleep measurement's own repair; those rows
@@ -3776,6 +3798,11 @@ Stated so a reviewer can attack the right parts.
   a strict sequence** — `7` is kept because it is cited by number, so the recovered rounds carry the
   names of what found them: `6`, `#28`, `M2′` and `R`. **The count and the per-round tally are
   checkable off the table; the numbering is not, and §13 says so.**
+  *Round eight*: clause 7(iv)'s owner test and clause 7(i)'s signaller rule left without the
+  `unverifiable` branch that clause 2 and §10.3 step 6 had grown the same day, so a failed `ps` lookup
+  fell through into the one outcome on those lists that **signals**; and the hook's 0.063–0.219 s range,
+  already withdrawn to a lower bound in §10.3, still quoted as measured in §3.5.1 and §10.6. **Both are
+  one repair landing at one of two parallel sites**, which is now this table's most frequent shape.
   *The recount*: the `[inferred]` entry (3) above still carrying the
   *"ordering by construction"* claim that `M2′` had withdrawn from §10.5 clause 6 and round seven had
   withdrawn from §13 row 24 — one withdrawal, three sites, the third reached only by re-deriving these
@@ -3822,7 +3849,7 @@ Stated so a reviewer can attack the right parts.
   2026-08-26 and the divergence from that one event is **2324 s (38 min 44 s)** against a margin sized
   at 10 minutes; over this boot it is **269.694 h**, **68.6 %** of uptime. `rewrite.sh:117`'s verbatim
   predicate selects a `speak` directory a monotonic idle timer still calls **12.51 min** young
-  **[measured-here]**. **This one is different in kind from the other thirty and that is the part to
+  **[measured-here]**. **This one is different in kind from the other thirty-two and that is the part to
   read**: it is the only defect in the list that was not found by anyone reading anything. The clause
   was internally consistent — it named a clock and gave a reason for it — and the reason was false
   about the platform rather than about the clause. **Five review rounds did not find it, and clause 6
