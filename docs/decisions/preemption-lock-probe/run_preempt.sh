@@ -167,6 +167,10 @@ printf '%s\n' "cfg=$CFG delay=$DELAY gap=$GAP ck=$CK rechk=$RECHK die=$DIE respa
   > "$OUT/$SID/config.txt"
 
 start_worker() {
+  # Clear the previous worker's ready marker BEFORE launching this one. Doing it in
+  # wait_ready is a race the parent loses whenever the child is fast: the worker stamps
+  # `ready`, the parent then deletes it, and the wait times out against a healthy worker.
+  rm -f "$SD/ready"
   "$PY" "$RIG/speakd_probe.py" --speak-dir "$SD" --trace "$TRACE" --player-log "$PLOG" \
     --claim-kill "$CK" --prespawn-recheck "$RECHK" --pid-write "$PIDW" \
     --prespawn-delay-ms "$DELAY" --synth-ms "$SYNTH_MS" --load-ms "$LOAD_MS" \
@@ -181,7 +185,10 @@ start_worker() {
 }
 
 wait_ready() {
-  rm -f "$SD/ready"
+  # The stale marker is cleared by start_worker BEFORE it launches, not here. Clearing it
+  # here is a race the parent loses whenever the child is fast: the worker reaches ready,
+  # stamps the marker, and then this function deletes the marker it was waiting for and
+  # times out against a perfectly healthy worker.
   for _ in $(seq 1 200); do [[ -f "$SD/ready" ]] && return 0; sleep 0.05; done
   return 1
 }

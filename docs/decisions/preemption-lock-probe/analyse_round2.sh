@@ -49,12 +49,20 @@ echo "   the record sweep's target list is unbounded and it does reach pids left
 echo "   earlier trials. The attribution is the killpg that was SENT, plus C12c."
 need "$T/C12b_pgid_sweepfirst.worker.trace" && { awk -F'\t' '
   { n=split($6,f," "); delete V; for(i=1;i<=n;i++){split(f[i],kv,"="); V[kv[1]]=kv[2]} }
+  # The warm-up player pid is DERIVED from its own P_popen, not hard-coded. A literal
+  # only matches the committed run: after any re-run the pid necessarily differs and the
+  # count silently reports zero -- a figure that reads as "the leak stopped".
+  $5=="P_popen" && V["job"]=="w0" { W0=V["player_pid"] }
+  # Exact comma-delimited membership, not a substring: /94309/ also matches 194309.
   $5=="election_sweep_record" { el++; if (V["swept"]+0 > 0) sw++
                                 r=V["rows"]+0; if (r>maxrows) maxrows=r
-                                if (V["pids"] ~ /94309/) warm++ }
+                                if (W0 != "") { m=0; k=split(V["pids"], P, ",")
+                                                for (q=1; q<=k; q++) if (P[q]==W0) m=1
+                                                if (m) warm++ } }
   $5=="kill_attempt" && $6 ~ /site=pgid/ { if (V["result"]=="sent") sent++; else esrch++ }
-  END { printf "  record sweeps=%d of which swept>0: %d   target list grew to %d pids   warm-up player 94309 present in %d\n",
-               el+0, sw+0, maxrows+0, warm+0
+  END { if (W0 == "") { print "  DERIVATION FAILED: no P_popen for job w0 -- warm-up pid not derivable" > "/dev/stderr"; exit 2 }
+        printf "  record sweeps=%d of which swept>0: %d   target list grew to %d pids   warm-up player %s present in %d\n",
+               el+0, sw+0, maxrows+0, W0, warm+0
         printf "  pgid kill_attempts: sent=%d  ESRCH=%d  (one live group per election, the rest already empty)\n",
                sent+0, esrch+0 }
 ' "$T/C12b_pgid_sweepfirst.worker.trace" || derive_failed C12b; }
@@ -262,7 +270,13 @@ need "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.hook-kills.log" \
         continue }
       hc_trials++; HCTR[i]=1
       cnt=0; pick=0
-      for (u=1; u<=nu; u++) if (UN[u] > WOF[jb] && UN[u] < HCT[i]) { cnt++; pick=u }
+      # UTR[u] == i is what makes this the (trial, timestamp) join it is advertised as.
+      # Without it the window alone selects, so a delayed unlink from ANOTHER trial
+      # falling inside the window of this one would be picked and attributed here. On
+      # committed traces the totals are identical either way -- 8 across trials 1 2 4 6,
+      # checked both ways -- so no published figure moves; it is latent, and it would
+      # misattribute on a re-run.
+      for (u=1; u<=nu; u++) if (UTR[u] == i && UN[u] > WOF[jb] && UN[u] < HCT[i]) { cnt++; pick=u }
       if (cnt == 1) { HOOKC[pick]=1; HVICT[pick]=PPID[jb]; nhookc++ }
       else { printf "  trial %-2d hook C witnessed a destruction, but %d unlinks fall in\n", i, cnt
              printf "           (W_pid_write[%s], tNc entry) -- the destroying unlink is NOT nameable\n", jb

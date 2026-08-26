@@ -79,10 +79,16 @@ mkdir -p "$DEST"
 n_off=$(awk -F'\t' 'NR > 1 && $1 == "REAL-off"' "$DEST/real-audio-trials.tsv" | wc -l | tr -d ' ')
 n_pid=$(awk -F'\t' 'NR > 1 && $1 == "REAL-pidfile"' "$DEST/real-audio-trials.tsv" | wc -l | tr -d ' ')
 rows=$(( $(wc -l < "$DEST/real-audio-trials.tsv") - 1 ))
-if [[ $n_off -eq 0 || $n_pid -eq 0 || $n_off -ne $n_pid ]]; then
-  echo "collect_real.sh: expected BOTH real-audio arms, non-empty and of equal size," >&2
+# Equality alone is not the published shape. The experiment is THREE trials per arm, so
+# one `off` and one `pidfile` satisfies "both arms, equal, non-zero" and would then be
+# summarised as the documented result over a third of the evidence. REAL_TRIALS is the
+# expected denominator; override it deliberately if a future run uses a different one.
+REAL_TRIALS=${REAL_TRIALS:-3}
+if [[ $n_off -ne $REAL_TRIALS || $n_pid -ne $REAL_TRIALS ]]; then
+  echo "collect_real.sh: expected BOTH real-audio arms at exactly $REAL_TRIALS trials each," >&2
   echo "  but $O yielded REAL-off=$n_off REAL-pidfile=$n_pid (total data rows: $rows)." >&2
-  echo "This is NOT a successful collection; section E's comparison would be incomplete." >&2
+  echo "This is NOT a successful collection; section E would be derived over a short" >&2
+  echo "denominator while still looking complete. Set REAL_TRIALS to change the expectation." >&2
   exit 2
 fi
 # run_real.sh only takes `pidfile` or `off`, so anything else under REAL-* is a name
