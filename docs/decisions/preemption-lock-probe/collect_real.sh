@@ -62,4 +62,13 @@ mkdir -p "$DEST"
       }' "$trace"
   done
 } > "$DEST/real-audio-trials.tsv"
+# A header and nothing else is not a successful collection -- it is the null-as-pass
+# failure again, on the evidence section E is derived from. Require a data row.
+rows=$(( $(wc -l < "$DEST/real-audio-trials.tsv") - 1 ))
+if [[ $rows -lt 1 ]]; then
+  echo "collect_real.sh: no real-audio trials matched in $SRC -- wrote a header only." >&2
+  echo "This is NOT a successful collection; section E would silently vanish." >&2
+  exit 2
+fi
+echo "$rows data rows"
 wc -l < "$DEST/real-audio-trials.tsv"

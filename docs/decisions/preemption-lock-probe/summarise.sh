@@ -112,7 +112,11 @@ if [[ -f "$R" ]]; then
       | awk -v a="$a" '{printf "%-28s killed_by_sig=%-4s x%s\n", a, $2, $1}'
   done
 else
-  echo "   MISSING: $R"
+  # This script IS the advertised re-derivation check, so a summary that quietly omits
+  # section E and still exits 0 is a partial result wearing a pass. Record it and fail
+  # at the end.
+  echo "   MISSING: $R -- section E cannot be re-derived" >&2
+  MISSING_E=1
 fi
 
 echo
@@ -149,3 +153,9 @@ $6=="VOID" { k=$2"/"$1; void[k]++; next }
 { k=$2"/"$1; n[k]++; if ($6+0!=1) bad[k]++ }
 END{ for (p in n) printf "%s\ttrials=%d\tnot_exactly_1=%d\trate=%.0f%%%s\n", p, n[p], bad[p]+0, 100*(bad[p]+0)/n[p],
        (void[p] ? "\tVOID=" void[p] : "") }' "$L" | sort
+
+if [[ ${MISSING_E:-0} = 1 ]]; then
+  echo "INCOMPLETE: real-audio evidence was missing, so section E is absent." >&2
+  echo "This is NOT a full re-derivation." >&2
+  exit 2
+fi

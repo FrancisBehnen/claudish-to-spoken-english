@@ -29,7 +29,7 @@ Three environment variables override, and the author's original layout is reacha
 | --- | --- | --- |
 | `RIG` | the script's own directory | where the sibling scripts and probes are found |
 | `OUT` | `$RIG/out` (`$RIG/out/lock` for `run_lock.sh`) | where run directories and results are written |
-| `PYTHON` | `python3` | the interpreter. `run_real.sh` defaults to the Kokoro venv instead, because that arm imports `kokoro`; point `PYTHON` at any interpreter that can |
+| `PYTHON` | `python3` | the interpreter. `run_real.sh` defaults to the Kokoro venv instead, because that arm imports `kokoro_onnx` (the probe does `from kokoro_onnx import Kokoro`; the distribution is `kokoro-onnx`); point `PYTHON` at any interpreter that can |
 
 The stub arms need nothing but a stdlib `python3`. The re-derivations need no interpreter at all:
 `summarise.sh <dir-with-the-four-TSVs>` and `analyse_round2.sh traces` are `awk` and `sort`.
