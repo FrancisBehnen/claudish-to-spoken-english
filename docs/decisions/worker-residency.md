@@ -824,16 +824,27 @@ routes to the same outcome were being described as one.** On turns 37–40 the s
 `n_md = 1`, so its only invocation *is* the final one, which is the concurrent one. **On turn 31 there
 were three** — `n_md = 3`, not 1 — and all three landed after `Stop`'s clock read, all three found no
 worker and spawned one, and the election discarded two. So more than one chunk is **not** sufficient:
-turn 31 satisfies the first half of the stated limit below and fails the second, because its first chunk
-did not lead the end of the turn at all. There is nothing left to explain about hook dispatch ordering;
+turn 31 meets the condition that more than one chunk is necessary for and still fails the stated limit
+below, because not one of its three chunks led the end of the turn at all. There is nothing left to explain about hook dispatch ordering;
 the ordering is a consequence of when the chunks arrive, which is a consequence of message length.
 
-The practical rule is unchanged and should go in the spec as a stated limit:
+The practical rule is one condition rather than two, and it goes in the spec as a stated limit written
+over both observed routes rather than over one of them:
 
-> **Warm-up-on-`MessageDisplay` covers the cold start if and only if the turn's message streams in
-> more than one chunk *and* the first chunk arrives more than the worker's startup time
-> (**1.33–2.02 s** measured, n = 8) before the turn ends. On a very short, very fast first turn there
-> is one chunk, it is the final one, it is concurrent with `Stop`, and the first utterance is cold.**
+> **Warm-up-on-`MessageDisplay` covers the cold start if and only if some invocation of the turn
+> arrives more than the worker's startup time (**1.33–2.02 s** measured, n = 8) before the turn ends —
+> equivalently, since the invocations arrive in order, if and only if the FIRST one does. Streaming in
+> more than one chunk is NECESSARY for that and is not sufficient. Both routes to a cold first
+> utterance have been observed and the limit covers both: the turn streams in ONE chunk, which is then
+> the final one and concurrent with `Stop` (turns 37–40, `n_md = 1`, first-chunk lead +0.005 to
+> +0.009 s); or it streams in MORE THAN ONE and every one of them still arrives at the end of the turn
+> (turn 31, `n_md = 3`, the first chunk 0.064 s and the last 0.066 s AFTER `Stop`'s clock read).**
+
+**The second sentence of that block used to read *"on a very short, very fast first turn there is one
+chunk"* and nothing else** — the single-chunk route stated as the only one, four lines under the
+turn-31 data that records three. The single-chunk turns are real, measured and kept; what is withdrawn
+is their standing as *the* explanation of a cold short turn. Spec §10.5 clause 4 carried the same
+one-route explanation over the same turn-31 numbers, and that half is §13 row 14.
 
 That limit is tolerable, and here is why, stated as reasoning rather than measurement
 **[inferred]**: a fifty-character first message is exactly the band §3.3 and §9 are about, and
@@ -1133,16 +1144,21 @@ measured above; clause 7 is reasoned from §1b:
    5.16–6.23 s from the first invocation. Below `MIN_CHARS` (200) `rewrite.sh` publishes nothing at all,
    so a publish-point trigger gives zero warm-up on short turns. The step must be payload-independent:
    one `[[ -d ]]` and one `kill -0`, before any parsing. **Stated limit:** this covers the cold start
-   only when the message streams in more than one chunk and the first chunk leads the end of the turn by
-   more than the worker's 1.33–2.02 s startup; on a very short first turn there is a single chunk, it is
-   the final one, and the first utterance is cold.
+   only when some invocation of the turn leads the end of the turn by more than the worker's
+   1.33–2.02 s startup — which more than one chunk is necessary for and does not guarantee. Two routes
+   to a cold first utterance are observed: a single chunk, which is then the final one and concurrent
+   with `Stop` (turns 37–40, `n_md = 1`); and three chunks that all arrive after `Stop`'s clock read
+   (turn 31, `n_md = 3`).
    - **SUPERSEDED IN PART: the every-invocation trigger is the spec's; the two implementation properties
      stated above are not.** What carries over unchanged is the trigger itself and the reasoning that
      picked it — an ensure-worker step on **every** `MessageDisplay` invocation, above `rewrite.sh:127`'s
      non-final early return, and *not* on §3.1's publish point, for the three reasons given (the final
      invocation's concurrency with `Stop`, the publish's position after `llm_complete`, and the
      `MIN_CHARS` gate) — together with the **Stated limit**, which the spec restates as its own STATED
-     LIMIT in the same terms (spec §10.5 clause 4). Two things do not carry over:
+     LIMIT in the same terms (spec §10.5 clause 4). **What carries over is the LEAD-TIME condition, and
+     the single-chunk example is explicitly superseded as an exclusive one** — §4c's own turn 31 streams
+     three chunks and is cold anyway, so both sites state the limit over both routes and neither offers
+     the one-chunk case as the only way to lose the lead. Two things do not carry over:
      - **"Before any parsing" is not implementable, and the spec says so in those words.** The step's
        address is `$BUF_ROOT/<session_id>/speak/`, and `rewrite.sh` has exactly one source for
        `session_id` — the payload, parsed at `:108`; no environment variable, no session file, no
@@ -1219,8 +1235,13 @@ measured above; clause 7 is reasoned from §1b:
        *succeeds*. So *"both targets"* is **measured for the handle and `[inferred]` for the record**.
        What the record half is for is a player the claiming worker did not spawn and holds no handle
        for, which is also what (iv-a)'s published-record sweep covers, so no arm here isolates it.
-       **The arm that would settle it keeps the handle, drops the record and FAILS; `C10b` is the
-       opposite of that arm.** Spec §10.5 clause 7(iii) carries the same split, and the record half is
+       **The arm that would settle it is one in which the claimant holds NO HANDLE because it did not
+       spawn the running player, run twice with the published record as the only difference: with the
+       record the claim-time kill must land, without it the player must run to full length. `C10b` is
+       NOT the opposite of that arm** — `C10b` is itself handle-present and record-absent, so the arm
+       this bullet named until review round fourteen (*"keep the handle, drop the record, and fail"*)
+       demanded failure from the configuration measured killing 12/12 at 0.56–0.71 s. Spec §10.5
+       clause 7(iii) carried the same unsatisfiable arm and is §13 row 14; the record half stays
        normative there as an argument rather than as a result.
      - **(iv) the election-time process-group sweep — MEASURED LOAD-BEARING, and the only hook that
        reaches the spawn-to-record region.** `C12a` kills 12/12 (audible 0.738–0.841 s) and `C12b` kills
