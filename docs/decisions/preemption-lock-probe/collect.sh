@@ -6,7 +6,25 @@
 #                 validated to ~90 us against $EPOCHREALTIME)
 #   trials.tsv    one row per trial, joining markers.tsv with worker.trace
 #
-# Everything published derives from trials.tsv with awk/sort and nothing else.
+# WHAT trials.tsv IS ENOUGH FOR, AND WHAT IT IS NOT. This header used to read
+# "everything published derives from trials.tsv with awk/sort and nothing else", which is
+# the claim the PR description and the README both had to withdraw and which came back
+# here. trials.tsv is ONE ROW PER TRIAL, so it carries what a trial's players and hooks
+# ENDED UP as -- and no column of it carries a trace EVENT. The boundary, by consumer:
+#
+#   summarise.sh <evidence_dir>            over the four committed TSVs -- the per-trial
+#                                          quantities: kill attribution, the player
+#                                          process intervals, the window widths, and
+#                                          row 21's owner counts.
+#   analyse_round2.sh traces               over the raw traces -- `record_unlinked`,
+#                                          `pending_found`/`pending_created`, the
+#                                          sweep-skip counts, and every statement about
+#                                          what a sweep DID. None is a TSV column.
+#   analyse_c14.sh traces                  the hook-C reachability arms (4/8 and 0/12),
+#                                          which need the `tNc` markers and hook rows.
+#   compare_passes.sh <evidence_dir>       the published arm against the replication.
+#
+# The two derivations are disjoint and both are required; neither checks the other.
 #
 # usage: collect.sh <rundir> <config>
 set -u
@@ -65,7 +83,10 @@ FILENAME ~ /kills\.log$/ {
 }
 FILENAME ~ /player\.log$/ {
   # ts pid tag kind fields   -- the player own view (cross-check). Cross-checks rc, and gives
-  # the audible start (a player killed before this line was never audible at all).
+  # the stub PROCESS start (a player killed before this line never reached its own first
+  # instruction). It is not an audibility observation and never was: player_probe.py opens
+  # no audio device at any point, so "was anything heard" is not a question these stamps
+  # can be asked. See the pstart_to_pend_s column below.
   n = split($5, f, " ")
   for (i = 1; i <= n; i++) { split(f[i], kv, "="); V2[kv[1]] = kv[2] }
   if ($4 == "player_start")    { PSTART[$3] = $1 }
@@ -107,7 +128,7 @@ END {
   if (nskip)
     printf "collect.sh: %d hook `record_skipped` row(s) in kills.log -- the hook refused a\n            player record on identity grounds. Not a kill and not a `nopid`; see the\n            raw kills.log, since no trials.tsv column carries it.\n", nskip > "/dev/stderr"
   printf "config\ttrial\tR_a\tK_b\tR_b\tRdone_b\tS\tS2\tP\tW\tnewer_at_S2\tdiscarded\t"
-  printf "player_pid\trc\tkilled_by_sig\talive_s\tplayer_log_sig\taudible_s\t"
+  printf "player_pid\trc\tkilled_by_sig\talive_s\tplayer_log_sig\tpstart_to_pend_s\t"
   printf "p_start_ts\tp_end_ts\t"
   printf "hook_b_target\thook_b_result\t"
   printf "worker_claim_target\tworker_claim_result\tS_b\tordering\n"
@@ -132,10 +153,20 @@ END {
              rdb+0 > S2[ja]+0 && rdb+0 < P[ja]+0 && kb+0 < W[ja]+0) \
       ord = "R<S2<R_b<P<W (adversarial)"
     else ord = "other"
-    aud = "-"
-    if ((ja in PSTART) && (ja in PEND)) aud = sprintf("%.4f", PEND[ja] - PSTART[ja])
-    else if (ja in PSTART) aud = "unended"
-    else if (ja in P) aud = "0(never_started)"
+    # pstart_to_pend_s -- the stub player process own start-to-end interval, from the two
+    # stamps carried beside it as p_start_ts and p_end_ts. It was called `audible_s` for
+    # ten rounds and that name was wrong in the one place a consumer reads: the value is
+    # a PROCESS interval logged by player_probe.py, which opens no audio device, so no
+    # part of it is known to have been heard. Round 27 corrected the prose that quotes
+    # this column and left the column asserting audibility on its own.
+    #   0(never_started)  the stub logged no player_start. That bounds when the kill
+    #                     landed -- inside interpreter startup -- and says nothing at all
+    #                     about audio, here or in any other value of this column.
+    #   unended           a start with no end line in the player log.
+    prun = "-"
+    if ((ja in PSTART) && (ja in PEND)) prun = sprintf("%.4f", PEND[ja] - PSTART[ja])
+    else if (ja in PSTART) prun = "unended"
+    else if (ja in P) prun = "0(never_started)"
     printf "%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
       cfg, t, ra, kb, rb, (rdb == "" ? "-" : rdb),
       (ja in S ? S[ja] : "-"), (ja in S2 ? S2[ja] : "-"),
@@ -143,7 +174,7 @@ END {
       (ja in NEWER ? NEWER[ja] : "-"), (DISC[ja] ? 1 : 0),
       (ja in PPID ? PPID[ja] : "-"), (ja in RC ? RC[ja] : "-"),
       (ja in SIG ? SIG[ja] : "-"), (ja in ALIVE ? ALIVE[ja] : "-"),
-      (ja in PSIG ? PSIG[ja] : "-"), aud,
+      (ja in PSIG ? PSIG[ja] : "-"), prun,
       (ja in PSTART ? sprintf("%.6f", PSTART[ja]) : "-"),
       (ja in PEND ? sprintf("%.6f", PEND[ja]) : "-"),
       K["t" t "b.target"], K["t" t "b.result"], wct, wcr,

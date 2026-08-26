@@ -269,7 +269,7 @@ stats() {   # label < numbers-on-stdin
 # script is byte-identical. This is a LATENT defect that would bite on a re-run -- the
 # C12b arm is one scheduling accident away from producing exactly the row that breaks
 # it -- not a correction to any figure.
-ATTRIB='function attrib(sig, plog, ppid, aud) {
+ATTRIB='function attrib(sig, plog, ppid, prun) {
   # 1. The wait status, if the parent has one. Authoritative and sufficient.
   if (sig != "-") {
     if (sig=="-15") return "hook-pid-kill"
@@ -293,7 +293,7 @@ ATTRIB='function attrib(sig, plog, ppid, aud) {
   if (ppid=="-")                return "no-player-spawned"
   # Spawned, never logged a start, no exit status: killed BEFORE it could exec.
   # A player that survived to run always logs player_start, so this is unambiguous.
-  if (aud=="0(never_started)")  return "killed-before-exec"
+  if (prun=="0(never_started)")  return "killed-before-exec"
   return "unknown"
 }'
 
@@ -304,9 +304,15 @@ $1=="config"{next}
   | sort | uniq -c | awk '{printf "%-4s %-22s %-24s %s\n", $1"x", $2, $3, $4" "$5" "$6" "$7" "$8}'
 
 echo
-echo "== ROW 20 / B: was the stale utterance audible, and for how long =="
-echo "   audible_s = the stale player's own start-to-end interval. 0(never_started)"
-echo "   means the kill landed inside its startup: no audio device was ever opened."
+echo "== ROW 20 / B: how long the stale PLAYER PROCESS ran, per configuration =="
+echo "   pstart_to_pend_s = the stale player process own start-to-end interval, as the"
+echo "   stub logged it (p_end_ts - p_start_ts). Renamed from audible_s in round 28: the"
+echo "   player here is player_probe.py, which opens NO AUDIO DEVICE at any point, so no"
+echo "   part of any value in this column is known to have been heard. That holds for the"
+echo "   nonzero values as much as for the zero one."
+echo "   0(never_started) means ONLY that the stub logged no player_start -- the kill"
+echo "   landed inside interpreter startup. It bounds WHEN the kill arrived. It is NOT a"
+echo "   finding that nothing was audible, because audibility was never observed here."
 for c in $(awk -F'\t' '$1!="config"{print $1}' "$P" | sort -u); do
   awk -F'\t' -v c="$c" '$1==c {print $18}' "$P" | sort -n \
     | awk "$MED"'

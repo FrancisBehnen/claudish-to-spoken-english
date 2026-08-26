@@ -1,4 +1,4 @@
-config	trial	R_a	K_b	R_b	Rdone_b	S	S2	P	W	newer_at_S2	discarded	player_pid	rc	killed_by_sig	alive_s	player_log_sig	audible_s	p_start_ts	p_end_ts	hook_b_target	hook_b_result	worker_claim_target	worker_claim_result	S_b	ordering
+config	trial	R_a	K_b	R_b	Rdone_b	S	S2	P	W	newer_at_S2	discarded	player_pid	rc	killed_by_sig	alive_s	player_log_sig	pstart_to_pend_s	p_start_ts	p_end_ts	hook_b_target	hook_b_result	worker_claim_target	worker_claim_result	S_b	ordering
 C1_prespawn	1	1787692792.118360334	1787692792.563916623	1787692792.693771796	1787692792.709180421	1787692792.126450	1787692793.137309	-	-	1	1	-	-	-	-	-	-	-	-	55001	esrch	55001	ESRCH	1787692793.138366	R<S2 (recheck)
 C1_prespawn	2	1787692798.866712117	1787692799.316256654	1787692799.436958760	1787692799.451486686	1787692798.879163	1787692799.891192	-	-	1	1	-	-	-	-	-	-	-	-	55091	esrch	55091	ESRCH	1787692799.892629	R<S2 (recheck)
 C1_prespawn	3	1787692805.642449519	1787692806.096240968	1787692806.221871979	1787692806.232548405	1787692805.654502	1787692806.664291	-	-	1	1	-	-	-	-	-	-	-	-	55149	esrch	55149	ESRCH	1787692806.665946	R<S2 (recheck)

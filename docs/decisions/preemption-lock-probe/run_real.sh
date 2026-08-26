@@ -33,7 +33,11 @@ SID="REAL-$CK-$(date +%s)"
 SD="$OUT/$SID/speak"; MD="$OUT/$SID/markers"
 mkdir -p "$SD" "$MD"
 TRACE="$OUT/$SID/worker.trace"; PLOG="$OUT/$SID/player.log"; TXT="$OUT/$SID/text"
-# two clearly distinguishable utterances, so an overlap is audible as an overlap
+# Two lexically distinguishable utterances, so that a listener WOULD be able to tell an
+# overlap from a single voice. Nobody listens: this is a property of the fixture, not an
+# observation, and round 28 reworded it because the old form ("so an overlap is audible as
+# an overlap") asserted the observation. Round 27 corrected this file's header and left the
+# line; it belongs to derivation defect 14's arm, not to defect 15's stub schema.
 printf 'The older utterance says: one, two, three, four, five, six, seven, eight.\n' > "$TXT"
 printf 'The newer utterance says: alpha, bravo, charlie, delta, echo, foxtrot.\n' > "$OUT/$SID/text2"
 

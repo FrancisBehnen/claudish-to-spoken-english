@@ -179,14 +179,16 @@ owner's pid, which only row 21's generation protocol supplies — a protocol tha
 record of the worker it replaced cannot. They can no longer be signed off independently.
 
 **Both rows stay ship-blocking**, and the reason has changed: they are no longer unverified.
-**Twelve consecutive rounds of review have each found a real defect in the previous round's
+**Thirteen consecutive rounds of review have each found a real defect in the previous round's
 confident answer** — §6 counts them off its own table, which is a floor rather than a total, and
 round 27 replaced the three different numbers this document used to carry for the one tally.
 Among them: a defect in the repair this document proposed, one in the *text* of the repair
 that replaced it, round 16's defect in the identity check round 15 added to repair the repair,
-round 17's in the *derivations* of two published figures rather than in any mechanism, and round
+round 17's in the *derivations* of two published figures rather than in any mechanism, round
 27's in the document's own **choice of noun** — a quantity called *audibility*, tagged
-`[measured-here]`, derived entirely from process stamps by a rig in which nothing listens. See §6.
+`[measured-here]`, derived entirely from process stamps by a rig in which nothing listens — and
+round 28's in that correction's **reach**: the noun was fixed in thirteen sentences and left
+standing in the published **column name** those sentences describe. See §6.
 
 ---
 
@@ -236,16 +238,21 @@ the two arms are compared under the same predicate rather than across a changed 
 [`preemption-trials-replication.tsv`](preemption-trials-replication.tsv) the replication, and
 `preemption-lock-probe/compare_passes.sh` prints them side by side.
 
-**Fourteen derivation defects have been found by review, and all fourteen are addressed here —
-thirteen fixed, and the fourteenth re-labelled because it cannot be fixed by deriving anything.
+**Fifteen derivation defects have been found by review, and all fifteen are addressed here —
+fourteen fixed, and the fourteenth re-labelled because it cannot be fixed by deriving anything.
 Five of them made the reproducibility claim false, which was the claim the whole document rested
 on.** The first three came from review of the first revision; the next two from round 5, the sixth
 from round 15, the seventh and eighth from round 16, the ninth and tenth from round 17, the
 eleventh from round 21, the twelfth from round 24, the thirteenth from round 26, the fourteenth
-from round 27, and all of them are of
+from round 27, the fifteenth from round 28, and all of them are of
 the same kind — a figure whose
 name and whose derivation are not the same quantity, or a derivation that does not reach the
 figure it is cited for.
+**One entry in this list has also RECURRED rather than merely been found: number 8's claim that the
+committed TSVs suffice on their own was fixed in `summarise.sh`'s header in round 16 and was then
+written into `collect.sh`'s header, where round 28 found it again** (see the note under 8). A
+disclosure list whose entries can come back needs to say so, because "addressed" is otherwise read
+as "gone".
 **Numbers 11, 12 and 13 are all defects in the fix for number 9**, on the same figure, and that is
 worth saying plainly: `C14a`'s destruction count has now been through a withdrawal and four
 repairs. It has not moved through any of them, and that is a fact about this data rather than
@@ -337,6 +344,19 @@ symptom would have been the *opposite* claim about the same trial.
    paragraph below; the script did not, and a script that overstates its own coverage is the
    quietest way for *"every figure re-derives"* to stop being true. The header now states what
    the script covers — sections A–F, from the TSVs — and names `analyse_round2.sh` for the rest.
+
+   **RECURRENCE, ROUND 28 — the same claim, one file over, and it is filed here rather than as a
+   sixteenth defect because it is not a new finding.** `collect.sh`'s header line 9 read
+   *"Everything published derives from trials.tsv with awk/sort and nothing else"*, which is this
+   defect's exact sentence about a narrower input: `trials.tsv` is one row per trial and carries
+   no trace event at all, so `record_unlinked`, `pending_found`/`pending_created` and the
+   sweep-skip counts are not in it. Round 16 corrected the claim in `summarise.sh`, the PR
+   description and the README, and left it standing in the script that *writes* the file the
+   claim is about — which is the file an implementer opens first. The header now states the
+   boundary by consumer: `summarise.sh` over the four TSVs for the per-trial quantities,
+   `analyse_round2.sh traces` for the trace-event counts, `analyse_c14.sh traces` for the hook-C
+   reachability arms, `compare_passes.sh` for published-against-replication. **No figure is
+   affected** — the boundary itself is unchanged and both derivations were already being run.
 9. **`C14a`'s headline figure was an addition of two counters that shared no key — round 17.**
    `analyse_round2.sh` counted `plog` (unlinks ordered after a newer player's own `player_start`)
    and `hookc` (hook-C reads that found nothing) as independent **global** totals, printed their
@@ -496,9 +516,12 @@ symptom would have been the *opposite* claim about the same trial.
    `ACCOUNTING ERROR: 10 of 12` and exits **2**, and on the committed traces it is silent and
    exits 0.
 14. **AUDIBILITY WAS NEVER MEASURED AND WAS PUBLISHED AS `[measured-here]` ANYWAY — round 27,
-   and it is the only defect in this list that is in the document's own words rather than in a
-   script.** It is the same kind as the other thirteen — a figure whose name and whose
-   derivation are not the same quantity — but the mismatch is in the noun. §2.6's arm was
+   and it is the first defect in this list that is in the document's own words rather than in a
+   script.** It is the same kind as every other entry here — a figure whose name and whose
+   derivation are not the same quantity — but the mismatch is in the noun. **It also did not
+   reach the schema those words describe, which is defect 15 below**: the enumeration of sites
+   under this entry is a list of PROSE, and the column name a downstream consumer actually reads
+   was not on it. §2.6's arm was
    introduced as *"this arm answers audibility only"*, and its two figures are `afplay`
    **process** stamps: `timerstart_to_exit_s` for the millisecond bound, and
    `overlap_s = EX[jNa] − POP[jNb]` — a reap stamp minus a `Popen`-return stamp — for the
@@ -539,8 +562,40 @@ symptom would have been the *opposite* claim about the same trial.
    process co-existence, both **upper bounds** (§2.6 derives why both of `overlap_s`'s endpoints
    over-count), with audibility **[inferred]** and a loopback capture as its closing condition.
    **This one cannot be closed by re-deriving**, which puts it with harness defect 4 rather than
-   with the twelve that were fixable in a script: the observation does not exist in these traces,
+   with the fourteen that were fixable in a script: the observation does not exist in these traces,
    and nothing on this machine can listen.
+15. **THE STUB'S PROCESS INTERVAL WAS STILL CALLED `audible_s` — IN THE SCHEMA, AFTER THE PROSE
+   WAS FIXED. Round 28, and it is ONE row rather than four because it is one mislabel with four
+   surviving copies.** Defect 14 enumerated thirteen sites and corrected every one, and its
+   enumeration was of sentences. The **column name** was not a sentence, and the column is what a
+   downstream consumer reads: `preemption-trials.tsv` and `preemption-trials-replication.tsv`
+   published `audible_s` at column 18 over **444 rows of stub arms**, whose player is
+   `player_probe.py` — a `sleep` that opens **no audio device at any point**, no synthesis, no
+   file, no output stream. The value is `p_end_ts − p_start_ts`, the stub process's own
+   start-to-end interval, and the two columns it is derived from sit immediately beside it. The
+   four copies:
+   1. `collect.sh:110`, the `printf` that WRITES the header — the schema itself.
+   2. the header row of both committed preemption TSVs, which is the copy a consumer parses.
+   3. `summarise.sh` section B — heading *"was the stale utterance audible, and for how long"*,
+      and a preamble glossing `0(never_started)` as *"no audio device was ever opened"*. That
+      gloss is true of **every** value in the column, including the nonzero ones, so as a
+      distinction it asserted the opposite of the fact: it read as though a player that DID start
+      had opened one.
+   4. `player_probe.py`'s docstring — *"it logs its start so `audible from` has a timestamp"*, in
+      the very file that never opens a device.
+   Renamed to **`pstart_to_pend_s`**, which names its own derivation and no more. `0(never_started)`
+   now states what it bounds — the kill landed inside interpreter startup — and states explicitly
+   that it is **not** a finding that nothing was audible, because audibility was never observed
+   here at all. **No value changed and no figure moves**: the two TSVs differ from their committed
+   versions on line 1 and on no other line (data-row `sha256` identical, 313 and 133 lines before
+   and after), and `summarise.sh` prints the same numbers under the corrected headings. Four
+   readers take the column **by position** and none by name — `summarise.sh` (`$18`, twice),
+   `peek.sh` and `peek_one.sh` (`$18`) — so the rename could not break a derivation, and the
+   inverse is the reason it had to be done anyway: a positional reader carries its own **label**,
+   and `peek.sh`'s `aud=` and `peek_one.sh`'s *"audible duration"* would have outlived the column
+   name. Both moved with it. **The pattern is defect 14's own, one level down** — *one claim,
+   corrected in one place* — and filing it as four rows would have counted one mislabel four
+   times.
 
 **Five HARNESS defects were also found and are disclosed here, because three of them changed
 results and one of them destroyed data.** They are listed rather than quietly fixed, since a
@@ -882,6 +937,8 @@ synthesised, so there is no audio to have a duration. What the column holds is t
 player's **process lifetime**, from the trial's wait status and the player's own log, and
 `full` means it lived out its configured `--player-secs`. Only §2.6 used a real player, and
 even there the quantity is process lifetime (see the limit stated in that section).
+**Round 28 carried the same correction into the TSV column this row reads**, which was still
+named `audible_s`: it is `pstart_to_pend_s` now, and no value moved (§1 derivation defect 15).
 
 | config | what it varies | which step killed the player | stale player lifetime, s |
 | --- | --- | --- | --- |
@@ -2356,7 +2413,13 @@ Each of these is named with the experiment that closes it, not softened.
   long enough to be heard"* and *"two utterances overlapped for 3.25–3.50 s"* are both
   inferences on top of a process bound, and the second one had no such caveat anywhere in the
   document — the audio wording stood at **nine** sites in this document and **four** in the rig
-  while the honest paragraph sat beside one of them (§1 derivation defect 14). **Nothing here can close this, and that is the
+  while the honest paragraph sat beside one of them (§1 derivation defect 14). **Round 28 found
+  the same wording still in the SCHEMA**: the stub arms' `audible_s` column, over 444 published
+  rows whose player opens no audio device, plus the `summarise.sh` section and the
+  `player_probe.py` docstring that describe it — now `pstart_to_pend_s`, with no value changed
+  (§1 derivation defect 15). So the audio wording has now been removed from the prose **and**
+  from the column a consumer parses, and in neither pass did an observation appear.
+  **Nothing here can close this, and that is the
   point: this machine has no path from a process stamp to an audio observation.** To close:
   capture the output device — an aggregate/loopback sink recorded for the length of each trial —
   and derive time-to-first-sample and two-voices-at-once from the recording. **Scale does not
@@ -2769,14 +2832,14 @@ under the table said
 *"ten consecutive rounds"* — three numbers for one tally, none of them defined, in the section
 whose entire argument is an induction over that tally. **One row per round in which review found
 a real defect** is the rule, `PR #27`'s pre-measurement round included, and the count is now
-**twelve** because this round adds one. Two things a reader should know before trusting it:
+**thirteen** because this round adds one. Two things a reader should know before trusting it:
 - **The table has been behind the body since rev 9.** Its last row before this one is labelled
   *review round 21*, and the body cites findings from **rounds 24, 25 and 26** (derivation
   defects 11, 12 and 13; the fifth pid-reuse site in §0 and §2.5 item 7). Those rounds changed
   the document and never got rows. **This round did not invent them** — summarising somebody
-  else's round from its residue is how a tally stops being evidence — so the twelve rows are a
+  else's round from its residue is how a tally stops being evidence — so the thirteen rows are a
   **floor** on the rounds, not the rounds.
-- **Twelve is therefore the smallest defensible number here**, which is the direction a
+- **Thirteen is therefore the smallest defensible number here**, which is the direction a
   disclosure tally is allowed to be wrong in.
 
 | round | the clause it examined | verdict |
@@ -2792,9 +2855,10 @@ a real defect** is the rule, `PR #27`'s pre-measurement round included, and the 
 | **PR #28 rev 7** | **rev 6's own repair of the `killpg` bound, and the four scripts that decide what may be published** | **The identity test rev 6 added had a hole in the shape of the thing it was added to close — the FIFTH distinct defect in this one bound, and the first that is in the fix rather than the mechanism.** `owner_identity()` guarded on `option == "off" OR the record has no start time`, putting the deliberate falsification arm and a **record shape** behind one `or` — so under `--owner-identity on` a **bare or legacy record** degraded silently to `kill(pid, 0)`, called a recycled pid `same`, and let a `.pending` marker authorise `killpg` on a stranger's whole group. The option closed the hazard for records it had written and left it open for every record it had not, which is the entire population during a migration. The degradation now keys on the **option** and never on the record; a bare record is a fourth verdict, `unverifiable`, and the two sites fail safe in **opposite** directions — the sweep refuses to signal and keeps the marker, the election supersedes without signalling. Bench-demonstrated in five arms, both directions, stranger alive where it must be and dead where it must be; still `[inferred]`. Alongside it, four validators: **`publish.sh`'s rollback destroyed the evidence it existed to protect** — `mv`ing `traces/` out of the live destination before the swap, so a failed swap restored a gutted directory and the `EXIT` trap deleted the only copy (**all 114 committed trace files, measured on the round-15 script**); **its required-file set omitted the producers of four of the committed TSVs**, `collect_real.sh` among them; **`verify_fires.sh` was a subset check, not an exact-set check**, so a re-run appended to `RUNS.txt` gave a duplicate configuration that passed and would have made the 312-trial denominator **324**; and **`assemble_pass1.sh` pinned `C3` to one historical timestamp**, so any other valid pass silently published **10 of 11** configurations while the aggregate guard succeeded. Plus two derivation defects: the attribution chain let the player's own log outrank the kernel's wait status (latent — **no published figure moves**, verified over every row), and `summarise.sh`'s header claimed to re-derive *every* published figure when the event counts come only from `analyse_round2.sh` |
 | **PR #28 rev 8** | **the two derivations that carry `C14a`'s destruction count and row 21's denominator** | **Two findings, and both are the same shape: a published number whose own script does not establish it.** `analyse_round2.sh` printed *"PROVEN destructions of a published record: N + M"* by adding two **global** counters that share no key — not the trial, not the unlink — and then **asserted** that the two witnesses fell in the same trials and saw distinct unlinks. Neither half was derived, and the figure resting on it, **8 across 4 trials**, is itself the correction that replaced a withdrawn 24-across-12/12. The join keys were in the traces all along, including a **third file the block never opened**: `markers.tsv`'s `tNc entry` is the timestamp `hook-kills.log` does not carry. It is now a three-way join on `(trial, unlink timestamp)` that binds each hook-C witness to **one** unlink and prints the **union** with the intersection computed and each event's **rank** in its trial; the committed traces give intersection **0**, ranks **#1 and #2**, and the **same 8 across 4** — unchanged, now derived, and narrowing rather than asserting where a window is ambiguous. And `summarise.sh` checked only that `lock-owners.tsv` was **non-empty**, so an interrupted run or one missing a whole protocol × scenario cell re-derived the **1200-trial / 400-per-protocol** result over a smaller denominator and still exited 0. The matrix — **60 cells × 20 reps**, transcribed from `run_lock.sh` and deliberately *not* derived from the file under test — is now checked, rep numbers included, before any section prints. Its own first draft passed everything by **failing to run** (a literal newline in an `awk -v` assignment, which BWK awk rejects with no output); it now refuses when it cannot run |
 | **PR #28 rev 9, review round 21** | **the PROTOCOL, for the first time in ten rounds — two clauses and the derivation that carries `C14a`** | **Three findings, and the first two are in the design rather than in a script.** **(1) The player records never had an identity.** Round 20 anchored the record *name* to `<pid>.<8-hex>` so a `.pending` marker could not be parsed as a pid, and that parsing fix was read as though it made the pid an identity. It does not: nothing removes a player record when its player dies, so a record outlives its process for the whole session — the committed `C12b` warm-up record is in the election sweep's target list on **24 of its 25** elections — and **three** sites then signal a number taken straight from it (the hook, the election-time record sweep, and the claim-time kill the review did not name). The content is now the player's own `<pid>.<starttime>`, matching **PR #27 clause 7(i)** field for field so the two documents specify one scheme, and all three sites skip in silence on a mismatch. **(2) Superseding an `unverifiable` owner was not fail-safe, and the reason given for it was false.** Round 16 argued the election may supersede freely because the sweep refuses that verdict separately — but superseding is the licence to **consume jobs**, so a bare record belonging to a live legacy worker produces **two owners and overlapping audio**, which is the single invariant this document exists to hold. Nor can superseding be made into a drain: nothing in the protocol re-reads the lock after winning, and no notice can reach a worker that by definition predates it. The election now supersedes a **vacant** pid and refuses a **held** one, mixed-mode operation is declared **out of contract**, and the cost is stated — a session that **wedges** when a bare record's pid has been recycled, bounded to one session and loud in the trace. **(3) The repair for rev 8's own finding used an invalid bound.** The hook-C witness was bound to one unlink by `(W_pid_write[jNb], tNc entry)`, and `W` is the **parent's** deferral stamp taken after `Popen` returns while the wrapper is already running — harness defect 4, reintroduced as a bound by the block that had just withdrawn a lag figure for it. There is no observed publication instant in these traces to substitute, so the binding no longer needs one: it is now a **uniqueness** argument over `(S2_prespawn_stat[jNb], tNc entry)` with the trial filter removed. **The figure survives byte-identical at 8 across 4** — on this data the invalid bound happened to select the same events (nearest unlink **+41.258 ms**, bound uncertainty at most **2.687 ms**), so it was latent exactly as defect 7 was. All three are bench-demonstrated in both directions, 18 arms; all three stay **`[inferred]`** |
-| **PR #28 rev 10 (this), review round 27** | **the two clauses round 4 and round 21 left behind, and the DOCUMENT'S OWN WORDS** | **Four findings, and the one that matters most is not in any script.** **(1) The real-audio arm never measured audibility, and said it did.** Every figure in §2.6 is an `afplay` **process** stamp — `overlap_s` is a reap stamp minus a `Popen`-return stamp, so **both endpoints over-count** — and nothing in this rig listens at any point. §2.6 had already conceded exactly that, for the *millisecond* figure only, in the paragraph under its own table; the concession never reached the **3.25–3.50 s** overlap figure or any of the places either number is quoted. The audio wording stood at **nine sites in this document and four in the rig**, including the §2.2 attribution table's entire last column (*"stale audio, s"*, over 26 rows of **stub** arms that open no audio device) and the §4d row-20 text that would have shipped into the spec. All thirteen are now process observations with audibility **`[inferred]`**; no figure moves and none is withdrawn (derivation defect **14**, the first in that list that is in the prose rather than in a script, and the second — after harness defect 4 — that **re-deriving cannot fix**). **(2) Round 4's own tightening of generation cleanup made it NON-RECOVERABLE.** *"Only the worker that created `g+1`"* means a creator that crashes between its terminal sweep and its unlink strands `g` **forever** — this document having already established that nothing external reaches a depth-3 symlink — so a crash loop accumulates generations without bound. The permission is recovered with a **condition rather than an exception**: a worker at generation `n` may unlink `g < n` only after **its own** sweep of `g`'s owner terminates, which is the ordering rule with the sweeper's identity dropped and not a hole in it. Four costs are stated, including the one it does **not** fix — `recycled` is deliberately non-terminal, so those generations still accumulate for the life of the session. **(3) *"A loser retries; it does not fail"* contradicted the 60-attempt bound in both implementations.** There are **three** terminal outcomes, not two, and the third — budget exhausted — left **no trace record at all**: measured on the committed probe, a `worker.lock.0` whose target does not parse made the worker **exit 0 after 0.12 s with `signal_dispositions` as the only line in its trace**. The exhaustion is now recorded with its breakdown, the unreadable-record path gets a backoff so the budget spans a **stated** 1.2 s instead of microseconds, and the recovery policy is named along with the caller property it rests on (§10.5 clause 4's per-invocation ensure step) and the wedge it accepts. **(4) Four fatal paths across two drivers left a worker running** under `--idle-exit-s 600` — ten minutes, and in the real arm holding a loaded ~340 MB model into the retry that was meant to diagnose the failure. `EXIT` traps installed at `WPID` capture, reading `$WPID` at trap time so a restarted worker is covered; demonstrated in both directions on both drivers plus the pre-fix contrast. `run_lock.sh` was checked and does not have the shape. Findings 2 and 3 stay **`[inferred]`** and unrun; finding 1 is a label correction; finding 4 is **[measured-here]** |
+| **PR #28 rev 10, review round 27** | **the two clauses round 4 and round 21 left behind, and the DOCUMENT'S OWN WORDS** | **Four findings, and the one that matters most is not in any script.** **(1) The real-audio arm never measured audibility, and said it did.** Every figure in §2.6 is an `afplay` **process** stamp — `overlap_s` is a reap stamp minus a `Popen`-return stamp, so **both endpoints over-count** — and nothing in this rig listens at any point. §2.6 had already conceded exactly that, for the *millisecond* figure only, in the paragraph under its own table; the concession never reached the **3.25–3.50 s** overlap figure or any of the places either number is quoted. The audio wording stood at **nine sites in this document and four in the rig**, including the §2.2 attribution table's entire last column (*"stale audio, s"*, over 26 rows of **stub** arms that open no audio device) and the §4d row-20 text that would have shipped into the spec. All thirteen are now process observations with audibility **`[inferred]`**; no figure moves and none is withdrawn (derivation defect **14**, the first in that list that is in the prose rather than in a script, and the second — after harness defect 4 — that **re-deriving cannot fix**). **(2) Round 4's own tightening of generation cleanup made it NON-RECOVERABLE.** *"Only the worker that created `g+1`"* means a creator that crashes between its terminal sweep and its unlink strands `g` **forever** — this document having already established that nothing external reaches a depth-3 symlink — so a crash loop accumulates generations without bound. The permission is recovered with a **condition rather than an exception**: a worker at generation `n` may unlink `g < n` only after **its own** sweep of `g`'s owner terminates, which is the ordering rule with the sweeper's identity dropped and not a hole in it. Four costs are stated, including the one it does **not** fix — `recycled` is deliberately non-terminal, so those generations still accumulate for the life of the session. **(3) *"A loser retries; it does not fail"* contradicted the 60-attempt bound in both implementations.** There are **three** terminal outcomes, not two, and the third — budget exhausted — left **no trace record at all**: measured on the committed probe, a `worker.lock.0` whose target does not parse made the worker **exit 0 after 0.12 s with `signal_dispositions` as the only line in its trace**. The exhaustion is now recorded with its breakdown, the unreadable-record path gets a backoff so the budget spans a **stated** 1.2 s instead of microseconds, and the recovery policy is named along with the caller property it rests on (§10.5 clause 4's per-invocation ensure step) and the wedge it accepts. **(4) Four fatal paths across two drivers left a worker running** under `--idle-exit-s 600` — ten minutes, and in the real arm holding a loaded ~340 MB model into the retry that was meant to diagnose the failure. `EXIT` traps installed at `WPID` capture, reading `$WPID` at trap time so a restarted worker is covered; demonstrated in both directions on both drivers plus the pre-fix contrast. `run_lock.sh` was checked and does not have the shape. Findings 2 and 3 stay **`[inferred]`** and unrun; finding 1 is a label correction; finding 4 is **[measured-here]** |
+| **PR #28 rev 11 (this), review round 28** | **round 27's own correction, and the unsafe-pid branch round 26 added to the hook** | **Two findings, and the first is round 27's failure mode applied to round 27.** **(1) The audibility correction reached thirteen SENTENCES and not the SCHEMA.** `audible_s` was still the name of column 18 in both committed preemption TSVs — **444 rows** of stub arms whose player opens no audio device — with `collect.sh` writing that header, `summarise.sh` section B headed *"was the stale utterance audible"* and glossing `0(never_started)` as *"no audio device was ever opened"* (true of every value in the column, so as a distinction it asserted the opposite), and `player_probe.py`'s docstring calling its own `player_start` an *"audible from"* stamp. A column name is what a downstream consumer reads, and a list of prose sites could not contain one. Renamed **`pstart_to_pend_s`** — its own derivation, `p_end_ts − p_start_ts`, both columns beside it — with the two TSVs differing from their committed versions **on line 1 and no other line**, data-row `sha256` identical. Filed as **one** derivation defect (15), not four: one mislabel with four copies. **(2) The hook reported, for one invocation, both that a record was found and refused AND that there was no record.** Round 26's unsafe-pid domain gate copied the `record_skipped` row from the identity branch beside it and not that branch's `found=1`, so a per-player invocation whose only record was unsafe fell through to `result=norecord` as well. `analyse_round2.sh`'s C14b hook-read summary counts the two with independent per-line counters and would have put that invocation in **both buckets**; `analyse_c14.sh` would have seen two hook-C rows and dropped the trial from both denominators. **Latent** — no committed trace carries a `record_skipped` row of any verdict — and latent the way defects 7, 11 and 13 were: the row it corrupts exists only because round 21 added the identity test. The three `continue`s beside it were audited and are correct; the question is *did a player record exist on disk*, and a `.pending` marker and an unparseable name answer no. **No committed figure moves under either finding**; the regression set is byte-identical apart from the two corrected headings |
 
-**Twelve rows, and every one of them a round that found a real defect in the previous round's
+**Thirteen rows, and every one of them a round that found a real defect in the previous round's
 confident answer** — counted off the table rather than carried, and a floor rather than a total
 for the reason stated above. **Round 27 is the sharpest form of the pattern in the DOCUMENT**:
 two of its four findings are defects in clauses this document itself proposed as repairs (round
@@ -2818,7 +2882,7 @@ record, the thing measured was an append-only ledger, and the arm that measured 
 delay that guaranteed the sweep always ran after publication. When the ordering rev 1 claimed to
 close was finally staged (`C11b`), **the single-record form failed.**
 
-### So the counter-argument is now refuted in every round in that table — twelve of them
+### So the counter-argument is now refuted in every round in that table — thirteen of them
 
 The original argument for non-blocking was that these clauses are *"cheap, obviously correct on
 inspection, and their failure windows are microseconds wide."*

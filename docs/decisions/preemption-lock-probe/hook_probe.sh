@@ -48,6 +48,28 @@
 # start time under `on` is UNVERIFIABLE and is refused, because letting the record decide
 # whether the check happens is exactly the hole round 16 found on the owner side.
 #
+# ROUND 28 -- `record_skipped` AND `result=norecord` WERE EMITTED FOR THE SAME INVOCATION,
+# and it was the round-26 unsafe-pid branch that did it: it printed `record_skipped` and
+# `continue`d without setting `found`, so the per-player loop fell through to the
+# `result=norecord` row afterwards. Those two rows are contradictory claims about one hook
+# call -- a record was found and refused, AND no record existed -- and they are read as
+# such: `analyse_round2.sh`'s C14b summary counts `result=norecord` and `record_skipped`
+# with two independent per-line counters on one pass, so the invocation appears in both
+# buckets, and `analyse_c14.sh` sees TWO hook-C rows for the trial and excludes it from
+# both denominators. Latent on the committed evidence -- no committed trace carries a
+# `record_skipped` row of any verdict -- and latent exactly the way derivation defects 7,
+# 11 and 13 were: the row it corrupts exists only because round 21 added the identity test.
+#
+# THE THREE `continue`s BESIDE IT WERE AUDITED AND ARE CORRECT AS THEY STAND, and the
+# audit has one question: DID A PLAYER RECORD EXIST ON DISK?
+#   * `recycled` / `unverifiable` / `lookup_failed` -- one branch, and it already sets
+#     `found=1`. A record existed; the hook declined to act on it.
+#   * `<nonce>.pending`, and any name that is not `<pid>.<8-hex>` -- NOT a player record.
+#     A `.pending` marker is the election's generation marker and the two `C16` arms put
+#     one in this very directory, so a playerdir holding only markers must still read
+#     `norecord`; `found` stays 0 deliberately.
+#   * the unmatched-glob guard -- an empty directory. Same answer.
+#
 # ROUND 24 -- AND A LOOKUP THAT FAILS IS NOT A PID THAT IS ABSENT. `now_starttime` folded
 # every `ps` failure into "no such process", which `identity_verdict` called `gone` and
 # `gone` is signalled, so a transient failure turned this hook back into a bare-pid
@@ -163,9 +185,20 @@ if [[ -d "$SD/playerdir" ]]; then
     # 1 with both streams silent, which is round 24's CONFIRMED-absence shape, so it is
     # still classified `gone` -- and `gone` is signalled. The domain gate, not the
     # identity check, is what stops `kill -TERM 0`.
+    #
+    # ROUND 28: `found=1` IS PART OF THE SKIP, NOT PART OF THE KILL. When this branch was
+    # added it copied the `record_skipped` printf from the identity branch below and did
+    # NOT copy that branch's `found=1`, so an invocation whose only record was unsafe
+    # emitted `record_skipped` and then fell through to the `norecord` row -- the hook
+    # reporting, of one invocation, both that a record was found and refused and that
+    # there was no record. `found` means A RECORD EXISTED ON DISK, which is exactly what
+    # this branch has just established; refusing it is a decision about that record, not
+    # evidence of its absence. The shared branch below never had the defect because it
+    # gates the whole `kill_attempt` row on `exit_after_skip`, unsafe domain included.
     if [[ $pid -le 1 ]] 2>/dev/null; then
       printf '%s\thook\t%s\trecord_skipped\tby=hook via=perplayer target=%s verdict=unsafe_pid\n' \
         "$TAG" "$$" "$pid" >> "$MD/kills.log"
+      found=1
       continue
     fi
     rec_st=$(record_starttime "$f" "$pid") || rec_st=""

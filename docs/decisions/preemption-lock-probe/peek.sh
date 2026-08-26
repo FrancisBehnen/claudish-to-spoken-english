@@ -15,5 +15,9 @@ while read -r cfg d; do
     continue
   fi
   echo "=== $cfg ==="
-  awk -F'\t' 'NR==1{next}{printf "  t%-3s ord=%-32s hookB=%s/%s wclaim=%s/%s rc=%s plog=%s aud=%s\n",$2,$26,$21,$22,$23,$24,$14,$17,$18}' "$d/trials.tsv"
+  # $18 is pstart_to_pend_s, read BY POSITION. The label was `aud=` while the column was
+  # called audible_s; both were wrong in the same way -- the value is the stub player
+  # process own interval and nothing in this rig opens an audio device -- so the label
+  # moves with the column name rather than outliving it.
+  awk -F'\t' 'NR==1{next}{printf "  t%-3s ord=%-32s hookB=%s/%s wclaim=%s/%s rc=%s plog=%s prun=%s\n",$2,$26,$21,$22,$23,$24,$14,$17,$18}' "$d/trials.tsv"
 done < "$O/RUNS.txt"

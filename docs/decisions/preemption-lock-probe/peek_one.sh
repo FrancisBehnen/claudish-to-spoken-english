@@ -1,5 +1,9 @@
 #!/bin/bash
-# Outcome summary for one configuration, by attribution and audible duration.
+# Outcome summary for one configuration, by attribution and player-process runtime.
+# The second column printed is $18, pstart_to_pend_s, read BY POSITION: the stale player
+# process own start-to-end interval. It was called "audible duration" here and audible_s
+# in the schema; the player is a stub that opens no audio device, so neither name was a
+# fact about sound.
 # collect.sh beside this script; OUT names the run tree. Overridable: RIG, OUT.
 set -u
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)

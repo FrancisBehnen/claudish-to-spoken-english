@@ -5,7 +5,17 @@ Two jobs beyond making a noise-shaped delay:
 
  1. it appends its OWN pid to the player ledger as its first action, so the
     ledger's existence does not depend on the worker surviving the spawn;
- 2. it logs its start so "audible from" has a timestamp.
+ 2. it logs its own PROCESS START, so the interval a trial's stale player ran for has
+    two endpoints (collect.sh joins them into `pstart_to_pend_s`).
+
+This is not an audibility instrument and the docstring used to say it was -- "it logs its
+start so `audible from` has a timestamp". THIS PROCESS OPENS NO AUDIO DEVICE: the delay is
+a `sleep`, there is no synthesis, no file and no output stream, so `player_start` is the
+instant the interpreter reached this module and nothing more. A `player_start` that is
+absent bounds when the kill landed -- inside interpreter startup -- and a `player_start`
+that is present does not establish that anything was heard. Only the `REAL-*` arm runs
+`afplay`, and §2.6 of the decision document records that even there the figures are
+process stamps and audibility is `[inferred]`.
 
 Attribution of WHICH step killed it does NOT come from here -- a kill landing
 inside interpreter startup terminates the process by the signal's default action
