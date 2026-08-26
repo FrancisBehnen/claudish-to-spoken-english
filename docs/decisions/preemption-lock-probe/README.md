@@ -56,11 +56,50 @@ scores a trial in which no process recorded an outcome as `VOID` rather than `ow
 None of this is new evidence: the committed TSVs predate all of it, and `summarise.sh` over them
 prints exactly what it printed before.
 
+## Round 15: "it produced something" is not "it produced the whole thing"
+
+Round 12 made a step that produced **nothing** fail. Round 15 is the next quantifier: a step that
+produced **some** of what it promised was still exiting 0, and four of those steps are the ones
+that decide whether a fresh run may be published.
+
+- `run_lock.sh`'s `count_owners` proved only that *one* racer recorded an outcome. `wait` returns
+  when the last background job exits, not when they all succeeded, so a racer that never started
+  left the survivors looking like a clean `owners=1` trial — worst at the N=16 cells. It now
+  requires the **expected number of participants** each to record **exactly one** terminal
+  outcome. This forced a coupled change in `lockrace.py`: `elect_current()` could return on
+  `rmdir_failed` recording no terminal outcome at all, which the new check cannot distinguish
+  from a racer that never ran.
+- `collect.sh` checked only for **zero** reconstructed trials. A run missing one worker claim
+  still writes every hook marker, so it produced eleven rows out of twelve and exited 0, shrinking
+  the published denominator in silence. It now compares the row count against the `t<N>a.entry`
+  marker count, which the worker cannot influence.
+- `summarise.sh` **annotated** `VOID` and exited 0, although its own comment said a run with any
+  `VOID` is not a complete run. It now fails and names the voided cells. The committed evidence
+  has no `VOID` rows and still exits 0.
+- `publish.sh` treated every source file except the manifest as optional and never cleared the
+  destination, so a missing `speakd_probe.py` was skipped while the branch's older copy survived
+  and was reported by the closing `ls` — new code and stale code mixed, reported as a success. It
+  now requires the runtime file set and stages into a fresh directory before swapping it in.
+- `analyse_round2.sh`'s `C13a` block ended `| head -20` over **50** rows of output, so 30 rows —
+  8 of the 12 erasures among them — were dropped, and the 12/25 figure the document quotes could
+  not be derived from the script it cites. The pipe is gone, the count is printed, and every
+  block's own exit status is now checked.
+
+**And one design finding, which is not tooling.** The `.pending` marker still did not bound
+`killpg`: the generation tag says *which* generation, never that the pid recorded for it is still
+that generation's owner, only the highest generation is ever liveness-tested, and a marker never
+expires. `speakd_probe.py` now publishes the owner record as `<pid>.<starttime>`
+(`--owner-identity`, default on) and takes a three-way verdict before signalling — signal on
+*match* and on *no such process*, **skip and expire the marker** on *exists with a different start
+time*. It is the same instrument PR #27's §10.5 clause 2 specifies, so the two documents describe
+one scheme. **Unrun**: the committed traces predate it, and the document tags it `[inferred]` with
+the arms that close it.
+
 ## Files
 
 | file | what it is |
 | --- | --- |
-| `speakd_probe.py` | the instrumented resident worker. §10.5's shape (file-drop job address, election with the owner pid recorded, `kqueue` wake, claim by `rename`), with every preemption clause independently switchable. Round 2 adds `--pid-mode {worker,shared,perplayer}` (who publishes the player's identity and where), `--publish-delay-ms` (the wrapper stays descheduled after `Popen`, so a sweep can land *before* publication), `--sweep-mode {off,record,pgid,both}`, `--sweep-gap-ms`, `--reap-delay-ms` and `--unlink-on-reap`. **Round 11 corrected the `.pending` sweep twice:** `killpg` now goes only to superseded owners whose **own generation** has a marker (one marker used to authorise every historical generation, spending the blast-radius bound the marker exists to provide), and each marker is retired only **after** its generation's group has been signalled (removing first left a crash window in which the next election finds no marker, skips `killpg`, and cannot reach the unnamed player by record either — `C12c` rebuilt out of the cleanup). Both are unrun |
+| `speakd_probe.py` | the instrumented resident worker. §10.5's shape (file-drop job address, election with the owner pid recorded, `kqueue` wake, claim by `rename`), with every preemption clause independently switchable. Round 2 adds `--pid-mode {worker,shared,perplayer}` (who publishes the player's identity and where), `--publish-delay-ms` (the wrapper stays descheduled after `Popen`, so a sweep can land *before* publication), `--sweep-mode {off,record,pgid,both}`, `--sweep-gap-ms`, `--reap-delay-ms` and `--unlink-on-reap`. **Round 11 corrected the `.pending` sweep twice:** `killpg` now goes only to superseded owners whose **own generation** has a marker (one marker used to authorise every historical generation, spending the blast-radius bound the marker exists to provide), and each marker is retired only **after** its generation's group has been signalled (removing first left a crash window in which the next election finds no marker, skips `killpg`, and cannot reach the unnamed player by record either — `C12c` rebuilt out of the cleanup). Both are unrun. **Round 15 adds `--owner-identity`** (default on): the generation record's target is `<pid>.<starttime>` rather than a bare pid, and both the election's liveness test and clause 7(iv)'s `killpg` re-read the pid's current start time — a mismatch means the owner is gone and its pid was recycled, so the record authorises nothing and the marker naming its generation is **expired** (`kill_skipped reason=owner_pid_recycled`, `pending_expired`). `off` is the round-14 bare-pid arm, kept as the falsification. Also unrun |
 | `player_probe.py` | stub player. Stands in for `afplay` so the probe can record *why* playback ended. Also self-registers in the player ledger |
 | `hook_probe.sh` | stand-in for `speak.sh`'s `Stop` body, in **bash**, doing only the two things §10.6 gives the hook: read `speak/pid` and kill (**K**), then publish by atomic rename (**R**) |
 | `lockrace.py` | row 21. Three election protocols — `current`, `spec`, `proposed` — plus a winner that can be stalled in the `mkdir`→pid-write window and racers that can be stalled *after* classifying a lock stale. **Round 11:** every election read is self-reporting (`election_read … saw_window=` plus the inode of the lock it read), so `run_lock.sh` can tell a trial that entered the staged window from one that quietly degenerated into a live-owner check |

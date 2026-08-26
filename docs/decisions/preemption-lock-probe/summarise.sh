@@ -181,6 +181,26 @@ $6=="VOID" { k=$2"/"$1; void[k]++; next }
 END{ for (p in n) printf "%s\ttrials=%d\tnot_exactly_1=%d\trate=%.0f%%%s\n", p, n[p], bad[p]+0, 100*(bad[p]+0)/n[p],
        (void[p] ? "\tVOID=" void[p] : "") }' "$L" | sort
 
+# ROUND 15. VOID was ANNOTATED and never ENFORCED. Row 21/B already said in a comment
+# that "a run with any VOID is not a complete run", and then printed the annotation and
+# exited 0 -- so a fresh run whose staging failed on some cells could be consumed as a
+# successful full re-derivation, with a denominator quietly smaller than the one the
+# document quotes. Annotating a partial result is exactly the null-as-pass shape every
+# other script in this rig now refuses, and this is the script the document points at.
+# The committed evidence has no VOID rows, so this changes nothing about it; it changes
+# what a RE-RUN is allowed to claim.
+voids=$(awk -F'\t' 'NR>1 && $6=="VOID"' "$L" | wc -l | tr -d ' ')
+if [[ ${voids:-0} -gt 0 ]]; then
+  echo "INCOMPLETE: $L has $voids row(s) with owners=VOID." >&2
+  awk -F'\t' 'NR>1 && $6=="VOID" { c[$2"/"$1]++ }
+              END { for (k in c) printf "  VOID %-24s x%d\n", k, c[k] }' "$L" | sort >&2
+  echo "A VOID row is a trial whose STAGING failed, so it is neither a pass nor a" >&2
+  echo "protocol failure -- it is a cell that was not measured. The summaries above" >&2
+  echo "are therefore over a SMALLER denominator than the run intended, and this is" >&2
+  echo "NOT a complete re-derivation. Re-run the voided cells." >&2
+  exit 2
+fi
+
 if [[ ${MISSING_E:-0} = 1 ]]; then
   echo "INCOMPLETE: real-audio evidence was missing or empty, so section E is absent." >&2
   echo "This is NOT a full re-derivation." >&2

@@ -138,9 +138,47 @@ END {
 # A trials.tsv with a header and no rows is a parse that matched nothing: the trace
 # exists but carries no S_claim, so no trial was reconstructed. Callers append this file
 # to the published evidence, so it must fail here rather than contribute nothing there.
+#
+# ROUND 15: `rows -lt 1` was only the ZERO case, and zero is the one shape this defect
+# almost never takes. A run in which one worker claim is missing -- the worker died
+# before `S_claim`, or its trace line was never flushed -- still writes every hook-side
+# marker, so verify_fires.sh's entry/K/Rdone counts stay complete while this script
+# reconstructs ELEVEN trials out of twelve, exits 0, and the caller appends eleven rows
+# to the published evidence. The denominator shrinks and nothing anywhere says so.
+#
+# The count to check against is the hook side, because it is independent of the worker:
+# every trial fires exactly one `t<N>a` hook, stamped BEFORE anything else happens, so
+# the number of `t<N>a.entry` markers is the number of trials that were ATTEMPTED. It
+# holds on all 21 committed configurations (12 = 12 on each). The `b` and `c` hooks are
+# deliberately excluded: `b` is the preempting invocation and C14a/C14b fire a third,
+# so only `a` counts trials.
 rows=$(( $(wc -l < "$D/trials.tsv") - 1 ))
+attempted=$(awk -F'\t' 'NR>1 && $2=="entry" && $1 ~ /^t[0-9]+a$/' "$D/markers.tsv" \
+            | wc -l | tr -d ' ')
 if [[ $rows -lt 1 ]]; then
   echo "collect.sh: no trials parsed out of $D -- wrote a header only." >&2
+  exit 2
+fi
+if [[ ${attempted:-0} -lt 1 ]]; then
+  echo "collect.sh: $D/markers.tsv has no t<N>a.entry markers, so the row count below" >&2
+  echo "cannot be checked against anything. A run directory with no hook entries is" >&2
+  echo "not a run." >&2
+  exit 2
+fi
+if [[ $rows -ne $attempted ]]; then
+  echo "collect.sh: $D reconstructed $rows trial(s) from $attempted hook entries." >&2
+  # LEXICAL sort on both sides, not `sort -n`: comm merges with strcmp, so numerically
+  # sorted input (2 before 10) makes it mis-pair and report differences that are not there.
+  # The display is re-sorted numerically afterwards.
+  awk -F'\t' 'NR>1 && $2=="entry" && $1 ~ /^t[0-9]+a$/ {print $1}' "$D/markers.tsv" \
+    | sed 's/^t\([0-9]*\)a$/\1/' | sort > "$D/.attempted.tmp"
+  awk -F'\t' 'NR>1 {print $2}' "$D/trials.tsv" | sort > "$D/.parsed.tmp"
+  echo "trial numbers with a hook entry but NO row: $(comm -23 "$D/.attempted.tmp" "$D/.parsed.tmp" | sort -n | tr '\n' ' ')" >&2
+  echo "trial numbers with a row but NO hook entry: $(comm -13 "$D/.attempted.tmp" "$D/.parsed.tmp" | sort -n | tr '\n' ' ')" >&2
+  rm -f "$D/.attempted.tmp" "$D/.parsed.tmp"
+  echo "Every trial fires one t<N>a hook before the worker sees the job, so a shortfall" >&2
+  echo "is a trial that happened and was NOT reconstructed. Appending this file would" >&2
+  echo "shrink the published denominator in silence." >&2
   exit 2
 fi
 wc -l < "$D/trials.tsv"

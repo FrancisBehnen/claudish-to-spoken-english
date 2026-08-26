@@ -222,7 +222,17 @@ def elect_current():
                 os.rmdir(LOCK)
                 rec("rmdir_ok")
             except OSError as e:
+                # ROUND 15. This was the ONE exit from an election that recorded no
+                # terminal outcome -- not `owner`, not `lost`, not `gave_up` -- so a
+                # racer that legitimately abandoned the election left no trace of having
+                # participated. run_lock.sh's completeness check counts terminal outcomes
+                # per participant, and it cannot tell that racer from one whose
+                # interpreter never started; without this line the check would VOID
+                # correct trials, which is why the producer and the validator had to move
+                # together. `rmdir_failed` stays as the diagnosis; `gave_up` is the
+                # outcome, and it carries the reason so the two are not conflated.
                 rec("rmdir_failed", err=type(e).__name__)
+                rec("gave_up", why="rmdir_failed", err=type(e).__name__)
                 return False
             if A.reclaim_gap_ms:
                 time.sleep(A.reclaim_gap_ms / 1000.0)

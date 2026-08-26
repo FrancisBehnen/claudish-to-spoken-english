@@ -7,30 +7,110 @@
 # run_missing.sh, run_pgid_rerun.sh, run_tail.sh) -- the same "the run script is one
 # round behind the document" defect, one level down. It is now a glob, so it cannot.
 # RIG is the SOURCE of the copy and is therefore external by definition; overridable.
-set -u
+#
+# ROUND 15 -- the glob fixed the OMISSION and left the two defects underneath it:
+#
+#  * EVERY name was optional except the manifest. `[[ -f $f ]] || continue` is the only
+#    thing standing between "the glob matched nothing" and "speakd_probe.py is not in
+#    the rig", and it treats those identically. A rig missing the probe, the player, the
+#    lock driver or the collector published in silence.
+#  * THE DESTINATION WAS NEVER CLEARED, so the copy was a MERGE. A source file that was
+#    absent (see above) left the branch's older copy of that same name standing, and the
+#    closing `ls` then listed it as though it had just been published -- a rig that is
+#    part new code and part stale code, reported as a success. That is the worst shape
+#    this failure can take here, because the whole claim of the branch is that the
+#    committed rig is the one the traces came from.
+#  * And there was no `set -e`, so a `chmod` or `mkdir` failure did not stop it either.
+#
+# It now stages into a fresh temporary directory beside the destination, checks the
+# runtime set THERE, and only then swaps it into place. A failure at any point leaves
+# the existing rig exactly as it was rather than half-replaced.
+set -eu
 DEST=${1:?dest}/preemption-lock-probe
 RIG=${RIG:-$HOME/.local/share/kokoro/bench/preempt-lock-2026-08-25}
-if [[ "$(cd "$RIG" && pwd)" == "$(cd "$(dirname "$DEST")" 2>/dev/null && pwd)/preemption-lock-probe" ]]; then
+
+# The files without which the published rig cannot produce evidence or re-derive a
+# figure. Every one of them is named by the document or by another script in this list:
+# a missing name here is a rig that cannot do the job the branch says it does.
+REQUIRED=(
+  speakd_probe.py         # the worker under test
+  player_probe.py         # the player it spawns; its exit status IS the attribution
+  lockrace.py             # row 21's three protocols
+  hook_probe.sh           # the Stop-hook side that stamps R/K/Rdone
+  run_preempt.sh          # row 20 driver
+  run_lock.sh             # row 21 driver
+  collect.sh              # run directory -> committed TSV
+  summarise.sh            # the advertised re-derivation of every published figure
+  verify_fires.sh         # the completeness check
+  analyse_round2.sh       # the round-2 protocol facts the document quotes
+  expected-configs.txt    # the manifest verify_fires.sh checks against
+)
+
+if [[ ! -d "$RIG" ]]; then
+  echo "publish.sh: no rig at $RIG" >&2; exit 2
+fi
+RIG_ABS=$(cd "$RIG" && pwd)
+DEST_PARENT=$(dirname "$DEST")
+if [[ ! -d "$DEST_PARENT" ]]; then
+  echo "publish.sh: no destination directory $DEST_PARENT" >&2; exit 2
+fi
+DEST_PARENT_ABS=$(cd "$DEST_PARENT" && pwd)
+if [[ "$RIG_ABS" == "$DEST_PARENT_ABS/preemption-lock-probe" ]]; then
   echo "refusing to publish $RIG onto itself" >&2; exit 2
 fi
-# expected-configs.txt is NOT optional decoration: it is the manifest verify_fires.sh
-# checks completeness against. The loop below is `[[ -f $f ]] && cp`, which treats every
-# name in the list as optional -- so a missing manifest was skipped in silence and the
-# published rig arrived at its destination with its completeness check disarmed. That is
-# this document's own defect (a step that produces nothing and still exits 0) on the
-# script that hands the rig to the branch, so it fails BEFORE copying anything.
-if [[ ! -f "$RIG/expected-configs.txt" ]]; then
-  echo "publish.sh: no $RIG/expected-configs.txt -- refusing to publish a rig without" >&2
-  echo "its completeness manifest. verify_fires.sh cannot check a partial evidence set" >&2
-  echo "against a manifest that is not there." >&2
+
+# Check the SOURCE before touching anything, so the message names what is wrong with the
+# rig rather than what went wrong halfway through a copy.
+missing=()
+for f in "${REQUIRED[@]}"; do
+  [[ -f "$RIG/$f" ]] || missing+=("$f")
+done
+if [[ ${#missing[@]} -gt 0 ]]; then
+  echo "publish.sh: $RIG is not a complete rig -- missing: ${missing[*]}" >&2
+  echo "Publishing it would put a rig in the branch that cannot produce or re-derive" >&2
+  echo "the evidence the document points at. Nothing was copied." >&2
   exit 2
 fi
-mkdir -p "$DEST"
+
+# Stage into a fresh directory. `mktemp -d` beside the destination keeps the final swap
+# a rename within one filesystem rather than a copy that can half-finish.
+STAGE=$(mktemp -d "$DEST_PARENT_ABS/.preemption-lock-probe.stage.XXXXXX")
+cleanup() { if [[ -n "${STAGE:-}" && -d "${STAGE:-}" ]]; then rm -rf "$STAGE"; fi; }
+trap cleanup EXIT
+
 for f in "$RIG"/README.md "$RIG"/*.py "$RIG"/*.sh "$RIG"/expected-configs.txt; do
   # an unmatched glob degrades to its own literal text, which is the only reason a
-  # name here may be absent; a copy that FAILS is fatal.
+  # name here may be absent; a copy that FAILS is fatal. The REQUIRED check above is
+  # what makes "absent" mean "the glob matched nothing" and never "the probe is gone".
   [[ -f "$f" ]] || continue
-  cp "$f" "$DEST/$(basename "$f")" || { echo "publish.sh: cp $f failed" >&2; exit 2; }
+  cp "$f" "$STAGE/$(basename "$f")" || { echo "publish.sh: cp $f failed" >&2; exit 2; }
 done
-chmod +x "$DEST"/*.sh "$DEST"/*.py
+
+# Check the STAGING copy, not the source: a cp that silently produced nothing would
+# otherwise pass the source check above and still publish an empty rig.
+for f in "${REQUIRED[@]}"; do
+  [[ -s "$STAGE/$f" ]] || { echo "publish.sh: $f did not arrive in the staging copy" >&2; exit 2; }
+done
+chmod +x "$STAGE"/*.sh "$STAGE"/*.py
+
+# The traces/ directory is committed evidence and is NOT part of the rig copy, so carry
+# it across rather than destroying it with the old rig.
+if [[ -d "$DEST/traces" ]]; then
+  mv "$DEST/traces" "$STAGE/traces"
+fi
+
+# Replace, do not merge. The old rig goes aside first so that a failure here leaves one
+# of the two intact rather than a directory that is half of each.
+OLD=""
+if [[ -e "$DEST" ]]; then
+  OLD="$DEST.replaced.$$"
+  mv "$DEST" "$OLD"
+fi
+if ! mv "$STAGE" "$DEST"; then
+  echo "publish.sh: could not move the staged rig into place" >&2
+  if [[ -n $OLD ]]; then mv "$OLD" "$DEST"; fi
+  exit 2
+fi
+STAGE=""
+if [[ -n $OLD ]]; then rm -rf "$OLD"; fi
 ls -1 "$DEST"

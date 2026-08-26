@@ -40,6 +40,19 @@ Round 2, added after review of PR #28 found the round-1 repair still racy:
                          record.
   --unlink-on-reap       whether the reaper unlinks the record at all.
 
+Round 15, added after review found the FOURTH distinct defect in the `.pending` bound:
+  --owner-identity on|off
+                         the generation record's target is `<pid>.<starttime>` rather
+                         than a bare pid, and every use of a recorded owner pid -- the
+                         election's liveness test and clause 7(iv)'s killpg -- re-reads
+                         the pid's current start time. A MISMATCH means the owner is
+                         gone and its pid has been handed to a stranger, so the record
+                         authorises nothing and the marker that named its generation is
+                         EXPIRED rather than acted on. `off` is the round-14 bare-pid
+                         shape, kept as the falsification arm. Same instrument as the
+                         spec's §10.5 clause 2, deliberately: the two documents describe
+                         one scheme rather than two.
+
 Timestamps recorded, named as spec 13 row 20 names them:
   S  claim (rename job -> job.taken.<pid>)   S2 prespawn recheck stat
   P  player Popen                            W  pid record published
@@ -113,6 +126,16 @@ ap.add_argument("--player-setsid", choices=["off", "on"], default="off",
                      "7(iv) entirely, and it is the line an implementer is most likely "
                      "to add for unrelated reasons -- so the arm exists to show the "
                      "failure rather than to assert the constraint.")
+ap.add_argument("--owner-identity", choices=["off", "on"], default="on",
+                help="the generation record's target is `<pid>.<starttime>` rather than "
+                     "a bare pid, and every use of a recorded owner pid -- the election's "
+                     "liveness test AND clause 7(iv)'s killpg -- re-reads the pid's "
+                     "current start time and treats a MISMATCH as 'that owner is gone, "
+                     "this record is stale' rather than as authorisation. `off` restores "
+                     "the round-14 bare-pid shape, which is the arm this exists to "
+                     "falsify: with it, a `.pending` marker whose owner pid has been "
+                     "recycled as an unrelated group leader authorises killpg on that "
+                     "stranger's group.")
 ap.add_argument("--generation", default="1")
 A = ap.parse_args()
 
@@ -149,12 +172,44 @@ def alive(pid):
         return False
 
 
+def proc_starttime(pid):
+    """Existence AND identity in one call: `ps -o lstart= -p <pid>`.
+
+    Darwin's `ps` prints the process's start time and exits 1 with no output when there
+    is no such process, so one fork answers both questions that `kill(pid, 0)` conflates.
+    Returns the start time with spaces squeezed to `_` -- the value has to live in a
+    symlink target beside the pid, and a reader splits on the FIRST dot -- or None when
+    the pid names nothing.
+
+    This is the SAME instrument the spec's §10.5 clause 2 specifies for the owner record
+    (`<pid>.<starttime>`), used here for the same reason: a pid is a number, not an
+    identity, and every question this probe asks of a recorded pid is really a question
+    about the process that wrote it. Its resolution is one second, which is the honest
+    limit of the repair and is stated as such in the document.
+    """
+    try:
+        out = subprocess.run(["/bin/ps", "-o", "lstart=", "-p", str(pid)],
+                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    except OSError:
+        return None
+    if out.returncode != 0:
+        return None
+    s = out.stdout.decode("utf-8", "replace").strip()
+    return "_".join(s.split()) if s else None
+
+
 # ------------------------------------------------------------------ election
 # Row 21's `proposed` protocol: the owner record is a symlink whose target IS the
-# pid, so it is never partially initialized, and a dead owner is SUPERSEDED by a new
-# generation rather than removed. Using it here is not incidental -- row 20's pgid
-# sweep must READ the superseded owner's pid, which a protocol that deletes the
-# record cannot provide. The two rows' fixes are coupled.
+# owner's identity, so it is never partially initialized, and a dead owner is SUPERSEDED
+# by a new generation rather than removed. Using it here is not incidental -- row 20's
+# pgid sweep must READ the superseded owner, which a protocol that deletes the record
+# cannot provide. The two rows' fixes are coupled.
+#
+# ROUND 15: that target is `<pid>.<starttime>` and not a bare pid. Both rows need the same
+# thing from it and neither can get it from a number -- the election needs to know that the
+# process it is calling live is the one that wrote the record, and the sweep needs to know
+# that the pgid it is about to signal is still the owner's and not a stranger's. Two fields
+# in a symlink target cost nothing: the create is still exclusive and still atomic.
 def gen_path(g):
     return os.path.join(D, f"worker.lock.{g}")
 
@@ -173,8 +228,68 @@ def highest_gen():
     return hi
 
 
-superseded = []          # [(gen, owner_pid)] this worker took over from
+superseded = []          # [(gen, owner_pid, owner_starttime)] this worker took over from
 MYGEN = None             # the generation THIS worker created; tags its .pending markers
+
+# The owner record's CONTENT. `<pid>.<starttime>` under --owner-identity on, a bare pid
+# under off. A symlink's target is an arbitrary string, so carrying two fields instead of
+# one changes no primitive and no atomicity argument: it is still one exclusive-create
+# and there is still no partially-initialised state to interpret.
+MY_STARTTIME = proc_starttime(os.getpid()) if A.owner_identity == "on" else None
+OWNER_RECORD = (f"{os.getpid()}.{MY_STARTTIME}" if MY_STARTTIME
+                else str(os.getpid()))
+
+
+def read_owner(g):
+    """(pid, starttime) of generation g's owner, or None if the record is unreadable.
+
+    Split on the FIRST dot: a Darwin pid is decimal digits only and the start time is
+    appended, never prepended. A bare-pid record (--owner-identity off, or a record
+    written by an older worker) yields a None start time, which every caller below reads
+    as 'this record carries no identity' rather than as 'the identity matched'.
+    """
+    try:
+        target = os.readlink(gen_path(g))
+    except OSError:
+        return None
+    pid, _, st = target.partition(".")
+    try:
+        return (int(pid), st or None)
+    except ValueError:
+        return None
+
+
+def owner_identity(pid, st):
+    """Three-way, not two: SAME / RECYCLED / GONE.
+
+    `kill(pid, 0)` answers 'does some process have this pid', which is the wrong
+    question everywhere a pid was READ FROM A RECORD. The three cases and what each
+    means for the record's authority:
+
+      "same"     -- a process with that pid exists and started when the record says.
+                    It IS the owner. Everything the record authorises is legitimate.
+      "recycled" -- a process with that pid exists and started at some OTHER time. The
+                    owner is gone AND its pid has been handed to a stranger. The record
+                    is stale; it authorises nothing. This is the case a bare pid cannot
+                    see, and the case in which acting on the record damages a third
+                    party -- at clause 7(iv) the damage is a whole process group.
+      "gone"     -- no process has that pid. The owner is dead and its pid has not been
+                    handed out again, so a pgid derived from it is still reserved to it
+                    and any orphan of ours is still inside it. THIS is the case clause
+                    7(iv) exists for, and it is the one that must still signal.
+
+    Under --owner-identity off, or against a record that carries no start time, this
+    degrades to the two-way test it replaces and says so, so the trace never shows an
+    identity check that did not happen.
+    """
+    if A.owner_identity == "off" or st is None:
+        return ("same" if alive(pid) else "gone"), None
+    cur = proc_starttime(pid)
+    if cur is None:
+        return "gone", None
+    if cur != st:
+        return "recycled", cur
+    return "same", cur
 
 
 def elect():
@@ -183,31 +298,38 @@ def elect():
         g = highest_gen()
         if g is None:
             try:
-                os.symlink(str(os.getpid()), gen_path(0))
+                os.symlink(OWNER_RECORD, gen_path(0))
                 MYGEN = 0
-                rec("election_won", gen=0)
+                rec("election_won", gen=0, record=OWNER_RECORD)
                 return True
             except FileExistsError:
                 continue
-        try:
-            owner = int(os.readlink(gen_path(g)))
-        except (OSError, ValueError):
+        own = read_owner(g)
+        if own is None:
             continue
-        if alive(owner):
+        owner, owner_st = own
+        verdict, live_st = owner_identity(owner, owner_st)
+        if verdict == "recycled":
+            # A dead owner whose pid a stranger now holds used to read as LIVE here, so
+            # every candidate lost the election to a process that was never the owner and
+            # jobs sat unconsumed. Same defect as the sweep's, one clause earlier.
+            rec("owner_pid_recycled", site="election", gen=g, pid=owner,
+                recorded=owner_st, live=live_st)
+        if verdict == "same":
             rec("election_lost", held_by=owner, gen=g)
             return False
         try:
-            os.symlink(str(os.getpid()), gen_path(g + 1))
+            os.symlink(OWNER_RECORD, gen_path(g + 1))
         except FileExistsError:
             continue
         for gg in range(g, -1, -1):
-            try:
-                p = int(os.readlink(gen_path(gg)))
-            except (OSError, ValueError):
+            prev = read_owner(gg)
+            if prev is None:
                 continue
-            superseded.append((gg, p))
+            superseded.append((gg, prev[0], prev[1]))
         MYGEN = g + 1
-        rec("election_won", gen=g + 1, superseded=g, prev_owner=owner)
+        rec("election_won", gen=g + 1, superseded=g, prev_owner=owner,
+            record=OWNER_RECORD)
         return True
     return False
 
@@ -276,14 +398,37 @@ def sweep_pgid():
     # the blast-radius bound the marker exists to provide, spent. A player that
     # published is reachable through the record sweep already (clause 7(iv-a)), so
     # narrowing the group sweep to marked generations removes no coverage.
+    # A MARKER TAGS A GENERATION; IT DOES NOT IDENTIFY THAT GENERATION'S OWNER. This is
+    # the fourth distinct defect in the `.pending` bound and it is the one the generation
+    # tag cannot reach. Round 14 stopped one marker authorising OTHER generations. It did
+    # nothing about the marker's authority over its OWN: `superseded` carries a pid the
+    # record wrote at some earlier time, the whole process group can have exited before
+    # any replacement election, the marker has no expiry and sits on disk until an
+    # election retires it -- and by that election the kernel may have handed that pid to
+    # an unrelated group leader. `killpg` on it then signals a stranger's whole group,
+    # which is worse than the failure clause 7(iv) exists to fix.
+    #
+    # So the marker is a NECESSARY condition and never a sufficient one. Before signalling
+    # a marked generation, re-read the recorded owner's start time and take the three-way
+    # verdict: signal on "same" and on "gone", SKIP on "recycled". The recycled case also
+    # EXPIRES the marker -- the owner is provably gone, so the marker can never become
+    # actionable again, and leaving it standing is exactly what keeps the gate open on
+    # every later election.
     n = 0
     swept = set()
-    for g, p in superseded:
+    expired = set()
+    for g, p, st in superseded:
         if p == os.getpid():
             continue
         if marked_gens is not None and str(g) not in marked_gens:
             rec("kill_skipped", by="election-sweep", site="pgid", target=p, gen=g,
                 reason="no_pending_marker_for_this_gen")
+            continue
+        verdict, live_st = owner_identity(p, st)
+        if verdict == "recycled":
+            rec("kill_skipped", by="election-sweep", site="pgid", target=p, gen=g,
+                reason="owner_pid_recycled", recorded=st, live=live_st)
+            expired.add(str(g))
             continue
         try:
             os.killpg(p, SIG_SWEEP_PGID)
@@ -303,7 +448,8 @@ def sweep_pgid():
             # standing so the next election tries again.
             rec("kill_attempt", by="election-sweep", site="pgid", target=p,
                 gen=g, result=type(e).__name__)
-    rec("election_sweep_pgid", groups=n, superseded=len(superseded))
+    rec("election_sweep_pgid", groups=n, superseded=len(superseded),
+        expired=len(expired))
 
     # SIGNAL FIRST, THEN RETIRE THE MARKER: each marker goes only after its OWN
     # generation's group has been swept, and still before this worker forks any player
@@ -332,6 +478,28 @@ def sweep_pgid():
                 rec("pending_reaped", name=name, gen=g)
             except OSError as e:
                 rec("pending_reap_failed", name=name, err=type(e).__name__)
+
+    # EXPIRY, which is a different rule from reaping and must be visible as one. A marker
+    # is reaped because its generation's group WAS swept; it is expired because its
+    # generation's group can never be swept again -- the recorded owner pid now names a
+    # stranger, so the record is stale for good. Without expiry the skip above would fix
+    # the blast radius and leave the accumulation, and an election that skips every
+    # marked generation would leave every marker standing forever: `pending_found` would
+    # keep climbing exactly as C16a measured it climbing, and the cheap
+    # `no_pending_marker` early return would never be taken again.
+    #
+    # THE SAFETY ARGUMENT IS THE ONE KERNEL PROPERTY THE THREE-WAY RESTS ON: a pid is not
+    # reallocated while it is still in use as a process-group id. If it holds, "the pid
+    # was recycled" and "our group still has members" are mutually exclusive, so an
+    # expired marker cannot be hiding a live orphan. [inferred] -- read off BSD allocator
+    # behaviour, not measured here, and the document says so.
+    for g in sorted(expired):
+        for name in pend_by_gen.get(g, []):
+            try:
+                os.unlink(os.path.join(PLAYERDIR, name))
+                rec("pending_expired", name=name, gen=g, reason="owner_pid_recycled")
+            except OSError as e:
+                rec("pending_expire_failed", name=name, err=type(e).__name__)
 
 
 # A per-player record is EXACTLY `<pid>.<8-hex-nonce>`. Matching the shape rather than

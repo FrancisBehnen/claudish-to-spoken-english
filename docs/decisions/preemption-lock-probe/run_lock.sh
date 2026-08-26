@@ -55,14 +55,62 @@ emit() { printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" "$5" "$6" >> "$RE
 # by recording exactly one of owner/lost/gave_up, so a log with none of them is a trial
 # that did not happen. That is VOID -- the same verdict the staging checks already give
 # -- and never a protocol result.
-count_owners() {   # log -> owner count, or VOID if the log records no outcome at all
-  if [[ ! -s "$1" ]] || ! awk -F'\t' '$7=="owner"||$7=="lost"||$7=="gave_up"{f=1}
-                                      END{exit !f}' "$1"; then
-    echo "$1: no process recorded an outcome -- trial VOID" >&2
+#
+# ROUND 15: "at least one process recorded an outcome" is the WRONG QUANTIFIER, and it
+# fails in the direction that produces a false pass. `wait` returns when the last
+# background job exits, not when they all SUCCEEDED, so a racer whose interpreter never
+# started, or that died mid-election, is invisible: the survivors still record their
+# outcomes, one of them still records `owner`, and the trial scores owners=1 -- a clean
+# result from a race that was never run at the width it claims. It bites hardest exactly
+# where the evidence is thinnest, at the N=16 S5 cells, where fifteen of sixteen racers
+# could be missing and the cell would still read as a pass.
+#
+# So the check is now per-PARTICIPANT and exact: the expected number of processes must
+# each record EXACTLY ONE terminal outcome. Verified against every committed lock sample
+# log (S1 N2 -> 3, S2 N4 -> 5, S3 -> 2, S5 N16 -> 16, none with a duplicate), including
+# the two-owner failures, so the rule does not soften a single published result.
+#
+# THIS REQUIRED A CHANGE IN THE PRODUCER TOO, and that coupling is the point: until
+# round 15 `elect_current()` could return on `rmdir_failed` having recorded NO terminal
+# outcome at all, so a racer that legitimately dropped out was indistinguishable here
+# from a racer that never ran. Validating participation without fixing that would have
+# VOIDed correct trials. See lockrace.py's rmdir_failed branch.
+#
+# The dead-owner `winner` in S3/S4/S6 is NOT a participant: it stages an incumbent and
+# exits without electing anything, so it records `published`/`pid_written` and no
+# terminal. Callers pass the number of processes that actually run an election.
+count_owners() {   # log expected_participants -> owner count, or VOID
+  local log=$1 want=$2
+  if [[ ! -s "$log" ]] || ! awk -F'\t' '$7=="owner"||$7=="lost"||$7=="gave_up"{f=1}
+                                        END{exit !f}' "$log"; then
+    echo "$log: no process recorded an outcome -- trial VOID" >&2
     printf 'VOID\n'
     return
   fi
-  awk -F'\t' '$7=="owner"' "$1" | wc -l | tr -d ' '
+  local census
+  census=$(awk -F'\t' -v want="$want" '
+    $7=="owner"||$7=="lost"||$7=="gave_up" { t[$6]++ }
+    END {
+      np = 0; multi = 0
+      for (p in t) { np++; if (t[p] > 1) { multi++; dup = dup " " p "(x" t[p] ")" } }
+      printf "%d %d%s", np, multi, dup
+    }' "$log")
+  local np=${census%% *} rest=${census#* }
+  local multi=${rest%% *}
+  if [[ $np -ne $want ]]; then
+    echo "$log: $np of $want participants recorded a terminal outcome -- trial VOID" >&2
+    echo "  (a racer that never started or died mid-election leaves the survivors" >&2
+    echo "   looking like a clean 1-owner trial; it is a trial that did not happen)" >&2
+    printf 'VOID\n'
+    return
+  fi
+  if [[ ${multi:-0} -ne 0 ]]; then
+    echo "$log: a participant recorded more than one terminal outcome --" >&2
+    echo "  ${rest#* } -- the outcome census is not a partition; trial VOID" >&2
+    printf 'VOID\n'
+    return
+  fi
+  awk -F'\t' '$7=="owner"' "$log" | wc -l | tr -d ' '
 }
 
 newdir() {
@@ -163,7 +211,8 @@ trial_init() {   # proto N stall rep scenario
       return
     fi
   fi
-  emit "$sc" "$pr" "$n" "$stall" "$rep" "$(count_owners "$log")"
+  # The live winner runs an election too, so it is the (n + 1)th participant.
+  emit "$sc" "$pr" "$n" "$stall" "$rep" "$(count_owners "$log" $((n + 1)))"
 }
 
 # ---- S3: legitimate reclamation, one reclaimer acting on a STALE observation
@@ -219,7 +268,9 @@ trial_aba() {    # proto rep
   "$PY" "$RIG/lockrace.py" --dir "$dir" --log "$log" --role racer --protocol "$pr" \
       --hold-ms "$HOLD" --trial "$rep" --label "$sc" &
   wait
-  emit "$sc" "$pr" 2 0 "$rep" "$(count_owners "$log")"
+  # A and B are the participants; the --dead-owner winner stages an incumbent and
+  # records no terminal outcome of its own.
+  emit "$sc" "$pr" 2 0 "$rep" "$(count_owners "$log" 2)"
 }
 
 # ---- S4: two reclaimers, no asymmetry
@@ -247,7 +298,8 @@ trial_dual() {   # proto rep
         --hold-ms "$HOLD" --trial "$rep" --label "$sc" &
   done
   wait
-  emit "$sc" "$pr" 2 0 "$rep" "$(count_owners "$log")"
+  # two reclaimers; the --dead-owner winner is staging, not a participant
+  emit "$sc" "$pr" 2 0 "$rep" "$(count_owners "$log" 2)"
 }
 
 # ---- S5: no incumbent at all. N racers from an empty dir. This is the
@@ -264,7 +316,8 @@ trial_scratch() {  # proto N rep
         --hold-ms "$HOLD" --trial "$rep" --label "$sc" &
   done
   wait
-  emit "$sc" "$pr" "$n" 0 "$rep" "$(count_owners "$log")"
+  # no incumbent at all: the n racers are the whole field
+  emit "$sc" "$pr" "$n" 0 "$rep" "$(count_owners "$log" "$n")"
 }
 
 # ---- S6: legitimate reclamation under CONTENTION. A dead incumbent and N racers,
@@ -292,7 +345,8 @@ trial_deadN() {  # proto N rep
         --hold-ms "$HOLD" --trial "$rep" --label "$sc" &
   done
   wait
-  emit "$sc" "$pr" "$n" 0 "$rep" "$(count_owners "$log")"
+  # n reclaimers; the --dead-owner winner is staging, not a participant
+  emit "$sc" "$pr" "$n" 0 "$rep" "$(count_owners "$log" "$n")"
 }
 
 for pr in current spec proposed; do
