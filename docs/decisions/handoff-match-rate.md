@@ -72,6 +72,7 @@ else spent a call.
 | **[bin]** | `strings -n 6` over `~/.local/share/claude/versions/2.1.245` | what is compiled into the build actually running |
 | **[repo]** | `rewrite.sh` and `hooks/hooks.json` in this checkout | what the plugin does today |
 | **[docs]** | <https://code.claude.com/docs/en/hooks.md> | states intent; can lag or lead the installed build |
+| **[inferred]** | a step reasoned out from something the capture recorded, rather than read off the capture | the weakest tag here, and the same tag the spec uses. It is used where a thing **could not** be measured by this probe, and it names the measurement it stands in for. **This row was added in review round twelve**: the tag was already carrying weight at two sites with no entry in this table, which is how a third use came to be written as a flat assertion instead. |
 
 Every number below comes from the raw capture, which is [tallied in full](#the-raw-tally). **The
 message bodies are not in this repository and are not in this document** — the repo is public and the
@@ -250,9 +251,32 @@ wrong one and believe it was right. The content hash makes exactly that distinct
 stated requirement — *"prove the buffered rewrite belongs to this turn's **final message**"* — is the
 message-level claim, not the turn-level one.
 
-**So: keep the hash as the key, and use `prompt_id` as a cheap pre-filter.** Both are now known to be
+**So: keep the hash as the key, and treat `prompt_id` as DIAGNOSTIC ONLY.** Both are now known to be
 available and both are now known to agree; the hash is strictly stronger and costs a `sha256` of a
 string the hook already holds. `turn_id` cannot be a key at all — `Stop` does not carry it.
+
+> **SUPERSEDED in review round twelve, and the two fates are not one fate.** This sentence read
+> *"keep the hash as the key, and use `prompt_id` as a cheap pre-filter"*, and it stood as a live
+> instruction to #23 after the locked spec had **withdrawn the pre-filter outright** — in its own
+> review round four, three rounds before this document last changed:
+> *"the hash is the key and `prompt_id` is DIAGNOSTIC ONLY. The pre-filter is WITHDRAWN"*
+> ([`speech-integration-spec.md`](speech-integration-spec.md) §3.2), restated at §5 as *"not a key,
+> and, since review round four, not a pre-filter either"*, and filed there as §13 row 4 — *"`prompt_id`
+> was given two incompatible jobs"*. **`prompt_id` the value is DEMOTED to diagnostic-only; the
+> pre-filter the mechanism is DELETED**, and the difference is not cosmetic: a demoted value still has
+> a place, on the diagnostic path, whereas the mechanism has none anywhere on the correctness path.
+> **The reason is not that it is cheap enough to keep.** The consumer's whole test is
+> `[[ -f speak/rw.<H> ]]` on a path it computes from `H`, so the hash is unconditional and a pre-filter
+> that passes has saved nothing; there is nothing to compare against either, because the buffered
+> generation carries no `prompt_id` — `speak/prompt_id` is one mutable file per session holding
+> whichever message published last, which is the same objection that disqualified it as the key one
+> paragraph up, arriving one layer down. **So its only reachable effect is a FALSE NEGATIVE**: a valid
+> content-addressed hit suppressed by a mutable side file, or pushed into §3.5.1's wait and then into
+> silence. **This document's recommendation is withdrawn at all three sites that carried it** — here,
+> item 2 of *What §3.2 and §13 will need to say*, and item 4 of the DECISION — and this is the site
+> that carries the argument; the other two point here. **Nothing else in this document changes**: the
+> reversal itself was adopted, `prompt_id` really is the weaker key, and the reason given above is the
+> reason the spec accepted.
 
 **One collision worth naming.** Two of the 44 captured messages were byte-identical to an earlier one
 (the same prompt re-driven, answered the same way), and both were long enough to publish. A stale
@@ -269,10 +293,50 @@ buffer therefore *can* produce a false hit — but only when the earlier message
 > with a **correctness tail** where the assistant text is anaphoric and the wrong antecedent gets
 > resolved into it. It is **not** the previous turn's answer, which is the failure §3.2 exists to
 > prevent, and that is why the spec keeps the key unchanged and re-argues the acceptance (§3.2, §13
-> row 28) rather than treating it as benign. **Both of these two captures had the SAME last user
-> message** — the same prompt re-driven — so both fall in the case the old sentence accidentally
-> described correctly; **the hazardous variant, identical text under a DIFFERENT question, was not
-> observed here and its rate is unmeasured.**
+> row 28) rather than treating it as benign.
+
+> **AND THE LAST STEP OF THAT ROUND'S OWN REPAIR OVERSTATED WHAT WAS MEASURED — corrected in review
+> round twelve, and the direction is the reverse of this document's usual failure.** The sentence that
+> stood here asserted flatly *"**Both of these two captures had the SAME last user message** — the same
+> prompt re-driven — so both fall in the case the old sentence accidentally described correctly"*, and
+> the locked spec classifies that identical step as **`[inferred]`**: *"That last step is `[inferred]`
+> from the capture's own description rather than measured — `userq` was never recorded, because the
+> probe was instrumenting the handoff and not the prompt"*
+> ([`speech-integration-spec.md`](speech-integration-spec.md) §3.2). **The record was stronger than the
+> specification**, which is the opposite of the class this document keeps being corrected for; and it
+> never disclosed the missing capture at all — the word `userq` did not appear in it.
+>
+> **What is measured, and it is only this:** the text recurred. **2 of 44**, the pairs at raw-tally rows
+> **2↔33** and **3↔34** — 1919 bytes and 668 bytes, byte-identical on the `MessageDisplay` and `Stop`
+> sides alike — and both above `MIN_CHARS`. **What was never captured is the prompt.** The probe
+> recorded ten fields on `MessageDisplay` (section 3) and eleven on `Stop` (§2), none of them the
+> transcript's last `type=="user"` string message, and the bodies went with the teardown; no column of
+> the raw tally bears on it.
+>
+> **The gap the tag covers is real rather than pedantic, and this capture demonstrates it.** What
+> `rewrite.sh:183-188` reads is not *"the prompt that was driven"* but the transcript's last
+> `type=="user"` **string** message — and [section 6](#6--stop-fires-again-when-a-background-task-wakes-the-session--13-row-7-closes)
+> observed this very session containing user messages nobody drove: on a background-task wake *"the
+> harness injects a `<task-notification>` **as a user message**, visible in the transcript"*, and
+> **two of these 35 turns are wake fires that no column identifies**. So *"the same prompt was sent"* is
+> a fact about the driving script, and *"`userq` was the same string"* is an inference from it — a sound
+> one, and not a reading of anything.
+>
+> **It is marked `[inferred]` and NOT withdrawn**, which is a judgement and is recorded as one. The
+> claim is not unsupported: the pairs are rows **2↔33** and **3↔34**, rows 33–35 are the slow-probe runs
+> of the original section-4 measurement, and 33 and 34 reproduce rows 2 and 3 in **every committed
+> column but `#` and `prompt_id`** — flushes, both byte counts, fences, paragraphs and both hashes.
+> So *"the same prompt re-driven"* is a property
+> of how the run was driven, recorded in the capture's description, and not a guess about it. Withdrawing it would also assert **more** than is known in the
+> other direction — it would reopen whether these two collisions are themselves the hazardous variant —
+> and it would contradict LOCKED §3.2 text that states the same conclusion under the same tag.
+>
+> **The conclusion below inherits the tag**: the hazardous variant — identical text under a
+> **DIFFERENT** last user message — **was not observed here `[inferred]`**, in the weak sense that
+> nothing in this probe could have observed it, and **its rate is unmeasured** either way. **What does
+> not rest on it:** §13 row 28's verdict, which is non-blocking *"and the reason is the residual's shape
+> rather than its rarity … since the rate is exactly what is unmeasured"*, and whose closing condition
+> is a measurement of that rate first. **The key does not move, and the acceptance does not change.**
 
 ---
 
@@ -503,6 +567,14 @@ Named so nothing above reads as broader than it is.
   describe.
 - **`speak.sh` going silent.** Section 4's consequence is inferred from two measured facts, not
   watched. The hook does not exist yet.
+- **The last user message on any turn — `userq` was never captured.** The probe instrumented the
+  handoff, not the prompt, and no field it recorded is the transcript's last `type=="user"` string
+  message. Two consequences, both disclosed rather than left implicit: section 3's step from *"the same
+  prompt re-driven"* to *"the same last user message"* is **[inferred]**, and **the hazardous variant of
+  §3.2's identical-text collision — the same assistant text under a *different* last user message — is
+  unobserved here only in the sense that nothing in this probe could have observed it.** Its rate is
+  what spec §13 row 28's closing condition asks for.
+  [Section 3.](#3--messagedisplay-carries-prompt_id--13-row-4-closes)
 - **Any model but `sonnet`, any effort but high, any build but 2.1.245.** Block structure is a
   harness-and-model property and this is one of each.
 - **A blocked turn, an interrupt, or `StopFailure`.** Untouched here; the first is settled elsewhere.
@@ -519,8 +591,11 @@ it.** For the integration pass:
    is unknown and this spec does not claim it is high."*
 2. **Reverse §3.2's `prompt_id` preference.** The sentence *"if the probe shows `MessageDisplay`
    carries `prompt_id`, prefer it"* should become: it does carry one, it is the same one, and it is
-   **still the weaker key** because it identifies a turn and `rewrite.sh` publishes per message. Use
-   it as a pre-filter, not as the key. [Section 3.](#3--messagedisplay-carries-prompt_id--13-row-4-closes)
+   **still the weaker key** because it identifies a turn and `rewrite.sh` publishes per message.
+   [Section 3.](#3--messagedisplay-carries-prompt_id--13-row-4-closes) **The reversal was adopted; the
+   *"use it as a pre-filter, not as the key"* half of this item is SUPERSEDED** — §3.2 withdrew the
+   pre-filter outright in its review round four and made `prompt_id` diagnostic only. Section 3's
+   blockquote carries the argument and the two fates it distinguishes.
 3. **§13 row 4 can be struck.** Answered: yes, `prompt_id` is present on every `MessageDisplay`
    payload. Add the ten-field catalogue beside §2's eleven.
 4. **§13 row 7 can be struck.** Answered: yes, and as a new turn with a new `prompt_id`.
@@ -793,8 +868,10 @@ no user data was read by the driven session**, which is why the tally can be pub
 3. **§13 row 4 is closed: `MessageDisplay` carries `prompt_id`**, on all 94 payloads, matching
    `Stop`'s 35/35. The payload's ten fields are catalogued in section 3.
 4. **`prompt_id` does not become the key.** It identifies a turn; `rewrite.sh` publishes per message;
-   four driven turns had several. The hash is strictly stronger. Use `prompt_id` as a pre-filter.
-   **This reverses §3.2's stated preference, on evidence §3.2 asked for.**
+   four driven turns had several. The hash is strictly stronger, and `prompt_id` is **diagnostic
+   only** — the *"use `prompt_id` as a pre-filter"* recommendation this decision carried is
+   **SUPERSEDED**, withdrawn outright by §3.2 in its review round four (section 3 carries the
+   argument). **This reverses §3.2's stated preference, on evidence §3.2 asked for.**
 5. **§13 row 7 is closed: a background-task wake produces a second `Stop`**, as a new turn with a new
    `prompt_id`, and the key handles it with no special case.
 6. **A new ship blocker is owed, and section 4 is it.** `Stop` does not wait for the `MessageDisplay`

@@ -43,7 +43,7 @@ own decision doc. What they changed, in the order the sections appear:
 
 | document | what it settles here | what it does **not** settle |
 | --- | --- | --- |
-| [`handoff-match-rate.md`](handoff-match-rate.md) | §3.2's key is **LOCKED** at the content hash — the rate is 35/35 byte-identical. And the finding that outranks it: **`Stop` does not wait for `MessageDisplay`**, so §3.5 adopts a **bounded wait** (§3.5.1) | the wait has never been implemented or measured end-to-end (§13 row 17); **and it did not settle what an identical-text collision costs** — its one-line *"the utterance is correct anyway"* was false, because the rewrite is conditioned on the last user message as well as the text (§3.2, §13 row 28) |
+| [`handoff-match-rate.md`](handoff-match-rate.md) | §3.2's key is **LOCKED** at the content hash — the rate is 35/35 byte-identical. And the finding that outranks it: **`Stop` does not wait for `MessageDisplay`**, so §3.5 adopts a **bounded wait** (§3.5.1) | the wait has never been implemented or measured end-to-end (§13 row 17); **and it did not settle what an identical-text collision costs** — its one-line *"the utterance is correct anyway"* was false, because the rewrite is conditioned on the last user message as well as the text (§3.2, §13 row 28) — and it never captured `userq`, so its step from *"the same prompt re-driven"* to *"the same last user message"* is **[inferred]** there as it is here. **One of its recommendations is SUPERSEDED and marked so in it as of review round twelve**, at all three sites that carried it: the `prompt_id` **pre-filter**, which §3.2 withdrew outright in round four — `prompt_id` is diagnostic only, and #23 builds no pre-filter |
 | [`settled-set-audition.md`](settled-set-audition.md) | §4.2 **closes** — the settled combination was built, registered and heard 9–0 blind. §4.1 clause 3 is corrected from **segments** to **boundaries** | `COND_CUTOFF`'s position, now *contradicted* at 4 (§13 row 5); a slash-terminated path, which has no rule at all (§13 row 18); and §4.3, which is **false as written** |
 | [`worker-residency.md`](worker-residency.md) | §10.5 **closes** — a lazy, self-electing, per-session resident worker, with the first TTFA ever measured from a hook. §10.6 gains the two clauses that make its own rule true | ~~three measurements the mechanism's correctness clauses rest on are [inferred]~~ **two of the three have since been run and falsified four clauses** — [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md). What is left from this file is the bench-to-hook gap (§13 row 22) |
 | [`stop-hook-block-mechanics.md`](stop-hook-block-mechanics.md) | §5's cap is **nine invocations**, and nine is never an utterance count | `async: true`, `SubagentStop`, a raised cap, and two blocking hooks at once |
@@ -3506,7 +3506,11 @@ on. So #11 can lock and #23 can start — with two more blockers than it had yes
 > **One trap in that recount is worth recording, because it silently changes the derived read count**:
 > BWK `awk` — the `awk` on this machine — evaluates `"M2′" == "M2"` as **true**, so a script that
 > partitions the labels by name collapses `M2′` into `M2` and reports twelve reads where the table has
-> thirteen. Compare on `length` as well, or grep the labels out and count them by eye.
+> thirteen. Compare on `length` as well, or grep the labels out and count them by eye. **Round twelve
+> re-checked the trap and narrows it, because as stated it condemns the one method that works**: it is
+> `==`, `<` and `>` that are blind to U+2032 PRIME. `length()`, `substr()` and **array subscripts** all
+> see it, so grouping the labels as `L[$2]++` keys them apart correctly and is the safe partition;
+> `gawk` or Python is safer still. What the trap forbids is an `==`-based partition, not every script.
 >
 > **This total was carried as a FLOOR of twenty-three until 2026-08-26, and the floor is now SETTLED
 > rather than restated.** The table had no row for round six, none for the two rounds of #28 whose
@@ -3687,6 +3691,55 @@ on. So #11 can lock and #23 can start — with two more blockers than it had yes
 > dramatise the comparison is one the arm does not clear. **The residual is widened again: a re-check
 > has to read the qualifier's direction, the reasoning's premises, and any acceptance threshold a
 > sentence borrows to characterise a margin.**
+>
+> **An ELEVENTH of that class landed on 2026-08-26 — review round twelve — and it is the first entry
+> whose two halves break the class's own framing in opposite directions. Both sites are in
+> [`handoff-match-rate.md`](handoff-match-rate.md); neither is a row.**
+>
+> - **The record OUT-CLAIMED the specification, which is the reverse of every previous entry.** Round
+>   ten's repair landed in both documents, and the evidence document's copy ended by asserting flatly
+>   *"**Both of these two captures had the SAME last user message** — the same prompt re-driven"* while
+>   §3.2's copy tags that identical step **`[inferred]`** and discloses why — *"`userq` was never
+>   recorded, because the probe was instrumenting the handoff and not the prompt"*. The document never
+>   mentioned `userq` at all, so the missing capture was undisclosed as well as unmarked. **Every entry
+>   above this one is the record LAGGING a repair; this one is the record RUNNING AHEAD of it, out of the
+>   same commit that made the repair.** The fix is the tag and **not** a withdrawal, and the judgement is
+>   recorded rather than assumed: the claim has evidence of a different kind — the pairs are that
+>   document's raw-tally rows 2↔33 and 3↔34, rows 33–35 are the slow-probe runs of its section-4
+>   measurement, and 33 and 34 reproduce 2 and 3 in every committed column but `#` and `prompt_id`, so
+>   *"the same prompt re-driven"* is a recorded property of the run — while a withdrawal would assert
+>   more than is known in the other direction (that these two collisions might themselves be the
+>   hazardous variant) and would contradict LOCKED §3.2 text stating the same conclusion under the same
+>   tag. **Row 28 is untouched and nothing it carries rested on the claim**: its verdict is non-blocking
+>   *"and the reason is the residual's shape rather than its rarity"*, and its closing condition already
+>   puts the rate first. What the document gained instead is a *What was not observed* entry for `userq`
+>   and an `[inferred]` row in its own tag legend, which the tag had been used at twice without one.
+> - **The other half is the first LIVE INSTRUCTION in this class rather than a stale claim, and it is the
+>   first that does not fit the class's stated basis. Saying so plainly beats forcing it.** Three sites
+>   in that document — its §3 argument, item 2 of its integration list and item 4 of its DECISION — still
+>   read *"use `prompt_id` as a cheap pre-filter"*, which **row 4** withdrew here in review round four
+>   (§3.2: *"the hash is the key and `prompt_id` is DIAGNOSTIC ONLY. The pre-filter is WITHDRAWN"*; §5:
+>   *"not a pre-filter either"*). **The basis this table states is *"defects in this document's LOCKED
+>   text"*, which sorts a sentence by the document it sits in. That basis does not distinguish a stale
+>   **claim** from a live **instruction**, and the second is worse**: #23 reads both documents to build
+>   the key, and two documents shipped in one PR telling it different things is worse than either
+>   instruction alone, because it hands the implementer a decision — whether a mutable `prompt_id` may
+>   suppress a valid content-addressed hit — that §3.2 spent a round taking away. **It is still not a
+>   row**, and for the reason the ten notes above give rather than a new one: counting it would put a
+>   defect outside this document's LOCKED text into a total whose stated basis is that text, which is
+>   the defect class this table exists to police, and row 4 already carries the specification half.
+>   **What changes is the class's scope, not the count.** The class is henceforth read as *a record
+>   document must neither out-claim a locked rule nor contradict one*, and the **register** of a record
+>   sentence — reporting or recommending — is part of what a re-check has to read.
+>
+> **The total is unchanged by either half.** Re-derived from the table above rather than carried:
+> **thirty-seven rows over sixteen labels**, `4+2+3+2+5+4+4+2+1+1+2+1+2+1+2+1 = 37`, seventeen occasions
+> with `#28` standing for two, and **thirteen reads** — round twelve added no label, which is what a
+> round finding nothing in this document's LOCKED text is supposed to do to these numbers.
+> **The residual is widened twice over**: a re-check has to read the qualifier's direction, the
+> reasoning's premises, any acceptance threshold a sentence borrows, **the register of the sentence**,
+> and **the direction of the error** — a record can now be shown to over-state as well as lag, and every
+> forecast this note's predecessors made was pointed the one way.
 >
 > **The same pass re-derived the total and found §15's tally still reading NINE
 > reads and THIRTY-ONE over a twelve-item list** while this note and the rest of §15 had moved to
