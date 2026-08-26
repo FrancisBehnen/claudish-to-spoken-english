@@ -38,14 +38,62 @@
 # and per-trial traces were kept for 7 of 1200 trials. So this check reaches the traced
 # trials and no others; §3.3a in the decision document carries what the remaining
 # two-owner trials rest on instead. A guard that quietly passed on the 1193 it cannot see
-# would be worse than no guard, so it prints the coverage as a fraction and the document
-# quotes that fraction.
+# would be worse than no guard, so it prints the coverage as a fraction, the document quotes
+# that fraction, and -- since round 33 -- the script REFUSES a set that is not the size the
+# fraction's numerator names. Printing a coverage it does not enforce is how this same guard
+# would have reported 7/1200 over six traces, which is what round 33 found.
+#
+# ROUND 33 CLOSED THE TWO WAYS THIS GUARD COULD PASS WITHOUT CHECKING ANYTHING, and both
+# were in the paragraph above rather than against it -- the coverage was PRINTED and not
+# REQUIRED, which is the difference between a report and a guard.
+#
+#   1. THE EXPECTED TRACE COUNT DEFAULTED TO OFF. It was `${2:-0}` under a `-gt 0` test,
+#      and the invocation this rig and the README both document is `lock_overlap.sh
+#      traces` with no second argument. So the count check never ran in the only form
+#      anyone calls, and deleting one of the seven committed traces left this script
+#      exiting 0 over a smaller sample while the document went on quoting 7/1200. The
+#      committed evidence is a FIXED set, so its size is a fact this file can hold:
+#      the default is now that size, and a caller pointing this at some other run's logs
+#      passes that run's count.
+#   2. NO QUALIFYING TRIAL WAS A SUCCESSFUL DERIVATION. `twoplus == 0` printed a NOTE
+#      saying nothing had been checked and then fell out of END with status 0. This is the
+#      script the document cites as the reason row 21's `owners` metric is DERIVED rather
+#      than asserted, so a run that established nothing must not report establishment.
+#      Zero qualifying trials is now exit 2, and so is a set of traces that parse to no
+#      records at all.
+#
+# Both are the shape §1 keeps meeting -- a check that passes on nothing or on part of its
+# input -- and this is the first time this document has met it TWICE IN ONE FILE, one
+# commit after that file was written as the repair for a different defect.
 #
 # usage: lock_overlap.sh <traces_dir> [expected_lock_traces]
+#        expected_lock_traces defaults to the committed set's size. `0` disables the
+#        count check and says so on stderr; it is for a caller deriving over logs whose
+#        size is not known in advance, and it is never the default.
 set -u
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 T=${1:?traces dir}
-WANT=${2:-0}
+
+# THE SIZE OF THE COMMITTED EVIDENCE, in one place, because it is what the document's
+# 7/1200 coverage fraction is the numerator of.
+#
+# AND IT IS A LITERAL ON PURPOSE, which is the one place in this rig where that is the right
+# answer. Every other number here is derived from its producer -- HOLD out of run_lock.sh
+# above, the tallies out of their own row blocks in tally_check.sh -- because a copy drifts.
+# An EXPECTED count cannot be: deriving it by counting the traces in $T is precisely the
+# defect this round closed, a check that asks the input how many inputs there should be and
+# therefore always agrees. The number has to be asserted from outside the thing it checks,
+# and a fixed committed set is a fact this file is allowed to hold. If a trace is ever added
+# deliberately, this line and the document's fraction move together, and the guard fails
+# loudly in between -- which is the intended direction.
+COMMITTED_LOCK_TRACES=7
+WANT=${2:-$COMMITTED_LOCK_TRACES}
+if [[ ! $WANT =~ ^[0-9]+$ ]]; then
+  # `[[ $WANT -gt 0 ]]` evaluates a non-numeric WANT as 0, i.e. straight back into the
+  # disabled-by-accident state this round removed. Refuse it instead.
+  echo "lock_overlap.sh: expected_lock_traces must be a non-negative integer, got '$WANT'." >&2
+  exit 2
+fi
 
 if [[ ! -d $T ]]; then
   echo "lock_overlap.sh: $T is not a directory -- nothing to derive." >&2
@@ -83,8 +131,15 @@ if [[ ${#traces[@]} -eq 0 ]]; then
   echo "an empty check is not a passing one." >&2
   exit 2
 fi
-if [[ $WANT -gt 0 && ${#traces[@]} -ne $WANT ]]; then
+if [[ $WANT -eq 0 ]]; then
+  echo "lock_overlap.sh: expected_lock_traces=0 -- the coverage check is DISABLED for this" >&2
+  echo "run, deliberately. ${#traces[@]} trace(s) read; whatever fraction this establishes is" >&2
+  echo "not the committed set's, and no coverage claim in the document rests on it." >&2
+elif [[ ${#traces[@]} -ne $WANT ]]; then
   echo "lock_overlap.sh: found ${#traces[@]} lock traces in $T, expected $WANT." >&2
+  echo "This guard derives the document's coverage fraction, so it derives it over the whole" >&2
+  echo "committed set or not at all: a smaller sample would exit 0 under a document still" >&2
+  echo "quoting 7/1200. Pass the count explicitly to derive over some other run's logs." >&2
   exit 2
 fi
 
@@ -164,8 +219,26 @@ END {
     printf "\n%d trace(s) above did not establish the concurrency the owner count is read as.\n", bad
     exit 3
   }
-  if (twoplus == 0)
-    printf "\nNOTE: no traced trial produced two owners, so nothing was checked here.\n"
+  # A FILE THAT PARSED TO NO RECORDS IS NOT A TRACE THAT AGREED. The shell above refuses an
+  # empty GLOB; this refuses an empty FILE, which reaches `awk` as a name and leaves it with
+  # nothing -- the same null-as-pass one layer in.
+  if (files == 0) {
+    printf "\nNO RECORDS: every file handed to this derivation parsed to zero rows.\n"
+    exit 4
+  }
+  # ROUND 33: THIS USED TO BE A NOTE AND EXIT 0. It is the whole finding -- the script that
+  # the document cites AS row 21s derivation reported success for a run in which not one
+  # trial qualified to be checked. Absence of a qualifying trial is absence of the
+  # derivation. (No apostrophes in here: this awk program is single-quoted.)
+  if (twoplus == 0) {
+    printf "\nNO QUALIFYING TRIAL: not one trace read here has two owners, so the question\n"
+    printf "this script exists to answer was never put. That is not a passing derivation.\n"
+    exit 4
+  }
+  if (proven == 0) {
+    printf "\nNOTHING PROVEN: qualifying trials were read and none established concurrency.\n"
+    exit 4
+  }
 }' "${traces[@]}"
 st=$?
 
@@ -174,6 +247,13 @@ if [[ $st -eq 3 ]]; then
   echo "owners counts ownership CONCLUSIONS; the document reads 2 as two workers resident" >&2
   echo "at once. Where the intervals do not overlap that reading is not supported by the" >&2
   echo "trace and the document must not present the trial as a concurrency violation." >&2
+  exit 2
+fi
+if [[ $st -eq 4 ]]; then
+  echo "NOT DERIVED: this run established nothing, and an empty derivation is not a" >&2
+  echo "successful one. Row 21's owners metric is cited as DERIVED because this script" >&2
+  echo "proves concurrent tenure on the traces that have two owners; a run with no such" >&2
+  echo "trace -- or no parseable record at all -- cannot be quoted as that derivation." >&2
   exit 2
 fi
 exit "$st"

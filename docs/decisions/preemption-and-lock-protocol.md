@@ -196,7 +196,7 @@ owner's pid, which only row 21's generation protocol supplies — a protocol tha
 record of the worker it replaced cannot. They can no longer be signed off independently.
 
 **Both rows stay ship-blocking**, and the reason has changed: they are no longer unverified.
-**Seventeen consecutive rounds of review have each found a real defect in the previous round's
+**Eighteen consecutive rounds of review have each found a real defect in the previous round's
 confident answer** — §6 counts them off its own table, which is a floor rather than a total, and
 round 27 replaced the three different numbers this document used to carry for the one tally.
 **Round 31 found that the §6 body had drifted back to a fourth**, reading *"the count is now
@@ -226,6 +226,19 @@ the trial column; and round 31's in **row 21's metric itself** — a count of ow
 *conclusions* read throughout as a count of *concurrent holds*, with the concurrency never
 checked, which makes it the first entry in that table where the reviewer's own inference was
 also wrong and the underlying criticism still landed. See §6.
+**Round 33's three findings are all against the two scripts the previous two commits added, and
+two of them are one defect twice in one file: a guard that passes when it verified nothing.**
+`lock_overlap.sh` — the derivation that makes §3.1's `owners` metric *derived* rather than
+asserted — had a coverage check that **defaulted to off** in the only invocation this document
+gives, and reported a run in which **no trace had two owners** as a successful derivation. Both
+now refuse; no figure moves, and the committed set still reads 7 traces, 4 two-owner, 4 proven.
+The third is harness defect 8, whose premise held (`player_probe.py` is alive when `kill` returns
+in 20 of 20 trials) and whose stated mechanism did not (no wrapper in this rig continues past a
+driver failure), leaving harness defect **1**'s shape — a signal sent, success reported, nothing
+verified — as the actual defect. **What this round adds beyond three repairs is a name for the
+class**: *a defect in a repair*, now with four members on the derivation list and a three-link
+chain on the harness list, which §1 and §6 state as a property of those lists rather than
+disclose one entry at a time. See §6.
 
 ---
 
@@ -275,14 +288,14 @@ the two arms are compared under the same predicate rather than across a changed 
 [`preemption-trials-replication.tsv`](preemption-trials-replication.tsv) the replication, and
 `preemption-lock-probe/compare_passes.sh` prints them side by side.
 
-**Eighteen derivation defects have been found by review, and all eighteen are addressed here —
-seventeen fixed, and the fourteenth re-labelled because it cannot be fixed by deriving anything.
+**Nineteen derivation defects have been found by review, and all nineteen are addressed here —
+eighteen fixed, and the fourteenth re-labelled because it cannot be fixed by deriving anything.
 Five of them made the reproducibility claim false, which was the claim the whole document rested
 on.** The first three came from review of the first revision; the next two from round 5, the sixth
 from round 15, the seventh and eighth from round 16, the ninth and tenth from round 17, the
 eleventh from round 21, the twelfth from round 24, the thirteenth from round 26, the fourteenth
 from round 27, the fifteenth from round 28, the sixteenth from round 29, the seventeenth from
-round 31, the eighteenth from round 32, and all of them are of
+round 31, the eighteenth from round 32, the nineteenth from round 33, and all of them are of
 the same kind — a figure whose
 name and whose derivation are not the same quantity, or a derivation that does not reach the
 figure it is cited for.
@@ -295,13 +308,21 @@ Number 7's attribution chain was fixed in `summarise.sh` in round 16 and left st
 this document cites as the replication-agreement check, and `peek_one.sh` — where round 29 found
 it, still wrong, thirteen rounds later (see the note under 7). A disclosure list whose entries can
 come back needs to say so, because "addressed" is otherwise read as "gone" — and a list where two
-of eighteen have come back **the same way** is saying something about the shape of the repairs
+of nineteen have come back **the same way** is saying something about the shape of the repairs
 rather than about either entry. **Number 18 is a third instance of the same shape and the most
 literal of the three**: it is not a fix that missed a sibling site, it is a *claim to have fixed
 every site* that missed one — round 31 recounted §6's round tally at three of its four sites and
 wrote that every site now agreed. **Round 29's response to number 7 was therefore not to fix the two
 copies**: the rule now has exactly one definition, in `preemption-lock-probe/attrib.sh`, which is
 the only change that makes the recurrence unrepeatable.
+**Number 19 is the fourth, and with it the shape stops being an observation about individual
+entries and becomes a property of this list: a defect in a repair.** It is a defect in number
+17's own repair script, found **one commit** after that script was written, and harness defect 8 —
+found in the same round — is a defect in harness defect 7's repair, which was itself a defect in
+harness defect 5's. So this round found two, in two different chains, and the general reading is
+stated in §6 rather than left implied: **a fix in this document is evidence of nothing until it
+has itself been reviewed**, which is the argument §6 makes about inspection applied to the
+patches rather than to the protocol.
 **Numbers 11, 12 and 13 are all defects in the fix for number 9**, on the same figure, and that is
 worth saying plainly: `C14a`'s destruction count has now been through a withdrawal and four
 repairs. It has not moved through any of them, and that is a fact about this data rather than
@@ -770,18 +791,63 @@ symptom would have been the *opposite* claim about the same trial.
      still says so. And the site list is anchored on sentence text, so rewording a checked sentence
      makes the guard fail loudly rather than drift silently; that is the intended direction, and
      re-anchoring is a deliberate edit rather than a maintenance cost avoided.
+19. **ROW 21'S DERIVATION COULD PASS WITHOUT DERIVING ANYTHING — TWICE, IN ONE FILE, ONE COMMIT
+   OLD — round 33.** `lock_overlap.sh` is entry 17's repair: it is the reason §3.1's `owners`
+   metric is described as **derived** rather than asserted, and §3.3a quotes its coverage as
+   **7 of 1200**. It had **two** null-as-pass paths, and they are the same path twice:
+   - **The coverage check defaulted to off.** The expected trace count was the optional second
+     argument under a `> 0` test, and the invocation this document and the rig's README both
+     give is `lock_overlap.sh traces` — no second argument. So the check never ran in the only
+     form anyone calls it in, and **deleting one of the seven committed traces left the script
+     exiting 0 over a sample of six while the document went on quoting 7/1200**. The size of the
+     committed set is now the default, a non-numeric count is refused rather than evaluated as
+     zero, and `0` still disables the check but says so on stderr and is never reached by
+     default.
+   - **No qualifying trial was reported as a successful derivation.** Concurrency can only be
+     tested on a trace with two or more owners. Where none had two, the script printed
+     *"no traced trial produced two owners, so nothing was checked here"* — and **exited 0**. The
+     one script cited as establishing concurrent tenure could therefore report establishment
+     from a run that established nothing at all. Zero qualifying trials is now exit 2; so is a
+     set of files that parse to no records, which the empty-glob guard above it did not catch.
 
-**Seven HARNESS defects were also found and are disclosed here, because three of them changed
+   **No committed figure moves**, and that is checked rather than assumed: over the committed
+   traces with no argument the script still reads **7 traces, 4 two-owner, concurrency proven on
+   4**, and exits 0. **It is filed here and not on the harness list on the test entries 17 and 18
+   were defended on** — no trial is mis-staged, no sample is synthetic, no TSV or trace is
+   touched, and the arithmetic over the committed set was right both before and after. What was
+   wrong is the sentence around it: a guard that *prints* a coverage fraction it does not
+   *enforce*, and a derivation that reports success over an empty qualifying set, is §1's own
+   definition of the kind — **a derivation that does not reach the figure it is cited for** —
+   with the figure in question being the establishment claim itself.
+   - **AND THE CLASS IS NOW NAMED, because this is the fourth member of it and the second in
+     two rounds: a defect in a repair.** Entry 18 is a defect in entry 17's-round recount; both
+     of the recurrences the note above describes (7 and 8) are a fix applied to one site and not
+     its sibling; and this entry is a defect in **entry 17's own repair script, found one commit
+     after it was written**. That is no longer a coincidence to be disclosed one instance at a
+     time. **The repairs in this document fail at the same rate as the things they repair**, and
+     the reading that follows is not that any one entry is unfinished but that *a fix is evidence
+     of nothing until it has itself been reviewed* — which is the argument §6 makes about
+     inspection, turned on this document's own patches. It is also why both of this entry's
+     refusals are **demonstrated** rather than asserted: a trace directory with one trace
+     deleted, a directory whose traces all have one owner, an empty directory, seven zero-byte
+     traces and a non-numeric count all exit 2; the committed set and a two-trace subset with
+     its count passed explicitly both exit 0 **[measured-here]**.
+
+**Eight HARNESS defects were also found and are disclosed here, because three of them changed
 results and one of them destroyed data.** They are listed rather than quietly fixed, since a
 reader deciding how much to trust these numbers should know what went wrong in producing them.
 The fourth was found in round 3 and it touches a published figure; the fifth, in round 27, the
-sixth, in round 29, and the seventh, in round 30, could only have contaminated a *future* run
-rather than a past one — and the sixth is the only one on this list that would have produced
+sixth, in round 29, the seventh, in round 30, and the eighth, in round 33, could only have
+contaminated a *future* run rather than a past one — and the sixth is the only one on this list
+that would have produced
 **affirmative evidence for a mechanism out of a failure to measure it**, which is why it is the
-sharpest of the seven despite moving nothing. **The seventh is the one that came out of another
+sharpest of the eight despite moving nothing. **The seventh is the one that came out of another
 entry on this list**: it is the incompleteness of the fifth's own repair, and it made the mistake
 §4b clause 7(iv) exists to prevent — killing a worker's pid does not reach that worker's player —
-in the rig built to measure that clause.
+in the rig built to measure that clause. **The eighth continues that same chain to a third link**:
+it is the incompleteness of the *seventh's* repair — a leak check that reported the signal it sent
+rather than the process it reaped, which is defect **1**'s condition (a signal delivered, success
+returned, nothing dead) reappearing in the cleanup built to prevent it.
 
 1. **`nohup` made the process-group sweep a silent no-op.** The sweep used `SIGHUP`; `nohup`
    sets it to `SIG_IGN`, inherited across `fork` *and* `exec`. `killpg` returned success and
@@ -976,6 +1042,63 @@ in the rig built to measure that clause.
    bounded) and that is recorded rather than closed. The general rule, which is worth more than
    the two edits: **any place this rig terminates something, ask what that thing's children are
    in.**
+8. **THE LEAK CHECK REPORTED WHAT IT SENT, NOT WHAT IT REAPED — round 30's repair, round 33, and
+   it is harness defect 1's reporting shape arriving in the cleanup.** `reap_stray_players` — the
+   half of defect 7's fix that reaches the players no process-group kill can name — ended with
+   `kill -TERM "$pid"`, a count of those calls, and `return 0`. `kill(2)` only queues a signal, so
+   **that count never established that one player had stopped.** Measured on this machine:
+   `player_probe.py` is still alive when `kill(SIGTERM)` on it returns in **20 of 20** trials, for
+   **0.50–0.99 ms**, because its handler writes and `fsync`s a `player_end` record before it
+   restores `SIG_DFL` and re-raises **[measured-here]**. **Defect 1 is this document's own
+   precedent for why sending is not reaping**: there, `nohup` had set the swept signal to
+   `SIG_IGN`, `killpg` returned **success**, nothing died, and the run produced a false 12/12. A
+   signaller that reports the signal as the outcome cannot tell that case from a clean reap — and
+   this one is the leak check, so *"signalled"* being read as *"gone"* is the whole of its value.
+   It gets its own number on the test this list already applies, and it is the **third link in one
+   chain**: defect 5 stranded a worker, defect 7 was the incompleteness of 5's repair and stranded
+   a player, and this is the incompleteness of 7's repair — a player reported as dealt with while
+   still running.
+
+   **The review finding that prompted this named a mechanism that does not exist, and the
+   correction matters more than the fix.** It said the wrapper *"may start the next configuration
+   immediately"*. It may not: **every** wrapper in the rig — `run_all_preempt.sh`, `run_c10.sh`,
+   `run_c16.sh`, `run_tail.sh`, `run_missing.sh`, `run_pgid_rerun.sh` — `exit 2`s on a driver
+   failure and never reaches the next configuration, which was verified rather than assumed. And
+   on the path where a wrapper *does* continue — a successful run — there is nothing to signal:
+   `run_preempt.sh` ends every trial with `sleep 6` against a 2.5 s stub and `run_real.sh` with
+   `sleep 12` against a 5.7 s wav, so both drivers outlive their last player by seconds. The
+   sub-millisecond window is therefore **not** a cross-run contamination path. What is left is the
+   defect above, which does not need the window: **a player whose SIGTERM is ignored or that is
+   wedged would be reported as `signalled` and left running indefinitely**, and nothing checked.
+
+   **No committed figure could have been produced under it, and the ground is checkable rather
+   than argued**: `reap_stray_players` exists only in `cleanup.sh`, added by `92d4586` in round
+   30, and the committed traces were last written by `07c3944` — an **ancestor** of it. The
+   function has never run in a run that produced published evidence. Its predecessor, the bare
+   `kill -TERM "$WPID"`, is defect 7, already disclosed on the same footing.
+
+   **The repair waits, escalates and reports two numbers instead of one.** The signalled pids are
+   tracked and polled as a **set** — serialising the waits would make the budget `n × grace` and
+   let an early wedged player hide a late one — for a bounded 2000 ms; survivors are escalated to
+   **SIGKILL**, which no disposition can ignore, and polled for a further 1000 ms; only a pid
+   alive after *that* is reported, as a `LEAK` block naming it, since there is nothing stronger
+   left to escalate to. `wait` is unavailable (these are the worker's children, not the driver's)
+   and there is no `timeout(1)` on this macOS, so the deadlines are explicit polls. **A zombie is
+   counted as gone** — it has exited, holds no device and no CPU, and counting one would be a
+   false leak report from an unreaped wait status — so liveness requires `kill -0` *and* a
+   non-`Z` state from `ps`. **The leak is reported and not returned as a driver status,
+   deliberately and because it cannot be**: bash takes a script's status from the last command
+   *before* an `EXIT` trap, not from the trap — verified here, a trap returning 7 leaves `exit 0`
+   at 0 and `exit 1` at 1 — and the only way to move it is an `exit` inside the trap, which would
+   overwrite the driver's real verdict with the cleanup's opinion of a stray. **Demonstrated in
+   three directions**: three `player_probe.py` stubs that honour SIGTERM are reaped with none
+   alive on return; a stub with `SIGTERM` set to `SIG_IGN` — defect 1's exact condition, which
+   the old code reported as `1 stray player(s) signalled` before leaving it running for another
+   120 s — is escalated and reaped; and a trace whose players are already gone enters no wait
+   **[measured-here]**. **One residual is unchanged and restated because this function now makes a
+   claim**: the wait covers the pids it *signalled*, so the `/bin/sleep` that the
+   `shared`/`perplayer` wrapper orphans inside its publish delay is still bounded by
+   `--publish-delay-ms` rather than reaped, and is still not in the trace.
 
 **The first two are the reason this revision re-ran everything rather than patching numbers.**
 
@@ -1154,7 +1277,11 @@ trial's two owners held the session **at the same time** — which is what §3.1
 workers"* asserts. `lock_overlap.sh preemption-lock-probe/traces` derives it from the per-trial
 lock traces, and reaches the **7 of 1200** trials that have one (§3.4). It is a guard as well as a
 derivation: it exits 2 on a two-owner trace whose intervals do not overlap, on an `owner` with no
-claim record to build an interval from, and on being handed no traces at all.
+claim record to build an interval from, and on being handed no traces at all — and, since round 33,
+on being handed a **different number** of traces than the fraction above names, and on a run in
+which **no trace qualified** to be checked at all. Both of those used to exit 0, which is
+derivation defect 19: the fraction was printed and not enforced, and an empty qualifying set was
+reported as a successful derivation.
 Round 16 found `summarise.sh`'s
 own header claiming the whole set (§1 derivation defect 8). (Round 3 wrote "from the committed TSVs" for both; `analyse_round2.sh` takes the
 trace directory, and pointing it at the TSVs prints `(trace missing)` for every block — and,
@@ -3288,25 +3415,25 @@ under the table said
 *"ten consecutive rounds"* — three numbers for one tally, none of them defined, in the section
 whose entire argument is an induction over that tally. **One row per round in which review found
 a real defect** is the rule, `PR #27`'s pre-measurement round included, and the count is now
-**seventeen** because this round adds one. Two things a reader should know before trusting it:
+**eighteen** because this round adds one. Two things a reader should know before trusting it:
 - **The table was behind the body from rev 9 to round 27, and the gap was never closed
   retroactively.** At round 27 its last row was labelled *review round 21* while the body already
   cited findings from **rounds 24, 25 and 26** (derivation defects 11, 12 and 13; the fifth
   pid-reuse site in §0 and §2.5 item 7). Those rounds changed the document and still have no rows.
   **Round 27 did not invent them and no round since has** — summarising somebody
-  else's round from its residue is how a tally stops being evidence — so the seventeen rows are a
+  else's round from its residue is how a tally stops being evidence — so the eighteen rows are a
   **floor** on the rounds, not the rounds. (The bullet said *"has been behind the body"* in the
   present tense for five rounds after the state it describes had passed, which is the same
   hand-maintenance this bullet list is about; it is written as history now.)
-- **Seventeen is therefore the smallest defensible number here**, which is the direction a
+- **Eighteen is therefore the smallest defensible number here**, which is the direction a
   disclosure tally is allowed to be wrong in.
 - **AND THIS PARAGRAPH IS WHY THE RULE HAD TO BE MADE MECHANICAL, because it broke again in the
   three rounds after round 27 set it.** Rounds 28, 29 and 30 each added a table row and each left
   this sentence reading *"thirteen"* — the same *"three numbers for one tally"* defect the
   paragraph opens by describing, in the paragraph describing it, while §0's sentence tracked
   the table correctly and was therefore the one a reader could trust. Round 31 recounted **from
-  the table** rather than from any of them (`awk` over the row block; **16 rows before
-  this round's, 17 after**).
+  the table** rather than from any of them (`awk` over the row block; **17 rows before
+  this round's, 18 after**).
   **AND ROUND 31's OWN RECOUNT WAS INCOMPLETE, WHICH IS DERIVATION DEFECT 18 AND THE THIRD TIME
   THIS ONE TALLY HAS DRIFTED.** It said *"every site now carries the same number for the same
   reason"* and reached **three** of the sites: the paragraph **directly under the table** still
@@ -3344,9 +3471,10 @@ a real defect** is the rule, `PR #27`'s pre-measurement round included, and the 
 | **PR #28 rev 12, review round 29** | **three fixes THIS BRANCH made, and the sites each one was not applied to** | **Three findings, and they are one pattern: a repair applied to one site and not to its sibling, or a new outcome with nothing taught to read it. That pattern is already the most frequent entry in this list, so the response is structural where it can be.** **(1) A refused publication was collected as a successful hook preemption.** Round 25's fail-closed identity path stops the player through the `Popen` handle and records `publish_refused`; **nothing consumed it.** `collect.sh`'s `W` branch tested `result != "disabled"` — a blind else — so `refused` stamped `W` as a publication that happened, the `terminate()` produced `rc=-15`, and the attribution rule called that **`hook-pid-kill`** although no hook ran. A transient `ps` failure would have been published as affirmative evidence for the mechanism row 20 certifies. It is **harness defect 4's own branch making harness defect 4's own mistake** — the `by=player` arm of it was disclosed in round 3 and the `result=` arm left blind — and it is filed as harness defect **6** because the consequence is new: defect 4 contributed synthetic samples to a window, this fabricates support for a mechanism. Zero occurrences in `traces/`, so **no committed figure moves**; the run is now rejected outright rather than carrying a VOID column, because a VOID would need five consumers taught to refuse it and missing one would recreate this defect inside its own fix. Two more consumers of the same event were swept: the `W` branch now names every `result` value, and `analyse_round2.sh:129` no longer anchors `C14a`'s *"a record that certainly existed"* on a refusal. **(2) The attribution rule had three copies and round 16 fixed one.** `compare_passes.sh` — **the script this document cites as the replication-agreement check** — and `peek_one.sh` each carried their own copy of derivation defect 7's chain, still wrong thirteen rounds after it was fixed in `summarise.sh`; `peek_one.sh` had it in the *worse* order, testing `-31/31` first. `compare_passes.sh` also **omitted SIGALRM entirely**, and that half was **not** latent: the 12 `C12a_pgid_pubfirst` rows at `(rc=-, plog=14)` scored `unknown` and score `election-sweep-pgid` now, with nine printed lines changing across eight configurations in the two per-file blocks. **The agreement verdict is unchanged at 11 shared configurations** — seven of the eight configurations are published-arm-only and outside the intersection it diffs, and the eighth changes identically on both sides. Filed as a **recurrence of 7**, not a new number, and repaired by giving the rule exactly one definition (`attrib.sh`) rather than by fixing two copies. **(3) A denominator check that counts rows and never reads the trial column.** Rounds 17 and 19 validated row 21's and row 20's denominators and **both check IDs**; section E was never brought up to it. An arm with trials `1,1,2` has three rows, passed at `want=3` with **trial 3 absent**, and every median below it then read trial 1 twice — demonstrated on the committed data, where the `REAL-off` median reads **5.4803** against the true **5.4824**. The same gap was in `collect_real.sh`, the **generator** of the file section E reads, where three run directories each yielding only trial 1 pass every count; and the shape is in `verify_fires.sh`, whose `entry=25` passes a marker set with `t3a` twice and `t7b` never — *"all hooks fired"* over a trial whose hook did not. Filed as derivation defect **16**, three sites, one rule. **No committed figure moves under any of the three**; all five regression checks are byte-identical except `compare_passes.sh`'s per-file blocks, which change for the reason stated |
 | **PR #28 rev 13, review round 30** | **the CLEANUP PATH of the rig, which no previous round had read** | **One finding, and it is this document's own central claim made by the rig that measures it.** Round 27's repair for harness defect 5 gave both drivers an `EXIT` trap that did `kill -TERM "$WPID"` and nothing else. `speakd_probe.py` calls `os.setsid()` before it elects, so the worker **leads its own process group and its players are in that group** — a signal to the worker's pid reaches none of them. A fatal readiness or hook path therefore terminated the worker and left its player running: an `afplay` decoding a real 5.7 s wav **holding the audio device into the retry the operator starts next**, and under `C17_setsid_player` a player that `setsid()`s *itself*, outside even the worker's group and outside anything the trap could name. **§4b clause 7(iv) is the process-group sweep, and it exists because killing a worker's pid does not reach that worker's player** — so the rig made the exact mistake the protocol under test was written to prevent, one function away from the code that measures it, and handled worst the single arm whose purpose is to show clause 7(iv) failing. Filed as harness defect **7** rather than a recurrence of 5, on the test this list already applies to defect 6: defect 5 strands a **worker** competing for jobs, this strands a **player** holding the audio device, which is the one invariant the document exists to certify. **One** defect and not two despite two drivers — one rule with two copies is round 29's `attrib.sh` shape, repaired the same structural way, in `cleanup.sh`. **The over-kill direction is the dangerous one and the guard is measured, not reasoned:** a plain `cmd &` child reports the **invoking shell's** pgid, not its own pid, so an assumed pgid kills the driver, the wrapper that ran it in a command substitution, and the shell above that; the group kill fires only on `live && parses && pgid>1 && pgid==pid && pgid!=driver pgid`, where `pgid==pid` **is** the proof `os.setsid()` ran. Demonstrated in **both** directions — fatal path leaves nothing behind; happy path completes with driver, wrapper and harness all alive. The two populations no group kill can reach (`--player-setsid on`, and `--die-after popen` leaving no live leader) are reaped from the trace's `P_popen` pids — the only **complete** list, `fsync`ed at `Popen` return, since a per-player record appears only after the wrapper's `mv` — gated on a live-`argv` match against `$SID` so a recycled pid is not signalled. **`C17` is cleaned up**; what it defeats is the process-group *mechanism*, not a cleanup that does not use the group. Three residuals stated rather than implied, and a per-site verdict recorded for **every** termination site in the rig including the already-correct ones — among them `run_preempt.sh`'s per-trial kill, which is a pid kill *on purpose* and must not be "fixed", because it is staging and a group kill would destroy the orphan the trial exists to measure. **No committed figure moves**; the regression set is byte-identical. The general rule is worth more than the two edits: **any place this rig terminates something, ask what that thing's children are in** |
 | **PR #28 rev 14, review round 31** | **ROW 21'S METRIC — the one quantity the whole of §3 is an argument about, and no round had asked what it measures** | **One finding, and it is the first in this table where the reviewer's own inference was wrong and the criticism still landed.** `run_lock.sh` counts `owner` records; §3.1 read a count of 2 as *"two resident workers, each holding a ~340 MB model"* — a claim that two processes held the session **at the same time** — and **nothing recorded a release or compared two owners' intervals**, so the concurrency was an interpretation resting on the metric rather than derived from it. That much is correct and is repaired by a derivation, `lock_overlap.sh`, which builds each owner's interval as `[claim, release]` and **proves concurrency on 4 of the 4** two-owner traces. **The finding went further and that part does not survive:** it timed the winner from its `owner` record, where the winner *finishes publishing*, rather than from the `mkdir_ok` that decided the election — in `lock-S2_longstall-spec-N4-s1000-r1` **1.016 s earlier**, so the racer's entire 500 ms hold is **nested inside** the winner's interval and the 0.939 s gap between the two `owner` records is the width of the misclassification, not evidence against it. A winner that has returned from `mkdir(2)` owns the lock; that is the premise S1 and S2 exist to test. **So no cell moves and `current` 121/400 and `spec` 61/400 stand** — and the direction is worth naming, because the withdrawal would have **shrunk the failure counts of the two protocols being falsified** and left `proposed` at 0, making the document's own proposal look better. It is the one disclosure here that would have flattered the author, which is why it was derived to six decimal places instead of argued. What stands is **coverage**: `lock-owners.tsv` has no timestamps and 7 of 1200 trials have traces, so **4 of the 182** failing trials are derived and **178 inferred** — 140 by ordering (the stalled winner claims first and outlives the racer's hold), **42 by an unbounded scheduling expectation** (two racers, S3/S6), and those 42 are the genuinely open ones (§3.4, §5). `lockrace.py` now records `released` so the re-run §3.3 already requires will **observe** each interval, and a bench sweep of all 60 cells at one repetition — **not published as an arm**, and no count from it republished — proves concurrency on **15 of the 15** two-owner trials it produced, every interval end recorded rather than inferred, including one whose two `owner` records are **1.000926 s** apart and still overlap by **0.508357 s**, and both `S3` trials of the racer + racer shape the ordering argument does not cover. The other half of the fix — making the first owner hold until every participant has claimed — was **deliberately not made**, because it would manufacture the overlap instead of measuring it. Filed as **derivation defect 17**, not a harness defect: the rig produced nothing wrong. Round 31 also found the §6 body's round tally reading **thirteen** under a **fifteen**-row table, drifted in each of the three rounds since round 27 set the rule, and recounted three sites from the table — **missing a fourth, which round 32 found** |
-| **PR #28 rev 15 (this), review round 32** | **the seven review comments outstanding on the PR, and — since all seven were already repaired — round 31's own claim to have recounted every tally site** | **The review's seven findings are all REFUTED as already repaired, each against an ANCESTOR commit, and this row exists for what checking that turned up.** The seven, with the commit that repaired each: *"a loser retries; it does not fail"* contradicting the 60-attempt bound and *"only the worker that created `g+1`"* making cleanup non-recoverable (both reviewed at `12b38d9`, both answered in §4's replacement text by `1e02e5c`, round 27); the worker leak on `run_real.sh`'s and `run_preempt.sh`'s fatal readiness paths (reviewed at `12b38d9` and `cb0c8db`, `EXIT` traps installed by `1e02e5c` and completed to a process-group kill by `92d4586`, harness defects 5 and 7); `summarise.sh` section B still headed *"was the stale utterance audible"* and `collect.sh`'s header restating *"everything published derives from `trials.tsv`"* (both reviewed at `1e02e5c`, both repaired by `c293618`, derivation defects 15 and 8); and the hook's unsafe-record branch leaving `found=0` so one invocation reported both a refused record and no record (reviewed at `1e02e5c`, `found=1` added by `c293618`, `hook_probe.sh:201`). **Every one was verified against the working tree at `cb0c8db` rather than against the commit message**, and two questions the review raises are answered rather than assumed: **no committed figure was produced under the worker leak** — a run that took a fatal path produced no trace to collect, and `run_lock.sh` does not have the shape — and **`result=norecord` IS consumed**, by `analyse_round2.sh`'s C14b hook-read summary and by `analyse_c14.sh`'s blind classification, so the `found=1` fix could have moved a figure; it does not, because the committed traces carry **zero** `record_skipped` rows of any verdict (`skipped_on_identity=0` in that same summary), which is checked and not reasoned. **What the check itself found is derivation defect 18**: round 31 wrote that it had recounted *every* tally site, and the paragraph **directly under its own table** still read *"Fourteen rows"* over sixteen. The recount is now `tally_check.sh`, a guard over sixteen sites that fails on a mismatch **and** on a site it cannot find, demonstrated refusing rev 14 and accepting rev 15. **No figure in this document moves in this round** |
+| **PR #28 rev 15, review round 32** | **the seven review comments outstanding on the PR, and — since all seven were already repaired — round 31's own claim to have recounted every tally site** | **The review's seven findings are all REFUTED as already repaired, each against an ANCESTOR commit, and this row exists for what checking that turned up.** The seven, with the commit that repaired each: *"a loser retries; it does not fail"* contradicting the 60-attempt bound and *"only the worker that created `g+1`"* making cleanup non-recoverable (both reviewed at `12b38d9`, both answered in §4's replacement text by `1e02e5c`, round 27); the worker leak on `run_real.sh`'s and `run_preempt.sh`'s fatal readiness paths (reviewed at `12b38d9` and `cb0c8db`, `EXIT` traps installed by `1e02e5c` and completed to a process-group kill by `92d4586`, harness defects 5 and 7); `summarise.sh` section B still headed *"was the stale utterance audible"* and `collect.sh`'s header restating *"everything published derives from `trials.tsv`"* (both reviewed at `1e02e5c`, both repaired by `c293618`, derivation defects 15 and 8); and the hook's unsafe-record branch leaving `found=0` so one invocation reported both a refused record and no record (reviewed at `1e02e5c`, `found=1` added by `c293618`, `hook_probe.sh:201`). **Every one was verified against the working tree at `cb0c8db` rather than against the commit message**, and two questions the review raises are answered rather than assumed: **no committed figure was produced under the worker leak** — a run that took a fatal path produced no trace to collect, and `run_lock.sh` does not have the shape — and **`result=norecord` IS consumed**, by `analyse_round2.sh`'s C14b hook-read summary and by `analyse_c14.sh`'s blind classification, so the `found=1` fix could have moved a figure; it does not, because the committed traces carry **zero** `record_skipped` rows of any verdict (`skipped_on_identity=0` in that same summary), which is checked and not reasoned. **What the check itself found is derivation defect 18**: round 31 wrote that it had recounted *every* tally site, and the paragraph **directly under its own table** still read *"Fourteen rows"* over sixteen. The recount is now `tally_check.sh`, a guard over sixteen sites that fails on a mismatch **and** on a site it cannot find, demonstrated refusing rev 14 and accepting rev 15. **No figure in this document moves in this round** |
+| **PR #28 rev 16 (this), review round 33** | **the two scripts the last two commits added — `lock_overlap.sh` (row 21's derivation) and `cleanup.sh` (the players a group kill cannot reach)** | **Three findings, all three about code one or two commits old, and two of them the same defect twice in one file: A GUARD THAT PASSES WHEN IT VERIFIED NOTHING.** `lock_overlap.sh` is the script §3.1 cites as the reason `owners` is *derived* rather than asserted, and it had two null-as-pass paths — its coverage check **defaulted to off**, so the documented `lock_overlap.sh traces` never ran it and deleting one of the seven committed traces still exited 0 under a document quoting **7/1200**; and a run in which **no trace had two owners** printed *"nothing was checked here"* and **exited 0**, so the guard establishing concurrent tenure could report establishment from a run that established nothing. Both now exit 2, the committed set's size is the default, and six refusal directions and two acceptance directions are demonstrated. Filed as **derivation defect 19**, on the test entries 17 and 18 were defended on: the arithmetic over the committed set was right before and after — still **7 traces, 4 two-owner, 4 proven** — and what was wrong is a script that *printed* a coverage it did not *enforce*. **The third finding is harness defect 8, and its premise held while its mechanism did not.** `reap_stray_players` sent SIGTERM, counted the calls and returned: `player_probe.py` `fsync`s a `player_end` record before re-raising, so it is alive when `kill` returns in **20 of 20** trials (0.50–0.99 ms) — but the review's *"the wrapper may start the next configuration immediately"* is **refuted**, since every wrapper in the rig `exit 2`s on a driver failure, and on the success path `run_preempt.sh`'s `sleep 6` and `run_real.sh`'s `sleep 12` outlive their 2.5 s and 5.7 s players. What survives is harness defect **1**'s shape — a signal sent, success reported, nothing verified — under which a player with SIGTERM ignored would be reported as handled and left running. It now waits, escalates to SIGKILL and reports reaped and survived separately. **No committed figure moves and none could have**: `cleanup.sh` was added by `92d4586` and the committed traces were last written by its **ancestor** `07c3944`. **What this round found about the document rather than the code** is the class both entries belong to — *a defect in a repair* — now on its fourth member and its second and third links of one chain, which §1 and this section state as a property of the list rather than disclose one instance at a time |
 
-**Seventeen rows, and every one of them a round that found a real defect in the previous round's
+**Eighteen rows, and every one of them a round that found a real defect in the previous round's
 confident answer** — counted off the table rather than carried, and a floor rather than a total
 for the reason stated above. **This is the sentence that was two rounds behind**, and it is
 now checked by `tally_check.sh` rather than maintained: the number above is the table's own
@@ -3372,7 +3500,7 @@ record, the thing measured was an append-only ledger, and the arm that measured 
 delay that guaranteed the sweep always ran after publication. When the ordering rev 1 claimed to
 close was finally staged (`C11b`), **the single-record form failed.**
 
-### So the counter-argument is now refuted in every round in that table — seventeen of them
+### So the counter-argument is now refuted in every round in that table — eighteen of them
 
 The original argument for non-blocking was that these clauses are *"cheap, obviously correct on
 inspection, and their failure windows are microseconds wide."*

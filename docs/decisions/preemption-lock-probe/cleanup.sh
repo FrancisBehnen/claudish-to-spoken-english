@@ -77,7 +77,13 @@
 #                                    stage, and `os._exit(9)` would bypass it anyway.
 #   player_probe.py                  CORRECT. Its `os.kill(getpid(), signum)` re-raises on
 #                                    ITSELF to preserve the wait status. It has no
-#                                    children beyond a waited `subprocess.run`.
+#                                    children beyond a waited `subprocess.run`. Round 33
+#                                    adds the consequence for its SIGNALLERS rather than
+#                                    for it: the handler writes and `fsync`s `player_end`
+#                                    BEFORE restoring SIG_DFL, so it is reliably still
+#                                    alive when a `kill` on it returns -- which is why
+#                                    `reap_stray_players` below now waits instead of
+#                                    reporting the signal as the outcome.
 
 # ---------------------------------------------------------------------------------------
 # pgid_of <pid> -- the process group of a LIVE pid, or nothing.
@@ -174,10 +180,84 @@ kill_worker_group() {
 # run's players, rather than that it started when one of them did.
 #
 # Prints one line per pid, and the count, so both demonstration directions are readable.
+#
+# ROUND 33 -- AND IT IS HARNESS DEFECT 1'S REPORTING SHAPE, ARRIVING IN THE CLEANUP.
+# `signalled` used to be the last word this function said, and the count it printed was a
+# count of `kill` CALLS. `kill(2)` only queues a signal, so that number never established
+# that one player had stopped: measured on this machine, `player_probe.py` is alive when
+# `kill(SIGTERM)` returns in 20 of 20 trials, for 0.50-0.99 ms, because its handler writes
+# and `fsync`s a `player_end` record before it restores SIG_DFL and re-raises. Defect 1 is
+# this document's own precedent for why that is not good enough: there, `nohup` had set the
+# swept signal to `SIG_IGN`, `killpg` returned SUCCESS, nothing died, and the run published
+# a false 12/12. A signaller that reports what it SENT rather than what it REAPED cannot
+# tell those two situations apart -- and this one is the leak check, so "signalled" being
+# read as "gone" is the whole of its value.
+#
+# So the pids are tracked and WAITED for, bounded, and the function now reports REAPED and
+# SURVIVED as separate numbers. `wait` is not available: these are the worker's children,
+# not this shell's, so liveness is polled. There is no `timeout(1)` on this macOS either,
+# hence the explicit deadlines below.
+#
+# THE ESCALATION IS PART OF THE CHECK, NOT A CONVENIENCE. A player that outlives the
+# SIGTERM grace is either wedged or has SIGTERM ignored -- defect 1's condition exactly --
+# and leaving it running is the contamination this file exists to prevent. It gets SIGKILL,
+# which no disposition can ignore, and only a pid that survives THAT is reported as a leak.
+#
+# A ZOMBIE IS NOT A SURVIVOR and is treated as gone: it has exited, holds no audio device
+# and no CPU, and its wait status is the worker's business, not this cleanup's. Counting one
+# as a leak would be a false alarm from an unreaped exit -- so `still_running` requires
+# `kill -0` AND a live, non-`Z` state from `ps`, and a pid that vanishes between the two
+# reads as gone, which is what it is.
+#
+# WHAT THE WAIT DOES NOT COVER, since this function is now the one making the claim: it
+# waits for the pids it SIGNALLED. The `/bin/sleep` that the third residual below describes
+# -- forked by the `--pid-mode shared|perplayer` wrapper and orphaned by a kill landing
+# inside the publish delay -- is not one of them, is not in the trace, and is still bounded
+# by `--publish-delay-ms` rather than reaped here.
+#
+# AND THE LEAK IS REPORTED RATHER THAN RETURNED AS A DRIVER STATUS, deliberately, because
+# it cannot be returned as one. This function is called from an `EXIT` trap, and bash takes
+# the script status from the last command BEFORE the trap, not from the trap -- verified on
+# this machine: a trap function returning 7 leaves `exit 0` at 0, `exit 1` at 1, and a
+# fall-off-the-end script at 0. The only way to move it is an `exit` inside the trap, which
+# would overwrite the driver's real verdict -- turning a genuine `FATAL: worker never ready`
+# into whatever the cleanup felt about a stray. So `reap_stray_players` returns non-zero for
+# a caller that wants it, and the operator-visible signal is the `LEAK` block on stderr.
+# A survivor of SIGKILL is unkillable, so there is no stronger action available to take.
+REAP_TERM_GRACE_MS=${REAP_TERM_GRACE_MS:-2000}
+REAP_KILL_GRACE_MS=${REAP_KILL_GRACE_MS:-1000}
+
+# still_running <pid> -- live AND not a zombie. See the note above on why Z is "gone".
+still_running() {
+  local st
+  kill -0 "$1" 2>/dev/null || return 1
+  st=$(ps -o state= -p "$1" 2>/dev/null | tr -d '[:space:]')
+  [[ -n $st ]] || return 1
+  [[ $st == Z* ]] && return 1
+  return 0
+}
+
+# await_gone <deadline_ms> <pid...> -- poll until none of the pids is running, or the
+# deadline passes. Echoes the pids still running when it returns, space-separated.
+await_gone() {
+  local budget=$1; shift
+  local waited=0 left p
+  while :; do
+    left=""
+    for p in "$@"; do still_running "$p" && left="$left $p"; done
+    [[ -n $left ]] || break
+    [[ $waited -lt $budget ]] || break
+    sleep 0.02
+    waited=$((waited + 20))
+  done
+  printf '%s' "${left# }"
+}
+
 reap_stray_players() {
   local trace=$1 sid=$2; shift 2
   local spare=" $* "
-  local pid cmd n=0
+  local pid cmd n=0 left survivors
+  local signalled=""
   [[ -f $trace ]] || return 0
   # BWK awk on this macOS: no `match()` capture groups, so the field is split by hand.
   for pid in $(awk -F'\t' '$5=="P_popen" {
@@ -197,10 +277,38 @@ reap_stray_players() {
     fi
     printf 'cleanup: stray player %s (%s) -- kill -TERM\n' "$pid" "$cmd" >&2
     kill -TERM "$pid" 2>/dev/null
+    signalled="$signalled $pid"
     n=$((n + 1))
   done
   printf 'cleanup: %d stray player(s) signalled\n' "$n" >&2
-  return 0
+  [[ $n -gt 0 ]] || return 0
+
+  # The whole signalled set is waited for at once, not one pid at a time: serialising the
+  # waits would make the budget n * grace and let an early wedged player hide a late one.
+  left=$(await_gone "$REAP_TERM_GRACE_MS" $signalled)
+  if [[ -z $left ]]; then
+    printf 'cleanup: %d stray player(s) REAPED after SIGTERM (0 survived)\n' "$n" >&2
+    return 0
+  fi
+
+  printf 'cleanup: %s survived SIGTERM after %d ms -- escalating to SIGKILL\n' \
+    "$left" "$REAP_TERM_GRACE_MS" >&2
+  for pid in $left; do kill -KILL "$pid" 2>/dev/null; done
+  survivors=$(await_gone "$REAP_KILL_GRACE_MS" $left)
+  if [[ -z $survivors ]]; then
+    printf 'cleanup: %d stray player(s) REAPED, %d of them only by SIGKILL\n' \
+      "$n" "$(printf '%s\n' $left | wc -l | tr -d ' ')" >&2
+    return 0
+  fi
+
+  # A pid alive after SIGKILL is unkillable (uninterruptible sleep, or a debugger stop).
+  # There is nothing left to escalate to, so this is reported as a LEAK and the caller is
+  # told, loudly, that the next run starts contaminated.
+  printf 'cleanup: LEAK -- player(s) %s ALIVE after SIGKILL + %d ms.\n' \
+    "$survivors" "$REAP_KILL_GRACE_MS" >&2
+  echo "cleanup: the next run in this directory starts with a previous run's player still" >&2
+  echo "cleanup: resident. Do not treat the following run as uncontaminated." >&2
+  return 1
 }
 
 # ---------------------------------------------------------------------------------------
