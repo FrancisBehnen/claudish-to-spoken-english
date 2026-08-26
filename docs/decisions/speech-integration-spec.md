@@ -86,7 +86,12 @@ judged non-blocking turned out to be.**
 > thirty-one"* at round thirteen, and *"the other thirty-two"* at two sites at round fourteen, both
 > derived from totals the table had already left behind. Both are corrected where they live and are
 > recorded in §13's re-derivation paragraph rather than as rows or as additions to the four above,
-> on the same precedent.
+> on the same precedent. **Round fifteen re-derived every one of those numbers off §13's own rows again and
+> found them CONSISTENT** — forty-one over eighteen labels, `4+2+3+2+5+4+4+2+1+1+2+1+2+1+2+1+2+2`, nineteen
+> occasions, fifteen reads, and §15 agreeing with the table at every site of its own that states a
+> total — which is the first pass in three to
+> break the run, and is recorded here because a check that found nothing is the only evidence that the
+> check happened.
 
 ---
 
@@ -3503,6 +3508,29 @@ against a clause that makes it impossible. The second finding is clause 4's STAT
 31's own cited numbers with a single chunk while turn 31's row records `n_md = 3` — the sixth member of the
 parallel-site shape above, and the first with the stale site here and the repair in the record it quotes.
 **Neither moved a verdict, a key, a §13 row's closing condition or the ship-blocking count.**
+**The fifteenth round found nothing in this document's LOCKED text and therefore added no label — the
+second read to do that, after the twelfth — but it named a shape this table had recorded twice without
+naming, and the name belongs on a reviewer's list beside *a defect in a repair* and *a closing condition
+no configuration can satisfy*.** Call it the **AGGREGATE class, `Σ`: one total stated over a set whose
+members the evidence scores differently.** Two rows are already members and the table says so at
+both — round ten's second, §10.6 restating one removal outcome as the outcome for all four clauses it
+rests on when the arms score clause 7(v) differently, and round thirteen's second, which that row's own
+cell calls *"a per-hook result restated over a set the arms do not cover"* — and
+the class notes below have carried its record-side twin since the SIXTH note, which lists *"the mechanism,
+in six clauses, each measured above"* over a list of seven and *"negative on every cold turn"* over a
+column empty on 2 of the 7. What round fifteen adds is
+the **failure mode of the repair**, which is why the class is worth a name rather than another
+cross-reference: [`worker-residency.md`](worker-residency.md)'s clause list replaced *"each measured
+above"* with *"clauses 1–6 are measured above"*, and the replacement is false of clause 6, whose own
+subsection says *"Not measured"*. **The rule the name carries: the repair for a false aggregate is the
+per-member statement, never a narrower aggregate** — and where the members are scored in *different
+currencies* rather than merely to different degrees, no aggregate exists to narrow to. The same round
+found the second half of that in the same document: a single count of how many of clause 7's five hooks
+are *necessary* cannot be right, because two are necessary for suppressing stale audio and one for the
+other four being checkable, which is 2 + 1 in two currencies and not 3 in one. **Both halves are record
+rather than specification** — §10.5 clause 7 tags each of the five hooks individually and §10.6, §13 rows
+20 and 27 state no count over them — **so neither is a row, and the FOURTEENTH class note below carries
+them.**
 **Two of the nineteen occasions are not reads of this document at all** — they are review rounds
 24 and 25 of [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md), whose findings landed here
 because the two documents specify one mechanism and this one had the defect.
@@ -3684,18 +3712,19 @@ on. So #11 can lock and #23 can start — with two more blockers than it had yes
 > single-chunk narration of a turn its own data records at three; and three `rewrite.sh` line citations
 > — two off by one, one off by two — against the same lines this document cites correctly.
 > **The count is unchanged by it, for
-> the reason the notes above give**, and the reason is worth restating now that the class has **thirteen**
-> entries, counting the seven recorded below: the table counts defects in this document's LOCKED text, and an
+> the reason the notes above give**, and the reason is worth restating now that the class has **fourteen**
+> entries, counting the eight recorded below: the table counts defects in this document's LOCKED text, and an
 > evidence document's re-qualification is a defect in a *record of what was measured*, not in a
 > specification. **This sentence said *"nine"* here and *"the eight entries"* two sentences down until
 > round eleven, and *"ten"* and *"the four recorded below"* until round thirteen** — the same number
 > stale in the same two places twice over, because round twelve added the ELEVENTH note and did not
 > re-derive the sentence that counts the notes. **It read *"twelve"* and *"the six recorded below"* until
 > round fourteen added the THIRTEENTH**, which is a re-derivation rather than a correction: both sentences
-> were true of the twelve notes that existed when round thirteen wrote them. Which is the miscount class §0's note and this one
+> were true of the twelve notes that existed when round thirteen wrote them. **It read *"thirteen"* and
+> *"the seven recorded below"* until round fifteen added the FOURTEENTH**, on the same footing. Which is the miscount class §0's note and this one
 > both decline to give a row, corrected in place on the round-four *"all six defects"* precedent.
-> **The notes below are the authority and counted off them it is thirteen.**
-> **What the thirteen entries do say, and it is why they are tracked here rather than
+> **The notes below are the authority and counted off them it is fourteen.**
+> **What the fourteen entries do say, and it is why they are tracked here rather than
 > discarded, is that the rate at which this class recurs has not fallen** — every round that has looked
 > has found more, and the shapes repeat: a ratio quoted without the caveat its source attaches, an
 > *"all"* or *"every"* over a set the data does not cover, and a repair applied to one of two parallel
@@ -3891,19 +3920,68 @@ on. So #11 can lock and #23 can start — with two more blockers than it had yes
 > inside a record document has to be applied to every sentence of that record which the specification
 > restates, not only to the paragraph the finding was written against.**
 >
+> **A FOURTEENTH of that class landed on 2026-08-26 — review round fifteen — and it is the first entry
+> whose subject is a REPAIR THIS CLASS ITSELF WROTE. `d7e3c4a` is the commit that added the SIXTH note,
+> and it is the commit whose fix for one of that note's own nineteen sites is the finding here.** Both
+> halves are [`worker-residency.md`](worker-residency.md)'s and neither is a row.
+>
+> - **The document's clause list replaced one false aggregate with another.** The SIXTH note's own list has
+>   the original — *"the mechanism, in six clauses, each measured above"* over a list of **seven** whose
+>   seventh says it was not measured — and the repair `d7e3c4a` wrote reads **"clauses 1–6 are measured
+>   above"**, which is false of **clause 6**: that document's own §6, which the clause list summarises, says
+>   **"Not measured"** in those words, and the sleep measurement that later reached the clause read Darwin's
+>   clocks rather than a worker, falsifying its *clock reasoning* while exercising neither the protocol
+>   clause 6 states nor the mtime replacement. The document now states the evidence status **per clause**,
+>   seven bullets, no total — which is what the class's name is for: **the repair for a false aggregate is
+>   the per-member statement, never a narrower aggregate.** It is `M2′`'s shape arriving inside class `Σ`,
+>   and it stood through every read from `d7e3c4a` to here.
+> - **Its per-hook block counted *necessity* over clause 7's five hooks without saying which necessity, at
+>   two sites** — *"necessity was measured for two of the five"* and *"every hook's ROLE is measured and
+>   two of them as necessity"* — while a bullet between them classifies **(v)** as *measured necessary for
+>   the other four to be checkable*. **The two senses are now named at every site that counts:
+>   AUDIO-SUPPRESSION necessity, measured for exactly two — (iii) and (iv) — and CHECKABILITY necessity,
+>   measured for exactly one, (v), whose own arm `C7_noreap` produced no surviving utterance.** Three hooks
+>   carry a measured necessity and no two carry the same one, so the honest statement is 2 + 1 in two
+>   currencies and never 3 in one. **This half is the third instance of the shape round ten's second row and
+>   round thirteen's second row carry — a per-hook result restated over the set — and the first of the three
+>   to arrive in the record.** It is the sharpest of them because the ambiguity was introduced *by* the
+>   repair that split (v) out: `fdf0e7c` wrote the (v) bullet and the unqualified count in one commit, so
+>   the round that separated evidence from audio left the total that straddles them standing above its own
+>   correction.
+>
+> **§10.5 clause 7 carries NO such count and neither does §10.6, §13 row 20 or §13 row 27** — the clause
+> tags all five hooks individually, `REQUIRED` / `OPTIMISATION given (iv)` / `REQUIRED`, and §10.6's own
+> four-clause bullet already says in its last two sentences that *"the arms do not support it for clause
+> 7(v)"*. **So there is no specification half to count on either half of this note** — checked at the four
+> sites a count would live in and absent from all four. **The residual widens twice**, and both additions
+> are in the single list below rather than here: whether a summary over a set is stated in one currency
+> when the set is scored in two, and — the part the previous thirteen residuals do not reach — whether the
+> correction to an aggregate is itself an aggregate.
+>
 > **The total is unchanged by any of these notes' halves; it moves only when a row is added.**
-> Re-derived from the table above rather than carried, at round fourteen:
+> Re-derived from the table above rather than carried, at round fifteen and unchanged from round fourteen:
 > **forty-one rows over eighteen labels**, `4+2+3+2+5+4+4+2+1+1+2+1+2+1+2+1+2+2 = 41`, nineteen
 > occasions with `#28` standing for two, and **fifteen reads**. **At round thirteen the same derivation gave
 > thirty-nine over seventeen and fourteen reads, and at round twelve thirty-seven over sixteen and thirteen
 > reads** — round twelve added no label, which is what a
 > round finding nothing in this document's LOCKED text is supposed to do to these numbers; round
-> thirteen found two and added one label with no class note, and round fourteen found two and added one
-> label with a class note beside it.
-> **The residual is widened twice over**: a re-check has to read the qualifier's direction, the
-> reasoning's premises, any acceptance threshold a sentence borrows, **the register of the sentence**,
-> and **the direction of the error** — a record can now be shown to over-state as well as lag, and every
-> forecast this note's predecessors made was pointed the one way.
+> thirteen found two and added one label with no class note, round fourteen found two and added one
+> label with a class note beside it, and **round fifteen found nothing here and added no label, with a
+> class note beside it** — the second round to produce a class note and no row, after the twelfth.
+> **What these five numbers count is LABELS, and two reads now sit outside them** — round twelve and
+> round fifteen, both of which examined this document and found nothing in its LOCKED text. So
+> *"re-examined seventeen times"* and *"fifteen reads"* are counts of labelled occasions and **not** of
+> sittings, of which there have been two more; the label set is what is checkable off the table, and this
+> is the sentence that says so rather than leaving a reader to reconcile *"the twelfth round"* against a
+> seventeen that does not contain it.
+> **The residual is widened again — SEVEN things now, and the list is kept in one place on purpose**,
+> because a rule restated at one of two sites is this table's most frequent finding: a re-check has to read the
+> qualifier's direction, the reasoning's premises, any acceptance threshold a sentence borrows, **the
+> register of the sentence**, **the direction of the error** — a record can now be shown to over-state as
+> well as lag, and every forecast this note's predecessors made was pointed the one way — **whether a
+> summary over a set is stated in one currency when the set is scored in two**, and **whether the
+> correction to an aggregate is itself an aggregate**, which is the FOURTEENTH note's addition and the
+> only one of the seven that is about a repair rather than about a claim.
 >
 > **The same pass re-derived the total and found §15's tally still reading NINE
 > reads and THIRTY-ONE over a twelve-item list** while this note and the rest of §15 had moved to
@@ -4588,6 +4666,19 @@ Stated so a reviewer can attack the right parts.
   neither of the two stated-limit sentences that carry it, clause 4's own included. **Neither moved a
   verdict, a key, a §13 row's closing condition or the ship-blocking count**, and the first is the closest
   this list comes to a defect only a reader auditing a *verification plan* against the arms could find.
+  **The fifteenth read found NOTHING in this document's LOCKED text** — the second read to add no row and
+  no label, after the twelfth — **and it is the first to add a NAMED CLASS instead**: `Σ`, one total stated
+  over a set whose members the evidence scores differently, whose two prior rows are round ten's second and
+  round thirteen's second and whose rule is that **the repair for a false aggregate is the per-member
+  statement, never a narrower aggregate.** Both of its findings are
+  [`worker-residency.md`](worker-residency.md)'s — a *"clauses 1–6 are measured above"* that replaced
+  *"each measured above"* and is false of clause 6, whose own §6 says *"Not measured"*, and a count of how
+  many of clause 7's five hooks are *necessary* stated in one currency where the arms scored two (two for
+  suppressing stale audio, one for the other four being checkable). **Neither is a row: §10.5 clause 7 tags
+  each hook individually and no site here states a count over the five**, which is the FOURTEENTH class
+  note in §13. **The count, the labels and the reads therefore all stay where round fourteen left them** —
+  forty-one over eighteen, nineteen occasions, fifteen reads — and §13's re-derivation paragraph now says
+  outright that those are counts of labels rather than of sittings, of which there have been two more.
   **The rate is not falling, and round four's clean sheet on repairs did not hold as a trend.**
   **Round six is the sharpest datum on that**: two of its four are defects in round five's repairs and
   the other two are LOCKED bookkeeping that had drifted from the tables it summarised, so not one of the

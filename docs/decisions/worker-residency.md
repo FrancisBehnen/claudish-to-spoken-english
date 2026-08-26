@@ -1113,9 +1113,44 @@ clock by a measurement that is not this document's (spec §10.5 clause 6, §13 r
 
 ### §10.5 — the OPEN heading comes off, with the limits attached
 
-The mechanism, in seven clauses — **and *"each measured above"*, which this line used to claim, is false
-of clause 7, whose own text says its hooks are all `[inferred]` and none measured.** Clauses 1–6 are
-measured above; clause 7 is reasoned from §1b:
+The mechanism, in seven clauses — **and NO aggregate over the seven is true. Two have now been tried and
+both were false, which is why this line no longer carries one.** *"Each measured above"* was false of
+clause 7, whose own text says its hooks are all `[inferred]` and none measured; the *"clauses 1–6 are
+measured above"* that replaced it in `d7e3c4a` and stood through every read since is false of **clause
+6**, whose own subsection says **"Not measured"** in
+those words and means it — the runs here are minutes long, no worker has been resident across a sleep,
+none has been left idle for twenty minutes, and nothing has watched a belt fire. **The sleep measurement
+that later reached clause 6 does not repair that**: it falsified the clause's *clock reasoning* by reading
+Darwin's clocks, and it exercised no worker protocol at all, neither the one clause 6 states nor the
+mtime-and-`time.time()` replacement, because `speak.sh` does not exist. **So the evidence status is stated
+per clause, which is the only form that has survived a round:**
+
+- **Clause 1 — measured in part, and the parts are separable.** The socket's rejection is **observed**
+  (116 bytes against a 104-byte `sun_path`, `bind()` fails, §1) and the producer rename's coalescing is
+  **observed** (*n* jobs dropped, one utterance, §2's eight-hook table). The consumer's own atomic claim —
+  `rename(job, job.taken.<pid>)`, unlinked only by its private name — is **reasoned from §1b** and no arm
+  has run it.
+- **Clause 2 — measured for the one property that survived the primitive.** Eight simultaneous hooks →
+  one worker is **observed**, and it is a result about exclusive create under contention rather than about
+  `mkdir` (§2's own blockquote). The two stale-lock clauses this section grew were later **run and
+  FALSIFIED** — 61/400, worst case 3 owners.
+- **Clause 3 — measured.** Handoff median **0.079 s**, range 0.059–0.198 s **[hook]**, and §3's blockquote
+  states what that figure does not bound.
+- **Clause 4 — the trigger is measured; its two implementation properties are measurements of nothing.**
+  Every lead figure under §4, §4a–c stands. The placement *"before any parsing"* and the one-`[[ -d ]]`,
+  one-`kill -0` liveness check were **reasoned**, and both are superseded — the first as **impossible**.
+- **Clause 5 — measured, with the limit its own blockquote names.** The 0.78–1.12 s startup cost and the
+  1.33–2.02 s exec→ready range are this document's; the win over no warm-up is the `cold7` pair, at
+  **n = 1 on the `E` side**, so it settles direction and is not an effect size.
+- **Clause 6 — NOT measured, and this is the clause the aggregates kept swallowing.** Stated as a design
+  choice; measured false only in its *reasoning about clocks*, by a measurement of Darwin rather than of a
+  worker. The interval, the reason and the clock are all superseded (§6 above, spec §10.5 clause 6, §13
+  row 24).
+- **Clause 7 — `[inferred]` when written, reasoned from §1b, and since measured PER HOOK.** The 312 trials
+  scored the five hooks separately and in two different currencies; that is the block under clause 7 below
+  and it is not a result about the clause as a whole.
+
+The seven clauses themselves, as proposed:
 
 1. **Address**: a job file at `$BUF_ROOT/<session_id>/speak/job`, written to a temp name and `mv`d
    into place. **Not a socket** — the path is 116 bytes against Darwin's 104-byte `sun_path` and
@@ -1221,9 +1256,22 @@ measured above; clause 7 is reasoned from §1b:
      switchable configurations reached is the **ROLE of each of the five hooks, which is NOT the
      necessity of all five** — and claiming necessity contradicted both the bullet directly above (*"(ii)
      survives as an optimisation-given-the-sweep"*) and the spec, where (ii) is an **optimisation given
-     (iv) and a correctness clause only without it**. **Necessity was measured for two of the five; the
-     third had its shape measured and its independent necessity withdrawn; and the remaining two were
-     each measured into something other than necessity.** **Per hook, as the arms scored
+     (iv) and a correctness clause only without it**. **And *"necessary"* names TWO DIFFERENT PROPERTIES
+     over these five hooks, so any single unqualified count of how many are necessary is wrong under one
+     of the two readings whichever number it gives. This sentence carried such a count from `fdf0e7c` —
+     the commit that split these results out per hook and wrote the (v) bullet a dozen lines below it —
+     through every read since.** The two senses, named here so that every count anywhere in this block says
+     which one it counts. **NECESSARY FOR SUPPRESSING STALE AUDIO**: without the hook, an utterance the
+     listener should never hear plays, and the arm that removes it scores a surviving utterance —
+     **measured for exactly TWO**, (iii) the claim-time kill (`C4_noclaimkill`, 12/12 at a full 2.50 s) and
+     (iv) the election-time sweep (the two repairs that omit it, `C11b` and `C12c`, 12/12 at full length).
+     **NECESSARY FOR CHECKABILITY**: without the hook, the other hooks' kill sites cannot fail, so no arm
+     can score them at all — **measured for exactly ONE**, (v) the `wait()`, whose own arm `C7_noreap`
+     produced **no surviving utterance** and which is therefore not a member of the first sense.
+     **So three of the five carry a measured necessity and no two of them carry the same one**; the honest
+     figure is 2 + 1 in two currencies and never 3 in one. Of the remaining two, **(i)** had its *shape*
+     measured and its independent necessity withdrawn in favour of a latency value, and **(ii)** was
+     measured to be an **optimisation** given (iv). **Per hook, as the arms scored
      them** (spec §10.5 clause 7):
      - **(iii) the claim-time kill — MEASURED LOAD-BEARING, and it is the CHILD-HANDLE target the arms
        score.** `C4_noclaimkill` runs to completion **12/12** at 2.50 s, so the kill itself is
@@ -1265,8 +1313,9 @@ measured above; clause 7 is reasoned from §1b:
        audio.** `C7_noreap` produced no surviving utterance; what it produced is a kill that cannot fail
        — the hook's kill lands at 0.549–0.577 s and every later kill site then reports success, on all 12
        trials, against a process already dead, where `C2` (the same arm with the worker reaping) reports
-       `ESRCH` instead. So (v) is measured necessary for the other four to be **checkable**, which is a
-       different claim from stopping stale audio and is the one the arms support.
+       `ESRCH` instead. So (v) is measured necessary in the **CHECKABILITY** sense named above — necessary
+       for the other four to be **checkable** — which is a different claim from stopping stale audio, is
+       the one the arms support, and is why (v) is not one of the two counted under audio suppression.
      - and **the `.pending` leak itself** (`C16a` — 25 markers created, none removed).
 
      What **no** committed arm ran is the identity-and-cleanup layer built on those hooks, all of it still
@@ -1275,8 +1324,12 @@ measured above; clause 7 is reasoned from §1b:
      cases rest on (row 20(b)); the required **order** of (iv) before (iv-a) — every measured arm
      happened to run that order and none ran the reverse, so the 12/12 results are evidence *for* the
      order while the *requirement* is unrun (row 20(a)); and the generation-tagged `.pending` cleanup,
-     **implemented in no committed trial and ship-blocking** (row 27). **So: every hook's ROLE is
-     measured and two of them as necessity; the identities and the cleanup are not measured at all.**
+     **implemented in no committed trial and ship-blocking** (row 27). **So, and stated in both currencies
+     because one of them will not carry the result: every hook's ROLE is measured; TWO are necessary for
+     SUPPRESSING STALE AUDIO — (iii) and (iv) — and ONE, (v), is necessary for the other four to be
+     CHECKABLE, which is a different property and not a third audio-suppression result; (i)'s shape is
+     measured and its independent necessity is not; (ii) is measured to be an optimisation given (iv); and
+     the identities and the cleanup are not measured at all.**
 
 And the closing condition §10.5 set for itself is now met, with this result:
 **cold from a hook is 2.66–5.50 s (median 3.16 s) and fails the 3 s line; warm from a hook is
