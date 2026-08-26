@@ -1,0 +1,4 @@
+cfg=C12a_pgid_pubfirst delay=1000 gap=1.4 ck=pidfile rechk=on die=popen respawn=yes
+respawn_delay=1.2 pidmode=perplayer pubdelay=0 sweepmode=both
+sweepgap=0 reapdelay=0 unlinkreap=off ledger=off pidw=on
+pending=off playersetsid=off

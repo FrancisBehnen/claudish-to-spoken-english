@@ -1,0 +1,4 @@
+cfg=C11a_shared_pubfirst delay=1000 gap=1.4 ck=pidfile rechk=on die=popen respawn=yes
+respawn_delay=1.2 pidmode=shared pubdelay=0 sweepmode=record
+sweepgap=0 reapdelay=0 unlinkreap=off ledger=off pidw=on
+pending=off

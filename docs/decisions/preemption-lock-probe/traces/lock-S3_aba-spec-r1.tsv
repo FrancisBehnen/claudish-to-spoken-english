@@ -1,0 +1,10 @@
+1787685585.456837	1	spec	S3_aba	winner	71456	mkdir_ok	
+1787685585.499807	1	spec	S3_aba	winner	71456	pid_written	owner=71458
+1787685585.519677	1	spec	S3_aba	racer	71459	classified_stale	reason=pid_dead pid=71458
+1787685585.533565	1	spec	S3_aba	racer	71461	classified_stale	reason=pid_dead pid=71458
+1787685585.533929	1	spec	S3_aba	racer	71461	quarantine_won	to=worker.lock.dead.71461.058fe845 quarantined_pid=71458
+1787685585.534206	1	spec	S3_aba	racer	71461	mkdir_ok	
+1787685585.534290	1	spec	S3_aba	racer	71461	owner	via=election
+1787685585.640865	1	spec	S3_aba	racer	71459	quarantine_won	to=worker.lock.dead.71459.6564f362 quarantined_pid=71461
+1787685585.641554	1	spec	S3_aba	racer	71459	mkdir_ok	
+1787685585.641646	1	spec	S3_aba	racer	71459	owner	via=election

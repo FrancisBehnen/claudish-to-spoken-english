@@ -1,0 +1,299 @@
+1787697473.805309	worker	25915	gen1	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787697473.805517	worker	25915	gen1	election_won	gen=0
+1787697474.516119	worker	25915	gen1	ready	after=0.7104
+1787697474.738502	worker	25915	gen1	S_claim	job=w0
+1787697474.738654	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=w0
+1787697475.749423	worker	25915	gen1	synth_done	job=w0 wav=-
+1787697475.750733	worker	25915	gen1	S2_prespawn_stat	job=w0 newer_waiting=0
+1787697475.758738	worker	25915	gen1	P_popen	job=w0 player_pid=25952 pid_mode=shared record=pid
+1787697475.760119	worker	25915	gen1	W_pid_write	job=w0 player_pid=25952 by=player result=deferred_to_player
+1787697478.395607	worker	25915	gen1	player_exit	job=w0 player_pid=25952 rc=0 killed_by_sig=0 alive_s=2.644
+1787697479.606771	worker	25915	gen1	record_unlinked	job=w0 player_pid=25952 path=pid
+1787697479.938868	worker	25915	gen1	S_claim	job=j1a
+1787697479.939109	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j1a
+1787697480.950373	worker	25915	gen1	synth_done	job=j1a wav=-
+1787697480.951712	worker	25915	gen1	S2_prespawn_stat	job=j1a newer_waiting=0
+1787697480.957790	worker	25915	gen1	P_popen	job=j1a player_pid=26021 pid_mode=shared record=pid
+1787697480.958430	worker	25915	gen1	W_pid_write	job=j1a player_pid=26021 by=player result=deferred_to_player
+1787697481.583264	worker	25915	gen1	player_exit	job=j1a player_pid=26021 rc=-15 killed_by_sig=15 alive_s=0.6309
+1787697481.707972	worker	25915	gen1	S_claim	job=j1b
+1787697481.708376	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=26021 sig=30 result=ESRCH job=j1b
+1787697482.708677	worker	25915	gen1	synth_done	job=j1b wav=-
+1787697482.708889	worker	25915	gen1	S2_prespawn_stat	job=j1b newer_waiting=0
+1787697482.711112	worker	25915	gen1	P_popen	job=j1b player_pid=26047 pid_mode=shared record=pid
+1787697482.711383	worker	25915	gen1	W_pid_write	job=j1b player_pid=26047 by=player result=deferred_to_player
+1787697482.793693	worker	25915	gen1	record_unlinked	job=j1a player_pid=26021 path=pid
+1787697483.783779	worker	25915	gen1	S_claim	job=j1c
+1787697483.784071	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j1c
+1787697484.794804	worker	25915	gen1	synth_done	job=j1c wav=-
+1787697484.796022	worker	25915	gen1	S2_prespawn_stat	job=j1c newer_waiting=0
+1787697484.802780	worker	25915	gen1	P_popen	job=j1c player_pid=26058 pid_mode=shared record=pid
+1787697484.805467	worker	25915	gen1	W_pid_write	job=j1c player_pid=26058 by=player result=deferred_to_player
+1787697485.324926	worker	25915	gen1	player_exit	job=j1b player_pid=26047 rc=0 killed_by_sig=0 alive_s=2.6155
+1787697486.530790	worker	25915	gen1	record_unlinked	job=j1b player_pid=26047 path=pid
+1787697487.416772	worker	25915	gen1	player_exit	job=j1c player_pid=26058 rc=0 killed_by_sig=0 alive_s=2.62
+1787697488.627462	worker	25915	gen1	record_unlink_failed	job=j1c err=ENOENT
+1787697489.962308	worker	25915	gen1	S_claim	job=j2a
+1787697489.962531	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j2a
+1787697490.974290	worker	25915	gen1	synth_done	job=j2a wav=-
+1787697490.974906	worker	25915	gen1	S2_prespawn_stat	job=j2a newer_waiting=0
+1787697490.979812	worker	25915	gen1	P_popen	job=j2a player_pid=26125 pid_mode=shared record=pid
+1787697490.980296	worker	25915	gen1	W_pid_write	job=j2a player_pid=26125 by=player result=deferred_to_player
+1787697491.605274	worker	25915	gen1	player_exit	job=j2a player_pid=26125 rc=-15 killed_by_sig=15 alive_s=0.6299
+1787697491.733553	worker	25915	gen1	S_claim	job=j2b
+1787697491.733942	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=26125 sig=30 result=ESRCH job=j2b
+1787697492.744572	worker	25915	gen1	synth_done	job=j2b wav=-
+1787697492.745542	worker	25915	gen1	S2_prespawn_stat	job=j2b newer_waiting=0
+1787697492.749857	worker	25915	gen1	P_popen	job=j2b player_pid=26152 pid_mode=shared record=pid
+1787697492.750415	worker	25915	gen1	W_pid_write	job=j2b player_pid=26152 by=player result=deferred_to_player
+1787697492.815678	worker	25915	gen1	record_unlinked	job=j2a player_pid=26125 path=pid
+1787697493.808209	worker	25915	gen1	S_claim	job=j2c
+1787697493.808493	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j2c
+1787697494.811778	worker	25915	gen1	synth_done	job=j2c wav=-
+1787697494.813147	worker	25915	gen1	S2_prespawn_stat	job=j2c newer_waiting=0
+1787697494.819989	worker	25915	gen1	P_popen	job=j2c player_pid=26178 pid_mode=shared record=pid
+1787697494.821242	worker	25915	gen1	W_pid_write	job=j2c player_pid=26178 by=player result=deferred_to_player
+1787697495.371787	worker	25915	gen1	player_exit	job=j2b player_pid=26152 rc=0 killed_by_sig=0 alive_s=2.6251
+1787697496.575593	worker	25915	gen1	record_unlinked	job=j2b player_pid=26152 path=pid
+1787697497.444645	worker	25915	gen1	player_exit	job=j2c player_pid=26178 rc=0 killed_by_sig=0 alive_s=2.6307
+1787697498.655416	worker	25915	gen1	record_unlink_failed	job=j2c err=ENOENT
+1787697499.977678	worker	25915	gen1	S_claim	job=j3a
+1787697499.977899	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j3a
+1787697500.988294	worker	25915	gen1	synth_done	job=j3a wav=-
+1787697500.988849	worker	25915	gen1	S2_prespawn_stat	job=j3a newer_waiting=0
+1787697500.992365	worker	25915	gen1	P_popen	job=j3a player_pid=26234 pid_mode=shared record=pid
+1787697500.992759	worker	25915	gen1	W_pid_write	job=j3a player_pid=26234 by=player result=deferred_to_player
+1787697501.615290	worker	25915	gen1	player_exit	job=j3a player_pid=26234 rc=-15 killed_by_sig=15 alive_s=0.626
+1787697501.748252	worker	25915	gen1	S_claim	job=j3b
+1787697501.748611	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=26234 sig=30 result=ESRCH job=j3b
+1787697502.755589	worker	25915	gen1	synth_done	job=j3b wav=-
+1787697502.756737	worker	25915	gen1	S2_prespawn_stat	job=j3b newer_waiting=0
+1787697502.763407	worker	25915	gen1	P_popen	job=j3b player_pid=26260 pid_mode=shared record=pid
+1787697502.764039	worker	25915	gen1	W_pid_write	job=j3b player_pid=26260 by=player result=deferred_to_player
+1787697502.817649	worker	25915	gen1	record_unlinked	job=j3a player_pid=26234 path=pid
+1787697503.693657	worker	25915	gen1	player_exit	job=j3b player_pid=26260 rc=-15 killed_by_sig=15 alive_s=0.9362
+1787697503.832357	worker	25915	gen1	S_claim	job=j3c
+1787697503.832779	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=26260 sig=30 result=ESRCH job=j3c
+1787697504.843487	worker	25915	gen1	synth_done	job=j3c wav=-
+1787697504.844791	worker	25915	gen1	S2_prespawn_stat	job=j3c newer_waiting=0
+1787697504.849466	worker	25915	gen1	P_popen	job=j3c player_pid=26286 pid_mode=shared record=pid
+1787697504.850068	worker	25915	gen1	W_pid_write	job=j3c player_pid=26286 by=player result=deferred_to_player
+1787697504.904004	worker	25915	gen1	record_unlinked	job=j3b player_pid=26260 path=pid
+1787697507.456524	worker	25915	gen1	player_exit	job=j3c player_pid=26286 rc=0 killed_by_sig=0 alive_s=2.611
+1787697508.667445	worker	25915	gen1	record_unlink_failed	job=j3c err=ENOENT
+1787697510.032975	worker	25915	gen1	S_claim	job=j4a
+1787697510.033317	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j4a
+1787697511.043629	worker	25915	gen1	synth_done	job=j4a wav=-
+1787697511.044186	worker	25915	gen1	S2_prespawn_stat	job=j4a newer_waiting=0
+1787697511.047720	worker	25915	gen1	P_popen	job=j4a player_pid=26352 pid_mode=shared record=pid
+1787697511.048079	worker	25915	gen1	W_pid_write	job=j4a player_pid=26352 by=player result=deferred_to_player
+1787697511.676032	worker	25915	gen1	player_exit	job=j4a player_pid=26352 rc=-15 killed_by_sig=15 alive_s=0.6315
+1787697511.827254	worker	25915	gen1	S_claim	job=j4b
+1787697511.827546	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=26352 sig=30 result=ESRCH job=j4b
+1787697512.829183	worker	25915	gen1	synth_done	job=j4b wav=-
+1787697512.829829	worker	25915	gen1	S2_prespawn_stat	job=j4b newer_waiting=0
+1787697512.836173	worker	25915	gen1	P_popen	job=j4b player_pid=26378 pid_mode=shared record=pid
+1787697512.836579	worker	25915	gen1	W_pid_write	job=j4b player_pid=26378 by=player result=deferred_to_player
+1787697512.885500	worker	25915	gen1	record_unlinked	job=j4a player_pid=26352 path=pid
+1787697513.920345	worker	25915	gen1	S_claim	job=j4c
+1787697513.920679	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j4c
+1787697514.931879	worker	25915	gen1	synth_done	job=j4c wav=-
+1787697514.933202	worker	25915	gen1	S2_prespawn_stat	job=j4c newer_waiting=0
+1787697514.941643	worker	25915	gen1	P_popen	job=j4c player_pid=26390 pid_mode=shared record=pid
+1787697514.943017	worker	25915	gen1	W_pid_write	job=j4c player_pid=26390 by=player result=deferred_to_player
+1787697515.431948	worker	25915	gen1	player_exit	job=j4b player_pid=26378 rc=0 killed_by_sig=0 alive_s=2.6014
+1787697516.642541	worker	25915	gen1	record_unlinked	job=j4b player_pid=26378 path=pid
+1787697517.561718	worker	25915	gen1	player_exit	job=j4c player_pid=26390 rc=0 killed_by_sig=0 alive_s=2.6276
+1787697518.767707	worker	25915	gen1	record_unlink_failed	job=j4c err=ENOENT
+1787697520.116905	worker	25915	gen1	S_claim	job=j5a
+1787697520.117213	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j5a
+1787697521.128023	worker	25915	gen1	synth_done	job=j5a wav=-
+1787697521.129432	worker	25915	gen1	S2_prespawn_stat	job=j5a newer_waiting=0
+1787697521.135739	worker	25915	gen1	P_popen	job=j5a player_pid=26446 pid_mode=shared record=pid
+1787697521.136951	worker	25915	gen1	W_pid_write	job=j5a player_pid=26446 by=player result=deferred_to_player
+1787697521.761401	worker	25915	gen1	player_exit	job=j5a player_pid=26446 rc=-15 killed_by_sig=15 alive_s=0.6313
+1787697521.896740	worker	25915	gen1	S_claim	job=j5b
+1787697521.897117	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=26446 sig=30 result=ESRCH job=j5b
+1787697522.907493	worker	25915	gen1	synth_done	job=j5b wav=-
+1787697522.908260	worker	25915	gen1	S2_prespawn_stat	job=j5b newer_waiting=0
+1787697522.911042	worker	25915	gen1	P_popen	job=j5b player_pid=26477 pid_mode=shared record=pid
+1787697522.911384	worker	25915	gen1	W_pid_write	job=j5b player_pid=26477 by=player result=deferred_to_player
+1787697522.962299	worker	25915	gen1	record_unlinked	job=j5a player_pid=26446 path=pid
+1787697523.858238	worker	25915	gen1	player_exit	job=j5b player_pid=26477 rc=-15 killed_by_sig=15 alive_s=0.9496
+1787697523.997213	worker	25915	gen1	S_claim	job=j5c
+1787697523.997624	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=26477 sig=30 result=ESRCH job=j5c
+1787697525.008350	worker	25915	gen1	synth_done	job=j5c wav=-
+1787697525.009640	worker	25915	gen1	S2_prespawn_stat	job=j5c newer_waiting=0
+1787697525.016234	worker	25915	gen1	P_popen	job=j5c player_pid=26503 pid_mode=shared record=pid
+1787697525.017440	worker	25915	gen1	W_pid_write	job=j5c player_pid=26503 by=player result=deferred_to_player
+1787697525.068667	worker	25915	gen1	record_unlinked	job=j5b player_pid=26477 path=pid
+1787697527.644512	worker	25915	gen1	player_exit	job=j5c player_pid=26503 rc=0 killed_by_sig=0 alive_s=2.6341
+1787697528.855554	worker	25915	gen1	record_unlinked	job=j5c player_pid=26503 path=pid
+1787697530.162746	worker	25915	gen1	S_claim	job=j6a
+1787697530.163119	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j6a
+1787697531.173832	worker	25915	gen1	synth_done	job=j6a wav=-
+1787697531.175087	worker	25915	gen1	S2_prespawn_stat	job=j6a newer_waiting=0
+1787697531.181534	worker	25915	gen1	P_popen	job=j6a player_pid=26559 pid_mode=shared record=pid
+1787697531.182683	worker	25915	gen1	W_pid_write	job=j6a player_pid=26559 by=player result=deferred_to_player
+1787697531.799671	worker	25915	gen1	player_exit	job=j6a player_pid=26559 rc=-15 killed_by_sig=15 alive_s=0.6238
+1787697531.929871	worker	25915	gen1	S_claim	job=j6b
+1787697531.930220	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=26559 sig=30 result=ESRCH job=j6b
+1787697532.940841	worker	25915	gen1	synth_done	job=j6b wav=-
+1787697532.941674	worker	25915	gen1	S2_prespawn_stat	job=j6b newer_waiting=0
+1787697532.946913	worker	25915	gen1	P_popen	job=j6b player_pid=26585 pid_mode=shared record=pid
+1787697532.947951	worker	25915	gen1	W_pid_write	job=j6b player_pid=26585 by=player result=deferred_to_player
+1787697533.010110	worker	25915	gen1	record_unlinked	job=j6a player_pid=26559 path=pid
+1787697534.020404	worker	25915	gen1	S_claim	job=j6c
+1787697534.020765	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j6c
+1787697535.031993	worker	25915	gen1	synth_done	job=j6c wav=-
+1787697535.035178	worker	25915	gen1	S2_prespawn_stat	job=j6c newer_waiting=0
+1787697535.041631	worker	25915	gen1	P_popen	job=j6c player_pid=26613 pid_mode=shared record=pid
+1787697535.042903	worker	25915	gen1	W_pid_write	job=j6c player_pid=26613 by=player result=deferred_to_player
+1787697535.580590	worker	25915	gen1	player_exit	job=j6b player_pid=26585 rc=0 killed_by_sig=0 alive_s=2.6382
+1787697536.792338	worker	25915	gen1	record_unlinked	job=j6b player_pid=26585 path=pid
+1787697537.663728	worker	25915	gen1	player_exit	job=j6c player_pid=26613 rc=0 killed_by_sig=0 alive_s=2.6278
+1787697538.874536	worker	25915	gen1	record_unlink_failed	job=j6c err=ENOENT
+1787697540.199163	worker	25915	gen1	S_claim	job=j7a
+1787697540.199413	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j7a
+1787697541.210028	worker	25915	gen1	synth_done	job=j7a wav=-
+1787697541.210726	worker	25915	gen1	S2_prespawn_stat	job=j7a newer_waiting=0
+1787697541.218419	worker	25915	gen1	P_popen	job=j7a player_pid=26672 pid_mode=shared record=pid
+1787697541.219626	worker	25915	gen1	W_pid_write	job=j7a player_pid=26672 by=player result=deferred_to_player
+1787697541.839781	worker	25915	gen1	player_exit	job=j7a player_pid=26672 rc=-15 killed_by_sig=15 alive_s=0.6285
+1787697541.979416	worker	25915	gen1	S_claim	job=j7b
+1787697541.979766	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=26672 sig=30 result=ESRCH job=j7b
+1787697542.987551	worker	25915	gen1	synth_done	job=j7b wav=-
+1787697542.988285	worker	25915	gen1	S2_prespawn_stat	job=j7b newer_waiting=0
+1787697542.996152	worker	25915	gen1	P_popen	job=j7b player_pid=26704 pid_mode=shared record=pid
+1787697542.997013	worker	25915	gen1	W_pid_write	job=j7b player_pid=26704 by=player result=deferred_to_player
+1787697543.050360	worker	25915	gen1	record_unlinked	job=j7a player_pid=26672 path=pid
+1787697543.922332	worker	25915	gen1	player_exit	job=j7b player_pid=26704 rc=-15 killed_by_sig=15 alive_s=0.9335
+1787697544.065569	worker	25915	gen1	S_claim	job=j7c
+1787697544.065972	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=26704 sig=30 result=ESRCH job=j7c
+1787697545.067015	worker	25915	gen1	synth_done	job=j7c wav=-
+1787697545.067369	worker	25915	gen1	S2_prespawn_stat	job=j7c newer_waiting=0
+1787697545.070652	worker	25915	gen1	P_popen	job=j7c player_pid=26731 pid_mode=shared record=pid
+1787697545.071221	worker	25915	gen1	W_pid_write	job=j7c player_pid=26731 by=player result=deferred_to_player
+1787697545.131882	worker	25915	gen1	record_unlinked	job=j7b player_pid=26704 path=pid
+1787697547.661592	worker	25915	gen1	player_exit	job=j7c player_pid=26731 rc=0 killed_by_sig=0 alive_s=2.5939
+1787697548.872340	worker	25915	gen1	record_unlink_failed	job=j7c err=ENOENT
+1787697550.271886	worker	25915	gen1	S_claim	job=j8a
+1787697550.272130	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j8a
+1787697551.282774	worker	25915	gen1	synth_done	job=j8a wav=-
+1787697551.283964	worker	25915	gen1	S2_prespawn_stat	job=j8a newer_waiting=0
+1787697551.292299	worker	25915	gen1	P_popen	job=j8a player_pid=26773 pid_mode=shared record=pid
+1787697551.294065	worker	25915	gen1	W_pid_write	job=j8a player_pid=26773 by=player result=deferred_to_player
+1787697551.924446	worker	25915	gen1	player_exit	job=j8a player_pid=26773 rc=-15 killed_by_sig=15 alive_s=0.6398
+1787697552.060325	worker	25915	gen1	S_claim	job=j8b
+1787697552.060591	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=26773 sig=30 result=ESRCH job=j8b
+1787697553.071218	worker	25915	gen1	synth_done	job=j8b wav=-
+1787697553.072062	worker	25915	gen1	S2_prespawn_stat	job=j8b newer_waiting=0
+1787697553.078239	worker	25915	gen1	P_popen	job=j8b player_pid=26799 pid_mode=shared record=pid
+1787697553.079390	worker	25915	gen1	W_pid_write	job=j8b player_pid=26799 by=player result=deferred_to_player
+1787697553.134876	worker	25915	gen1	record_unlinked	job=j8a player_pid=26773 path=pid
+1787697554.003925	worker	25915	gen1	player_exit	job=j8b player_pid=26799 rc=-15 killed_by_sig=15 alive_s=0.931
+1787697554.141261	worker	25915	gen1	S_claim	job=j8c
+1787697554.141793	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=26799 sig=30 result=ESRCH job=j8c
+1787697555.152403	worker	25915	gen1	synth_done	job=j8c wav=-
+1787697555.153651	worker	25915	gen1	S2_prespawn_stat	job=j8c newer_waiting=0
+1787697555.157826	worker	25915	gen1	P_popen	job=j8c player_pid=26825 pid_mode=shared record=pid
+1787697555.158379	worker	25915	gen1	W_pid_write	job=j8c player_pid=26825 by=player result=deferred_to_player
+1787697555.214683	worker	25915	gen1	record_unlinked	job=j8b player_pid=26799 path=pid
+1787697557.778703	worker	25915	gen1	player_exit	job=j8c player_pid=26825 rc=0 killed_by_sig=0 alive_s=2.6244
+1787697558.990067	worker	25915	gen1	record_unlinked	job=j8c player_pid=26825 path=pid
+1787697560.336020	worker	25915	gen1	S_claim	job=j9a
+1787697560.336282	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j9a
+1787697561.346983	worker	25915	gen1	synth_done	job=j9a wav=-
+1787697561.348564	worker	25915	gen1	S2_prespawn_stat	job=j9a newer_waiting=0
+1787697561.354675	worker	25915	gen1	P_popen	job=j9a player_pid=26884 pid_mode=shared record=pid
+1787697561.355309	worker	25915	gen1	W_pid_write	job=j9a player_pid=26884 by=player result=deferred_to_player
+1787697561.984297	worker	25915	gen1	player_exit	job=j9a player_pid=26884 rc=-15 killed_by_sig=15 alive_s=0.635
+1787697562.123783	worker	25915	gen1	S_claim	job=j9b
+1787697562.124153	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=26884 sig=30 result=ESRCH job=j9b
+1787697563.134854	worker	25915	gen1	synth_done	job=j9b wav=-
+1787697563.135964	worker	25915	gen1	S2_prespawn_stat	job=j9b newer_waiting=0
+1787697563.141671	worker	25915	gen1	P_popen	job=j9b player_pid=26910 pid_mode=shared record=pid
+1787697563.142791	worker	25915	gen1	W_pid_write	job=j9b player_pid=26910 by=player result=deferred_to_player
+1787697563.189189	worker	25915	gen1	record_unlinked	job=j9a player_pid=26884 path=pid
+1787697564.072457	worker	25915	gen1	player_exit	job=j9b player_pid=26910 rc=-15 killed_by_sig=15 alive_s=0.9359
+1787697564.207534	worker	25915	gen1	S_claim	job=j9c
+1787697564.207888	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=26910 sig=30 result=ESRCH job=j9c
+1787697565.218629	worker	25915	gen1	synth_done	job=j9c wav=-
+1787697565.219949	worker	25915	gen1	S2_prespawn_stat	job=j9c newer_waiting=0
+1787697565.227305	worker	25915	gen1	P_popen	job=j9c player_pid=26936 pid_mode=shared record=pid
+1787697565.228767	worker	25915	gen1	W_pid_write	job=j9c player_pid=26936 by=player result=deferred_to_player
+1787697565.282926	worker	25915	gen1	record_unlinked	job=j9b player_pid=26910 path=pid
+1787697567.852387	worker	25915	gen1	player_exit	job=j9c player_pid=26936 rc=0 killed_by_sig=0 alive_s=2.6314
+1787697569.061074	worker	25915	gen1	record_unlink_failed	job=j9c err=ENOENT
+1787697570.357606	worker	25915	gen1	S_claim	job=j10a
+1787697570.357767	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j10a
+1787697571.368080	worker	25915	gen1	synth_done	job=j10a wav=-
+1787697571.368804	worker	25915	gen1	S2_prespawn_stat	job=j10a newer_waiting=0
+1787697571.372103	worker	25915	gen1	P_popen	job=j10a player_pid=27273 pid_mode=shared record=pid
+1787697571.372527	worker	25915	gen1	W_pid_write	job=j10a player_pid=27273 by=player result=deferred_to_player
+1787697572.008017	worker	25915	gen1	player_exit	job=j10a player_pid=27273 rc=-15 killed_by_sig=15 alive_s=0.6388
+1787697572.138252	worker	25915	gen1	S_claim	job=j10b
+1787697572.138629	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=27273 sig=30 result=ESRCH job=j10b
+1787697573.149334	worker	25915	gen1	synth_done	job=j10b wav=-
+1787697573.150198	worker	25915	gen1	S2_prespawn_stat	job=j10b newer_waiting=0
+1787697573.157761	worker	25915	gen1	P_popen	job=j10b player_pid=27301 pid_mode=shared record=pid
+1787697573.159076	worker	25915	gen1	W_pid_write	job=j10b player_pid=27301 by=player result=deferred_to_player
+1787697573.218773	worker	25915	gen1	record_unlinked	job=j10a player_pid=27273 path=pid
+1787697574.081406	worker	25915	gen1	player_exit	job=j10b player_pid=27301 rc=-15 killed_by_sig=15 alive_s=0.9306
+1787697574.221947	worker	25915	gen1	S_claim	job=j10c
+1787697574.222297	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=27301 sig=30 result=ESRCH job=j10c
+1787697575.232902	worker	25915	gen1	synth_done	job=j10c wav=-
+1787697575.233661	worker	25915	gen1	S2_prespawn_stat	job=j10c newer_waiting=0
+1787697575.240333	worker	25915	gen1	P_popen	job=j10c player_pid=27327 pid_mode=shared record=pid
+1787697575.241751	worker	25915	gen1	W_pid_write	job=j10c player_pid=27327 by=player result=deferred_to_player
+1787697575.283223	worker	25915	gen1	record_unlinked	job=j10b player_pid=27301 path=pid
+1787697577.867952	worker	25915	gen1	player_exit	job=j10c player_pid=27327 rc=0 killed_by_sig=0 alive_s=2.6337
+1787697579.079634	worker	25915	gen1	record_unlinked	job=j10c player_pid=27327 path=pid
+1787697580.411016	worker	25915	gen1	S_claim	job=j11a
+1787697580.411284	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j11a
+1787697581.421581	worker	25915	gen1	synth_done	job=j11a wav=-
+1787697581.422162	worker	25915	gen1	S2_prespawn_stat	job=j11a newer_waiting=0
+1787697581.424993	worker	25915	gen1	P_popen	job=j11a player_pid=27368 pid_mode=shared record=pid
+1787697581.425430	worker	25915	gen1	W_pid_write	job=j11a player_pid=27368 by=player result=deferred_to_player
+1787697582.066291	worker	25915	gen1	player_exit	job=j11a player_pid=27368 rc=-15 killed_by_sig=15 alive_s=0.6436
+1787697582.213403	worker	25915	gen1	S_claim	job=j11b
+1787697582.213898	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=27368 sig=30 result=ESRCH job=j11b
+1787697583.224690	worker	25915	gen1	synth_done	job=j11b wav=-
+1787697583.226040	worker	25915	gen1	S2_prespawn_stat	job=j11b newer_waiting=0
+1787697583.233646	worker	25915	gen1	P_popen	job=j11b player_pid=27395 pid_mode=shared record=pid
+1787697583.234771	worker	25915	gen1	W_pid_write	job=j11b player_pid=27395 by=player result=deferred_to_player
+1787697583.276029	worker	25915	gen1	record_unlinked	job=j11a player_pid=27368 path=pid
+1787697584.157079	worker	25915	gen1	player_exit	job=j11b player_pid=27395 rc=-15 killed_by_sig=15 alive_s=0.9303
+1787697584.297717	worker	25915	gen1	S_claim	job=j11c
+1787697584.298103	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=27395 sig=30 result=ESRCH job=j11c
+1787697585.308783	worker	25915	gen1	synth_done	job=j11c wav=-
+1787697585.309929	worker	25915	gen1	S2_prespawn_stat	job=j11c newer_waiting=0
+1787697585.314040	worker	25915	gen1	P_popen	job=j11c player_pid=27422 pid_mode=shared record=pid
+1787697585.314633	worker	25915	gen1	W_pid_write	job=j11c player_pid=27422 by=player result=deferred_to_player
+1787697585.367505	worker	25915	gen1	record_unlinked	job=j11b player_pid=27395 path=pid
+1787697587.935916	worker	25915	gen1	player_exit	job=j11c player_pid=27422 rc=0 killed_by_sig=0 alive_s=2.6255
+1787697589.147508	worker	25915	gen1	record_unlinked	job=j11c player_pid=27422 path=pid
+1787697590.488549	worker	25915	gen1	S_claim	job=j12a
+1787697590.488869	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=j12a
+1787697591.499494	worker	25915	gen1	synth_done	job=j12a wav=-
+1787697591.500192	worker	25915	gen1	S2_prespawn_stat	job=j12a newer_waiting=0
+1787697591.505981	worker	25915	gen1	P_popen	job=j12a player_pid=27485 pid_mode=shared record=pid
+1787697591.506625	worker	25915	gen1	W_pid_write	job=j12a player_pid=27485 by=player result=deferred_to_player
+1787697592.137552	worker	25915	gen1	player_exit	job=j12a player_pid=27485 rc=-15 killed_by_sig=15 alive_s=0.6368
+1787697592.274444	worker	25915	gen1	S_claim	job=j12b
+1787697592.274840	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=27485 sig=30 result=ESRCH job=j12b
+1787697593.285578	worker	25915	gen1	synth_done	job=j12b wav=-
+1787697593.286984	worker	25915	gen1	S2_prespawn_stat	job=j12b newer_waiting=0
+1787697593.293061	worker	25915	gen1	P_popen	job=j12b player_pid=27511 pid_mode=shared record=pid
+1787697593.294096	worker	25915	gen1	W_pid_write	job=j12b player_pid=27511 by=player result=deferred_to_player
+1787697593.348138	worker	25915	gen1	record_unlinked	job=j12a player_pid=27485 path=pid
+1787697594.217511	worker	25915	gen1	player_exit	job=j12b player_pid=27511 rc=-15 killed_by_sig=15 alive_s=0.9298
+1787697594.364367	worker	25915	gen1	S_claim	job=j12c
+1787697594.364714	worker	25915	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=27511 sig=30 result=ESRCH job=j12c
+1787697595.375352	worker	25915	gen1	synth_done	job=j12c wav=-
+1787697595.376264	worker	25915	gen1	S2_prespawn_stat	job=j12c newer_waiting=0
+1787697595.382731	worker	25915	gen1	P_popen	job=j12c player_pid=27540 pid_mode=shared record=pid
+1787697595.383971	worker	25915	gen1	W_pid_write	job=j12c player_pid=27540 by=player result=deferred_to_player
+1787697595.428134	worker	25915	gen1	record_unlinked	job=j12b player_pid=27511 path=pid
+1787697598.012412	worker	25915	gen1	player_exit	job=j12c player_pid=27540 rc=0 killed_by_sig=0 alive_s=2.6352
+1787697599.224224	worker	25915	gen1	record_unlinked	job=j12c player_pid=27540 path=pid

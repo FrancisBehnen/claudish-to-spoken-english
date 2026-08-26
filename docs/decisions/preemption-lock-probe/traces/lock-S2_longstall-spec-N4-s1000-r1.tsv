@@ -1,0 +1,10 @@
+1787685552.371967	1	spec	S2_longstall	winner	70905	mkdir_ok	
+1787685552.448871	1	spec	S2_longstall	racer	70908	classified_stale	reason=no_pid_after_backoff waited_ms=40.0
+1787685552.449528	1	spec	S2_longstall	racer	70908	quarantine_won	to=worker.lock.dead.70908.2869311d quarantined_pid=-1
+1787685552.449858	1	spec	S2_longstall	racer	70908	mkdir_ok	
+1787685552.449920	1	spec	S2_longstall	racer	70908	owner	via=election
+1787685552.451063	1	spec	S2_longstall	racer	70910	lost	held_by=70908
+1787685552.451063	1	spec	S2_longstall	racer	70909	lost	held_by=70908
+1787685552.451950	1	spec	S2_longstall	racer	70911	lost	held_by=70908
+1787685553.387963	1	spec	S2_longstall	winner	70905	pid_written	owner=70905
+1787685553.388453	1	spec	S2_longstall	winner	70905	owner	via=election

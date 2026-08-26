@@ -1,0 +1,4 @@
+cfg=C4_noclaimkill delay=1000 gap=1.4 ck=off rechk=on die=none respawn=no
+respawn_delay=1.2 pidmode=worker pubdelay=0 sweepmode=off
+sweepgap=0 reapdelay=0 unlinkreap=off ledger=off pidw=on
+pending=off

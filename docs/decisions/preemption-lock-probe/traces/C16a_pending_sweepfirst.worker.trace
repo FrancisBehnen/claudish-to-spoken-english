@@ -1,0 +1,910 @@
+1787696956.922270	worker	15713	gen1	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787696956.922498	worker	15713	gen1	election_won	gen=0
+1787696956.922587	worker	15713	gen1	election_sweep_pgid	skipped=no_pending_marker groups=0
+1787696956.922656	worker	15713	gen1	election_sweep_record	swept=0 rows=0 pids=-
+1787696957.633197	worker	15713	gen1	ready	after=0.7106
+1787696957.861917	worker	15713	gen1	S_claim	job=w0
+1787696957.862133	worker	15713	gen1	kill_attempt	by=worker-claim site=pidfile target=none result=no_target job=w0
+1787696958.872457	worker	15713	gen1	synth_done	job=w0 wav=-
+1787696958.872804	worker	15713	gen1	S2_prespawn_stat	job=w0 newer_waiting=0
+1787696959.880640	worker	15713	gen1	pending_created	job=w0 name=1bfdbb70.pending
+1787696959.885518	worker	15713	gen1	P_popen	job=w0 player_pid=15765 pid_mode=perplayer record=15765.1bfdbb70
+1787696959.886453	worker	15713	gen1	W_pid_write	job=w0 player_pid=15765 by=player result=deferred_to_player
+1787696962.992346	worker	15813	gen1	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787696962.992660	worker	15813	gen1	election_won	gen=1 superseded=0 prev_owner=15713
+1787696962.992774	worker	15813	gen1	election_sweep_pgid	skipped=no_pending_marker groups=0
+1787696962.992884	worker	15813	gen1	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=sent
+1787696962.992954	worker	15813	gen1	election_sweep_record	swept=1 rows=1 pids=15765
+1787696963.703450	worker	15813	gen1	ready	after=0.7108
+1787696963.907406	worker	15813	gen1	S_claim	job=j1a
+1787696963.908223	worker	15813	gen1	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j1a
+1787696964.909727	worker	15813	gen1	synth_done	job=j1a wav=-
+1787696964.909887	worker	15813	gen1	S2_prespawn_stat	job=j1a newer_waiting=0
+1787696965.922420	worker	15813	gen1	pending_created	job=j1a name=33f62e9b.pending
+1787696965.926375	worker	15813	gen1	P_popen	job=j1a player_pid=15869 pid_mode=perplayer record=15869.33f62e9b
+1787696965.926892	worker	15813	gen1	worker_die	where=between_P_and_W
+1787696966.426289	worker	15879	gen1r	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787696966.426588	worker	15879	gen1r	election_won	gen=2 superseded=1 prev_owner=15813
+1787696966.426712	worker	15879	gen1r	pending_found	n=1 names=33f62e9b.pending
+1787696966.426828	worker	15879	gen1r	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=sent
+1787696966.426953	worker	15879	gen1r	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787696966.427023	worker	15879	gen1r	election_sweep_pgid	groups=1 superseded=2
+1787696966.427161	worker	15879	gen1r	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787696966.427254	worker	15879	gen1r	election_sweep_record	swept=0 rows=1 pids=15765
+1787696967.137893	worker	15879	gen1r	ready	after=0.7112
+1787696967.391906	worker	15879	gen1r	S_claim	job=j1b
+1787696967.393241	worker	15879	gen1r	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j1b
+1787696968.394884	worker	15879	gen1r	synth_done	job=j1b wav=-
+1787696968.395495	worker	15879	gen1r	S2_prespawn_stat	job=j1b newer_waiting=0
+1787696969.406056	worker	15879	gen1r	pending_created	job=j1b name=6fad43e5.pending
+1787696969.408954	worker	15879	gen1r	P_popen	job=j1b player_pid=15933 pid_mode=perplayer record=15933.6fad43e5
+1787696969.409338	worker	15879	gen1r	W_pid_write	job=j1b player_pid=15933 by=player result=deferred_to_player
+1787696973.275958	worker	15988	gen2	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787696973.276295	worker	15988	gen2	election_won	gen=3 superseded=2 prev_owner=15879
+1787696973.276416	worker	15988	gen2	pending_found	n=1 names=33f62e9b.pending
+1787696973.276501	worker	15988	gen2	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=sent
+1787696973.276570	worker	15988	gen2	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787696973.276701	worker	15988	gen2	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787696973.276799	worker	15988	gen2	election_sweep_pgid	groups=1 superseded=3
+1787696973.276918	worker	15988	gen2	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787696973.276984	worker	15988	gen2	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=sent
+1787696973.277050	worker	15988	gen2	election_sweep_record	swept=1 rows=2 pids=15765,15933
+1787696973.987476	worker	15988	gen2	ready	after=0.7113
+1787696974.215358	worker	15988	gen2	S_claim	job=j2a
+1787696974.215636	worker	15988	gen2	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j2a
+1787696974.215718	worker	15988	gen2	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j2a
+1787696975.226360	worker	15988	gen2	synth_done	job=j2a wav=-
+1787696975.227458	worker	15988	gen2	S2_prespawn_stat	job=j2a newer_waiting=0
+1787696976.233727	worker	15988	gen2	pending_created	job=j2a name=1e50da71.pending
+1787696976.242897	worker	15988	gen2	P_popen	job=j2a player_pid=16038 pid_mode=perplayer record=16038.1e50da71
+1787696976.244578	worker	15988	gen2	worker_die	where=between_P_and_W
+1787696976.724660	worker	16040	gen2r	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787696976.724965	worker	16040	gen2r	election_won	gen=4 superseded=3 prev_owner=15988
+1787696976.725072	worker	16040	gen2r	pending_found	n=2 names=1e50da71.pending,33f62e9b.pending
+1787696976.725170	worker	16040	gen2r	kill_attempt	by=election-sweep site=pgid target=15988 sig=14 gen=3 result=sent
+1787696976.725235	worker	16040	gen2r	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=ESRCH
+1787696976.725292	worker	16040	gen2r	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787696976.725347	worker	16040	gen2r	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787696976.725427	worker	16040	gen2r	election_sweep_pgid	groups=1 superseded=4
+1787696976.725528	worker	16040	gen2r	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787696976.725582	worker	16040	gen2r	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=ESRCH
+1787696976.725644	worker	16040	gen2r	election_sweep_record	swept=0 rows=2 pids=15765,15933
+1787696977.436797	worker	16040	gen2r	ready	after=0.7113
+1787696977.691481	worker	16040	gen2r	S_claim	job=j2b
+1787696977.692506	worker	16040	gen2r	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j2b
+1787696977.693211	worker	16040	gen2r	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j2b
+1787696978.699348	worker	16040	gen2r	synth_done	job=j2b wav=-
+1787696978.700080	worker	16040	gen2r	S2_prespawn_stat	job=j2b newer_waiting=0
+1787696979.709782	worker	16040	gen2r	pending_created	job=j2b name=c176e16a.pending
+1787696979.714587	worker	16040	gen2r	P_popen	job=j2b player_pid=16089 pid_mode=perplayer record=16089.c176e16a
+1787696979.715339	worker	16040	gen2r	W_pid_write	job=j2b player_pid=16089 by=player result=deferred_to_player
+1787696983.614438	worker	16137	gen3	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787696983.614771	worker	16137	gen3	election_won	gen=5 superseded=4 prev_owner=16040
+1787696983.614903	worker	16137	gen3	pending_found	n=2 names=1e50da71.pending,33f62e9b.pending
+1787696983.615027	worker	16137	gen3	kill_attempt	by=election-sweep site=pgid target=16040 sig=14 gen=4 result=sent
+1787696983.615111	worker	16137	gen3	kill_attempt	by=election-sweep site=pgid target=15988 sig=14 gen=3 result=ESRCH
+1787696983.615192	worker	16137	gen3	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=ESRCH
+1787696983.615264	worker	16137	gen3	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787696983.615342	worker	16137	gen3	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787696983.615441	worker	16137	gen3	election_sweep_pgid	groups=1 superseded=5
+1787696983.615580	worker	16137	gen3	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787696983.615643	worker	16137	gen3	kill_attempt	by=election-sweep site=record target=16089 sig=31 result=sent
+1787696983.615698	worker	16137	gen3	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=ESRCH
+1787696983.615759	worker	16137	gen3	election_sweep_record	swept=1 rows=3 pids=15765,16089,15933
+1787696984.320345	worker	16137	gen3	ready	after=0.7053
+1787696984.480156	worker	16137	gen3	S_claim	job=j3a
+1787696984.480435	worker	16137	gen3	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j3a
+1787696984.480555	worker	16137	gen3	kill_attempt	by=worker-claim site=pidfile via=record target=16089 sig=30 result=ESRCH job=j3a
+1787696984.480660	worker	16137	gen3	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j3a
+1787696985.491274	worker	16137	gen3	synth_done	job=j3a wav=-
+1787696985.491925	worker	16137	gen3	S2_prespawn_stat	job=j3a newer_waiting=0
+1787696986.501489	worker	16137	gen3	pending_created	job=j3a name=8d3ff308.pending
+1787696986.505969	worker	16137	gen3	P_popen	job=j3a player_pid=16205 pid_mode=perplayer record=16205.8d3ff308
+1787696986.506719	worker	16137	gen3	worker_die	where=between_P_and_W
+1787696986.997857	worker	16207	gen3r	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787696986.998456	worker	16207	gen3r	election_won	gen=6 superseded=5 prev_owner=16137
+1787696986.998575	worker	16207	gen3r	pending_found	n=3 names=1e50da71.pending,33f62e9b.pending,8d3ff308.pending
+1787696986.998701	worker	16207	gen3r	kill_attempt	by=election-sweep site=pgid target=16137 sig=14 gen=5 result=sent
+1787696986.998789	worker	16207	gen3r	kill_attempt	by=election-sweep site=pgid target=16040 sig=14 gen=4 result=ESRCH
+1787696986.998934	worker	16207	gen3r	kill_attempt	by=election-sweep site=pgid target=15988 sig=14 gen=3 result=ESRCH
+1787696986.999041	worker	16207	gen3r	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=ESRCH
+1787696986.999180	worker	16207	gen3r	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787696986.999274	worker	16207	gen3r	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787696986.999389	worker	16207	gen3r	election_sweep_pgid	groups=1 superseded=6
+1787696986.999530	worker	16207	gen3r	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787696986.999611	worker	16207	gen3r	kill_attempt	by=election-sweep site=record target=16089 sig=31 result=ESRCH
+1787696986.999686	worker	16207	gen3r	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=ESRCH
+1787696986.999767	worker	16207	gen3r	election_sweep_record	swept=0 rows=3 pids=15765,16089,15933
+1787696987.710156	worker	16207	gen3r	ready	after=0.7121
+1787696987.963846	worker	16207	gen3r	S_claim	job=j3b
+1787696987.964260	worker	16207	gen3r	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j3b
+1787696987.964424	worker	16207	gen3r	kill_attempt	by=worker-claim site=pidfile via=record target=16089 sig=30 result=ESRCH job=j3b
+1787696987.964511	worker	16207	gen3r	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j3b
+1787696988.966032	worker	16207	gen3r	synth_done	job=j3b wav=-
+1787696988.966179	worker	16207	gen3r	S2_prespawn_stat	job=j3b newer_waiting=0
+1787696989.973227	worker	16207	gen3r	pending_created	job=j3b name=bdcc6fc3.pending
+1787696989.977555	worker	16207	gen3r	P_popen	job=j3b player_pid=16241 pid_mode=perplayer record=16241.bdcc6fc3
+1787696989.978147	worker	16207	gen3r	W_pid_write	job=j3b player_pid=16241 by=player result=deferred_to_player
+1787696993.855325	worker	16280	gen4	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787696993.855680	worker	16280	gen4	election_won	gen=7 superseded=6 prev_owner=16207
+1787696993.855828	worker	16280	gen4	pending_found	n=3 names=1e50da71.pending,33f62e9b.pending,8d3ff308.pending
+1787696993.855944	worker	16280	gen4	kill_attempt	by=election-sweep site=pgid target=16207 sig=14 gen=6 result=sent
+1787696993.856045	worker	16280	gen4	kill_attempt	by=election-sweep site=pgid target=16137 sig=14 gen=5 result=ESRCH
+1787696993.856137	worker	16280	gen4	kill_attempt	by=election-sweep site=pgid target=16040 sig=14 gen=4 result=ESRCH
+1787696993.856230	worker	16280	gen4	kill_attempt	by=election-sweep site=pgid target=15988 sig=14 gen=3 result=ESRCH
+1787696993.856326	worker	16280	gen4	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=ESRCH
+1787696993.856419	worker	16280	gen4	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787696993.856512	worker	16280	gen4	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787696993.856600	worker	16280	gen4	election_sweep_pgid	groups=1 superseded=7
+1787696993.856720	worker	16280	gen4	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787696993.856815	worker	16280	gen4	kill_attempt	by=election-sweep site=record target=16089 sig=31 result=ESRCH
+1787696993.856907	worker	16280	gen4	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=ESRCH
+1787696993.856971	worker	16280	gen4	kill_attempt	by=election-sweep site=record target=16241 sig=31 result=ESRCH
+1787696993.857030	worker	16280	gen4	election_sweep_record	swept=0 rows=4 pids=15765,16089,15933,16241
+1787696994.566320	worker	16280	gen4	ready	after=0.7107
+1787696994.766102	worker	16280	gen4	S_claim	job=j4a
+1787696994.766524	worker	16280	gen4	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j4a
+1787696994.766716	worker	16280	gen4	kill_attempt	by=worker-claim site=pidfile via=record target=16089 sig=30 result=ESRCH job=j4a
+1787696994.766861	worker	16280	gen4	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j4a
+1787696994.766990	worker	16280	gen4	kill_attempt	by=worker-claim site=pidfile via=record target=16241 sig=30 result=ESRCH job=j4a
+1787696995.777601	worker	16280	gen4	synth_done	job=j4a wav=-
+1787696995.778551	worker	16280	gen4	S2_prespawn_stat	job=j4a newer_waiting=0
+1787696996.788069	worker	16280	gen4	pending_created	job=j4a name=19ededb0.pending
+1787696996.791214	worker	16280	gen4	P_popen	job=j4a player_pid=16323 pid_mode=perplayer record=16323.19ededb0
+1787696996.791688	worker	16280	gen4	worker_die	where=between_P_and_W
+1787696997.277612	worker	16338	gen4r	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787696997.277950	worker	16338	gen4r	election_won	gen=8 superseded=7 prev_owner=16280
+1787696997.278074	worker	16338	gen4r	pending_found	n=4 names=19ededb0.pending,1e50da71.pending,33f62e9b.pending,8d3ff308.pending
+1787696997.278180	worker	16338	gen4r	kill_attempt	by=election-sweep site=pgid target=16280 sig=14 gen=7 result=sent
+1787696997.278246	worker	16338	gen4r	kill_attempt	by=election-sweep site=pgid target=16207 sig=14 gen=6 result=ESRCH
+1787696997.278327	worker	16338	gen4r	kill_attempt	by=election-sweep site=pgid target=16137 sig=14 gen=5 result=ESRCH
+1787696997.278391	worker	16338	gen4r	kill_attempt	by=election-sweep site=pgid target=16040 sig=14 gen=4 result=ESRCH
+1787696997.278453	worker	16338	gen4r	kill_attempt	by=election-sweep site=pgid target=15988 sig=14 gen=3 result=ESRCH
+1787696997.278511	worker	16338	gen4r	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=ESRCH
+1787696997.278597	worker	16338	gen4r	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787696997.278670	worker	16338	gen4r	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787696997.278729	worker	16338	gen4r	election_sweep_pgid	groups=1 superseded=8
+1787696997.278820	worker	16338	gen4r	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787696997.278912	worker	16338	gen4r	kill_attempt	by=election-sweep site=record target=16089 sig=31 result=ESRCH
+1787696997.278961	worker	16338	gen4r	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=ESRCH
+1787696997.279017	worker	16338	gen4r	kill_attempt	by=election-sweep site=record target=16241 sig=31 result=ESRCH
+1787696997.279070	worker	16338	gen4r	election_sweep_record	swept=0 rows=4 pids=15765,16089,15933,16241
+1787696997.989556	worker	16338	gen4r	ready	after=0.7116
+1787696998.243390	worker	16338	gen4r	S_claim	job=j4b
+1787696998.243867	worker	16338	gen4r	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j4b
+1787696998.244174	worker	16338	gen4r	kill_attempt	by=worker-claim site=pidfile via=record target=16089 sig=30 result=ESRCH job=j4b
+1787696998.244454	worker	16338	gen4r	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j4b
+1787696998.244638	worker	16338	gen4r	kill_attempt	by=worker-claim site=pidfile via=record target=16241 sig=30 result=ESRCH job=j4b
+1787696999.254860	worker	16338	gen4r	synth_done	job=j4b wav=-
+1787696999.255589	worker	16338	gen4r	S2_prespawn_stat	job=j4b newer_waiting=0
+1787697000.257221	worker	16338	gen4r	pending_created	job=j4b name=375f3eb0.pending
+1787697000.263516	worker	16338	gen4r	P_popen	job=j4b player_pid=16369 pid_mode=perplayer record=16369.375f3eb0
+1787697000.264807	worker	16338	gen4r	W_pid_write	job=j4b player_pid=16369 by=player result=deferred_to_player
+1787697004.126041	worker	16417	gen5	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787697004.126412	worker	16417	gen5	election_won	gen=9 superseded=8 prev_owner=16338
+1787697004.126532	worker	16417	gen5	pending_found	n=4 names=19ededb0.pending,1e50da71.pending,33f62e9b.pending,8d3ff308.pending
+1787697004.126635	worker	16417	gen5	kill_attempt	by=election-sweep site=pgid target=16338 sig=14 gen=8 result=sent
+1787697004.126718	worker	16417	gen5	kill_attempt	by=election-sweep site=pgid target=16280 sig=14 gen=7 result=ESRCH
+1787697004.126818	worker	16417	gen5	kill_attempt	by=election-sweep site=pgid target=16207 sig=14 gen=6 result=ESRCH
+1787697004.126907	worker	16417	gen5	kill_attempt	by=election-sweep site=pgid target=16137 sig=14 gen=5 result=ESRCH
+1787697004.126979	worker	16417	gen5	kill_attempt	by=election-sweep site=pgid target=16040 sig=14 gen=4 result=ESRCH
+1787697004.127048	worker	16417	gen5	kill_attempt	by=election-sweep site=pgid target=15988 sig=14 gen=3 result=ESRCH
+1787697004.127107	worker	16417	gen5	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=ESRCH
+1787697004.127173	worker	16417	gen5	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787697004.127235	worker	16417	gen5	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787697004.127288	worker	16417	gen5	election_sweep_pgid	groups=1 superseded=9
+1787697004.127395	worker	16417	gen5	kill_attempt	by=election-sweep site=record target=16369 sig=31 result=sent
+1787697004.127459	worker	16417	gen5	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787697004.127520	worker	16417	gen5	kill_attempt	by=election-sweep site=record target=16089 sig=31 result=ESRCH
+1787697004.127573	worker	16417	gen5	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=ESRCH
+1787697004.127628	worker	16417	gen5	kill_attempt	by=election-sweep site=record target=16241 sig=31 result=ESRCH
+1787697004.127694	worker	16417	gen5	election_sweep_record	swept=1 rows=5 pids=16369,15765,16089,15933,16241
+1787697004.837815	worker	16417	gen5	ready	after=0.7113
+1787697005.020290	worker	16417	gen5	S_claim	job=j5a
+1787697005.020728	worker	16417	gen5	kill_attempt	by=worker-claim site=pidfile via=record target=16369 sig=30 result=ESRCH job=j5a
+1787697005.020902	worker	16417	gen5	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j5a
+1787697005.021029	worker	16417	gen5	kill_attempt	by=worker-claim site=pidfile via=record target=16089 sig=30 result=ESRCH job=j5a
+1787697005.021242	worker	16417	gen5	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j5a
+1787697005.021358	worker	16417	gen5	kill_attempt	by=worker-claim site=pidfile via=record target=16241 sig=30 result=ESRCH job=j5a
+1787697006.032181	worker	16417	gen5	synth_done	job=j5a wav=-
+1787697006.033176	worker	16417	gen5	S2_prespawn_stat	job=j5a newer_waiting=0
+1787697007.041600	worker	16417	gen5	pending_created	job=j5a name=6fcd2cde.pending
+1787697007.046062	worker	16417	gen5	P_popen	job=j5a player_pid=16459 pid_mode=perplayer record=16459.6fcd2cde
+1787697007.046590	worker	16417	gen5	worker_die	where=between_P_and_W
+1787697007.547495	worker	16461	gen5r	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787697007.547867	worker	16461	gen5r	election_won	gen=10 superseded=9 prev_owner=16417
+1787697007.547987	worker	16461	gen5r	pending_found	n=5 names=19ededb0.pending,1e50da71.pending,33f62e9b.pending,6fcd2cde.pending,8d3ff308.pending
+1787697007.548095	worker	16461	gen5r	kill_attempt	by=election-sweep site=pgid target=16417 sig=14 gen=9 result=sent
+1787697007.548161	worker	16461	gen5r	kill_attempt	by=election-sweep site=pgid target=16338 sig=14 gen=8 result=ESRCH
+1787697007.548224	worker	16461	gen5r	kill_attempt	by=election-sweep site=pgid target=16280 sig=14 gen=7 result=ESRCH
+1787697007.548296	worker	16461	gen5r	kill_attempt	by=election-sweep site=pgid target=16207 sig=14 gen=6 result=ESRCH
+1787697007.548366	worker	16461	gen5r	kill_attempt	by=election-sweep site=pgid target=16137 sig=14 gen=5 result=ESRCH
+1787697007.548431	worker	16461	gen5r	kill_attempt	by=election-sweep site=pgid target=16040 sig=14 gen=4 result=ESRCH
+1787697007.548496	worker	16461	gen5r	kill_attempt	by=election-sweep site=pgid target=15988 sig=14 gen=3 result=ESRCH
+1787697007.548558	worker	16461	gen5r	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=ESRCH
+1787697007.548613	worker	16461	gen5r	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787697007.548672	worker	16461	gen5r	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787697007.548732	worker	16461	gen5r	election_sweep_pgid	groups=1 superseded=10
+1787697007.548834	worker	16461	gen5r	kill_attempt	by=election-sweep site=record target=16369 sig=31 result=ESRCH
+1787697007.548890	worker	16461	gen5r	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787697007.548951	worker	16461	gen5r	kill_attempt	by=election-sweep site=record target=16089 sig=31 result=ESRCH
+1787697007.549010	worker	16461	gen5r	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=ESRCH
+1787697007.549064	worker	16461	gen5r	kill_attempt	by=election-sweep site=record target=16241 sig=31 result=ESRCH
+1787697007.549121	worker	16461	gen5r	election_sweep_record	swept=0 rows=5 pids=16369,15765,16089,15933,16241
+1787697008.259683	worker	16461	gen5r	ready	after=0.7118
+1787697008.514943	worker	16461	gen5r	S_claim	job=j5b
+1787697008.515904	worker	16461	gen5r	kill_attempt	by=worker-claim site=pidfile via=record target=16369 sig=30 result=ESRCH job=j5b
+1787697008.516473	worker	16461	gen5r	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j5b
+1787697008.517076	worker	16461	gen5r	kill_attempt	by=worker-claim site=pidfile via=record target=16089 sig=30 result=ESRCH job=j5b
+1787697008.517848	worker	16461	gen5r	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j5b
+1787697008.518436	worker	16461	gen5r	kill_attempt	by=worker-claim site=pidfile via=record target=16241 sig=30 result=ESRCH job=j5b
+1787697009.524634	worker	16461	gen5r	synth_done	job=j5b wav=-
+1787697009.525380	worker	16461	gen5r	S2_prespawn_stat	job=j5b newer_waiting=0
+1787697010.534661	worker	16461	gen5r	pending_created	job=j5b name=c1105a39.pending
+1787697010.544264	worker	16461	gen5r	P_popen	job=j5b player_pid=16507 pid_mode=perplayer record=16507.c1105a39
+1787697010.546197	worker	16461	gen5r	W_pid_write	job=j5b player_pid=16507 by=player result=deferred_to_player
+1787697014.395844	worker	16548	gen6	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787697014.396173	worker	16548	gen6	election_won	gen=11 superseded=10 prev_owner=16461
+1787697014.396283	worker	16548	gen6	pending_found	n=5 names=19ededb0.pending,1e50da71.pending,33f62e9b.pending,6fcd2cde.pending,8d3ff308.pending
+1787697014.396376	worker	16548	gen6	kill_attempt	by=election-sweep site=pgid target=16461 sig=14 gen=10 result=sent
+1787697014.396449	worker	16548	gen6	kill_attempt	by=election-sweep site=pgid target=16417 sig=14 gen=9 result=ESRCH
+1787697014.396511	worker	16548	gen6	kill_attempt	by=election-sweep site=pgid target=16338 sig=14 gen=8 result=ESRCH
+1787697014.396588	worker	16548	gen6	kill_attempt	by=election-sweep site=pgid target=16280 sig=14 gen=7 result=ESRCH
+1787697014.396660	worker	16548	gen6	kill_attempt	by=election-sweep site=pgid target=16207 sig=14 gen=6 result=ESRCH
+1787697014.396721	worker	16548	gen6	kill_attempt	by=election-sweep site=pgid target=16137 sig=14 gen=5 result=ESRCH
+1787697014.396782	worker	16548	gen6	kill_attempt	by=election-sweep site=pgid target=16040 sig=14 gen=4 result=ESRCH
+1787697014.396845	worker	16548	gen6	kill_attempt	by=election-sweep site=pgid target=15988 sig=14 gen=3 result=ESRCH
+1787697014.396904	worker	16548	gen6	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=ESRCH
+1787697014.396985	worker	16548	gen6	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787697014.397096	worker	16548	gen6	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787697014.397174	worker	16548	gen6	election_sweep_pgid	groups=1 superseded=11
+1787697014.397297	worker	16548	gen6	kill_attempt	by=election-sweep site=record target=16369 sig=31 result=ESRCH
+1787697014.397369	worker	16548	gen6	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787697014.397437	worker	16548	gen6	kill_attempt	by=election-sweep site=record target=16507 sig=31 result=ESRCH
+1787697014.397506	worker	16548	gen6	kill_attempt	by=election-sweep site=record target=16089 sig=31 result=ESRCH
+1787697014.397575	worker	16548	gen6	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=ESRCH
+1787697014.397633	worker	16548	gen6	kill_attempt	by=election-sweep site=record target=16241 sig=31 result=ESRCH
+1787697014.397694	worker	16548	gen6	election_sweep_record	swept=0 rows=6 pids=16369,15765,16507,16089,15933,16241
+1787697015.108133	worker	16548	gen6	ready	after=0.712
+1787697015.335513	worker	16548	gen6	S_claim	job=j6a
+1787697015.335828	worker	16548	gen6	kill_attempt	by=worker-claim site=pidfile via=record target=16369 sig=30 result=ESRCH job=j6a
+1787697015.335948	worker	16548	gen6	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j6a
+1787697015.336046	worker	16548	gen6	kill_attempt	by=worker-claim site=pidfile via=record target=16507 sig=30 result=ESRCH job=j6a
+1787697015.336197	worker	16548	gen6	kill_attempt	by=worker-claim site=pidfile via=record target=16089 sig=30 result=ESRCH job=j6a
+1787697015.336347	worker	16548	gen6	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j6a
+1787697015.336457	worker	16548	gen6	kill_attempt	by=worker-claim site=pidfile via=record target=16241 sig=30 result=ESRCH job=j6a
+1787697016.346979	worker	16548	gen6	synth_done	job=j6a wav=-
+1787697016.347669	worker	16548	gen6	S2_prespawn_stat	job=j6a newer_waiting=0
+1787697017.353518	worker	16548	gen6	pending_created	job=j6a name=586da868.pending
+1787697017.362318	worker	16548	gen6	P_popen	job=j6a player_pid=16588 pid_mode=perplayer record=16588.586da868
+1787697017.364824	worker	16548	gen6	worker_die	where=between_P_and_W
+1787697017.829153	worker	16590	gen6r	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787697017.829539	worker	16590	gen6r	election_won	gen=12 superseded=11 prev_owner=16548
+1787697017.829707	worker	16590	gen6r	pending_found	n=6 names=19ededb0.pending,1e50da71.pending,33f62e9b.pending,586da868.pending,6fcd2cde.pending,8d3ff308.pending
+1787697017.829889	worker	16590	gen6r	kill_attempt	by=election-sweep site=pgid target=16548 sig=14 gen=11 result=sent
+1787697017.830031	worker	16590	gen6r	kill_attempt	by=election-sweep site=pgid target=16461 sig=14 gen=10 result=ESRCH
+1787697017.830138	worker	16590	gen6r	kill_attempt	by=election-sweep site=pgid target=16417 sig=14 gen=9 result=ESRCH
+1787697017.830245	worker	16590	gen6r	kill_attempt	by=election-sweep site=pgid target=16338 sig=14 gen=8 result=ESRCH
+1787697017.830348	worker	16590	gen6r	kill_attempt	by=election-sweep site=pgid target=16280 sig=14 gen=7 result=ESRCH
+1787697017.830451	worker	16590	gen6r	kill_attempt	by=election-sweep site=pgid target=16207 sig=14 gen=6 result=ESRCH
+1787697017.830544	worker	16590	gen6r	kill_attempt	by=election-sweep site=pgid target=16137 sig=14 gen=5 result=ESRCH
+1787697017.830639	worker	16590	gen6r	kill_attempt	by=election-sweep site=pgid target=16040 sig=14 gen=4 result=ESRCH
+1787697017.830736	worker	16590	gen6r	kill_attempt	by=election-sweep site=pgid target=15988 sig=14 gen=3 result=ESRCH
+1787697017.830837	worker	16590	gen6r	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=ESRCH
+1787697017.830926	worker	16590	gen6r	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787697017.831013	worker	16590	gen6r	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787697017.831090	worker	16590	gen6r	election_sweep_pgid	groups=1 superseded=12
+1787697017.831211	worker	16590	gen6r	kill_attempt	by=election-sweep site=record target=16369 sig=31 result=ESRCH
+1787697017.831272	worker	16590	gen6r	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787697017.831336	worker	16590	gen6r	kill_attempt	by=election-sweep site=record target=16507 sig=31 result=ESRCH
+1787697017.831393	worker	16590	gen6r	kill_attempt	by=election-sweep site=record target=16089 sig=31 result=ESRCH
+1787697017.831448	worker	16590	gen6r	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=ESRCH
+1787697017.831506	worker	16590	gen6r	kill_attempt	by=election-sweep site=record target=16241 sig=31 result=ESRCH
+1787697017.831566	worker	16590	gen6r	election_sweep_record	swept=0 rows=6 pids=16369,15765,16507,16089,15933,16241
+1787697018.534131	worker	16590	gen6r	ready	after=0.7047
+1787697018.786747	worker	16590	gen6r	S_claim	job=j6b
+1787697018.787158	worker	16590	gen6r	kill_attempt	by=worker-claim site=pidfile via=record target=16369 sig=30 result=ESRCH job=j6b
+1787697018.787331	worker	16590	gen6r	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j6b
+1787697018.787482	worker	16590	gen6r	kill_attempt	by=worker-claim site=pidfile via=record target=16507 sig=30 result=ESRCH job=j6b
+1787697018.787624	worker	16590	gen6r	kill_attempt	by=worker-claim site=pidfile via=record target=16089 sig=30 result=ESRCH job=j6b
+1787697018.787733	worker	16590	gen6r	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j6b
+1787697018.787843	worker	16590	gen6r	kill_attempt	by=worker-claim site=pidfile via=record target=16241 sig=30 result=ESRCH job=j6b
+1787697019.797604	worker	16590	gen6r	synth_done	job=j6b wav=-
+1787697019.798550	worker	16590	gen6r	S2_prespawn_stat	job=j6b newer_waiting=0
+1787697020.803873	worker	16590	gen6r	pending_created	job=j6b name=7146ddd6.pending
+1787697020.808155	worker	16590	gen6r	P_popen	job=j6b player_pid=16636 pid_mode=perplayer record=16636.7146ddd6
+1787697020.808844	worker	16590	gen6r	W_pid_write	job=j6b player_pid=16636 by=player result=deferred_to_player
+1787697024.683385	worker	16665	gen7	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787697024.683737	worker	16665	gen7	election_won	gen=13 superseded=12 prev_owner=16590
+1787697024.683861	worker	16665	gen7	pending_found	n=6 names=19ededb0.pending,1e50da71.pending,33f62e9b.pending,586da868.pending,6fcd2cde.pending,8d3ff308.pending
+1787697024.683983	worker	16665	gen7	kill_attempt	by=election-sweep site=pgid target=16590 sig=14 gen=12 result=sent
+1787697024.684039	worker	16665	gen7	kill_attempt	by=election-sweep site=pgid target=16548 sig=14 gen=11 result=ESRCH
+1787697024.684091	worker	16665	gen7	kill_attempt	by=election-sweep site=pgid target=16461 sig=14 gen=10 result=ESRCH
+1787697024.684142	worker	16665	gen7	kill_attempt	by=election-sweep site=pgid target=16417 sig=14 gen=9 result=ESRCH
+1787697024.684189	worker	16665	gen7	kill_attempt	by=election-sweep site=pgid target=16338 sig=14 gen=8 result=ESRCH
+1787697024.684238	worker	16665	gen7	kill_attempt	by=election-sweep site=pgid target=16280 sig=14 gen=7 result=ESRCH
+1787697024.684284	worker	16665	gen7	kill_attempt	by=election-sweep site=pgid target=16207 sig=14 gen=6 result=ESRCH
+1787697024.684328	worker	16665	gen7	kill_attempt	by=election-sweep site=pgid target=16137 sig=14 gen=5 result=ESRCH
+1787697024.684372	worker	16665	gen7	kill_attempt	by=election-sweep site=pgid target=16040 sig=14 gen=4 result=ESRCH
+1787697024.684418	worker	16665	gen7	kill_attempt	by=election-sweep site=pgid target=15988 sig=14 gen=3 result=ESRCH
+1787697024.684462	worker	16665	gen7	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=ESRCH
+1787697024.684507	worker	16665	gen7	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787697024.684551	worker	16665	gen7	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787697024.684594	worker	16665	gen7	election_sweep_pgid	groups=1 superseded=13
+1787697024.684678	worker	16665	gen7	kill_attempt	by=election-sweep site=record target=16369 sig=31 result=ESRCH
+1787697024.684728	worker	16665	gen7	kill_attempt	by=election-sweep site=record target=16636 sig=31 result=sent
+1787697024.684774	worker	16665	gen7	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787697024.684835	worker	16665	gen7	kill_attempt	by=election-sweep site=record target=16507 sig=31 result=ESRCH
+1787697024.684901	worker	16665	gen7	kill_attempt	by=election-sweep site=record target=16089 sig=31 result=ESRCH
+1787697024.684952	worker	16665	gen7	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=ESRCH
+1787697024.685002	worker	16665	gen7	kill_attempt	by=election-sweep site=record target=16241 sig=31 result=ESRCH
+1787697024.685057	worker	16665	gen7	election_sweep_record	swept=1 rows=7 pids=16369,16636,15765,16507,16089,15933,16241
+1787697025.393692	worker	16665	gen7	ready	after=0.71
+1787697025.561352	worker	16665	gen7	S_claim	job=j7a
+1787697025.561558	worker	16665	gen7	kill_attempt	by=worker-claim site=pidfile via=record target=16369 sig=30 result=ESRCH job=j7a
+1787697025.561638	worker	16665	gen7	kill_attempt	by=worker-claim site=pidfile via=record target=16636 sig=30 result=ESRCH job=j7a
+1787697025.561695	worker	16665	gen7	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j7a
+1787697025.561745	worker	16665	gen7	kill_attempt	by=worker-claim site=pidfile via=record target=16507 sig=30 result=ESRCH job=j7a
+1787697025.561795	worker	16665	gen7	kill_attempt	by=worker-claim site=pidfile via=record target=16089 sig=30 result=ESRCH job=j7a
+1787697025.561845	worker	16665	gen7	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j7a
+1787697025.561901	worker	16665	gen7	kill_attempt	by=worker-claim site=pidfile via=record target=16241 sig=30 result=ESRCH job=j7a
+1787697026.572696	worker	16665	gen7	synth_done	job=j7a wav=-
+1787697026.573192	worker	16665	gen7	S2_prespawn_stat	job=j7a newer_waiting=0
+1787697027.582244	worker	16665	gen7	pending_created	job=j7a name=316b3b31.pending
+1787697027.585755	worker	16665	gen7	P_popen	job=j7a player_pid=16746 pid_mode=perplayer record=16746.316b3b31
+1787697027.586225	worker	16665	gen7	worker_die	where=between_P_and_W
+1787697028.054376	worker	16748	gen7r	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787697028.054754	worker	16748	gen7r	election_won	gen=14 superseded=13 prev_owner=16665
+1787697028.054910	worker	16748	gen7r	pending_found	n=7 names=19ededb0.pending,1e50da71.pending,316b3b31.pending,33f62e9b.pending,586da868.pending,6fcd2cde.pending,8d3ff308.pending
+1787697028.055059	worker	16748	gen7r	kill_attempt	by=election-sweep site=pgid target=16665 sig=14 gen=13 result=sent
+1787697028.055158	worker	16748	gen7r	kill_attempt	by=election-sweep site=pgid target=16590 sig=14 gen=12 result=ESRCH
+1787697028.055248	worker	16748	gen7r	kill_attempt	by=election-sweep site=pgid target=16548 sig=14 gen=11 result=ESRCH
+1787697028.055324	worker	16748	gen7r	kill_attempt	by=election-sweep site=pgid target=16461 sig=14 gen=10 result=ESRCH
+1787697028.055405	worker	16748	gen7r	kill_attempt	by=election-sweep site=pgid target=16417 sig=14 gen=9 result=ESRCH
+1787697028.055484	worker	16748	gen7r	kill_attempt	by=election-sweep site=pgid target=16338 sig=14 gen=8 result=ESRCH
+1787697028.055561	worker	16748	gen7r	kill_attempt	by=election-sweep site=pgid target=16280 sig=14 gen=7 result=ESRCH
+1787697028.055635	worker	16748	gen7r	kill_attempt	by=election-sweep site=pgid target=16207 sig=14 gen=6 result=ESRCH
+1787697028.055708	worker	16748	gen7r	kill_attempt	by=election-sweep site=pgid target=16137 sig=14 gen=5 result=ESRCH
+1787697028.055782	worker	16748	gen7r	kill_attempt	by=election-sweep site=pgid target=16040 sig=14 gen=4 result=ESRCH
+1787697028.055860	worker	16748	gen7r	kill_attempt	by=election-sweep site=pgid target=15988 sig=14 gen=3 result=ESRCH
+1787697028.055939	worker	16748	gen7r	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=ESRCH
+1787697028.056013	worker	16748	gen7r	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787697028.056089	worker	16748	gen7r	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787697028.056165	worker	16748	gen7r	election_sweep_pgid	groups=1 superseded=14
+1787697028.056330	worker	16748	gen7r	kill_attempt	by=election-sweep site=record target=16369 sig=31 result=ESRCH
+1787697028.056430	worker	16748	gen7r	kill_attempt	by=election-sweep site=record target=16636 sig=31 result=ESRCH
+1787697028.056518	worker	16748	gen7r	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787697028.056601	worker	16748	gen7r	kill_attempt	by=election-sweep site=record target=16507 sig=31 result=ESRCH
+1787697028.056678	worker	16748	gen7r	kill_attempt	by=election-sweep site=record target=16089 sig=31 result=ESRCH
+1787697028.056761	worker	16748	gen7r	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=ESRCH
+1787697028.056849	worker	16748	gen7r	kill_attempt	by=election-sweep site=record target=16241 sig=31 result=ESRCH
+1787697028.056931	worker	16748	gen7r	election_sweep_record	swept=0 rows=7 pids=16369,16636,15765,16507,16089,15933,16241
+1787697028.762747	worker	16748	gen7r	ready	after=0.7081
+1787697029.014470	worker	16748	gen7r	S_claim	job=j7b
+1787697029.014805	worker	16748	gen7r	kill_attempt	by=worker-claim site=pidfile via=record target=16369 sig=30 result=ESRCH job=j7b
+1787697029.014955	worker	16748	gen7r	kill_attempt	by=worker-claim site=pidfile via=record target=16636 sig=30 result=ESRCH job=j7b
+1787697029.015194	worker	16748	gen7r	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j7b
+1787697029.015367	worker	16748	gen7r	kill_attempt	by=worker-claim site=pidfile via=record target=16507 sig=30 result=ESRCH job=j7b
+1787697029.015463	worker	16748	gen7r	kill_attempt	by=worker-claim site=pidfile via=record target=16089 sig=30 result=ESRCH job=j7b
+1787697029.015550	worker	16748	gen7r	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j7b
+1787697029.015630	worker	16748	gen7r	kill_attempt	by=worker-claim site=pidfile via=record target=16241 sig=30 result=ESRCH job=j7b
+1787697030.025857	worker	16748	gen7r	synth_done	job=j7b wav=-
+1787697030.026070	worker	16748	gen7r	S2_prespawn_stat	job=j7b newer_waiting=0
+1787697031.033213	worker	16748	gen7r	pending_created	job=j7b name=23df58c7.pending
+1787697031.036639	worker	16748	gen7r	P_popen	job=j7b player_pid=16805 pid_mode=perplayer record=16805.23df58c7
+1787697031.037095	worker	16748	gen7r	W_pid_write	job=j7b player_pid=16805 by=player result=deferred_to_player
+1787697034.910764	worker	16884	gen8	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787697034.911135	worker	16884	gen8	election_won	gen=15 superseded=14 prev_owner=16748
+1787697034.911283	worker	16884	gen8	pending_found	n=7 names=19ededb0.pending,1e50da71.pending,316b3b31.pending,33f62e9b.pending,586da868.pending,6fcd2cde.pending,8d3ff308.pending
+1787697034.911386	worker	16884	gen8	kill_attempt	by=election-sweep site=pgid target=16748 sig=14 gen=14 result=sent
+1787697034.911464	worker	16884	gen8	kill_attempt	by=election-sweep site=pgid target=16665 sig=14 gen=13 result=ESRCH
+1787697034.911523	worker	16884	gen8	kill_attempt	by=election-sweep site=pgid target=16590 sig=14 gen=12 result=ESRCH
+1787697034.911591	worker	16884	gen8	kill_attempt	by=election-sweep site=pgid target=16548 sig=14 gen=11 result=ESRCH
+1787697034.911654	worker	16884	gen8	kill_attempt	by=election-sweep site=pgid target=16461 sig=14 gen=10 result=ESRCH
+1787697034.911719	worker	16884	gen8	kill_attempt	by=election-sweep site=pgid target=16417 sig=14 gen=9 result=ESRCH
+1787697034.911772	worker	16884	gen8	kill_attempt	by=election-sweep site=pgid target=16338 sig=14 gen=8 result=ESRCH
+1787697034.911832	worker	16884	gen8	kill_attempt	by=election-sweep site=pgid target=16280 sig=14 gen=7 result=ESRCH
+1787697034.911894	worker	16884	gen8	kill_attempt	by=election-sweep site=pgid target=16207 sig=14 gen=6 result=ESRCH
+1787697034.911947	worker	16884	gen8	kill_attempt	by=election-sweep site=pgid target=16137 sig=14 gen=5 result=ESRCH
+1787697034.912005	worker	16884	gen8	kill_attempt	by=election-sweep site=pgid target=16040 sig=14 gen=4 result=ESRCH
+1787697034.912058	worker	16884	gen8	kill_attempt	by=election-sweep site=pgid target=15988 sig=14 gen=3 result=ESRCH
+1787697034.912126	worker	16884	gen8	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=ESRCH
+1787697034.912206	worker	16884	gen8	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787697034.912290	worker	16884	gen8	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787697034.912356	worker	16884	gen8	election_sweep_pgid	groups=1 superseded=15
+1787697034.912478	worker	16884	gen8	kill_attempt	by=election-sweep site=record target=16369 sig=31 result=ESRCH
+1787697034.912587	worker	16884	gen8	kill_attempt	by=election-sweep site=record target=16636 sig=31 result=ESRCH
+1787697034.912650	worker	16884	gen8	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787697034.912701	worker	16884	gen8	kill_attempt	by=election-sweep site=record target=16805 sig=31 result=ESRCH
+1787697034.912759	worker	16884	gen8	kill_attempt	by=election-sweep site=record target=16507 sig=31 result=ESRCH
+1787697034.912815	worker	16884	gen8	kill_attempt	by=election-sweep site=record target=16089 sig=31 result=ESRCH
+1787697034.912867	worker	16884	gen8	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=ESRCH
+1787697034.912921	worker	16884	gen8	kill_attempt	by=election-sweep site=record target=16241 sig=31 result=ESRCH
+1787697034.912979	worker	16884	gen8	election_sweep_record	swept=0 rows=8 pids=16369,16636,15765,16805,16507,16089,15933,16241
+1787697035.623574	worker	16884	gen8	ready	after=0.7124
+1787697035.797607	worker	16884	gen8	S_claim	job=j8a
+1787697035.797969	worker	16884	gen8	kill_attempt	by=worker-claim site=pidfile via=record target=16369 sig=30 result=ESRCH job=j8a
+1787697035.798093	worker	16884	gen8	kill_attempt	by=worker-claim site=pidfile via=record target=16636 sig=30 result=ESRCH job=j8a
+1787697035.798193	worker	16884	gen8	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j8a
+1787697035.798301	worker	16884	gen8	kill_attempt	by=worker-claim site=pidfile via=record target=16805 sig=30 result=ESRCH job=j8a
+1787697035.798451	worker	16884	gen8	kill_attempt	by=worker-claim site=pidfile via=record target=16507 sig=30 result=ESRCH job=j8a
+1787697035.798532	worker	16884	gen8	kill_attempt	by=worker-claim site=pidfile via=record target=16089 sig=30 result=ESRCH job=j8a
+1787697035.798604	worker	16884	gen8	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j8a
+1787697035.798725	worker	16884	gen8	kill_attempt	by=worker-claim site=pidfile via=record target=16241 sig=30 result=ESRCH job=j8a
+1787697036.805933	worker	16884	gen8	synth_done	job=j8a wav=-
+1787697036.806225	worker	16884	gen8	S2_prespawn_stat	job=j8a newer_waiting=0
+1787697037.809045	worker	16884	gen8	pending_created	job=j8a name=92af5a82.pending
+1787697037.812107	worker	16884	gen8	P_popen	job=j8a player_pid=16940 pid_mode=perplayer record=16940.92af5a82
+1787697037.812571	worker	16884	gen8	worker_die	where=between_P_and_W
+1787697038.307442	worker	16946	gen8r	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787697038.307778	worker	16946	gen8r	election_won	gen=16 superseded=15 prev_owner=16884
+1787697038.307893	worker	16946	gen8r	pending_found	n=8 names=19ededb0.pending,1e50da71.pending,316b3b31.pending,33f62e9b.pending,586da868.pending,6fcd2cde.pending,8d3ff308.pending,92af5a82.pending
+1787697038.307994	worker	16946	gen8r	kill_attempt	by=election-sweep site=pgid target=16884 sig=14 gen=15 result=sent
+1787697038.308071	worker	16946	gen8r	kill_attempt	by=election-sweep site=pgid target=16748 sig=14 gen=14 result=ESRCH
+1787697038.308142	worker	16946	gen8r	kill_attempt	by=election-sweep site=pgid target=16665 sig=14 gen=13 result=ESRCH
+1787697038.308209	worker	16946	gen8r	kill_attempt	by=election-sweep site=pgid target=16590 sig=14 gen=12 result=ESRCH
+1787697038.308269	worker	16946	gen8r	kill_attempt	by=election-sweep site=pgid target=16548 sig=14 gen=11 result=ESRCH
+1787697038.308333	worker	16946	gen8r	kill_attempt	by=election-sweep site=pgid target=16461 sig=14 gen=10 result=ESRCH
+1787697038.308389	worker	16946	gen8r	kill_attempt	by=election-sweep site=pgid target=16417 sig=14 gen=9 result=ESRCH
+1787697038.308445	worker	16946	gen8r	kill_attempt	by=election-sweep site=pgid target=16338 sig=14 gen=8 result=ESRCH
+1787697038.308500	worker	16946	gen8r	kill_attempt	by=election-sweep site=pgid target=16280 sig=14 gen=7 result=ESRCH
+1787697038.308566	worker	16946	gen8r	kill_attempt	by=election-sweep site=pgid target=16207 sig=14 gen=6 result=ESRCH
+1787697038.308628	worker	16946	gen8r	kill_attempt	by=election-sweep site=pgid target=16137 sig=14 gen=5 result=ESRCH
+1787697038.308681	worker	16946	gen8r	kill_attempt	by=election-sweep site=pgid target=16040 sig=14 gen=4 result=ESRCH
+1787697038.308733	worker	16946	gen8r	kill_attempt	by=election-sweep site=pgid target=15988 sig=14 gen=3 result=ESRCH
+1787697038.308788	worker	16946	gen8r	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=ESRCH
+1787697038.308847	worker	16946	gen8r	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787697038.308898	worker	16946	gen8r	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787697038.308954	worker	16946	gen8r	election_sweep_pgid	groups=1 superseded=16
+1787697038.309056	worker	16946	gen8r	kill_attempt	by=election-sweep site=record target=16369 sig=31 result=ESRCH
+1787697038.309116	worker	16946	gen8r	kill_attempt	by=election-sweep site=record target=16636 sig=31 result=ESRCH
+1787697038.309166	worker	16946	gen8r	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787697038.309220	worker	16946	gen8r	kill_attempt	by=election-sweep site=record target=16805 sig=31 result=ESRCH
+1787697038.309285	worker	16946	gen8r	kill_attempt	by=election-sweep site=record target=16507 sig=31 result=ESRCH
+1787697038.309344	worker	16946	gen8r	kill_attempt	by=election-sweep site=record target=16089 sig=31 result=ESRCH
+1787697038.309397	worker	16946	gen8r	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=ESRCH
+1787697038.309488	worker	16946	gen8r	kill_attempt	by=election-sweep site=record target=16241 sig=31 result=ESRCH
+1787697038.309545	worker	16946	gen8r	election_sweep_record	swept=0 rows=8 pids=16369,16636,15765,16805,16507,16089,15933,16241
+1787697039.020030	worker	16946	gen8r	ready	after=0.7123
+1787697039.273981	worker	16946	gen8r	S_claim	job=j8b
+1787697039.274626	worker	16946	gen8r	kill_attempt	by=worker-claim site=pidfile via=record target=16369 sig=30 result=ESRCH job=j8b
+1787697039.274917	worker	16946	gen8r	kill_attempt	by=worker-claim site=pidfile via=record target=16636 sig=30 result=ESRCH job=j8b
+1787697039.275100	worker	16946	gen8r	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j8b
+1787697039.275276	worker	16946	gen8r	kill_attempt	by=worker-claim site=pidfile via=record target=16805 sig=30 result=ESRCH job=j8b
+1787697039.275435	worker	16946	gen8r	kill_attempt	by=worker-claim site=pidfile via=record target=16507 sig=30 result=ESRCH job=j8b
+1787697039.275571	worker	16946	gen8r	kill_attempt	by=worker-claim site=pidfile via=record target=16089 sig=30 result=ESRCH job=j8b
+1787697039.275735	worker	16946	gen8r	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j8b
+1787697039.275897	worker	16946	gen8r	kill_attempt	by=worker-claim site=pidfile via=record target=16241 sig=30 result=ESRCH job=j8b
+1787697040.284654	worker	16946	gen8r	synth_done	job=j8b wav=-
+1787697040.285037	worker	16946	gen8r	S2_prespawn_stat	job=j8b newer_waiting=0
+1787697041.293518	worker	16946	gen8r	pending_created	job=j8b name=51902339.pending
+1787697041.295562	worker	16946	gen8r	P_popen	job=j8b player_pid=17014 pid_mode=perplayer record=17014.51902339
+1787697041.295826	worker	16946	gen8r	W_pid_write	job=j8b player_pid=17014 by=player result=deferred_to_player
+1787697045.214332	worker	17094	gen9	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787697045.214753	worker	17094	gen9	election_won	gen=17 superseded=16 prev_owner=16946
+1787697045.214873	worker	17094	gen9	pending_found	n=8 names=19ededb0.pending,1e50da71.pending,316b3b31.pending,33f62e9b.pending,586da868.pending,6fcd2cde.pending,8d3ff308.pending,92af5a82.pending
+1787697045.214968	worker	17094	gen9	kill_attempt	by=election-sweep site=pgid target=16946 sig=14 gen=16 result=sent
+1787697045.215033	worker	17094	gen9	kill_attempt	by=election-sweep site=pgid target=16884 sig=14 gen=15 result=ESRCH
+1787697045.215095	worker	17094	gen9	kill_attempt	by=election-sweep site=pgid target=16748 sig=14 gen=14 result=ESRCH
+1787697045.215161	worker	17094	gen9	kill_attempt	by=election-sweep site=pgid target=16665 sig=14 gen=13 result=ESRCH
+1787697045.215249	worker	17094	gen9	kill_attempt	by=election-sweep site=pgid target=16590 sig=14 gen=12 result=ESRCH
+1787697045.215413	worker	17094	gen9	kill_attempt	by=election-sweep site=pgid target=16548 sig=14 gen=11 result=ESRCH
+1787697045.215486	worker	17094	gen9	kill_attempt	by=election-sweep site=pgid target=16461 sig=14 gen=10 result=ESRCH
+1787697045.215548	worker	17094	gen9	kill_attempt	by=election-sweep site=pgid target=16417 sig=14 gen=9 result=ESRCH
+1787697045.215604	worker	17094	gen9	kill_attempt	by=election-sweep site=pgid target=16338 sig=14 gen=8 result=ESRCH
+1787697045.215668	worker	17094	gen9	kill_attempt	by=election-sweep site=pgid target=16280 sig=14 gen=7 result=ESRCH
+1787697045.215720	worker	17094	gen9	kill_attempt	by=election-sweep site=pgid target=16207 sig=14 gen=6 result=ESRCH
+1787697045.215808	worker	17094	gen9	kill_attempt	by=election-sweep site=pgid target=16137 sig=14 gen=5 result=ESRCH
+1787697045.215898	worker	17094	gen9	kill_attempt	by=election-sweep site=pgid target=16040 sig=14 gen=4 result=ESRCH
+1787697045.215964	worker	17094	gen9	kill_attempt	by=election-sweep site=pgid target=15988 sig=14 gen=3 result=ESRCH
+1787697045.216028	worker	17094	gen9	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=ESRCH
+1787697045.216094	worker	17094	gen9	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787697045.216202	worker	17094	gen9	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787697045.216279	worker	17094	gen9	election_sweep_pgid	groups=1 superseded=17
+1787697045.216406	worker	17094	gen9	kill_attempt	by=election-sweep site=record target=16369 sig=31 result=ESRCH
+1787697045.216472	worker	17094	gen9	kill_attempt	by=election-sweep site=record target=16636 sig=31 result=ESRCH
+1787697045.216534	worker	17094	gen9	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787697045.216592	worker	17094	gen9	kill_attempt	by=election-sweep site=record target=16805 sig=31 result=ESRCH
+1787697045.216645	worker	17094	gen9	kill_attempt	by=election-sweep site=record target=16507 sig=31 result=ESRCH
+1787697045.216708	worker	17094	gen9	kill_attempt	by=election-sweep site=record target=16089 sig=31 result=ESRCH
+1787697045.216773	worker	17094	gen9	kill_attempt	by=election-sweep site=record target=17014 sig=31 result=ESRCH
+1787697045.216839	worker	17094	gen9	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=ESRCH
+1787697045.216904	worker	17094	gen9	kill_attempt	by=election-sweep site=record target=16241 sig=31 result=ESRCH
+1787697045.216972	worker	17094	gen9	election_sweep_record	swept=0 rows=9 pids=16369,16636,15765,16805,16507,16089,17014,15933,16241
+1787697045.927544	worker	17094	gen9	ready	after=0.7128
+1787697046.143210	worker	17094	gen9	S_claim	job=j9a
+1787697046.143506	worker	17094	gen9	kill_attempt	by=worker-claim site=pidfile via=record target=16369 sig=30 result=ESRCH job=j9a
+1787697046.143616	worker	17094	gen9	kill_attempt	by=worker-claim site=pidfile via=record target=16636 sig=30 result=ESRCH job=j9a
+1787697046.143689	worker	17094	gen9	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j9a
+1787697046.143782	worker	17094	gen9	kill_attempt	by=worker-claim site=pidfile via=record target=16805 sig=30 result=ESRCH job=j9a
+1787697046.143849	worker	17094	gen9	kill_attempt	by=worker-claim site=pidfile via=record target=16507 sig=30 result=ESRCH job=j9a
+1787697046.143908	worker	17094	gen9	kill_attempt	by=worker-claim site=pidfile via=record target=16089 sig=30 result=ESRCH job=j9a
+1787697046.143973	worker	17094	gen9	kill_attempt	by=worker-claim site=pidfile via=record target=17014 sig=30 result=ESRCH job=j9a
+1787697046.144042	worker	17094	gen9	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j9a
+1787697046.144107	worker	17094	gen9	kill_attempt	by=worker-claim site=pidfile via=record target=16241 sig=30 result=ESRCH job=j9a
+1787697047.154521	worker	17094	gen9	synth_done	job=j9a wav=-
+1787697047.155132	worker	17094	gen9	S2_prespawn_stat	job=j9a newer_waiting=0
+1787697048.165265	worker	17094	gen9	pending_created	job=j9a name=ebe7e593.pending
+1787697048.167726	worker	17094	gen9	P_popen	job=j9a player_pid=17216 pid_mode=perplayer record=17216.ebe7e593
+1787697048.168060	worker	17094	gen9	worker_die	where=between_P_and_W
+1787697048.656927	worker	17233	gen9r	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787697048.657327	worker	17233	gen9r	election_won	gen=18 superseded=17 prev_owner=17094
+1787697048.657458	worker	17233	gen9r	pending_found	n=9 names=19ededb0.pending,1e50da71.pending,316b3b31.pending,33f62e9b.pending,586da868.pending,6fcd2cde.pending,8d3ff308.pending,92af5a82.pending,ebe7e593.pending
+1787697048.657563	worker	17233	gen9r	kill_attempt	by=election-sweep site=pgid target=17094 sig=14 gen=17 result=sent
+1787697048.657642	worker	17233	gen9r	kill_attempt	by=election-sweep site=pgid target=16946 sig=14 gen=16 result=ESRCH
+1787697048.657803	worker	17233	gen9r	kill_attempt	by=election-sweep site=pgid target=16884 sig=14 gen=15 result=ESRCH
+1787697048.657899	worker	17233	gen9r	kill_attempt	by=election-sweep site=pgid target=16748 sig=14 gen=14 result=ESRCH
+1787697048.657987	worker	17233	gen9r	kill_attempt	by=election-sweep site=pgid target=16665 sig=14 gen=13 result=ESRCH
+1787697048.658073	worker	17233	gen9r	kill_attempt	by=election-sweep site=pgid target=16590 sig=14 gen=12 result=ESRCH
+1787697048.658179	worker	17233	gen9r	kill_attempt	by=election-sweep site=pgid target=16548 sig=14 gen=11 result=ESRCH
+1787697048.658246	worker	17233	gen9r	kill_attempt	by=election-sweep site=pgid target=16461 sig=14 gen=10 result=ESRCH
+1787697048.658317	worker	17233	gen9r	kill_attempt	by=election-sweep site=pgid target=16417 sig=14 gen=9 result=ESRCH
+1787697048.658404	worker	17233	gen9r	kill_attempt	by=election-sweep site=pgid target=16338 sig=14 gen=8 result=ESRCH
+1787697048.658484	worker	17233	gen9r	kill_attempt	by=election-sweep site=pgid target=16280 sig=14 gen=7 result=ESRCH
+1787697048.658552	worker	17233	gen9r	kill_attempt	by=election-sweep site=pgid target=16207 sig=14 gen=6 result=ESRCH
+1787697048.658610	worker	17233	gen9r	kill_attempt	by=election-sweep site=pgid target=16137 sig=14 gen=5 result=ESRCH
+1787697048.658675	worker	17233	gen9r	kill_attempt	by=election-sweep site=pgid target=16040 sig=14 gen=4 result=ESRCH
+1787697048.658737	worker	17233	gen9r	kill_attempt	by=election-sweep site=pgid target=15988 sig=14 gen=3 result=ESRCH
+1787697048.658793	worker	17233	gen9r	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=ESRCH
+1787697048.658854	worker	17233	gen9r	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787697048.658917	worker	17233	gen9r	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787697048.658981	worker	17233	gen9r	election_sweep_pgid	groups=1 superseded=18
+1787697048.659093	worker	17233	gen9r	kill_attempt	by=election-sweep site=record target=16369 sig=31 result=ESRCH
+1787697048.659166	worker	17233	gen9r	kill_attempt	by=election-sweep site=record target=16636 sig=31 result=ESRCH
+1787697048.659232	worker	17233	gen9r	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787697048.659288	worker	17233	gen9r	kill_attempt	by=election-sweep site=record target=16805 sig=31 result=ESRCH
+1787697048.659345	worker	17233	gen9r	kill_attempt	by=election-sweep site=record target=16507 sig=31 result=ESRCH
+1787697048.659413	worker	17233	gen9r	kill_attempt	by=election-sweep site=record target=16089 sig=31 result=ESRCH
+1787697048.659475	worker	17233	gen9r	kill_attempt	by=election-sweep site=record target=17014 sig=31 result=ESRCH
+1787697048.659532	worker	17233	gen9r	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=ESRCH
+1787697048.659591	worker	17233	gen9r	kill_attempt	by=election-sweep site=record target=16241 sig=31 result=ESRCH
+1787697048.659648	worker	17233	gen9r	election_sweep_record	swept=0 rows=9 pids=16369,16636,15765,16805,16507,16089,17014,15933,16241
+1787697049.370371	worker	17233	gen9r	ready	after=0.713
+1787697049.624061	worker	17233	gen9r	S_claim	job=j9b
+1787697049.624378	worker	17233	gen9r	kill_attempt	by=worker-claim site=pidfile via=record target=16369 sig=30 result=ESRCH job=j9b
+1787697049.624502	worker	17233	gen9r	kill_attempt	by=worker-claim site=pidfile via=record target=16636 sig=30 result=ESRCH job=j9b
+1787697049.624608	worker	17233	gen9r	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j9b
+1787697049.624713	worker	17233	gen9r	kill_attempt	by=worker-claim site=pidfile via=record target=16805 sig=30 result=ESRCH job=j9b
+1787697049.624817	worker	17233	gen9r	kill_attempt	by=worker-claim site=pidfile via=record target=16507 sig=30 result=ESRCH job=j9b
+1787697049.624921	worker	17233	gen9r	kill_attempt	by=worker-claim site=pidfile via=record target=16089 sig=30 result=ESRCH job=j9b
+1787697049.625036	worker	17233	gen9r	kill_attempt	by=worker-claim site=pidfile via=record target=17014 sig=30 result=ESRCH job=j9b
+1787697049.625127	worker	17233	gen9r	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j9b
+1787697049.625217	worker	17233	gen9r	kill_attempt	by=worker-claim site=pidfile via=record target=16241 sig=30 result=ESRCH job=j9b
+1787697050.635830	worker	17233	gen9r	synth_done	job=j9b wav=-
+1787697050.636933	worker	17233	gen9r	S2_prespawn_stat	job=j9b newer_waiting=0
+1787697051.648062	worker	17233	gen9r	pending_created	job=j9b name=333fb38b.pending
+1787697051.653034	worker	17233	gen9r	P_popen	job=j9b player_pid=17349 pid_mode=perplayer record=17349.333fb38b
+1787697051.653893	worker	17233	gen9r	W_pid_write	job=j9b player_pid=17349 by=player result=deferred_to_player
+1787697055.565783	worker	17508	gen10	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787697055.566141	worker	17508	gen10	election_won	gen=19 superseded=18 prev_owner=17233
+1787697055.566283	worker	17508	gen10	pending_found	n=9 names=19ededb0.pending,1e50da71.pending,316b3b31.pending,33f62e9b.pending,586da868.pending,6fcd2cde.pending,8d3ff308.pending,92af5a82.pending,ebe7e593.pending
+1787697055.566414	worker	17508	gen10	kill_attempt	by=election-sweep site=pgid target=17233 sig=14 gen=18 result=sent
+1787697055.566496	worker	17508	gen10	kill_attempt	by=election-sweep site=pgid target=17094 sig=14 gen=17 result=ESRCH
+1787697055.566593	worker	17508	gen10	kill_attempt	by=election-sweep site=pgid target=16946 sig=14 gen=16 result=ESRCH
+1787697055.566680	worker	17508	gen10	kill_attempt	by=election-sweep site=pgid target=16884 sig=14 gen=15 result=ESRCH
+1787697055.566739	worker	17508	gen10	kill_attempt	by=election-sweep site=pgid target=16748 sig=14 gen=14 result=ESRCH
+1787697055.566830	worker	17508	gen10	kill_attempt	by=election-sweep site=pgid target=16665 sig=14 gen=13 result=ESRCH
+1787697055.566947	worker	17508	gen10	kill_attempt	by=election-sweep site=pgid target=16590 sig=14 gen=12 result=ESRCH
+1787697055.567023	worker	17508	gen10	kill_attempt	by=election-sweep site=pgid target=16548 sig=14 gen=11 result=ESRCH
+1787697055.567100	worker	17508	gen10	kill_attempt	by=election-sweep site=pgid target=16461 sig=14 gen=10 result=ESRCH
+1787697055.567173	worker	17508	gen10	kill_attempt	by=election-sweep site=pgid target=16417 sig=14 gen=9 result=ESRCH
+1787697055.567237	worker	17508	gen10	kill_attempt	by=election-sweep site=pgid target=16338 sig=14 gen=8 result=ESRCH
+1787697055.567308	worker	17508	gen10	kill_attempt	by=election-sweep site=pgid target=16280 sig=14 gen=7 result=ESRCH
+1787697055.567365	worker	17508	gen10	kill_attempt	by=election-sweep site=pgid target=16207 sig=14 gen=6 result=ESRCH
+1787697055.567418	worker	17508	gen10	kill_attempt	by=election-sweep site=pgid target=16137 sig=14 gen=5 result=ESRCH
+1787697055.567469	worker	17508	gen10	kill_attempt	by=election-sweep site=pgid target=16040 sig=14 gen=4 result=ESRCH
+1787697055.567518	worker	17508	gen10	kill_attempt	by=election-sweep site=pgid target=15988 sig=14 gen=3 result=ESRCH
+1787697055.567576	worker	17508	gen10	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=ESRCH
+1787697055.567642	worker	17508	gen10	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787697055.567936	worker	17508	gen10	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787697055.567997	worker	17508	gen10	election_sweep_pgid	groups=1 superseded=19
+1787697055.568112	worker	17508	gen10	kill_attempt	by=election-sweep site=record target=16369 sig=31 result=ESRCH
+1787697055.568177	worker	17508	gen10	kill_attempt	by=election-sweep site=record target=16636 sig=31 result=ESRCH
+1787697055.568229	worker	17508	gen10	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787697055.568330	worker	17508	gen10	kill_attempt	by=election-sweep site=record target=16805 sig=31 result=ESRCH
+1787697055.568390	worker	17508	gen10	kill_attempt	by=election-sweep site=record target=16507 sig=31 result=ESRCH
+1787697055.568448	worker	17508	gen10	kill_attempt	by=election-sweep site=record target=16089 sig=31 result=ESRCH
+1787697055.568511	worker	17508	gen10	kill_attempt	by=election-sweep site=record target=17349 sig=31 result=sent
+1787697055.568560	worker	17508	gen10	kill_attempt	by=election-sweep site=record target=17014 sig=31 result=ESRCH
+1787697055.568631	worker	17508	gen10	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=ESRCH
+1787697055.568720	worker	17508	gen10	kill_attempt	by=election-sweep site=record target=16241 sig=31 result=ESRCH
+1787697055.568768	worker	17508	gen10	election_sweep_record	swept=1 rows=10 pids=16369,16636,15765,16805,16507,16089,17349,17014,15933,16241
+1787697056.279766	worker	17508	gen10	ready	after=0.7131
+1787697056.508380	worker	17508	gen10	S_claim	job=j10a
+1787697056.508655	worker	17508	gen10	kill_attempt	by=worker-claim site=pidfile via=record target=16369 sig=30 result=ESRCH job=j10a
+1787697056.508824	worker	17508	gen10	kill_attempt	by=worker-claim site=pidfile via=record target=16636 sig=30 result=ESRCH job=j10a
+1787697056.508948	worker	17508	gen10	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j10a
+1787697056.509059	worker	17508	gen10	kill_attempt	by=worker-claim site=pidfile via=record target=16805 sig=30 result=ESRCH job=j10a
+1787697056.509140	worker	17508	gen10	kill_attempt	by=worker-claim site=pidfile via=record target=16507 sig=30 result=ESRCH job=j10a
+1787697056.509239	worker	17508	gen10	kill_attempt	by=worker-claim site=pidfile via=record target=16089 sig=30 result=ESRCH job=j10a
+1787697056.509326	worker	17508	gen10	kill_attempt	by=worker-claim site=pidfile via=record target=17349 sig=30 result=ESRCH job=j10a
+1787697056.509408	worker	17508	gen10	kill_attempt	by=worker-claim site=pidfile via=record target=17014 sig=30 result=ESRCH job=j10a
+1787697056.509491	worker	17508	gen10	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j10a
+1787697056.509563	worker	17508	gen10	kill_attempt	by=worker-claim site=pidfile via=record target=16241 sig=30 result=ESRCH job=j10a
+1787697057.520002	worker	17508	gen10	synth_done	job=j10a wav=-
+1787697057.520617	worker	17508	gen10	S2_prespawn_stat	job=j10a newer_waiting=0
+1787697058.529876	worker	17508	gen10	pending_created	job=j10a name=84a142a4.pending
+1787697058.534503	worker	17508	gen10	P_popen	job=j10a player_pid=17552 pid_mode=perplayer record=17552.84a142a4
+1787697058.535147	worker	17508	gen10	worker_die	where=between_P_and_W
+1787697059.010172	worker	17554	gen10r	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787697059.010536	worker	17554	gen10r	election_won	gen=20 superseded=19 prev_owner=17508
+1787697059.010657	worker	17554	gen10r	pending_found	n=10 names=19ededb0.pending,1e50da71.pending,316b3b31.pending,33f62e9b.pending,586da868.pending,6fcd2cde.pending,84a142a4.pending,8d3ff308.pending,92af5a82.pending,ebe7e593.pending
+1787697059.010761	worker	17554	gen10r	kill_attempt	by=election-sweep site=pgid target=17508 sig=14 gen=19 result=sent
+1787697059.010826	worker	17554	gen10r	kill_attempt	by=election-sweep site=pgid target=17233 sig=14 gen=18 result=ESRCH
+1787697059.010890	worker	17554	gen10r	kill_attempt	by=election-sweep site=pgid target=17094 sig=14 gen=17 result=ESRCH
+1787697059.010951	worker	17554	gen10r	kill_attempt	by=election-sweep site=pgid target=16946 sig=14 gen=16 result=ESRCH
+1787697059.011008	worker	17554	gen10r	kill_attempt	by=election-sweep site=pgid target=16884 sig=14 gen=15 result=ESRCH
+1787697059.011067	worker	17554	gen10r	kill_attempt	by=election-sweep site=pgid target=16748 sig=14 gen=14 result=ESRCH
+1787697059.011150	worker	17554	gen10r	kill_attempt	by=election-sweep site=pgid target=16665 sig=14 gen=13 result=ESRCH
+1787697059.011225	worker	17554	gen10r	kill_attempt	by=election-sweep site=pgid target=16590 sig=14 gen=12 result=ESRCH
+1787697059.011281	worker	17554	gen10r	kill_attempt	by=election-sweep site=pgid target=16548 sig=14 gen=11 result=ESRCH
+1787697059.011335	worker	17554	gen10r	kill_attempt	by=election-sweep site=pgid target=16461 sig=14 gen=10 result=ESRCH
+1787697059.011391	worker	17554	gen10r	kill_attempt	by=election-sweep site=pgid target=16417 sig=14 gen=9 result=ESRCH
+1787697059.011446	worker	17554	gen10r	kill_attempt	by=election-sweep site=pgid target=16338 sig=14 gen=8 result=ESRCH
+1787697059.011499	worker	17554	gen10r	kill_attempt	by=election-sweep site=pgid target=16280 sig=14 gen=7 result=ESRCH
+1787697059.011556	worker	17554	gen10r	kill_attempt	by=election-sweep site=pgid target=16207 sig=14 gen=6 result=ESRCH
+1787697059.011708	worker	17554	gen10r	kill_attempt	by=election-sweep site=pgid target=16137 sig=14 gen=5 result=ESRCH
+1787697059.011795	worker	17554	gen10r	kill_attempt	by=election-sweep site=pgid target=16040 sig=14 gen=4 result=ESRCH
+1787697059.011869	worker	17554	gen10r	kill_attempt	by=election-sweep site=pgid target=15988 sig=14 gen=3 result=ESRCH
+1787697059.011934	worker	17554	gen10r	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=ESRCH
+1787697059.011991	worker	17554	gen10r	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787697059.012049	worker	17554	gen10r	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787697059.012105	worker	17554	gen10r	election_sweep_pgid	groups=1 superseded=20
+1787697059.012212	worker	17554	gen10r	kill_attempt	by=election-sweep site=record target=16369 sig=31 result=ESRCH
+1787697059.012271	worker	17554	gen10r	kill_attempt	by=election-sweep site=record target=16636 sig=31 result=ESRCH
+1787697059.012329	worker	17554	gen10r	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787697059.012383	worker	17554	gen10r	kill_attempt	by=election-sweep site=record target=16805 sig=31 result=ESRCH
+1787697059.012440	worker	17554	gen10r	kill_attempt	by=election-sweep site=record target=16507 sig=31 result=ESRCH
+1787697059.012559	worker	17554	gen10r	kill_attempt	by=election-sweep site=record target=16089 sig=31 result=ESRCH
+1787697059.012628	worker	17554	gen10r	kill_attempt	by=election-sweep site=record target=17349 sig=31 result=ESRCH
+1787697059.012683	worker	17554	gen10r	kill_attempt	by=election-sweep site=record target=17014 sig=31 result=ESRCH
+1787697059.012738	worker	17554	gen10r	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=ESRCH
+1787697059.012794	worker	17554	gen10r	kill_attempt	by=election-sweep site=record target=16241 sig=31 result=ESRCH
+1787697059.012849	worker	17554	gen10r	election_sweep_record	swept=0 rows=10 pids=16369,16636,15765,16805,16507,16089,17349,17014,15933,16241
+1787697059.717576	worker	17554	gen10r	ready	after=0.7073
+1787697059.971517	worker	17554	gen10r	S_claim	job=j10b
+1787697059.972273	worker	17554	gen10r	kill_attempt	by=worker-claim site=pidfile via=record target=16369 sig=30 result=ESRCH job=j10b
+1787697059.972490	worker	17554	gen10r	kill_attempt	by=worker-claim site=pidfile via=record target=16636 sig=30 result=ESRCH job=j10b
+1787697059.972660	worker	17554	gen10r	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j10b
+1787697059.972836	worker	17554	gen10r	kill_attempt	by=worker-claim site=pidfile via=record target=16805 sig=30 result=ESRCH job=j10b
+1787697059.973014	worker	17554	gen10r	kill_attempt	by=worker-claim site=pidfile via=record target=16507 sig=30 result=ESRCH job=j10b
+1787697059.973186	worker	17554	gen10r	kill_attempt	by=worker-claim site=pidfile via=record target=16089 sig=30 result=ESRCH job=j10b
+1787697059.973350	worker	17554	gen10r	kill_attempt	by=worker-claim site=pidfile via=record target=17349 sig=30 result=ESRCH job=j10b
+1787697059.973523	worker	17554	gen10r	kill_attempt	by=worker-claim site=pidfile via=record target=17014 sig=30 result=ESRCH job=j10b
+1787697059.973697	worker	17554	gen10r	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j10b
+1787697059.973899	worker	17554	gen10r	kill_attempt	by=worker-claim site=pidfile via=record target=16241 sig=30 result=ESRCH job=j10b
+1787697060.980515	worker	17554	gen10r	synth_done	job=j10b wav=-
+1787697060.980881	worker	17554	gen10r	S2_prespawn_stat	job=j10b newer_waiting=0
+1787697061.990326	worker	17554	gen10r	pending_created	job=j10b name=a48c830c.pending
+1787697061.995450	worker	17554	gen10r	P_popen	job=j10b player_pid=17601 pid_mode=perplayer record=17601.a48c830c
+1787697061.996114	worker	17554	gen10r	W_pid_write	job=j10b player_pid=17601 by=player result=deferred_to_player
+1787697065.910520	worker	17638	gen11	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787697065.911159	worker	17638	gen11	election_won	gen=21 superseded=20 prev_owner=17554
+1787697065.911292	worker	17638	gen11	pending_found	n=10 names=19ededb0.pending,1e50da71.pending,316b3b31.pending,33f62e9b.pending,586da868.pending,6fcd2cde.pending,84a142a4.pending,8d3ff308.pending,92af5a82.pending,ebe7e593.pending
+1787697065.911382	worker	17638	gen11	kill_attempt	by=election-sweep site=pgid target=17554 sig=14 gen=20 result=sent
+1787697065.911446	worker	17638	gen11	kill_attempt	by=election-sweep site=pgid target=17508 sig=14 gen=19 result=ESRCH
+1787697065.911511	worker	17638	gen11	kill_attempt	by=election-sweep site=pgid target=17233 sig=14 gen=18 result=ESRCH
+1787697065.911570	worker	17638	gen11	kill_attempt	by=election-sweep site=pgid target=17094 sig=14 gen=17 result=ESRCH
+1787697065.911628	worker	17638	gen11	kill_attempt	by=election-sweep site=pgid target=16946 sig=14 gen=16 result=ESRCH
+1787697065.911719	worker	17638	gen11	kill_attempt	by=election-sweep site=pgid target=16884 sig=14 gen=15 result=ESRCH
+1787697065.911807	worker	17638	gen11	kill_attempt	by=election-sweep site=pgid target=16748 sig=14 gen=14 result=ESRCH
+1787697065.911873	worker	17638	gen11	kill_attempt	by=election-sweep site=pgid target=16665 sig=14 gen=13 result=ESRCH
+1787697065.911934	worker	17638	gen11	kill_attempt	by=election-sweep site=pgid target=16590 sig=14 gen=12 result=ESRCH
+1787697065.911999	worker	17638	gen11	kill_attempt	by=election-sweep site=pgid target=16548 sig=14 gen=11 result=ESRCH
+1787697065.912059	worker	17638	gen11	kill_attempt	by=election-sweep site=pgid target=16461 sig=14 gen=10 result=ESRCH
+1787697065.912116	worker	17638	gen11	kill_attempt	by=election-sweep site=pgid target=16417 sig=14 gen=9 result=ESRCH
+1787697065.912174	worker	17638	gen11	kill_attempt	by=election-sweep site=pgid target=16338 sig=14 gen=8 result=ESRCH
+1787697065.912232	worker	17638	gen11	kill_attempt	by=election-sweep site=pgid target=16280 sig=14 gen=7 result=ESRCH
+1787697065.912309	worker	17638	gen11	kill_attempt	by=election-sweep site=pgid target=16207 sig=14 gen=6 result=ESRCH
+1787697065.912382	worker	17638	gen11	kill_attempt	by=election-sweep site=pgid target=16137 sig=14 gen=5 result=ESRCH
+1787697065.912448	worker	17638	gen11	kill_attempt	by=election-sweep site=pgid target=16040 sig=14 gen=4 result=ESRCH
+1787697065.912511	worker	17638	gen11	kill_attempt	by=election-sweep site=pgid target=15988 sig=14 gen=3 result=ESRCH
+1787697065.912571	worker	17638	gen11	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=ESRCH
+1787697065.912631	worker	17638	gen11	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787697065.912692	worker	17638	gen11	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787697065.912751	worker	17638	gen11	election_sweep_pgid	groups=1 superseded=21
+1787697065.912878	worker	17638	gen11	kill_attempt	by=election-sweep site=record target=16369 sig=31 result=ESRCH
+1787697065.912944	worker	17638	gen11	kill_attempt	by=election-sweep site=record target=16636 sig=31 result=ESRCH
+1787697065.913000	worker	17638	gen11	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787697065.913086	worker	17638	gen11	kill_attempt	by=election-sweep site=record target=16805 sig=31 result=ESRCH
+1787697065.913160	worker	17638	gen11	kill_attempt	by=election-sweep site=record target=17601 sig=31 result=ESRCH
+1787697065.913223	worker	17638	gen11	kill_attempt	by=election-sweep site=record target=16507 sig=31 result=ESRCH
+1787697065.913280	worker	17638	gen11	kill_attempt	by=election-sweep site=record target=16089 sig=31 result=ESRCH
+1787697065.913339	worker	17638	gen11	kill_attempt	by=election-sweep site=record target=17349 sig=31 result=ESRCH
+1787697065.913396	worker	17638	gen11	kill_attempt	by=election-sweep site=record target=17014 sig=31 result=ESRCH
+1787697065.913450	worker	17638	gen11	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=ESRCH
+1787697065.913506	worker	17638	gen11	kill_attempt	by=election-sweep site=record target=16241 sig=31 result=ESRCH
+1787697065.913574	worker	17638	gen11	election_sweep_record	swept=0 rows=11 pids=16369,16636,15765,16805,17601,16507,16089,17349,17014,15933,16241
+1787697066.623886	worker	17638	gen11	ready	after=0.7132
+1787697066.840199	worker	17638	gen11	S_claim	job=j11a
+1787697066.840517	worker	17638	gen11	kill_attempt	by=worker-claim site=pidfile via=record target=16369 sig=30 result=ESRCH job=j11a
+1787697066.840636	worker	17638	gen11	kill_attempt	by=worker-claim site=pidfile via=record target=16636 sig=30 result=ESRCH job=j11a
+1787697066.840733	worker	17638	gen11	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j11a
+1787697066.840811	worker	17638	gen11	kill_attempt	by=worker-claim site=pidfile via=record target=16805 sig=30 result=ESRCH job=j11a
+1787697066.840895	worker	17638	gen11	kill_attempt	by=worker-claim site=pidfile via=record target=17601 sig=30 result=ESRCH job=j11a
+1787697066.841031	worker	17638	gen11	kill_attempt	by=worker-claim site=pidfile via=record target=16507 sig=30 result=ESRCH job=j11a
+1787697066.841149	worker	17638	gen11	kill_attempt	by=worker-claim site=pidfile via=record target=16089 sig=30 result=ESRCH job=j11a
+1787697066.841231	worker	17638	gen11	kill_attempt	by=worker-claim site=pidfile via=record target=17349 sig=30 result=ESRCH job=j11a
+1787697066.841380	worker	17638	gen11	kill_attempt	by=worker-claim site=pidfile via=record target=17014 sig=30 result=ESRCH job=j11a
+1787697066.841485	worker	17638	gen11	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j11a
+1787697066.841578	worker	17638	gen11	kill_attempt	by=worker-claim site=pidfile via=record target=16241 sig=30 result=ESRCH job=j11a
+1787697067.850544	worker	17638	gen11	synth_done	job=j11a wav=-
+1787697067.851061	worker	17638	gen11	S2_prespawn_stat	job=j11a newer_waiting=0
+1787697068.852675	worker	17638	gen11	pending_created	job=j11a name=3efdee2a.pending
+1787697068.854782	worker	17638	gen11	P_popen	job=j11a player_pid=17679 pid_mode=perplayer record=17679.3efdee2a
+1787697068.855181	worker	17638	gen11	worker_die	where=between_P_and_W
+1787697069.366512	worker	17681	gen11r	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787697069.366891	worker	17681	gen11r	election_won	gen=22 superseded=21 prev_owner=17638
+1787697069.367019	worker	17681	gen11r	pending_found	n=11 names=19ededb0.pending,1e50da71.pending,316b3b31.pending,33f62e9b.pending,3efdee2a.pending,586da868.pending,6fcd2cde.pending,84a142a4.pending,8d3ff308.pending,92af5a82.pending,ebe7e593.pending
+1787697069.367168	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=17638 sig=14 gen=21 result=sent
+1787697069.367233	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=17554 sig=14 gen=20 result=ESRCH
+1787697069.367294	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=17508 sig=14 gen=19 result=ESRCH
+1787697069.367362	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=17233 sig=14 gen=18 result=ESRCH
+1787697069.367426	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=17094 sig=14 gen=17 result=ESRCH
+1787697069.367488	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=16946 sig=14 gen=16 result=ESRCH
+1787697069.367552	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=16884 sig=14 gen=15 result=ESRCH
+1787697069.367636	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=16748 sig=14 gen=14 result=ESRCH
+1787697069.367733	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=16665 sig=14 gen=13 result=ESRCH
+1787697069.367806	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=16590 sig=14 gen=12 result=ESRCH
+1787697069.367879	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=16548 sig=14 gen=11 result=ESRCH
+1787697069.367950	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=16461 sig=14 gen=10 result=ESRCH
+1787697069.368022	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=16417 sig=14 gen=9 result=ESRCH
+1787697069.368096	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=16338 sig=14 gen=8 result=ESRCH
+1787697069.368165	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=16280 sig=14 gen=7 result=ESRCH
+1787697069.368234	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=16207 sig=14 gen=6 result=ESRCH
+1787697069.368304	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=16137 sig=14 gen=5 result=ESRCH
+1787697069.368370	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=16040 sig=14 gen=4 result=ESRCH
+1787697069.368434	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=15988 sig=14 gen=3 result=ESRCH
+1787697069.368497	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=ESRCH
+1787697069.368586	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787697069.368652	worker	17681	gen11r	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787697069.368714	worker	17681	gen11r	election_sweep_pgid	groups=1 superseded=22
+1787697069.368844	worker	17681	gen11r	kill_attempt	by=election-sweep site=record target=16369 sig=31 result=ESRCH
+1787697069.368910	worker	17681	gen11r	kill_attempt	by=election-sweep site=record target=16636 sig=31 result=ESRCH
+1787697069.368979	worker	17681	gen11r	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787697069.369057	worker	17681	gen11r	kill_attempt	by=election-sweep site=record target=16805 sig=31 result=ESRCH
+1787697069.369129	worker	17681	gen11r	kill_attempt	by=election-sweep site=record target=17601 sig=31 result=ESRCH
+1787697069.369201	worker	17681	gen11r	kill_attempt	by=election-sweep site=record target=16507 sig=31 result=ESRCH
+1787697069.369279	worker	17681	gen11r	kill_attempt	by=election-sweep site=record target=16089 sig=31 result=ESRCH
+1787697069.369356	worker	17681	gen11r	kill_attempt	by=election-sweep site=record target=17349 sig=31 result=ESRCH
+1787697069.369420	worker	17681	gen11r	kill_attempt	by=election-sweep site=record target=17014 sig=31 result=ESRCH
+1787697069.369488	worker	17681	gen11r	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=ESRCH
+1787697069.369557	worker	17681	gen11r	kill_attempt	by=election-sweep site=record target=16241 sig=31 result=ESRCH
+1787697069.369637	worker	17681	gen11r	election_sweep_record	swept=0 rows=11 pids=16369,16636,15765,16805,17601,16507,16089,17349,17014,15933,16241
+1787697070.072566	worker	17681	gen11r	ready	after=0.706
+1787697070.325735	worker	17681	gen11r	S_claim	job=j11b
+1787697070.326170	worker	17681	gen11r	kill_attempt	by=worker-claim site=pidfile via=record target=16369 sig=30 result=ESRCH job=j11b
+1787697070.326333	worker	17681	gen11r	kill_attempt	by=worker-claim site=pidfile via=record target=16636 sig=30 result=ESRCH job=j11b
+1787697070.326468	worker	17681	gen11r	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j11b
+1787697070.326592	worker	17681	gen11r	kill_attempt	by=worker-claim site=pidfile via=record target=16805 sig=30 result=ESRCH job=j11b
+1787697070.326707	worker	17681	gen11r	kill_attempt	by=worker-claim site=pidfile via=record target=17601 sig=30 result=ESRCH job=j11b
+1787697070.326824	worker	17681	gen11r	kill_attempt	by=worker-claim site=pidfile via=record target=16507 sig=30 result=ESRCH job=j11b
+1787697070.326938	worker	17681	gen11r	kill_attempt	by=worker-claim site=pidfile via=record target=16089 sig=30 result=ESRCH job=j11b
+1787697070.327096	worker	17681	gen11r	kill_attempt	by=worker-claim site=pidfile via=record target=17349 sig=30 result=ESRCH job=j11b
+1787697070.327245	worker	17681	gen11r	kill_attempt	by=worker-claim site=pidfile via=record target=17014 sig=30 result=ESRCH job=j11b
+1787697070.327372	worker	17681	gen11r	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j11b
+1787697070.327501	worker	17681	gen11r	kill_attempt	by=worker-claim site=pidfile via=record target=16241 sig=30 result=ESRCH job=j11b
+1787697071.337098	worker	17681	gen11r	synth_done	job=j11b wav=-
+1787697071.337680	worker	17681	gen11r	S2_prespawn_stat	job=j11b newer_waiting=0
+1787697072.343620	worker	17681	gen11r	pending_created	job=j11b name=61a9936b.pending
+1787697072.347781	worker	17681	gen11r	P_popen	job=j11b player_pid=17728 pid_mode=perplayer record=17728.61a9936b
+1787697072.348548	worker	17681	gen11r	W_pid_write	job=j11b player_pid=17728 by=player result=deferred_to_player
+1787697076.260389	worker	17753	gen12	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787697076.260934	worker	17753	gen12	election_won	gen=23 superseded=22 prev_owner=17681
+1787697076.261063	worker	17753	gen12	pending_found	n=11 names=19ededb0.pending,1e50da71.pending,316b3b31.pending,33f62e9b.pending,3efdee2a.pending,586da868.pending,6fcd2cde.pending,84a142a4.pending,8d3ff308.pending,92af5a82.pending,ebe7e593.pending
+1787697076.261186	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=17681 sig=14 gen=22 result=sent
+1787697076.261276	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=17638 sig=14 gen=21 result=ESRCH
+1787697076.261340	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=17554 sig=14 gen=20 result=ESRCH
+1787697076.261401	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=17508 sig=14 gen=19 result=ESRCH
+1787697076.261481	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=17233 sig=14 gen=18 result=ESRCH
+1787697076.261544	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=17094 sig=14 gen=17 result=ESRCH
+1787697076.261601	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=16946 sig=14 gen=16 result=ESRCH
+1787697076.261676	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=16884 sig=14 gen=15 result=ESRCH
+1787697076.261747	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=16748 sig=14 gen=14 result=ESRCH
+1787697076.261890	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=16665 sig=14 gen=13 result=ESRCH
+1787697076.262064	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=16590 sig=14 gen=12 result=ESRCH
+1787697076.262172	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=16548 sig=14 gen=11 result=ESRCH
+1787697076.262281	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=16461 sig=14 gen=10 result=ESRCH
+1787697076.262391	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=16417 sig=14 gen=9 result=ESRCH
+1787697076.262476	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=16338 sig=14 gen=8 result=ESRCH
+1787697076.262534	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=16280 sig=14 gen=7 result=ESRCH
+1787697076.262599	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=16207 sig=14 gen=6 result=ESRCH
+1787697076.262657	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=16137 sig=14 gen=5 result=ESRCH
+1787697076.262864	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=16040 sig=14 gen=4 result=ESRCH
+1787697076.262927	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=15988 sig=14 gen=3 result=ESRCH
+1787697076.262984	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=ESRCH
+1787697076.263043	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787697076.263168	worker	17753	gen12	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787697076.263226	worker	17753	gen12	election_sweep_pgid	groups=1 superseded=23
+1787697076.263359	worker	17753	gen12	kill_attempt	by=election-sweep site=record target=16369 sig=31 result=ESRCH
+1787697076.263437	worker	17753	gen12	kill_attempt	by=election-sweep site=record target=16636 sig=31 result=ESRCH
+1787697076.263507	worker	17753	gen12	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787697076.263569	worker	17753	gen12	kill_attempt	by=election-sweep site=record target=16805 sig=31 result=ESRCH
+1787697076.263646	worker	17753	gen12	kill_attempt	by=election-sweep site=record target=17601 sig=31 result=ESRCH
+1787697076.263709	worker	17753	gen12	kill_attempt	by=election-sweep site=record target=16507 sig=31 result=ESRCH
+1787697076.263785	worker	17753	gen12	kill_attempt	by=election-sweep site=record target=16089 sig=31 result=ESRCH
+1787697076.263840	worker	17753	gen12	kill_attempt	by=election-sweep site=record target=17349 sig=31 result=ESRCH
+1787697076.263895	worker	17753	gen12	kill_attempt	by=election-sweep site=record target=17014 sig=31 result=ESRCH
+1787697076.263957	worker	17753	gen12	kill_attempt	by=election-sweep site=record target=17728 sig=31 result=ESRCH
+1787697076.264015	worker	17753	gen12	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=ESRCH
+1787697076.264070	worker	17753	gen12	kill_attempt	by=election-sweep site=record target=16241 sig=31 result=ESRCH
+1787697076.264131	worker	17753	gen12	election_sweep_record	swept=0 rows=12 pids=16369,16636,15765,16805,17601,16507,16089,17349,17014,17728,15933,16241
+1787697076.974628	worker	17753	gen12	ready	after=0.714
+1787697077.141994	worker	17753	gen12	S_claim	job=j12a
+1787697077.142309	worker	17753	gen12	kill_attempt	by=worker-claim site=pidfile via=record target=16369 sig=30 result=ESRCH job=j12a
+1787697077.142424	worker	17753	gen12	kill_attempt	by=worker-claim site=pidfile via=record target=16636 sig=30 result=ESRCH job=j12a
+1787697077.142524	worker	17753	gen12	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j12a
+1787697077.142623	worker	17753	gen12	kill_attempt	by=worker-claim site=pidfile via=record target=16805 sig=30 result=ESRCH job=j12a
+1787697077.142711	worker	17753	gen12	kill_attempt	by=worker-claim site=pidfile via=record target=17601 sig=30 result=ESRCH job=j12a
+1787697077.142804	worker	17753	gen12	kill_attempt	by=worker-claim site=pidfile via=record target=16507 sig=30 result=ESRCH job=j12a
+1787697077.142960	worker	17753	gen12	kill_attempt	by=worker-claim site=pidfile via=record target=16089 sig=30 result=ESRCH job=j12a
+1787697077.143094	worker	17753	gen12	kill_attempt	by=worker-claim site=pidfile via=record target=17349 sig=30 result=ESRCH job=j12a
+1787697077.143199	worker	17753	gen12	kill_attempt	by=worker-claim site=pidfile via=record target=17014 sig=30 result=ESRCH job=j12a
+1787697077.143296	worker	17753	gen12	kill_attempt	by=worker-claim site=pidfile via=record target=17728 sig=30 result=ESRCH job=j12a
+1787697077.143387	worker	17753	gen12	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j12a
+1787697077.143478	worker	17753	gen12	kill_attempt	by=worker-claim site=pidfile via=record target=16241 sig=30 result=ESRCH job=j12a
+1787697078.153837	worker	17753	gen12	synth_done	job=j12a wav=-
+1787697078.154342	worker	17753	gen12	S2_prespawn_stat	job=j12a newer_waiting=0
+1787697079.170784	worker	17753	gen12	pending_created	job=j12a name=13e405cf.pending
+1787697079.174493	worker	17753	gen12	P_popen	job=j12a player_pid=17812 pid_mode=perplayer record=17812.13e405cf
+1787697079.174848	worker	17753	gen12	worker_die	where=between_P_and_W
+1787697079.646653	worker	17814	gen12r	signal_dispositions	SIGTERM=SIG_DFL SIGUSR1=SIG_DFL SIGUSR2=SIG_DFL SWEEP_PGID=SIG_DFL
+1787697079.647085	worker	17814	gen12r	election_won	gen=24 superseded=23 prev_owner=17753
+1787697079.647191	worker	17814	gen12r	pending_found	n=12 names=13e405cf.pending,19ededb0.pending,1e50da71.pending,316b3b31.pending,33f62e9b.pending,3efdee2a.pending,586da868.pending,6fcd2cde.pending,84a142a4.pending,8d3ff308.pending,92af5a82.pending,ebe7e593.pending
+1787697079.647296	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=17753 sig=14 gen=23 result=sent
+1787697079.647360	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=17681 sig=14 gen=22 result=ESRCH
+1787697079.647420	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=17638 sig=14 gen=21 result=ESRCH
+1787697079.647478	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=17554 sig=14 gen=20 result=ESRCH
+1787697079.647533	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=17508 sig=14 gen=19 result=ESRCH
+1787697079.647583	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=17233 sig=14 gen=18 result=ESRCH
+1787697079.647635	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=17094 sig=14 gen=17 result=ESRCH
+1787697079.647688	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=16946 sig=14 gen=16 result=ESRCH
+1787697079.647741	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=16884 sig=14 gen=15 result=ESRCH
+1787697079.647794	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=16748 sig=14 gen=14 result=ESRCH
+1787697079.647845	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=16665 sig=14 gen=13 result=ESRCH
+1787697079.647896	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=16590 sig=14 gen=12 result=ESRCH
+1787697079.648004	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=16548 sig=14 gen=11 result=ESRCH
+1787697079.648089	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=16461 sig=14 gen=10 result=ESRCH
+1787697079.648158	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=16417 sig=14 gen=9 result=ESRCH
+1787697079.648220	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=16338 sig=14 gen=8 result=ESRCH
+1787697079.648278	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=16280 sig=14 gen=7 result=ESRCH
+1787697079.648336	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=16207 sig=14 gen=6 result=ESRCH
+1787697079.648392	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=16137 sig=14 gen=5 result=ESRCH
+1787697079.648451	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=16040 sig=14 gen=4 result=ESRCH
+1787697079.648503	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=15988 sig=14 gen=3 result=ESRCH
+1787697079.648554	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=15879 sig=14 gen=2 result=ESRCH
+1787697079.648608	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=15813 sig=14 gen=1 result=ESRCH
+1787697079.648662	worker	17814	gen12r	kill_attempt	by=election-sweep site=pgid target=15713 sig=14 gen=0 result=ESRCH
+1787697079.648713	worker	17814	gen12r	election_sweep_pgid	groups=1 superseded=24
+1787697079.648835	worker	17814	gen12r	kill_attempt	by=election-sweep site=record target=16369 sig=31 result=ESRCH
+1787697079.648891	worker	17814	gen12r	kill_attempt	by=election-sweep site=record target=16636 sig=31 result=ESRCH
+1787697079.648942	worker	17814	gen12r	kill_attempt	by=election-sweep site=record target=15765 sig=31 result=ESRCH
+1787697079.648993	worker	17814	gen12r	kill_attempt	by=election-sweep site=record target=16805 sig=31 result=ESRCH
+1787697079.649045	worker	17814	gen12r	kill_attempt	by=election-sweep site=record target=17601 sig=31 result=ESRCH
+1787697079.649101	worker	17814	gen12r	kill_attempt	by=election-sweep site=record target=16507 sig=31 result=ESRCH
+1787697079.649155	worker	17814	gen12r	kill_attempt	by=election-sweep site=record target=16089 sig=31 result=ESRCH
+1787697079.649205	worker	17814	gen12r	kill_attempt	by=election-sweep site=record target=17349 sig=31 result=ESRCH
+1787697079.649258	worker	17814	gen12r	kill_attempt	by=election-sweep site=record target=17014 sig=31 result=ESRCH
+1787697079.649310	worker	17814	gen12r	kill_attempt	by=election-sweep site=record target=17728 sig=31 result=ESRCH
+1787697079.649364	worker	17814	gen12r	kill_attempt	by=election-sweep site=record target=15933 sig=31 result=ESRCH
+1787697079.649415	worker	17814	gen12r	kill_attempt	by=election-sweep site=record target=16241 sig=31 result=ESRCH
+1787697079.649474	worker	17814	gen12r	election_sweep_record	swept=0 rows=12 pids=16369,16636,15765,16805,17601,16507,16089,17349,17014,17728,15933,16241
+1787697080.359856	worker	17814	gen12r	ready	after=0.713
+1787697080.612765	worker	17814	gen12r	S_claim	job=j12b
+1787697080.613029	worker	17814	gen12r	kill_attempt	by=worker-claim site=pidfile via=record target=16369 sig=30 result=ESRCH job=j12b
+1787697080.613134	worker	17814	gen12r	kill_attempt	by=worker-claim site=pidfile via=record target=16636 sig=30 result=ESRCH job=j12b
+1787697080.613222	worker	17814	gen12r	kill_attempt	by=worker-claim site=pidfile via=record target=15765 sig=30 result=ESRCH job=j12b
+1787697080.613293	worker	17814	gen12r	kill_attempt	by=worker-claim site=pidfile via=record target=16805 sig=30 result=ESRCH job=j12b
+1787697080.613354	worker	17814	gen12r	kill_attempt	by=worker-claim site=pidfile via=record target=17601 sig=30 result=ESRCH job=j12b
+1787697080.613414	worker	17814	gen12r	kill_attempt	by=worker-claim site=pidfile via=record target=16507 sig=30 result=ESRCH job=j12b
+1787697080.613482	worker	17814	gen12r	kill_attempt	by=worker-claim site=pidfile via=record target=16089 sig=30 result=ESRCH job=j12b
+1787697080.613577	worker	17814	gen12r	kill_attempt	by=worker-claim site=pidfile via=record target=17349 sig=30 result=ESRCH job=j12b
+1787697080.613659	worker	17814	gen12r	kill_attempt	by=worker-claim site=pidfile via=record target=17014 sig=30 result=ESRCH job=j12b
+1787697080.613826	worker	17814	gen12r	kill_attempt	by=worker-claim site=pidfile via=record target=17728 sig=30 result=ESRCH job=j12b
+1787697080.613894	worker	17814	gen12r	kill_attempt	by=worker-claim site=pidfile via=record target=15933 sig=30 result=ESRCH job=j12b
+1787697080.613955	worker	17814	gen12r	kill_attempt	by=worker-claim site=pidfile via=record target=16241 sig=30 result=ESRCH job=j12b
+1787697081.621892	worker	17814	gen12r	synth_done	job=j12b wav=-
+1787697081.622632	worker	17814	gen12r	S2_prespawn_stat	job=j12b newer_waiting=0
+1787697082.626965	worker	17814	gen12r	pending_created	job=j12b name=50c7ce14.pending
+1787697082.629311	worker	17814	gen12r	P_popen	job=j12b player_pid=17862 pid_mode=perplayer record=17862.50c7ce14
+1787697082.629631	worker	17814	gen12r	W_pid_write	job=j12b player_pid=17862 by=player result=deferred_to_player

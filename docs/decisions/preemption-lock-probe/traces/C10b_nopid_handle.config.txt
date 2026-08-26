@@ -1,0 +1,4 @@
+cfg=C10b_nopid_handle delay=0 gap=1.6 ck=handle rechk=on die=none respawn=no
+respawn_delay=1.2 pidmode=worker pubdelay=0 sweepmode=off
+sweepgap=0 reapdelay=0 unlinkreap=off ledger=off pidw=off
+pending=off
