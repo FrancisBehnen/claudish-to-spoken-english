@@ -288,13 +288,40 @@ def await_barrier():
 
 
 def ack_barrier():
-    """Racer: announce arrival at the protocol read, then read immediately."""
+    """Racer: acknowledge only AFTER actually observing the state under test.
+
+    An acknowledgement written before the protocol read proves nothing: at a 0 ms
+    stall the winner can see the last ack and publish its pid before that racer ever
+    looks, and the cell degenerates into an ordinary live-owner check -- the same
+    false-clean this barrier exists to prevent, one level down. So the racer waits
+    here until it has SEEN the state its protocol is being tested against, and only
+    then releases the winner.
+
+    For `current`/`spec` that state is the pid-less lock: the directory exists and
+    `pid` does not. For `proposed` there is no pid-less state by construction -- the
+    symlink's target is created with it -- so the observation is simply that a
+    generation record exists.
+    """
     if not A.barrier_dir:
         return
     os.makedirs(A.barrier_dir, exist_ok=True)
+    deadline = time.time() + 5.0
+    while True:
+        if A.protocol == "proposed":
+            seen = highest_gen() is not None
+        else:
+            seen = os.path.isdir(LOCK) and not os.path.exists(LOCK_PID)
+        if seen:
+            break
+        if time.time() > deadline:
+            # Never observed the window. Say so loudly: the driver turns this into
+            # VOID rather than letting it score as a protocol result.
+            rec("observe_timeout", protocol=A.protocol)
+            return
+        time.sleep(0.0005)
     try:
         open(os.path.join(A.barrier_dir, f"r{os.getpid()}"), "w").close()
-        rec("barrier_ack")
+        rec("barrier_ack", observed="pid_less" if A.protocol != "proposed" else "gen")
     except OSError:
         pass
 

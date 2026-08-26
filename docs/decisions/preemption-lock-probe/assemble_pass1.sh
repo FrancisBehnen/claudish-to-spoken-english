@@ -10,7 +10,8 @@ first=1
 : > "$DEST/preemption-trials-replication.tsv"
 for d in "$O"/C1_prespawn-* "$O"/C2_hookside-* "$O"/C3_adversarial-1787683326 \
          "$O"/C4_noclaimkill-* "$O"/C5_norecheck-* "$O"/C6_handle-* \
-         "$O"/C7_noreap-* "$O"/C8_orphan-* "$O"/C9_ledger-*; do
+         "$O"/C7_noreap-* "$O"/C8_orphan-* "$O"/C9_ledger-* \
+         "$O"/C10a_nopid_pidfile-* "$O"/C10b_nopid_handle-*; do
   [[ -d "$d" ]] || continue
   cfg=$(basename "$d"); cfg=${cfg%-*}
   bash "$R/collect.sh" "$d" "$cfg" > /dev/null

@@ -653,9 +653,14 @@ that record appears, each racer has to start a **fresh Python interpreter**, ten
 milliseconds, while the window under test at stall 0 and 5 ms is *smaller than that*. The
 winner would write its pid first and the cell would degenerate exactly as before — so
 "the racers land inside the window by construction" was wrong when this document first
-claimed it. The staging is now a **two-way barrier**: each racer writes one file the
-instant before its protocol read, the winner blocks after claiming until `N` of those
-appear, and only then applies the stall and writes its pid. The window is therefore
+claimed it. The staging is now a **two-phase barrier**, and the first attempt at *that*
+was also too weak: an acknowledgement written just *before* the protocol read still lets
+the winner see the last ack and publish before that racer looks. So a racer now
+acknowledges only **after it has actually observed the state under test** — for
+`current`/`spec` a lock directory with no `pid` in it, for `proposed` an existing
+generation record, there being no pid-less state to observe. The winner blocks after
+claiming until `N` such acknowledgements appear, and only then applies the stall and
+writes its pid. The window is therefore
 established by *ordering* rather than by out-running an interpreter start.
 A trial whose staging still fails emits `VOID` — and `summarise.sh` excludes `VOID` from
 both the numerator and the denominator and reports it on its own line, because a staging
@@ -984,10 +989,17 @@ Each of these is named with the experiment that closes it, not softened.
   `P` leaves no player and therefore no orphan, and death after `W` is covered because the
   record exists.
 - **More than one orphan at once.** Requires two worker deaths each leaving a live player.
-  The ledger form measured here handles N orphans by construction; the simpler
-  single-`speak/pid` form proposed in 4b(i) handles exactly one. **The measured arm is the
-  ledger; the single-record variant is [inferred].** To close: stage two consecutive
-  worker deaths inside one player's lifetime and count survivors under each form.
+  **This limitation used to say the proposed form handles exactly one orphan, and that is
+  no longer what 4b(i) proposes.** Clause 4b(i) now specifies **unique per-player records**
+  — `playerdir/<pid>.<nonce>`, one per player, never overwritten — so representing N
+  simultaneous orphans is no longer the open question; the record set does it by
+  construction, exactly as the ledger did. What remains unmeasured is narrower and worth
+  stating precisely: whether the **paired** sweeps of 7(iv) and 7(iv-a) still reach every
+  orphan across **consecutive** worker deaths, where each new election must sweep a
+  superseded generation it did not itself create. `sweep_pgid` walks every generation down
+  to zero for that reason, and no arm here staged two deaths inside one player's lifetime.
+  **[inferred]**. To close: stage two consecutive worker deaths inside one player's
+  lifetime and count survivors under the paired sweeps.
 - **Real `afplay` in the adversarial ordering at scale.** The real-audio arm is 3 trials,
   not 12 (§2.6). The stub establishes the ordering and the attribution; the real arm only
   answers audibility. To close: run `run_real.sh` at n = 12 per arm. It costs ~5 minutes and
