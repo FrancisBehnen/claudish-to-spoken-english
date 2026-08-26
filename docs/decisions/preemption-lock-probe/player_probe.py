@@ -15,6 +15,7 @@ usage: player_probe.py <secs> <log> <tag> [ledger]
 """
 import os
 import signal
+import subprocess
 import sys
 import time
 
@@ -23,9 +24,36 @@ log = sys.argv[2]
 tag = sys.argv[3]
 ledger = sys.argv[4] if len(sys.argv) > 4 else ""
 
+
+def starttime(pid):
+    """`ps -o lstart= -p <pid>`, spaces squeezed to `_`. See speakd_probe's copy.
+
+    The ledger is a player RECORD -- `read_player_records()` returns its rows and the
+    election sweep and the claim-time kill both signal them -- so its first field carries
+    the same `<pid>.<starttime>` identity as every other player record. A ledger row that
+    carried a bare pid under `--player-identity on` would read as `unverifiable` and be
+    refused by every signaller, which would silently disarm the two arms that use it.
+    """
+    try:
+        out = subprocess.run(["/bin/ps", "-o", "lstart=", "-p", str(pid)],
+                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    except OSError:
+        return None
+    if out.returncode != 0:
+        return None
+    s = out.stdout.decode("utf-8", "replace").strip()
+    return "_".join(s.split()) if s else None
+
+
 if ledger:
+    # One extra fork, before player_start is stamped, and ONLY in the two ledger arms
+    # (C9, C13a). No arm that derives a figure from player_start runs ledger=on -- C14a
+    # and C14b are ledger=off -- so this perturbs no published timestamp.
+    me = os.getpid()
+    st = starttime(me) if os.environ.get("PLAYER_IDENTITY", "on") == "on" else None
     with open(ledger, "a") as fh:
-        fh.write(f"{os.getpid()}\t{tag}\t{time.time():.6f}\n")
+        fh.write(f"{me}.{st}\t{tag}\t{time.time():.6f}\n" if st
+                 else f"{me}\t{tag}\t{time.time():.6f}\n")
         fh.flush()
         os.fsync(fh.fileno())
 

@@ -46,6 +46,18 @@ FILENAME ~ /markers\.tsv$/ {
 }
 FILENAME ~ /kills\.log$/ {
   # tag  hook  pid  kill_attempt  by=.. target=.. sig=.. result=..
+  #
+  # ROUND 21: THE EVENT COLUMN IS NOW CHECKED. The hook emits a second kind of row --
+  # `record_skipped … verdict=recycled|unverifiable`, when the identity of the player record
+  # does not verify -- and that row has a `target=` but NO `result=`. Folding it into the
+  # same flat `K[tag.field]` map let a skipped target from one hook invocation overwrite the
+  # target it actually killed, since a per-player hook can do both in one call. The
+  # columns below mean "what the hook DID", so only `kill_attempt` may write them.
+  # Skipped rows are counted and reported rather than dropped in silence, because the
+  # whole lesson of this file is that a row nothing consumes is a row nobody knows is
+  # missing. NOTE: no apostrophes below this line -- the awk program is single-quoted, and
+  # one apostrophe in a comment ends the shell string. It cost a round.
+  if ($4 != "kill_attempt") { if ($4 == "record_skipped") nskip++; next }
   split($5, f, " ")
   for (i in f) { split(f[i], kv, "="); K[$1 "." kv[1]] = kv[2] }
   next
@@ -88,6 +100,11 @@ FILENAME ~ /worker\.trace$/ {
   next
 }
 END {
+  # Reported, not silently dropped. The TSV schema is deliberately unchanged -- adding a
+  # column would break every consumer -- so the count goes to stderr, where the callers
+  # of this script already look for the completeness complaints below.
+  if (nskip)
+    printf "collect.sh: %d hook `record_skipped` row(s) in kills.log -- the hook refused a\n            player record on identity grounds. Not a kill and not a `nopid`; see the\n            raw kills.log, since no trials.tsv column carries it.\n", nskip > "/dev/stderr"
   printf "config\ttrial\tR_a\tK_b\tR_b\tRdone_b\tS\tS2\tP\tW\tnewer_at_S2\tdiscarded\t"
   printf "player_pid\trc\tkilled_by_sig\talive_s\tplayer_log_sig\taudible_s\t"
   printf "p_start_ts\tp_end_ts\t"

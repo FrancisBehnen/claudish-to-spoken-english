@@ -59,6 +59,30 @@ Round 15, added after review found the FOURTH distinct defect in the `.pending` 
                          one input the falsification arm produces. The degradation now
                          keys on the OPTION and never on the record's shape.
 
+Round 21, after review found the SAME defect one record over:
+  --player-identity on|off
+                         the PLAYER record's CONTENT is `<pid>.<starttime>` rather than
+                         a bare pid, and every site that signals a pid read from a
+                         player record -- the hook (`hook_probe.sh`), the election-time
+                         record sweep, and the worker's claim-time kill -- re-reads the
+                         pid's current start time and SKIPS IN SILENCE on a mismatch.
+                         Round 15 gave the OWNER record an identity and left the player
+                         records a bare number. That is not a smaller hole, it is the
+                         same hole: a player record outlives its player indefinitely --
+                         the committed C12b warm-up record `94309.c8debde7` is still in
+                         the sweep's target list on 24 of its 25 elections, ESRCH every
+                         time -- so after pid reuse the sweep's `os.kill` and the hook's
+                         `SIGTERM` both land on a stranger. The anchored `<pid>.<8-hex>`
+                         NAME shape added in round 20 stops a `.pending` marker being
+                         parsed as a pid; it does not make the pid an identity, and it
+                         was read as though it had.
+                         THE NAME SHAPE IS UNCHANGED and the start time rides in the
+                         record's CONTENT, because PR #27's §10.5 clause 7(i) specifies
+                         it that way and the two documents must describe ONE scheme.
+                         `off` is the bare-pid falsification arm, and the degradation
+                         keys on the OPTION and never on the record -- round 16's lesson,
+                         applied here before it could be learned twice.
+
 Timestamps recorded, named as spec 13 row 20 names them:
   S  claim (rename job -> job.taken.<pid>)   S2 prespawn recheck stat
   P  player Popen                            W  pid record published
@@ -144,9 +168,26 @@ ap.add_argument("--owner-identity", choices=["off", "on"], default="on",
                      "stranger's group. Under `on` a record with NO start time is "
                      "UNVERIFIABLE and never degrades to the pid test: the sweep "
                      "refuses to signal it and leaves its marker standing, the election "
-                     "supersedes it without signalling anything.")
+                     "refuses to supersede it while a process still holds its pid.")
+ap.add_argument("--player-identity", choices=["off", "on"], default="on",
+                help="the PLAYER record's CONTENT is `<pid>.<starttime>` rather than a "
+                     "bare pid, and every site that signals a pid read from a player "
+                     "record -- the hook, the election-time record sweep, and the "
+                     "worker's claim-time kill -- re-reads that pid's current start "
+                     "time and SKIPS IN SILENCE on a mismatch. The record NAME is "
+                     "unchanged, `<pid>.<8-hex-nonce>`, matched anchored as before: PR "
+                     "#27's clause 7(i) carries the identity in the content and the two "
+                     "documents must specify one scheme. `off` is the bare-pid arm this "
+                     "exists to falsify. Under `on` a record carrying no start time is "
+                     "UNVERIFIABLE and never degrades to the pid-existence test; every "
+                     "signaller refuses it.")
 ap.add_argument("--generation", default="1")
 A = ap.parse_args()
+
+# The ledger is written by the PLAYER, so the player has to know whether it is publishing
+# an identity. Set it here, once, so both spawn paths carry it: the worker-mode `Popen`
+# inherits os.environ untouched, and the player-published path builds its env from it.
+os.environ["PLAYER_IDENTITY"] = A.player_identity
 
 if A.sweep_on_election == "on" and A.sweep_mode == "off":
     A.sweep_mode = "record"
@@ -246,12 +287,21 @@ MYGEN = None             # the generation THIS worker created; tags its .pending
 # and there is still no partially-initialised state to interpret.
 MY_STARTTIME = proc_starttime(os.getpid()) if A.owner_identity == "on" else None
 if A.owner_identity == "on" and MY_STARTTIME is None:
-    # Degrading to a bare pid here is worse than not starting. `on` PROMISES a
-    # <pid>.<starttime> record, so a bare one published under `on` is read by the next
-    # contender as `unverifiable` -- and unverifiable supersedes, deliberately. A worker
-    # that cannot state its own identity would therefore be superseded while alive, and
-    # two workers would own the session: the exact failure the identity test was added to
-    # prevent, reached by the mechanism meant to prevent it.
+    # Degrading to a bare pid here is worse than not starting, and ROUND 21 CHANGED THE
+    # REASON WITHOUT CHANGING THE RULE. Round 16's reason was that `unverifiable`
+    # superseded unconditionally, so a worker that could not state its identity would be
+    # superseded while alive and two workers would own the session. The election no longer
+    # does that -- it refuses to supersede an unverifiable owner whose pid is still held --
+    # so that particular failure is now closed from the other side.
+    #
+    # The rule stands on what happens LATER. A bare record under `on` is unverifiable
+    # forever: when this worker dies, the next contender can only ask whether some process
+    # holds the number, and if the pid has been recycled by then it refuses and THE SESSION
+    # WEDGES until that stranger exits. An identity record turns the same death into a
+    # clean `recycled` or `gone` verdict and a clean succession. So publishing bare under
+    # `on` converts a recoverable death into a possibly permanent silence, which is a worse
+    # trade than declining to start at all -- and declining is immediate, attributable, and
+    # leaves the session exactly as it was.
     sys.stderr.write("speakd_probe: --owner-identity=on but this process's own start "
                      "time is unreadable; refusing to publish a bare-pid record.\n")
     sys.exit(4)
@@ -305,7 +355,10 @@ def owner_identity(pid, st):
                  -- the option is ON but the RECORD carries no start time (a bare
                     `<pid>` written by an `--owner-identity off` worker, or by a worker
                     that predates the option). There is nothing to compare against, so
-                    none of the three verdicts above can be reached honestly.
+                    none of the three verdicts above can be reached honestly. In
+                    particular it does NOT mean "dead": a bare record may belong to a
+                    live legacy worker, and the election treats it accordingly -- see
+                    `elect()`, which refuses to supersede one whose pid is still held.
 
     ROUND 16 -- THE HOLE THE OPTION LEFT IN ITSELF. Round 15 wrote the guard as
     `if A.owner_identity == "off" or st is None`, which made a bare record degrade to
@@ -362,23 +415,68 @@ def elect():
             rec("owner_pid_recycled", site="election", gen=g, pid=owner,
                 recorded=owner_st, live=live_st)
         if verdict == "unverifiable":
-            # A bare record under --owner-identity on. THE TWO SITES FAIL SAFE IN
-            # OPPOSITE DIRECTIONS, and that is deliberate, because their unsafe outcomes
-            # are not the same size:
-            #   * the SWEEP's unsafe act is `killpg` at an unverified process group --
-            #     it damages a third party, and is irreversible. It refuses.
-            #   * the ELECTION's acts are `symlink` and `return False`. Neither signals
-            #     anything. Treating an unverifiable owner as LIVE would restore the
-            #     precise liveness defect the identity test was added to fix -- a bare
-            #     record whose pid a stranger now holds would hold the lock forever and
-            #     no worker would ever consume a job -- while buying no safety at all,
-            #     because the only destructive consequence of superseding is the pgid
-            #     sweep, and the sweep now refuses this verdict on its own.
-            # So supersede, exactly as for "gone", and let the sweep be the guard. The
-            # entry still enters `superseded`; it is refused THERE, on its own evidence,
-            # rather than by an election that has no better information than the sweep.
+            # A bare record under --owner-identity on: a MIGRATION record, written by an
+            # `off` worker or by one predating the option.
+            #
+            # ROUND 21 REPLACES ROUND 16'S REASONING HERE, WHICH WAS WRONG IN ITS PREMISE
+            # RATHER THAN ITS CONCLUSION. Round 16 argued: supersede freely, because "the
+            # only destructive consequence of superseding is the pgid sweep, and the
+            # sweep refuses this verdict on its own". That premise is false. Superseding
+            # is not merely a licence to signal -- IT IS THE LICENCE TO CONSUME JOBS.
+            # A bare record may belong to a LIVE LEGACY WORKER, and there is no evidence
+            # in the record that says otherwise. Supersede that worker and it keeps
+            # claiming jobs from `speak/job` and keeps spawning players, while this worker
+            # does the same at `gen+1`: TWO OWNERS, overlapping audio, which is the single
+            # invariant the whole protocol exists to hold. The sweep refusing to `killpg`
+            # does not help; it is a different act with a different victim.
+            #
+            # AND SUPERSEDING CANNOT BE MADE INTO A DRAIN, which is the repair one reaches
+            # for first. Nothing in this protocol observes being superseded: `MYGEN` is
+            # assigned once, here, and `highest_gen()` is called from nowhere but `elect()`
+            # -- a worker that has won never looks at the lock again. So creating `gen+1`
+            # tells the incumbent nothing, and no notice can be added that reaches it,
+            # because a LEGACY worker is by definition one that predates whatever notice
+            # we would add. Announce-and-drain is unavailable in principle here, not
+            # merely unimplemented.
+            #
+            # SO THE POLICY IS DECIDED ON THE RECORD'S OWN EVIDENCE, AND IT SPLITS. The
+            # record cannot tell a live legacy owner from a recycled pid -- but `kill(pid,
+            # 0)` can tell BOTH of those from a pid that names nothing at all, and a live
+            # legacy owner necessarily holds its pid:
+            #   * PID VACANT -- no process has that pid, so there is no live legacy worker
+            #     to double up with, whatever wrote the record. Superseding cannot produce
+            #     two owners. SUPERSEDE. This is the case round 16's liveness argument was
+            #     actually about, and it is the common one: the ordinary reason a stale
+            #     bare record is lying around is that its worker died.
+            #   * PID HELD -- either the legacy owner is still running, or its pid has been
+            #     recycled by a stranger. Indistinguishable, and the two demand opposite
+            #     actions. REFUSE: lose the election and consume nothing.
+            #
+            # WHAT REFUSING COSTS, STATED PLAINLY. If the pid was in fact recycled, this
+            # session WEDGES -- no worker ever wins, no job is ever claimed, and nothing is
+            # ever spoken -- for as long as some unrelated process holds that number. That
+            # is a real cost and it is chosen, not overlooked. Three things bound it:
+            #   (1) it is a LIVENESS failure, and silence is the failure mode this document
+            #       accepts everywhere else; two owners is a SAFETY failure, and audible.
+            #   (2) it is confined to ONE SESSION. These records live under
+            #       `$BUF_ROOT/<session_id>/speak/`, so a wedged session cannot wedge the
+            #       next one, and the operator clears it by removing that directory.
+            #   (3) it is LOUD: every election records the refusal, by pid, so the wedge is
+            #       diagnosable rather than a session that mysteriously stopped talking.
+            #
+            # AND MIXED MODE IS OUT OF CONTRACT. A bare-record worker and an identity-record
+            # worker must not share a session; the supported upgrade is a DRAINED one --
+            # stop the old worker, or let the session end, then start the new one. This
+            # branch is what makes the unsupported case fail visibly and safely instead of
+            # quietly running two owners, and it is not a licence to run mixed.
+            if alive(owner):
+                rec("owner_record_unverifiable", site="election", gen=g, pid=owner,
+                    action="refused_pid_held")
+                rec("election_lost", held_by=owner, gen=g,
+                    reason="unverifiable_record_pid_held")
+                return False
             rec("owner_record_unverifiable", site="election", gen=g, pid=owner,
-                action="superseded_without_signal")
+                action="superseded_pid_vacant")
         if verdict == "same":
             rec("election_lost", held_by=owner, gen=g)
             return False
@@ -595,42 +693,143 @@ def sweep_pgid():
 RECORD_RE = re.compile(r"^(\d+)\.[0-9a-f]{8}$")
 
 
+def split_record(field):
+    """`<pid>` or `<pid>.<starttime>` -> (pid, starttime|None); None on garbage.
+
+    Split on the FIRST dot, exactly as `read_owner()` does, and for the same reason: a
+    Darwin pid is decimal digits only and the start time is appended, never prepended.
+    """
+    pid, _, st = field.strip().partition(".")
+    try:
+        return (int(pid), st or None)
+    except ValueError:
+        return None
+
+
 def read_player_records():
-    """Every pid currently published, with the path that published it."""
+    """Every pid currently published: (pid, path, recorded_starttime).
+
+    ROUND 21 -- THE THIRD FIELD, AND WHY THE NAME DOES NOT CARRY IT. A player record's
+    name is `<pid>.<nonce>` and the nonce is not an identity, so the pid in the NAME is a
+    number that outlives the process that published it. The identity is the record's
+    CONTENT, `<pid>.<starttime>`, written by whoever publishes the record and re-read by
+    every signaller. This matches PR #27 clause 7(i) deliberately -- it specifies the
+    same content and the same anchored name -- so the two documents describe one scheme.
+
+    THE NAME'S PID AND THE CONTENT'S PID MUST AGREE. They are written by the same act,
+    so a disagreement is a corrupt or half-written record, and a signaller that trusted
+    the name while reading somebody else's start time would verify one process and signal
+    another. A mismatch yields no start time, which every caller reads as unverifiable
+    and refuses. Under `--player-identity off` the content is a bare pid and this reduces
+    to the round-20 behaviour exactly, which is what the falsification arm needs.
+    """
     out = []
     if A.pid_mode == "perplayer":
         try:
-            for name in os.listdir(PLAYERDIR):
-                m = RECORD_RE.match(name)
-                if m:
-                    out.append((int(m.group(1)),
-                                os.path.join(PLAYERDIR, name)))
+            names = os.listdir(PLAYERDIR)
         except OSError:
-            pass
+            return out
+        for name in names:
+            m = RECORD_RE.match(name)
+            if not m:
+                continue
+            path = os.path.join(PLAYERDIR, name)
+            named_pid = int(m.group(1))
+            st = None
+            if A.player_identity == "on":
+                try:
+                    body = split_record(open(path).read())
+                except OSError:
+                    # The record went away between the listdir and the open. It names
+                    # nothing now; dropping the row is the same outcome as never having
+                    # seen it, and is safe because the player it named cannot be reached
+                    # through a record that no longer exists.
+                    continue
+                if body is not None and body[0] == named_pid:
+                    st = body[1]
+            out.append((named_pid, path, st))
         return out
     if A.ledger == "on":
         try:
             for row in open(LEDGER):
                 if row.strip():
-                    try:
-                        out.append((int(row.split("\t")[0]), LEDGER))
-                    except ValueError:
-                        pass
+                    body = split_record(row.split("\t")[0])
+                    if body is not None:
+                        out.append((body[0], LEDGER,
+                                    body[1] if A.player_identity == "on" else None))
         except OSError:
             pass
         return out
     try:
-        out.append((int(open(PIDF).read().strip()), PIDF))
-    except (OSError, ValueError):
-        pass
+        body = split_record(open(PIDF).read())
+    except OSError:
+        body = None
+    if body is not None:
+        out.append((body[0], PIDF,
+                    body[1] if A.player_identity == "on" else None))
     return out
+
+
+def player_identity(pid, st):
+    """SAME / RECYCLED / GONE / UNVERIFIABLE for a pid read from a PLAYER record.
+
+    The same four-way as `owner_identity()`, over a different record, and it is a
+    SEPARATE function on purpose: round 20's review found that the owner's start time had
+    been credited against a player's pid, and one function serving both records is how
+    that gets done again. The owner record says nothing whatever about a player process.
+
+    THE DEGRADATION KEYS ON THE OPTION AND NEVER ON THE RECORD SHAPE -- round 16's
+    finding, applied here before it could be rediscovered. Under `off` every record
+    degrades to the pid-existence test, which is the arm being falsified; under `on` a
+    record that cannot be verified is `unverifiable` and every signaller refuses it. No
+    record shape can turn `on` back into `off`.
+
+    Unlike the owner's, ALL THREE of this verdict's consumers are `kill(pid, sig)` at a
+    single process -- never `killpg` -- so there is no site here that fails safe in the
+    other direction. All three refuse `recycled` and `unverifiable` and all three signal
+    `same`.
+
+    `GONE` STILL ATTEMPTS THE KILL, and that is a deliberate match to PR #27 rather than
+    an oversight. Clause 7(i) says every signaller "skips in silence on a MISMATCH"; a
+    vacant pid is not a mismatch. The attempt raises ESRCH and is recorded as ESRCH,
+    which is exactly what a bare-pid signaller did, so no arm's accounting moves and
+    `collect.sh`'s sweep columns keep their meaning. The residual is a race -- `ps` says
+    vacant, the pid is reused, the `kill` lands on the stranger -- and it is narrower
+    than the hazard being closed here rather than a separate one: closing it needs the
+    same pid-allocator property row 20(b) already blocks on, so it is named there and not
+    papered over with a skip that would change what four committed arms measured.
+    """
+    if A.player_identity == "off":
+        return ("same" if alive(pid) else "gone"), None
+    if st is None:
+        return "unverifiable", None
+    cur = proc_starttime(pid)
+    if cur is None:
+        return "gone", None
+    if cur != st:
+        return "recycled", cur
+    return "same", cur
 
 
 def sweep_record():
     rows = read_player_records()
     n = 0
-    for p, _src in rows:
+    skipped = 0
+    for p, _src, st in rows:
         if p == os.getpid():
+            continue
+        # ROUND 21. This loop used to go from a number parsed out of a FILENAME straight
+        # to `os.kill`, with nothing between them. The name is matched anchored, which
+        # stops a `.pending` marker being read as a pid, and that was mistaken for making
+        # the pid an identity. It does not: nothing removes a player record when its
+        # player dies, so the record outlives it for the whole session -- C12b's warm-up
+        # record is in this list on 24 of 25 elections -- and the first pid reuse turns
+        # this line into a signal at a stranger.
+        verdict, live_st = player_identity(p, st)
+        if verdict in ("recycled", "unverifiable"):
+            rec("record_skipped", by="election-sweep", site="record", target=p,
+                verdict=verdict, recorded=(st or "-"), live=(live_st or "-"))
+            skipped += 1
             continue
         try:
             os.kill(p, SIG_SWEEP_REC)
@@ -640,7 +839,7 @@ def sweep_record():
         except OSError:
             rec("kill_attempt", by="election-sweep", site="record", target=p,
                 sig=int(SIG_SWEEP_REC), result="ESRCH")
-    rec("election_sweep_record", swept=n, rows=len(rows),
+    rec("election_sweep_record", swept=n, rows=len(rows), skipped=skipped,
         pids=(",".join(str(x[0]) for x in rows) or "-"))
     # The round-1 ledger truncation, kept switchable BECAUSE it is the defect:
     # anything appended between the read above and this truncate is erased without
@@ -648,7 +847,7 @@ def sweep_record():
     if A.ledger == "on":
         if A.sweep_gap_ms:
             time.sleep(A.sweep_gap_ms / 1000.0)
-        at_truncate = [str(x[0]) for x in read_player_records()]
+        at_truncate = [str(x[0]) for x in read_player_records()]  # (pid, path, st)
         try:
             open(LEDGER, "w").close()
             rec("ledger_truncated", held_at_truncate=(",".join(at_truncate) or "-"),
@@ -719,9 +918,23 @@ def reap(proc, jid, t_popen, record):
 def kill_player(site, sig, jid):
     targets = []
     if site in ("handle", "both") and player is not None:
+        # The in-memory handle is NOT a record and needs no identity test. It is a
+        # `Popen` object for a child this process forked, so the pid is reserved until
+        # this process reaps it -- there is no window in which it can name a stranger.
         targets.append(("handle", player.pid))
     if site in ("pidfile", "both"):
-        for p, _s in read_player_records():
+        # ROUND 21. The third signaller of a recorded player pid, and the one the review
+        # did not name -- it reads the same records the sweep does, through the same
+        # function, and `kill(pid, SIGUSR1)` at a stale pid is the same act. Guarding two
+        # of three sites is how a repair ships broken, so it is guarded here too. This is
+        # PR #27's clause 7(iii); the sweep is 7(iv-a) and the hook is 10.3 step 6.
+        for p, _s, st in read_player_records():
+            verdict, live_st = player_identity(p, st)
+            if verdict in ("recycled", "unverifiable"):
+                rec("record_skipped", by="worker-claim", site=site, target=p,
+                    verdict=verdict, recorded=(st or "-"), live=(live_st or "-"),
+                    job=jid)
+                continue
             targets.append(("record", p))
     if not targets:
         rec("kill_attempt", by="worker-claim", site=site, target="none",
@@ -846,11 +1059,35 @@ while True:
         # is exactly the invariant this document asserts, inverted, inside the rig that
         # measures it. Exit 97 instead of exec'ing, so the reap attributes it rather than
         # reading it as a player that ran to completion.
+        # ROUND 21: THE RECORD'S CONTENT IS THE PLAYER'S OWN `<pid>.<starttime>`, obtained
+        # here, before the rename that publishes it -- PR #27 clause 7(i), matched field
+        # for field so the two documents specify one scheme. The NAME is untouched: it is
+        # still `<pid>.<nonce>` and still matched anchored, because the nonce is what
+        # makes the path unique and the start time is what makes the pid an identity, and
+        # those are two different jobs.
+        #
+        # `ps -o lstart=` on $$ cannot fail for a live self, but if it somehow returns
+        # nothing the wrapper EXITS RATHER THAN PUBLISHING A BARE RECORD -- the same rule,
+        # for the same reason, as the worker's refusal to publish a bare owner record
+        # under `--owner-identity on`. `on` PROMISES an identity, so a bare record
+        # published under it reads as `unverifiable` and every signaller refuses it: the
+        # player would be audible and unreachable by all three kill sites, which is the
+        # one state this whole document says must not exist. Exit 96 instead, so the reap
+        # attributes it rather than reading it as a player that ran to completion.
+        #
+        # `tr -s " " "_"` then stripping one leading and one trailing `_` is exactly
+        # `"_".join(s.split())`, which is what `proc_starttime()` does on the reading
+        # side. The two must agree as strings or every comparison fails closed.
+        ident = ('st=$(/bin/ps -o lstart= -p $$ | tr -s " " "_"); '
+                 'st=${st#_}; st=${st%_}; '
+                 '[ -n "$st" ] || exit 96; id="$$.$st"; '
+                 if A.player_identity == "on" else 'id="$$"; ')
         sh = ('sleep "$PUBDELAY"; '
               'rp=$(printf %s "$REC" | sed "s/PIDPLACEHOLDER/$$/"); '
-              'if [ -n "$PENDING" ]; then printf "%s\\n" "$$" > "$PENDING" && '
+              + ident +
+              'if [ -n "$PENDING" ]; then printf "%s\\n" "$id" > "$PENDING" && '
               'mv "$PENDING" "$rp" || exit 97; '
-              'else printf "%s\\n" "$$" > "$rp.tmp" && mv "$rp.tmp" "$rp" || exit 97; fi; '
+              'else printf "%s\\n" "$id" > "$rp.tmp" && mv "$rp.tmp" "$rp" || exit 97; fi; '
               'exec "$@"')
         env = dict(os.environ, REC=recpath, PENDING=(pending or ""),
                    PUBDELAY=str(A.publish_delay_ms / 1000.0))
@@ -869,9 +1106,18 @@ while True:
     # ------------------------------------------------------------------ W
     if A.pid_mode == "worker":
         if A.pid_write == "on":
+            # The worker publishes this one, so the worker obtains the identity -- of the
+            # CHILD, not of itself. `proc_starttime(player.pid)` can legitimately come
+            # back None here, and only in one case: the child is already gone. Writing a
+            # bare record then is fail-safe rather than a degradation, because every
+            # reader treats it as `unverifiable` and refuses to signal it, and there is
+            # nothing left to signal. It is recorded so it is visible rather than assumed.
+            st = proc_starttime(player.pid) if A.player_identity == "on" else None
             with open(PIDF, "w") as fh:
-                fh.write(f"{player.pid}\n")
-            rec("W_pid_write", job=jid, player_pid=player.pid, by="worker")
+                fh.write(f"{player.pid}.{st}\n" if st else f"{player.pid}\n")
+            rec("W_pid_write", job=jid, player_pid=player.pid, by="worker",
+                identity=(st or ("off" if A.player_identity == "off"
+                                 else "unavailable")))
         else:
             rec("W_pid_write", job=jid, player_pid=player.pid, result="disabled")
     else:

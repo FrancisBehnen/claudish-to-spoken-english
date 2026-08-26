@@ -154,13 +154,22 @@ need "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.worker.trace" && 
 ' "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.worker.trace" || derive_failed C14a-order; }
 echo "   and the consequence, from the hook side:"
 need "$T/C14a_shared_unlink.hook-kills.log" && { awk -F'\t' '
+  # ROUND 21: THE EVENT COLUMN IS CHECKED BEFORE `result=` IS EXTRACTED. The hook now also
+  # emits `record_skipped … verdict=…`, which carries no `result=` at all -- so the blind
+  # `sub(/^.*result=/…)` below left the whole tag in `r` and filed the row under a bucket
+  # named after the tag. Nothing crashed and no total moved; the row simply vanished from
+  # the denominator, which is the defect this document keeps finding, in miniature.
+  $4 == "record_skipped" { SK++; next }
+  $4 != "kill_attempt"   { OTHER++; next }
   { r = $0; sub(/^.*result=/, "", r); sub(/[ \t].*$/, "", r)
     if ($1 ~ /a$/)      A[r]++
     else if ($1 ~ /b$/) B[r]++
     else if ($1 ~ /c$/) C[r]++
     else                W[r]++
     T[r]++ }
-  END { printf "  hook reads, all: nopid=%d  sent=%d\n", T["nopid"]+0, T["sent"]+0
+  END { if (SK) printf "  NOTE: %d hook row(s) are `record_skipped` -- the hook found a record and\n        REFUSED it on identity grounds. Neither a read nor a kill; excluded below.\n", SK
+        if (OTHER) printf "  NOTE: %d hook row(s) are of an unrecognised kind and were excluded.\n", OTHER
+        printf "  hook reads, all: nopid=%d  sent=%d\n", T["nopid"]+0, T["sent"]+0
         printf "  hook A (before the trial spawns):   nopid=%d sent=%d\n", A["nopid"]+0, A["sent"]+0
         printf "  hook B (kills the a-player):        nopid=%d sent=%d\n", B["nopid"]+0, B["sent"]+0
         printf "  hook C (the b-player is playing):   nopid=%d sent=%d\n", C["nopid"]+0, C["sent"]+0
@@ -195,20 +204,52 @@ need "$T/C14a_shared_unlink.hook-kills.log" && { awk -F'\t' '
 #                    already reads it for exactly this reason. It is what turns the
 #                    hook-C witness from a per-trial count into a NAMED event.
 #
-# The hook-C witness is joined to a specific unlink by a window whose two ends are both
-# derived, not assumed:
-#   lower  W_pid_write[jNb]. In this arm the record is published by the player's own
-#          wrapper AFTER the parent stamps W (`result=deferred_to_player`), so the
-#          b-player's record cannot have existed before this instant, and the unlink
-#          that destroyed it cannot precede it either.
-#   upper  the `tNc entry` marker. The record was absent when hook C read, so the
-#          destroying unlink is strictly earlier.
-# If exactly ONE `record_unlinked` falls in that window, the destroying unlink is
+# ROUND 21 REPLACED THE ARGUMENT THAT BINDS THE HOOK-C WITNESS TO ONE UNLINK. Round 17
+# used a window whose LOWER end was `W_pid_write[jNb]`, on the stated ground that "the
+# record is published by the player's wrapper AFTER the parent stamps W, so it cannot have
+# existed before this instant". THAT GROUND IS FALSE, and this script had already said so
+# forty lines above: in a player-published arm the parent stamps W immediately after
+# `Popen` returns and the wrapper runs CONCURRENTLY with it, so at `pubdelay=0` the rename
+# can complete before the parent gets to the `rec()` call. That is harness defect 4 -- the
+# same synthetic timestamp this block withdrew a lag figure for -- reintroduced as a bound.
+# Measured on the committed traces, the parent's W trails its own `Popen` by 0.271-2.687 ms
+# (mean 0.941), and publication may fall anywhere in that interval, so W is not a lower
+# bound on anything.
+#
+# THE REPAIR IS NOT A BETTER BOUND. There is no directly observed publication instant in
+# the committed traces at all -- nothing marks the wrapper's `mv`, `P_popen` is stamped
+# after the fork just as W is, and `player_start` is stamped after `exec` and so may be
+# LATER than the destruction rather than earlier. The event-level claim is instead carried
+# by a UNIQUENESS argument that needs no publication timestamp:
+#   (1) the b-player's record was certainly published before its own `player_start` -- the
+#       wrapper is `write; mv || exit 97; exec`, so the player only exists if the rename
+#       returned 0. [repo]
+#   (2) hook C read NO record at `tNc entry`, at a moment when that player was live
+#       (player_start <= tNc entry < player_end). So the record was published and then
+#       destroyed, strictly before `tNc entry`. [measured]
+#   (3) in this arm the ONLY thing that removes the record is the reaper's `os.unlink`,
+#       which emits `record_unlinked`: `sweepmode=off`, and the two other `os.unlink` sites
+#       in the probe remove `.pending` markers inside the pgid sweep. [repo]
+# So the destroying unlink is one of the `record_unlinked` events lying between the b-job's
+# SPAWN and `tNc entry`. If EXACTLY ONE lies there it is that one, wherever inside the
+# unobserved window the publication actually fell -- which is what makes the naming sound
+# without a publication instant.
+#
+# The interval is `(S2_prespawn_stat[jNb], tNc entry)`. `S2_prespawn_stat` is emitted by the
+# worker BEFORE it calls `Popen`, so it is strictly before the fork and therefore strictly
+# before any publication: a valid lower bound, directly observed, and deliberately the
+# LOOSEST one available -- widening it can only add candidates, and adding candidates can
+# only make this check refuse. THE TRIAL FILTER IS GONE for the same reason. Round 17
+# required `UTR[u] == i`, which EXCLUDES a delayed unlink from another trial that lands in
+# this trial's interval; but such an unlink is a genuine candidate destroyer, so filtering
+# it out could name an unlink while a second one was equally able to have done it. Every
+# `record_unlinked` in the interval now counts, whatever job tag it carries.
+# If exactly ONE `record_unlinked` falls in that interval, the destroying unlink is
 # NAMED and can be compared against the player-log set as an event. If zero or several
 # fall in it, the destruction is still witnessed but the unlink is NOT nameable, and
 # that trial contributes a TRIAL to the union and no EVENT -- printed as a narrowing
 # rather than folded into a total. That branch is exercised by the negative test in
-# the commit message; on the committed traces every window holds exactly one.
+# the commit message; on the committed traces every interval holds exactly one.
 #
 # What is printed is now the UNION of distinct events and the count of distinct trials,
 # with the intersection derived rather than assumed to be empty, and the "first unlink
@@ -226,14 +267,33 @@ need "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.hook-kills.log" \
       next }
   FILENAME ~ /hook-kills\.log$/ {
       if ($1 !~ /^t[0-9]+c$/) next
-      r=$0; sub(/^.*result=/,"",r); sub(/[ \t].*$/,"",r)
       t=$1; sub(/^t/,"",t); sub(/c$/,"",t); t+=0
-      HC[t]=r; if (t>maxtr) maxtr=t
+      if (t>maxtr) maxtr=t
+      # ROUND 21: only a `kill_attempt` may set the verdict. A `record_skipped` row has no
+      # `result=` field, so the blind substitution below used to store the TAG as the
+      # verdict -- which is neither "nopid" nor "sent", so the trial fell out of witness (b)
+      # in total silence. A skipped record also MEANS the opposite of `nopid`: the hook
+      # FOUND a record and refused it, so the record was not destroyed. Recorded separately
+      # and reported, never folded into either bucket.
+      if ($4 == "record_skipped") { HSK[t]++; next }
+      if ($4 != "kill_attempt") next
+      r=$0; sub(/^.*result=/,"",r); sub(/[ \t].*$/,"",r)
+      HC[t]=r
       next }
   # worker.trace
   { n=split($6,f," "); delete V; for(i=1;i<=n;i++){split(f[i],kv,"="); V[kv[1]]=kv[2]} }
-  $5=="W_pid_write" { nw++; WTS[nw]=$1+0; WPID[nw]=V["player_pid"]; WJOB[nw]=V["job"]
-                      WOF[V["job"]]=$1+0 }
+  # THE SPAWN INSTANT, and the only per-job timestamp this block now uses. Emitted by the
+  # worker BEFORE it calls Popen, so it is strictly before the fork and therefore strictly
+  # before any publication -- unlike W_pid_write, which round 17 used for both jobs below
+  # and which is stamped AFTER Popen returns, while the wrapper is already running.
+  # W_pid_write is not read here at all any more: it is harness defect 4'"'"'s synthetic
+  # stamp in this arm, and neither witness needs it.
+  # S2 carries no player_pid -- the player does not exist yet -- so the ordered arrays key
+  # on the JOB and the pid is resolved from P_popen in END. A job with an S2 and no P_popen
+  # (the worker died between them) resolves to an empty pid and is skipped, which is the
+  # guard witness (a) already had.
+  $5=="S2_prespawn_stat" { nw++; WTS[nw]=$1+0; WJOB[nw]=V["job"]; SPAWN[V["job"]]=$1+0 }
+  $5=="P_popen" { PPD[V["job"]]=V["player_pid"] }
   $5=="record_unlinked" {
       nu++; UTS[nu]=$1; UN[nu]=$1+0; UPID[nu]=V["player_pid"]
       tr=V["job"]; sub(/^j/,"",tr); sub(/[abc]$/,"",tr)
@@ -251,7 +311,7 @@ need "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.hook-kills.log" \
     #      player'"'"'s own player_start destroyed a record that was certainly on disk.
     for (u=1; u<=nu; u++) {
       lastp=""; lastj=""
-      for (w=1; w<=nw; w++) if (WTS[w] < UN[u]) { lastp=WPID[w]; lastj=WJOB[w] }
+      for (w=1; w<=nw; w++) if (WTS[w] < UN[u]) { lastj=WJOB[w]; lastp=PPD[lastj] }
       if (lastp=="" || lastp==UPID[u]) continue
       if (!(lastj in PST) || UN[u] <= PST[lastj]) continue
       PLOG[u]=1; VICT[u]=lastp; nplog++ }
@@ -259,27 +319,34 @@ need "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.hook-kills.log" \
     # ---- witness (b): hook C read nothing while the trial'"'"'s b-player was demonstrably
     #      live, joined to the one unlink that can have done it.
     for (i=1; i<=maxtr; i++) {
+      # A trial whose hook C only ever SKIPPED is neither a destruction nor a clean read,
+      # and must not disappear. Name it, then move on.
+      if (!(i in HC) && (i in HSK)) {
+        printf "  trial %-2d hook C refused every record it found on identity grounds (%d row(s))\n", i, HSK[i]
+        printf "           -- the record was NOT destroyed: NOT counted either way\n"
+        continue }
       if (!(i in HC) || HC[i] != "nopid") continue
       jb = "j" i "b"
-      if (!(i in HCT) || !(jb in PST) || !(jb in PEN) || !(jb in WOF)) {
+      if (!(i in HCT) || !(jb in PST) || !(jb in PEN) || !(jb in SPAWN)) {
         printf "  trial %-2d hook C read nothing, but its own timing is not in the traces --\n", i
-        printf "           no live-player check and no window: NOT counted either way\n"
+        printf "           no live-player check and no interval: NOT counted either way\n"
         unjoinable++; continue }
       if (!(PST[jb] <= HCT[i] && HCT[i] < PEN[jb])) {
         printf "  trial %-2d hook C read nothing, but no player was live at it -- NOT a destruction\n", i
         continue }
       hc_trials++; HCTR[i]=1
       cnt=0; pick=0
-      # UTR[u] == i is what makes this the (trial, timestamp) join it is advertised as.
-      # Without it the window alone selects, so a delayed unlink from ANOTHER trial
-      # falling inside the window of this one would be picked and attributed here. On
-      # committed traces the totals are identical either way -- 8 across trials 1 2 4 6,
-      # checked both ways -- so no published figure moves; it is latent, and it would
-      # misattribute on a re-run.
-      for (u=1; u<=nu; u++) if (UTR[u] == i && UN[u] > WOF[jb] && UN[u] < HCT[i]) { cnt++; pick=u }
+      # THE UNIQUENESS CHECK. Every record_unlinked between the b-job'"'"'s SPAWN and hook C
+      # is a candidate destroyer, because the publication instant is unobserved and may
+      # fall anywhere after the fork. NO TRIAL FILTER: round 17 required UTR[u]==i, which
+      # discards a delayed unlink from another trial landing in this interval -- but such
+      # an unlink could equally have done the destroying, so discarding it could name one
+      # unlink while a second was just as able. Counting every candidate can only make this
+      # refuse, never make it name more.
+      for (u=1; u<=nu; u++) if (UN[u] > SPAWN[jb] && UN[u] < HCT[i]) { cnt++; pick=u }
       if (cnt == 1) { HOOKC[pick]=1; HVICT[pick]=PPID[jb]; nhookc++ }
       else { printf "  trial %-2d hook C witnessed a destruction, but %d unlinks fall in\n", i, cnt
-             printf "           (W_pid_write[%s], tNc entry) -- the destroying unlink is NOT nameable\n", jb
+             printf "           (S2_prespawn_stat[%s], tNc entry) -- the destroying unlink is NOT nameable\n", jb
              ambig++ } }
 
     # ---- the union, over the (trial, timestamp) event key.
@@ -307,7 +374,7 @@ need "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.hook-kills.log" \
 
     printf "  --> witness (a), player-log order:  %d distinct unlink event(s)\n", nplog+0
     printf "  --> witness (b), hook C read nothing with a live player: %d trial(s),\n", hc_trials+0
-    printf "      of which %d had exactly one unlink in the window and are NAMED as events\n", nhookc+0
+    printf "      of which %d had exactly one unlink candidate in the interval and are NAMED as events\n", nhookc+0
     printf "  --> the two witness sets intersect in %d event(s) (derived over the (trial,\n", both+0
     printf "      timestamp) key, not assumed disjoint)\n"
     printf "  --> UNION of DISTINCT destroying unlinks: %d, across %d DISTINCT trial(s):%s\n",
@@ -333,8 +400,8 @@ need "$T/C14b_perplayer_unlink.worker.trace" && { awk -F'\t' '
   END { printf "  unlinks of own record=%d   of another player%s record=%d\n", own+0, "'"'"'s", other+0 }
 ' "$T/C14b_perplayer_unlink.worker.trace" || derive_failed C14b; }
 echo "   and the consequence, from the hook side:"
-need "$T/C14b_perplayer_unlink.hook-kills.log" && { awk '{ if ($0 ~ /result=norecord/) none++ ; if ($0 ~ /result=sent/) sent++ ; if ($0 ~ /result=esrch/) esrch++ }
-  END { printf "  hook reads: norecord=%d  sent=%d  esrch=%d\n", none+0, sent+0, esrch+0 }' \
+need "$T/C14b_perplayer_unlink.hook-kills.log" && { awk '{ if ($0 ~ /result=norecord/) none++ ; if ($0 ~ /result=sent/) sent++ ; if ($0 ~ /result=esrch/) esrch++ ; if ($0 ~ /record_skipped/) skip++ }
+  END { printf "  hook reads: norecord=%d  sent=%d  esrch=%d  skipped_on_identity=%d\n", none+0, sent+0, esrch+0, skip+0 }' \
   "$T/C14b_perplayer_unlink.hook-kills.log" || derive_failed C14b-hook; }
 
 hdr "C15c/C16: was killpg USED or SKIPPED, and did the player still die?"

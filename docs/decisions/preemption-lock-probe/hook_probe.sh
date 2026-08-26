@@ -31,8 +31,64 @@
 # driver saw 0 either way and ran the next trial. verify_fires.sh catches the missing
 # markers afterwards, but only for a run somebody remembers to check, and it cannot
 # catch a Rdone that was stamped after a rename that never happened.
+#
+# ROUND 21 -- THE PID IS NOT AN IDENTITY, AND THE ANCHORED NAME DID NOT MAKE IT ONE.
+# Round 20 tightened the record NAME to `<pid>.<8-hex>` so a `.pending` marker could not
+# be parsed as a pid. That is a parsing fix. It leaves the pid a number that outlives the
+# process which published it -- nothing removes a player record when its player dies, so
+# the record stands for the rest of the session (the committed `C12b` warm-up record is
+# still in the worker sweep's target list on 24 of its 25 elections) -- and the `kill
+# -TERM` below then lands on whatever process holds that number next.
+#
+# So the record's CONTENT is now the player's own `<pid>.<starttime>` and this hook
+# re-reads the pid's current start time before signalling, skipping IN SILENCE on a
+# mismatch. Same shape as PR #27 clause 7(i), deliberately; the name is unchanged.
+# PLAYER_IDENTITY=off restores the bare-pid behaviour for the falsification arm, and the
+# degradation keys on that variable and NEVER on the record's shape -- a record with no
+# start time under `on` is UNVERIFIABLE and is refused, because letting the record decide
+# whether the check happens is exactly the hole round 16 found on the owner side.
 set -u
 SD=$1; MD=$2; TAG=$3; JID=$4; TXT=$5
+PIDENT=${PLAYER_IDENTITY:-on}
+
+# `ps -o lstart= -p <pid>`, spaces squeezed to `_`. Byte-identical to speakd_probe.py's
+# `proc_starttime()` and to the wrapper that writes the record; they are compared as
+# strings, so any disagreement fails closed and nothing is ever signalled.
+now_starttime() {
+  local s
+  s=$(/bin/ps -o lstart= -p "$1" 2>/dev/null | tr -s ' ' '_') || return 1
+  s=${s#_}; s=${s%_}
+  [[ -n $s ]] || return 1
+  printf '%s' "$s"
+}
+
+# Returns the verdict for a pid read from a record whose content is $2.
+#   same | recycled | gone | unverifiable
+identity_verdict() {
+  local pid=$1 rec_st=$2 cur
+  if [[ $PIDENT == off ]]; then
+    if kill -0 "$pid" 2>/dev/null; then printf same; else printf gone; fi
+    return
+  fi
+  [[ -n $rec_st ]] || { printf unverifiable; return; }
+  cur=$(now_starttime "$pid") || { printf gone; return; }
+  if [[ $cur == "$rec_st" ]]; then printf same; else printf recycled; fi
+}
+
+# The record's content is `<pid>` or `<pid>.<starttime>`. Split on the FIRST dot, as
+# every other reader does. The content's pid must equal the one in the NAME -- they are
+# written by one act, so a disagreement is a corrupt record, and a hook that trusted the
+# name while reading somebody else's start time would verify one process and kill
+# another. A mismatch yields no start time, which reads as unverifiable and is refused.
+record_starttime() {
+  local path=$1 want=$2 line body_pid
+  [[ -r $path ]] || return 1
+  read -r line < "$path" || return 1
+  body_pid=${line%%.*}
+  [[ $body_pid == "$want" ]] || return 1
+  [[ $line == *.* ]] || return 1
+  printf '%s' "${line#*.}"
+}
 
 : > "$MD/$TAG.entry" || { echo "hook_probe.sh: cannot stamp $MD/$TAG.entry" >&2; exit 3; }
 
@@ -49,6 +105,14 @@ if [[ -d "$SD/playerdir" ]]; then
     [[ $b == *.pending ]] && continue
     [[ $b =~ ^[0-9]+\.[0-9a-f]{8}$ ]] || continue
     pid=${b%%.*}
+    rec_st=$(record_starttime "$f" "$pid") || rec_st=""
+    v=$(identity_verdict "$pid" "$rec_st")
+    if [[ $v == recycled || $v == unverifiable ]]; then
+      printf '%s\thook\t%s\trecord_skipped\tby=hook via=perplayer target=%s verdict=%s\n' \
+        "$TAG" "$$" "$pid" "$v" >> "$MD/kills.log"
+      found=1
+      continue
+    fi
     if kill -TERM "$pid" 2>/dev/null; then res=sent; else res=esrch; fi
     printf '%s\thook\t%s\tkill_attempt\tby=hook via=perplayer target=%s sig=15 result=%s\n' \
       "$TAG" "$$" "$pid" "$res" >> "$MD/kills.log"
@@ -59,15 +123,34 @@ if [[ -d "$SD/playerdir" ]]; then
       "$TAG" "$$" >> "$MD/kills.log"
   fi
 else
-  pid=""
-  if [[ -r "$SD/pid" ]]; then read -r pid < "$SD/pid"; fi
+  # The shared record has no name to carry a pid, so BOTH fields come from the content:
+  # `<pid>` or `<pid>.<starttime>`, split on the first dot exactly as everywhere else.
+  # `result=nopid` keeps its meaning -- NO RECORD ON DISK -- and a record that is present
+  # but refused is reported as `record_skipped`, never as `nopid`. The C14a derivation
+  # reads `nopid` as "the record was destroyed", so conflating the two would manufacture
+  # a destruction out of a successful identity check.
+  line=""; pid=""; rec_st=""
+  if [[ -r "$SD/pid" ]]; then read -r line < "$SD/pid" || line=""; fi
+  if [[ -n "$line" ]]; then
+    pid=${line%%.*}
+    [[ $line == *.* ]] && rec_st=${line#*.}
+  fi
   if [[ -n "$pid" ]]; then
-    if kill -TERM "$pid" 2>/dev/null; then res=sent; else res=esrch; fi
+    v=$(identity_verdict "$pid" "$rec_st")
+    if [[ $v == recycled || $v == unverifiable ]]; then
+      printf '%s\thook\t%s\trecord_skipped\tby=hook via=shared target=%s verdict=%s\n' \
+        "$TAG" "$$" "$pid" "$v" >> "$MD/kills.log"
+      exit_after_skip=1
+    else
+      if kill -TERM "$pid" 2>/dev/null; then res=sent; else res=esrch; fi
+    fi
   else
     res=nopid; pid=none
   fi
-  printf '%s\thook\t%s\tkill_attempt\tby=hook via=shared target=%s sig=15 result=%s\n' \
-    "$TAG" "$$" "$pid" "$res" >> "$MD/kills.log"
+  if [[ -z ${exit_after_skip:-} ]]; then
+    printf '%s\thook\t%s\tkill_attempt\tby=hook via=shared target=%s sig=15 result=%s\n' \
+      "$TAG" "$$" "$pid" "$res" >> "$MD/kills.log"
+  fi
 fi
 
 sleep "${HOOK_GAP_S:-0.09}"
