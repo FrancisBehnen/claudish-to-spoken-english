@@ -71,7 +71,11 @@ judged non-blocking turned out to be.**
 > **Worth noticing as a class of defect rather than a typo**: a summary written before the table it
 > summarises, and then not re-derived from it. **The same defect was found a second time in §13 itself**
 > — *"all six defects"* standing under a table of eleven — which is why this note stays rather than
-> being retired as history.
+> being retired as history. **It has been found three more times since, which is why it stays for good**:
+> §13's defect table missing rows for four whole review rounds while the prose described their findings,
+> §13 row 24 still asserting an ordering §10.5 clause 6 had withdrawn, and §15's `[inferred]` list still
+> asserting the same one after both of the other two sites were corrected. §13's note under its defect
+> table carries the current account and the recount that settled it.
 
 ---
 
@@ -3146,22 +3150,34 @@ row 18 is **parked by explicit decision** rather than unresolved. So #11 can loc
 — but #23 finishes at row 17, not at "the hook runs". **An implementer who builds `speak.sh` and does
 not measure the wait has not finished the ship blocker, they have moved it.**
 
-**RE-EXAMINED AT LEAST SEVEN TIMES AND MEASURED TWICE, and the measurements are still the ones that matter.** The
-answer above was written before anyone had read this revision back. Seven independent review rounds have
-since read it and two experiments have since exercised it, and between them they found **at least twenty-three
-correctness defects in text this revision marked LOCKED** — with the second round finding defects **in
-the first round's repairs**, the first experiment finding that **two of the first round's repairs were
+**RE-EXAMINED ELEVEN TIMES AND MEASURED TWICE — thirteen occasions across the twelve round labels in the table below, `#28` standing for two of them — and the measurements are still the ones that matter.** The
+answer above was written before anyone had read this revision back. **Nine reads of this document, two review
+rounds of its sibling carried across, and two experiments** have since gone over it, and between them they
+found **thirty-one correctness defects in text this revision marked LOCKED** — with the second round finding
+defects **in the first round's repairs**, the first experiment finding that **two of the first round's repairs were
 themselves wrong**, the fourth round finding **five more, in four different sections, none of them
 in a repair**, the fifth round finding **four, of which two are defects in round three's and round
 four's own repairs** — the master switch broken in the opposite direction, and an identity credited
-against a process it says nothing about — and **the second experiment finding one, which is the only
-one so far that the machine found rather than a person: it slept.** That one is different in kind and
-worth naming as such. It was not reached by reading the clause harder; it was reached by an ordinary
+against a process it says nothing about — **the sixth round finding four, two of them squarely in round five's
+own repairs**: a marker removal ordered before the publication clause 7(i) makes atomic, and a parsing hazard
+round five's generation tag turned from 2.3 % into 100 % while the text went on quoting 2.3 %; the other two
+are bookkeeping in LOCKED text — a closing condition that would have let a ship-blocking row close before the
+mechanism it certifies was demonstrated, and a restatement of §15's `[inferred]` list that omitted five of the
+ten — **two review rounds of the sibling document finding two more here**, one of them a failed `ps` lookup
+read as a confirmed dead owner — and **the second experiment finding one,
+which is the only one so far that the machine found rather than a person: it slept.** That one is different in
+kind and worth naming as such. It was not reached by reading the clause harder; it was reached by an ordinary
 platform behaviour arriving unbidden and contradicting an arithmetic argument the clause had marked
 safe. **Five rounds of increasingly careful reading did not find it, and clause 6 had been read at
-least twice.** **The seventh round found the newest one and it is a third shape again** — a clause that
+least twice.** **Then the round that read the sleep measurement's own repair found that the repair overclaimed** —
+a single clock removes the divergence between two clocks and not the race between two processes, and the very
+next bullet already said so. **The seventh round found a third shape again** — a clause that
 required two operations to *finish* without saying which runs first, where the rig had silently picked one
-order and the text described neither.
+order and the text described neither. **And the recount that produced the totals here found a thirty-first**:
+§15's `[inferred]` list still carrying the *"ordering by construction"* claim two other sites had already
+withdrawn. **Two of the thirteen occasions are not reads of this document at all** — they are review rounds
+24 and 25 of [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md), whose findings landed here
+because the two documents specify one mechanism and this one had the defect.
 
 | round | finding | section |
 | --- | --- | --- |
@@ -3185,15 +3201,23 @@ order and the text described neither.
 | **5** | **the player-record rule was a description, not a shape** — *"the name must match `<digits>.<nonce>`"* with `<nonce>` unconstrained, so an all-decimal `.pending` marker (2.3 % of nonces) parses as a pid and is signalled. **Not hypothetical**: `C17`'s committed trace targets `2679968` twice from `02679968.pending` while the live player is `19823` **[trials]** | §10.3 step 6, §10.5 cl. 7(i) |
 | **5** | **the `.pending` marker bounded nothing, because no path removed one** — a worker dying between the marker and `Popen` leaves it forever, and the sweep reads the directory as a boolean, so `killpg` then fires at **every** election for the rest of the session. `C16a` creates 25 markers, removes none, and climbs 1 → 12 across twelve generations **[trials]**. Round 2's *"remove the entries it just swept"* named no determinable set | §10.5 cl. 7(iv), row 27 |
 | **5** | **the owner's start time was credited against a player's pid** — round 4 added `<pid>.<starttime>` to `worker.lock.<gen>` and scored it against row 20(b), but §10.3 step 6 signals a **player** pid read from a different record that carried no identity at all, so a stale player record could still `kill` a stranger with the owner check passing | §10.3 step 6, row 20(c) |
+| **6** | **§13 row 21 could have CLOSED while the mechanism it certifies stayed undemonstrated** — its closing condition asked only for the generation-**unlink** arm, so the row that exists to certify the replacement lock protocol could have closed on a `0/400 wrong` that #28 then reported was staged by a clock: a mis-staged trial yields exactly the `1 owner` a genuine pass yields, so the clean cells cannot by themselves tell *“survived a stale-observation reclamation”* from *“never saw one”*. The arm was added rather than the row re-scored. **A closing condition that does not reach the path the row certifies is a defect in the verification plan, not a wording choice** | §13 row 21 |
+| **6** | **§10.5 restated a four-item subset of what remains `[inferred]` and it was stale by two rounds** — it omitted §3.5.1 clause 7's runtime-mute re-check, clause 6's retirement protocol, preemption's placement at step 6, player-record identity and the generation-tagged `.pending` cleanup, and it cited rows 20, 21 and 24 while leaving out 17, 25 and 27. The subset is deleted and the text now points at §15 for the ten. **AMBIGUOUS, and recorded as such rather than resolved silently**: under-reporting five `[inferred]` correctness clauses inside LOCKED text is a tag-honesty failure, which this document treats as a defect; the *shape* is also the miscount class it has twice declined to count (round four's *“all six defects”*). Counted here because what was wrong was the **evidence status of five mechanisms**, not an arithmetic total | §10.5 cl. 7 preamble, §15 |
+| **6** | **the wrapper was required to do something clause 7(i) makes impossible** — round five's clause 7(iv) had the player's wrapper rename its `.pending` marker away *“as its first act”*, while clause 7(i) requires it to obtain its pid and start time, write them as the record's content and `rename(2)` it into place. A marker removed before all three is removed **inside** the unnamed-player window it exists to bound, which converts the bound into the gap. The ordering is forced the other way. **Round five's own repair, contradicting the clause one bullet above it** | §10.5 cl. 7(iv), §10.2 file table, row 27 |
+| **6** | **round five's generation tag made its own parsing hazard UNIVERSAL, and the text still priced it at the old rate** — under `<nonce>.pending` a loose split misparsed the marker as a pid only when the nonce was all decimal: 2.3 %, `(10/16)^8`, observed once as `02679968.pending` → `2679968` **[trials]**. Under `<gen>.<nonce>.pending` a loose split parses the **generation** as a pid on **every** marker — `12.a1b2c3d4.pending` splits to `12`, a plausible live pid, every time. The anchored regex was already normative; the **reason** the document gave for it was wrong by a factor of forty, which is what would have let an implementer relax it | §10.3 step 6, §10.5 cl. 7(i) |
+| **#28** | **a FAILED identity lookup was treated as a confirmed dead owner** — clause 2 called an owner dead on *“an unparseable target, no such process, or a start-time mismatch”*, which collapses *“I could not ask”* into *“it is not there”*. If `ps` cannot fork, the reader knows nothing about that owner, and superseding a **live** one hands two workers the licence to consume jobs — and the trigger correlates with the hazard, because `ps` fails under the same fork pressure that recycles pids fastest. A failed lookup is now `unverifiable` and fails **closed**, on a bounded retry; the signaller side listed three cases and had no branch for the fourth, benign only by luck. **Found by [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md)'s own round 24 and named a gap on this side** | §10.5 cl. 2, §10.3 step 6, row 20(c) |
+| **#28** | **§13 row 21 said the replacement protocol's dead-owner reclamation *“has never been confirmed to run at all”*; one trial's committed trace shows it running** — `lock-S3_aba-proposed-r1.tsv` records both racers classifying the incumbent `pid_dead`, one publishing `gen=1 superseded=0` and taking ownership, the other recording `publish_lost` **[trials]**. Clock-staging leaves the *untraced* trials unconfirmed; it does not erase a trial whose trace shows the reclamation happening. 1 confirmed, 99 unconfirmed. **AMBIGUOUS, and recorded as such**: this one erred in the **safe** direction — it understated the evidence rather than overstating it — so it is not a hazard the way row 24's left cell was. Counted because a claim of *zero* was false, and because it originated in #28 and propagated here by citation, so it had to be corrected twice rather than once | §13 row 21(b) |
 | **M2** | **the idle exit and the sweep were compared across two different clocks** — `find -mmin` is wall clock; the clause **mandated** `time.monotonic()`, which on Darwin does not advance while the system sleeps. One unplanned sleep put **38 min 44 s** of divergence against a **10-minute** margin, and the shipped predicate selects a `speak` dir a monotonic idle timer still calls **12.51 min** young. **The clause specified the unsafe clock rather than omitting the question**, and the reason it gave — a backward wall-clock step aging the directory — is arithmetically impossible. **Found by the platform, not by a reader** | §10.5 cl. 6, row 24 |
+| **M2′** | **the sleep measurement's own repair overclaimed, and the document then contradicted itself two paragraphs apart** — clause 6 said reading one wall clock on both sides makes the 20-against-30 inequality *“an ordering by construction … no divergence between two clocks can open up because there is only one”*, and its very next bullet priced a residual **forward-jump** window of up to one second. Both cannot be true. The single clock removes the **divergence**, not the **race**: two processes still evaluate the predicate at two instants, so a discontinuous forward adjustment past 30 minutes makes both true at once and `rewrite.sh:117` can delete a live directory inside the ≤1 s before the worker's next poll. What the single clock buys is a residual bounded by the poll interval instead of by however long the machine slept — 1 s against **269.694 h**. **A defect in a repair that was one commit old** | §10.5 cl. 6, row 24 |
 | **7** | **the two halves of the election sweep were required to COMPLETE and never ordered against each other** — with (iv-a) first, a wrapper that publishes in the gap is missed by the record sweep and then skipped by the pgid sweep's own `.pending` gate, so a stale player survives an election both halves completed: `C12c`'s **12/12** failure reached through an ordering rather than through a missing clause. **And the rig had already made the choice the text left open** — `speakd_probe.py:1059-1062` calls `sweep_pgid()` then `sweep_record()`, and `sweepmode=pgid` is set by no configuration **[rig]** — so the clause described something no arm had run while every arm ran something the clause did not say | §10.5 cl. 7(iv-a), row 20(a) |
 | **7** | **§13 row 24 claimed an ordering §10.5 clause 6 had already withdrawn** — the round that priced the forward-jump residual corrected clause 6 (*"It does NOT make the 20-against-30 inequality an ordering by construction"*) and left row 24's own left cell still saying *"the ordering holds by construction rather than by argument"*, one cell away from the right-hand cell pricing the race that survives it. **A repair applied to the clause and not to the row that summarises it** — the same shape as the counts this section keeps re-deriving, on a ship-blocking row | §13 row 24, §10.5 cl. 6 |
+| **R** | **§15's `[inferred]` entry (3) still carried the withdrawn *“ordering by construction”* claim** — the withdrawal that round `M2′` applied to §10.5 clause 6 and round seven applied to §13 row 24 never reached entry (3), which went on describing the mtime replacement as one that *“makes the ordering hold by construction”*. **A repair applied to the clause, then to the row that summarises it, and not to the list that enumerates it** — one withdrawal, three sites, and the third found only by re-deriving the totals below | §15 entry (3), §10.5 cl. 6 |
 
 **The lock still holds on its own test, and the test is worth restating rather than assumed:** *every
 section is either LOCKED with the evidence that decided it, or OPEN with a closing condition that does
-not require re-deciding anything.* **All twenty-three defects were repairable without a new decision from
-the listener** — and the twenty-three split two ways rather than one, which the old *"all six"* framing hid:
-**nineteen were repairable from evidence already in the document or in the committed rig**, and **the four marked M and M2 were
+not require re-deciding anything.* **All thirty-one defects were repairable without a new decision from
+the listener** — and the thirty-one split two ways rather than one, which the old *"all six"* framing hid:
+**twenty-seven were repairable from evidence already in the document or in the committed rig**, and **the four marked M and M2 were
 falsified by the run that found them and repaired from that same run's evidence**, which is a stronger
 position rather than a weaker one. The judgements between competing repairs are recorded with their
 costs — clause 6's separation, clause 5's required-versus-recommended, round four's choice to
@@ -3219,19 +3243,40 @@ on. So #11 can lock and #23 can start — with two more blockers than it had yes
 > with** — a count written once and then not re-derived from the table it counts — which is why it is
 > corrected here rather than quietly. The table is the authority: **four in round one, two in round
 > two, three in the first measurement round, two in round three, five in round four, four in round
-> five, one in the sleep measurement, two in round seven — twenty-three.** Re-derived from the table on
-> each revision rather than incremented, which is the only way this note stays true of itself.
+> five, four in round six, two carried across from #28, one in the sleep measurement, one in the
+> review of that measurement's own repair, two in round seven, one in this recount — thirty-one.**
+> Re-derived from the table on each revision rather than incremented, which is the only way this note
+> stays true of itself.
 >
-> **And the table is now a FLOOR rather than a total, which is this defect class arriving a third
-> time — disclosed rather than guessed at.** It has no row for the reviews between round five and
-> round seven, and the rest of this document already describes two of their findings: §13 row 27
-> credits **round six** with finding round five's *"renames it away as its first act"* unsatisfiable
-> against clause 7(i)'s atomic publication, and §10.5 clause 6 carries a later round's correction to
-> the sleep measurement's own *"ordering by construction"* claim, which its very next bullet
-> contradicted by pricing a residual forward-jump window. **Neither has a row here, and this round
-> did not audit those rounds for others**, so the honest form is *at least* twenty-three rather than a
-> guess at the true number. Numbering this round **seven** follows the highest round the document
-> itself names — six, in row 27 — and is a floor for the same reason.
+> **This total was carried as a FLOOR of twenty-three until 2026-08-26, and the floor is now SETTLED
+> rather than restated.** The table had no row for round six, none for the two rounds of #28 whose
+> findings were gaps on this side, and none for the review that read the sleep measurement's own repair,
+> while the rest of the document already described two of those findings — so the total was written as
+> *at least* twenty-three, the third appearance of this document's worst defect class, disclosed rather
+> than guessed at. **The settlement was done by reading the commits, not by estimating**: every commit
+> from `61866b3` to `c4c9b21` was classified, and the eight rows added are round six's four (both
+> `c613b60` and `33f850a`), the two carried from #28's rounds 24 and 25 (`5352549`, `470a381`), the
+> one from the review of the sleep measurement's repair (`c4c9b21`), and the one this recount found.
+> **Three commits in that range fixed nothing in this document** and are deliberately not rows —
+> `61866b3`, `d87065f` and `6d6d2d6` re-qualified stale as-of language in
+> [`handoff-match-rate.md`](handoff-match-rate.md), [`worker-residency.md`](worker-residency.md) and
+> [`turn-finality-and-the-stop-hook.md`](turn-finality-and-the-stop-hook.md), which this table does not
+> count because it counts defects in **this** document's LOCKED text.
+>
+> **Two of the eight are recorded as AMBIGUOUS in their own cells rather than resolved silently** —
+> §10.5's stale four-item `[inferred]` subset, which is a tag-honesty failure in the shape of the
+> miscount class this table twice declined to count, and row 21's *"never confirmed to run at all"*,
+> which erred in the safe direction. **A defensible judgement recorded beats a clean number**, and both
+> are counted with the argument for counting them written in the row.
+>
+> **The round LABELS are not a strict sequence and are not meant to read as one.** `7` is kept where it
+> is because it is cited by number throughout this document and in `#28`; the rounds the table had been
+> missing therefore carry the names of what found them rather than positions in a renumbered
+> series — `6` for the round row 27 already calls round six, `#28` for two rounds of
+> [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md) whose findings were gaps on this
+> side, `M2′` for the review of the sleep measurement's own repair, and `R` for this recount. **What is
+> checkable is the count and the per-round tally, both re-derived from the table above; the numbering of
+> the rounds is not, and this note is where that is admitted.**
 
 **But the clean "yes" of the paragraph above is no longer the honest answer, and here is the precise
 reason.** This document's stated purpose, in its own opening words, is to be *"a specification an
@@ -3536,9 +3581,13 @@ Stated so a reviewer can attack the right parts.
   first; on Darwin the second is wall clock and the first stops during sleep, and **one unplanned sleep
   put 38 min 44 s of divergence against a 10-minute margin** **[measured-here]**. The entry now covers
   the **replacement**: that a worker measuring its idleness from the speak directory's own mtime
-  against `time.time()` — the same subtraction `find` performs — makes the ordering hold by
-  construction. **That replacement is itself `[inferred]` and unrun**, which is why the count below
-  does not fall. §13 row 24. (4) **§3.1's content-addressed publish.** (5) **§3.5.1
+  against `time.time()` — the same subtraction `find` performs — bounds the exposure by the worker's
+  one-second poll interval instead of by however long the machine slept. **It does NOT make the
+  ordering hold by construction, and this entry said it did until the recount of 2026-08-26** — the
+  claim was withdrawn from §10.5 clause 6, then from §13 row 24, and reached this list only third; the
+  two predicates are still evaluated by two processes at two instants, so a discontinuous **forward**
+  adjustment past 30 minutes makes both true at once. **That replacement is itself `[inferred]` and
+  unrun**, which is why the count below does not fall. §13 row 24. (4) **§3.1's content-addressed publish.** (5) **§3.5.1
   clause 7, the worker's re-check of both off-files at the point of synthesis.** (6) **§10.5 clause 2's
   start-time-validated owner record** — `<pid>.<starttime>` rather than a bare pid, with `ps -o lstart=`
   as the reader; new in round four, and the clause without which clause 2's own one-live-owner rule is
@@ -3565,13 +3614,23 @@ Stated so a reviewer can attack the right parts.
   rule here is true, and whose worst outcome is silence a few seconds early on a non-default
   configuration. The first two are latency, the third is a disclosed failure path, the fourth is a
   bound. **A clause counts here only if a rule stated elsewhere in this document is FALSE without it.**
-  **The count went 3 → 6 → 5 → 8 → 10 → 10 → 10, and the composition has turned over almost
-  completely twice.** **Round seven is the second flat step and it is flat for a different reason than
-  the first**: it did not rewrite an entry, it **widened** entry (1) — the ordering that entry already
-  carried grew a second clause, the order of the two sweep halves against each other — so the count is
-  unchanged while the entry behind it covers strictly more. **A flat count can hide a widened entry as
+  **The count went 3 → 6 → 5 → 8 → 10 → 10 → 10 → 10 → 10 → 10 → 10, and the composition has turned over almost
+  completely twice.** **This chain read `3 → 6 → 5 → 8 → 10 → 10 → 10` until the recount of 2026-08-26**,
+  which is the same debt §13's table carried: the steps for round six, for #28's two carried rounds, for
+  the review of the sleep measurement's repair and for the recount itself were simply absent, and every
+  one of them turns out to be flat. **Six consecutive flat steps is the fact to read here, and it is not
+  a fact about calm**: round five took the count to ten and nothing has moved it since, while the entries
+  underneath it were rewritten twice and widened three times. Round six **widened** entry (10) — the
+  generation-tagged marker grew the rule that its removal must follow the record's atomic publication;
+  #28 **widened** (6) and (9) — the owner and player identity tests grew a fail-closed branch for a
+  lookup that fails rather than a process that is absent; the sleep measurement **rewrote** (3) by
+  falsifying it; the review of that repair **rewrote** (3) again, because the repair's own claim was too
+  strong; round seven **widened** (1) — the ordering that entry already carried grew a second clause, the
+  order of the two sweep halves against each other; and the recount changed (3)'s wording and nothing
+  else. **A flat count can hide a widened entry as
   easily as a rewritten one**, which is the same failure this list found in (9): arithmetic that is
-  honest and entries that are wrong about what they cover. **The final step is the first that did not move it, and the reason is worth stating rather
+  honest and entries that are wrong about what they cover — and six flat steps in a row is that failure
+  at its largest scale so far. **The first flat step is the one worth naming on its own, and the reason is worth stating rather
   than leaving as a coincidence**: the sleep measurement falsified entry (3) and its replacement is
   `[inferred]` too, so one entry was rewritten in place and none was added or removed. **A flat count
   is not a quiet round here.** It means a clause this document had reasoned out was wrong and the thing
@@ -3613,18 +3672,51 @@ Stated so a reviewer can attack the right parts.
     finding out what it did not know. **Ten is the number to be uncomfortable about only if the
     alternative reading is that eight was ever the true one**; it was not, and the two entries round
     five added were false before it wrote them down.
-- **AT LEAST SEVEN review rounds and TWO measurement rounds have now found AT LEAST TWENTY-THREE
+- **NINE reads of this document, TWO review rounds of its sibling carried across, and TWO measurement
+  rounds have now found THIRTY-ONE
   correctness defects in text this revision itself marked LOCKED, and the rate — not any one defect — is
   the weakness.** Counted so the number is checkable, off §13's table rather than off this sentence:
   **four in round one, two in round two, three in the first measurement round,
-  two in round three, five in round four, four in round five, one in the sleep measurement, and two in
-  round seven.** **Both numbers are FLOORS and are written as such**, because §13's table has no row for
-  the reviews between round five and round seven while this document describes two of their findings
-  elsewhere — round six finding round five's *"renames it away as its first act"* unsatisfiable against
-  clause 7(i) (§13 row 27), and a later round finding §10.5 clause 6's *"ordering by construction"*
-  contradicted by its own next bullet's forward-jump residual. **Neither has a row, this round did not
-  audit those rounds for others, and a guess would be the very defect this bullet is counting.** §13
-  carries the same disclosure under the table.
+  two in round three, five in round four, four in round five, four in round six, two carried across
+  from #28's rounds 24 and 25, one in the sleep measurement, one in the review of that measurement's
+  own repair, two in round seven, and one in the recount that settled these numbers.**
+  **Both numbers were FLOORS — *at least seven* rounds and *at least twenty-three* defects — until
+  2026-08-26, and they are now SETTLED rather than restated.** §13's table had no row for round six, none
+  for #28's two carried rounds and none for the review of the sleep measurement's own repair; those rows
+  were recovered by classifying every commit from
+  `61866b3` to `c4c9b21` rather than by estimating, and §13's note under the table records the
+  classification, the two rows kept as **ambiguous**, and the three commits in that range that fixed
+  stale as-of language in the evidence documents rather than a defect here. **The round labels are not
+  a strict sequence** — `7` is kept because it is cited by number, so the recovered rounds carry the
+  names of what found them: `6`, `#28`, `M2′` and `R`. **The count and the per-round tally are
+  checkable off the table; the numbering is not, and §13 says so.**
+  *The recount*: the `[inferred]` entry (3) above still carrying the
+  *"ordering by construction"* claim that `M2′` had withdrawn from §10.5 clause 6 and round seven had
+  withdrawn from §13 row 24 — one withdrawal, three sites, the third reached only by re-deriving these
+  totals. The same pass also found this section's `3 → 6 → 5 → 8 → 10 → …` step chain missing four of
+  its steps, which is arithmetic rather than a defect and is corrected where it lives. §13 row 24.
+  *Round six*: round five's clause 7(iv) ordering the wrapper to rename its `.pending` marker away
+  *"as its first act"*, which clause 7(i)'s three-operation atomic publication makes unsatisfiable, so
+  the marker would have been removed **inside** the window it bounds (§13 row 27); round five's own
+  generation tag turning the loose-parse hazard from **2.3 %** of markers into **every** marker —
+  `12.a1b2c3d4.pending` splits to a plausible live pid every time — while the text went on quoting
+  2.3 %; §13 row 21's closing condition asking only for the unlink arm, so a ship-blocking row could
+  have closed while the mechanism it certifies stayed undemonstrated; and §10.5 restating a four-item
+  subset of this list that was stale by two rounds and omitted five of the ten. **Two of the four are
+  defects in round five's own repairs and the other two are bookkeeping in LOCKED text that had drifted
+  from the tables it summarises; none is a clause nobody had touched.**
+  *Carried from #28*: clause 2 treating a **failed** `ps` lookup as a confirmed dead owner, which fails
+  open on exactly the input the identity test exists to be careful about and supersedes a live owner
+  (its round 24, §13 row 20(c)); and §13 row 21 claiming the replacement protocol's dead-owner
+  reclamation had *"never been confirmed to run at all"* when one committed per-trial trace shows it
+  happening (its round 25, §13 row 21(b)). **The second is the only entry on this list that erred in the
+  safe direction**, and it is counted with that stated in its row.
+  *The review of the sleep measurement's repair*: §10.5 clause 6 claiming a single wall clock makes the
+  20-against-30 inequality *"an ordering by construction"* while its very next bullet priced a residual
+  **forward-jump** window — the single clock removes the divergence between two clocks, not the race
+  between two processes, so `rewrite.sh:117` can still delete a live directory inside the ≤1 s before
+  the worker's next poll. **A defect in a repair that was one commit old**, and it made §13 row 24
+  harder to close rather than easier. §13 row 24.
   *Round seven*: §10.5 clause 7 requiring **both** halves of the election sweep to complete while
   ordering neither against the other — with (iv-a) first, a wrapper that publishes in the gap is missed
   by the record sweep and then skipped by the pgid sweep's own `.pending` gate, so a stale player
@@ -3644,7 +3736,7 @@ Stated so a reviewer can attack the right parts.
   2026-08-26 and the divergence from that one event is **2324 s (38 min 44 s)** against a margin sized
   at 10 minutes; over this boot it is **269.694 h**, **68.6 %** of uptime. `rewrite.sh:117`'s verbatim
   predicate selects a `speak` directory a monotonic idle timer still calls **12.51 min** young
-  **[measured-here]**. **This one is different in kind from the other twenty-two and that is the part to
+  **[measured-here]**. **This one is different in kind from the other thirty and that is the part to
   read**: it is the only defect in the list that was not found by anyone reading anything. The clause
   was internally consistent — it named a clock and gave a reason for it — and the reason was false
   about the platform rather than about the clause. **Five review rounds did not find it, and clause 6
@@ -3702,16 +3794,24 @@ Stated so a reviewer can attack the right parts.
   shape appeared, §13 rows 20 and 21 were pointed at it, and the run confirmed the smell** — both of
   its ordering rules failed, and the repair that held is §3.1's repair again: a record that is created
   and never mutated, with ownership carried by a name.
-- **All twenty-three are repaired in place, none needed a new decision from the listener, and that is why
-  §13 still answers *"can #11 lock?"* with yes.** But seven independent reads and two experiments on the
-  same text found at least twenty-three real defects; the second read found defects **in the first read's repairs**;
+- **All thirty-one are repaired in place, none needed a new decision from the listener, and that is why
+  §13 still answers *"can #11 lock?"* with yes.** But nine reads of this document, two reads of its
+  sibling and two experiments on the
+  same text found thirty-one real defects; the second read found defects **in the first read's repairs**;
   the experiment found that **two of the first read's repairs were themselves wrong**; the fourth
   read — the only one to find nothing wrong in anybody's repair — still found **five**, in four
-  sections, every one of them in text that had been read at least twice already; and the fifth read
+  sections, every one of them in text that had been read at least twice already; the fifth read
   found **four**, of which **two are defects in earlier repairs** — round three's master-switch fix
-  inverted, and round four's owner identity credited against a process it does not describe; and the
-  seventh read found **two more** — one in a clause round five wrote and round six had already corrected once, one a repair applied to §10.5 clause 6 and not to the §13 row that summarises it.
-  **The rate is not falling, and round four's clean sheet on repairs did not hold as a trend.** So
+  inverted, and round four's owner identity credited against a process it does not describe; **round six
+  found four and every one of them was round five's** — an ordering round five had backwards, a hazard
+  rate round five's own tag had multiplied by forty, and two cells that would have let a ship-blocking
+  row close early; the
+  seventh read found **two more** — one in a clause round five wrote and round six had already corrected once, one a repair applied to §10.5 clause 6 and not to the §13 row that summarises it;
+  and the recount found the **third** site of that same withdrawal, in this section's own `[inferred]`
+  list. **The rate is not falling, and round four's clean sheet on repairs did not hold as a trend.**
+  **Round six is the sharpest datum on that**: two of its four are defects in round five's repairs and
+  the other two are LOCKED bookkeeping that had drifted from the tables it summarised, so not one of the
+  four was a clause nobody had touched. So
   the honest posture is that §3 and §10.5 have not converged, and **§13 now says a verification pass
   over them is a precondition for #23 rather than a nice-to-have.** This is the same lesson as the §5 bullet below,
   arriving from a different direction and rather more forcefully.
@@ -3726,7 +3826,7 @@ Stated so a reviewer can attack the right parts.
   rises because an existing row was finally read correctly is a worse signal than one that rises
   because something new was found**, and it is the signal this document now has. It also breaks the
   pattern of the other rounds in the way that matters most for what to trust next: every one of the
-  other twenty-two defects was found by someone deliberately looking, and **five careful looks at this
+  other thirty defects was found by someone deliberately looking, and **five careful looks at this
   clause missed this one.** The generalisation is the bullet below.
 - **Two durations compared anywhere in this document are now suspect until someone names the clock each
   one is read off, and this is the newest lesson here.** §10.5 clause 6 held a 20-against-30 comparison
