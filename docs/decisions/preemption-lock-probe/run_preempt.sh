@@ -189,8 +189,19 @@ wait_ready() {
 start_worker none 1
 if ! wait_ready; then echo "FATAL: worker never became ready" >&2; exit 1; fi
 
+# A hook that fails has not measured the trial it was supposed to measure -- it either
+# stamped no markers or published nothing -- and the run must stop rather than continue
+# producing a directory that looks complete to everything except a marker count nobody
+# is obliged to check. See hook_probe.sh, which no longer exits 0 regardless.
+hook() {   # tag job_id text_file
+  "$RIG/hook_probe.sh" "$SD" "$MD" "$1" "$2" "$3" && return 0
+  echo "FATAL: hook $1 failed in $CFG -- the run is not measurable" >&2
+  kill -TERM "$WPID" 2>/dev/null
+  exit 1
+}
+
 # one throwaway job so the worker is WARM: it has already synthesised and played
-"$RIG/hook_probe.sh" "$SD" "$MD" warmup w0 "$TXT"
+hook warmup w0 "$TXT"
 sleep 5
 
 for i in $(seq 1 "$N"); do
@@ -203,12 +214,12 @@ for i in $(seq 1 "$N"); do
     start_worker "$DIE" "$i"
     wait_ready || { echo "FATAL: worker gen$i never ready" >&2; exit 1; }
   fi
-  "$RIG/hook_probe.sh" "$SD" "$MD" "$A" "j${i}a" "$TXT"
+  hook "$A" "j${i}a" "$TXT"
   sleep "$GAP"
-  "$RIG/hook_probe.sh" "$SD" "$MD" "$B" "j${i}b" "$TXT"
+  hook "$B" "j${i}b" "$TXT"
   if [[ "$THIRD" == yes ]]; then
     sleep 1.9
-    "$RIG/hook_probe.sh" "$SD" "$MD" "t${i}c" "j${i}c" "$TXT"
+    hook "t${i}c" "j${i}c" "$TXT"
   fi
   if [[ "$RESPAWN" == yes ]]; then
     # the ensure-worker step notices the worker is gone and elects a replacement,

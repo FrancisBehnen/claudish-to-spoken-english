@@ -39,6 +39,23 @@ The helpers that address the author's archived **run tree** rather than the rig'
 external path as their default, because those run directories are not in the repository. They
 take the same overrides.
 
+## Round 12: exit statuses mean something
+
+This document's own subject is a step that measured nothing and reported success, and review
+kept finding the same shape elsewhere in the rig one instance at a time. Round 12 swept the
+whole directory for it rather than the named cases: **a step that fails, or produces nothing,
+must not exit 0 and let the next step consume stale or absent input.** Concretely — the six
+`run_*.sh` drivers no longer let `| tail -1` swallow the driver's exit status; `collect.sh`,
+`collect_real.sh`, `assemble.sh` and `assemble_pass1.sh` refuse an empty or unparsable input
+instead of publishing whatever an earlier collection left behind; `summarise.sh`,
+`compare_passes.sh`, `analyse_round2.sh` and `analyse_c14.sh` fail rather than print empty
+sections; `publish.sh` refuses to publish a rig without `expected-configs.txt`; `gather_out.sh`
+names the configurations it cannot find instead of dropping them; `hook_probe.sh` no longer ends
+in an unconditional `exit 0`, so a failed publish is not stamped `Rdone`; and `run_lock.sh`
+scores a trial in which no process recorded an outcome as `VOID` rather than `owners=0`.
+None of this is new evidence: the committed TSVs predate all of it, and `summarise.sh` over them
+prints exactly what it printed before.
+
 ## Files
 
 | file | what it is |

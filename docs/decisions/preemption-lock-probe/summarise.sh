@@ -27,6 +27,24 @@ P="$E/preemption-trials.tsv"
 L="$E/lock-owners.tsv"
 R="$E/real-audio-trials.tsv"
 
+# The row-20 and row-21 inputs are checked HERE, before any of them is read. awk prints
+# "can't open file" and returns 2 to a script with no `set -e`, so a missing $P or $L
+# used to leave every section below printing its heading and no rows -- and this script,
+# which IS the advertised re-derivation of every published figure, exited 0 having
+# derived none of them. $R keeps its own softer path further down only because it
+# reports the omission and fails at the end.
+for f in "$P" "$L"; do
+  if [[ ! -f $f ]]; then
+    echo "summarise.sh: missing $f -- nothing below it can be re-derived." >&2
+    exit 2
+  fi
+  if [[ $(wc -l < "$f") -lt 2 ]]; then
+    echo "summarise.sh: $f has a header and no data rows." >&2
+    echo "Every figure below would print as an empty section. This is NOT a pass." >&2
+    exit 2
+  fi
+done
+
 # One definition of median, reused by every block below. Reads numbers on stdin.
 MED='function med(v, n) { if (n % 2) return v[(n + 1) / 2]; return (v[n / 2] + v[n / 2 + 1]) / 2 }'
 
@@ -104,7 +122,16 @@ echo "     timerstart_to_exit_s  upper bound; timer starts before Popen"
 echo "     popen_to_exit_s       lower bound; the child was forked inside the Popen this"
 echo "                           excludes. Neither is a measure of AUDIBILITY."
 if [[ -f "$R" ]]; then
-  for a in $(awk -F'\t' 'NR>1{print $1}' "$R" | sort -u); do
+  # A present-but-empty file is the same omission as an absent one, and it reaches this
+  # loop as zero iterations: section E prints its explanatory preamble, no arms, and
+  # nothing signals that the comparison the preamble just described did not happen.
+  # Route it to the same failure the missing-file branch takes.
+  arms=$(awk -F'\t' 'NR>1{print $1}' "$R" | sort -u)
+  if [[ -z $arms ]]; then
+    echo "   EMPTY: $R has no trials -- section E cannot be re-derived" >&2
+    MISSING_E=1
+  fi
+  for a in $arms; do
     awk -F'\t' -v a="$a" 'NR>1 && $1==a {print $5}' "$R" | stats "$a timerstart_to_exit_s"
     awk -F'\t' -v a="$a" 'NR>1 && $1==a && $8!="-" {print $8}' "$R" | stats "$a popen_to_exit_s"
     awk -F'\t' -v a="$a" 'NR>1 && $1==a && $7!="-" {print $7}' "$R" | stats "$a overlap_s"
@@ -155,7 +182,7 @@ END{ for (p in n) printf "%s\ttrials=%d\tnot_exactly_1=%d\trate=%.0f%%%s\n", p, 
        (void[p] ? "\tVOID=" void[p] : "") }' "$L" | sort
 
 if [[ ${MISSING_E:-0} = 1 ]]; then
-  echo "INCOMPLETE: real-audio evidence was missing, so section E is absent." >&2
+  echo "INCOMPLETE: real-audio evidence was missing or empty, so section E is absent." >&2
   echo "This is NOT a full re-derivation." >&2
   exit 2
 fi

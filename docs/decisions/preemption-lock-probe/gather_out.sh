@@ -43,17 +43,41 @@ pick() {   # dir_glob [want] -> newest matching dir with a full set of entry mar
   printf '%s\n' "$best"
 }
 
+# `pick` returns an empty string for a configuration with no run directory that has a
+# FULL set of entry markers -- an absent run and a short one look the same from here --
+# and `[[ -n $d ]] && printf` then dropped it without a word. The RUNS.txt that came out
+# was shorter than the configuration list that went in, `wc` reported the shorter number
+# as the result, and everything downstream took the file as the complete run set.
+# Skipping is now named, counted, and fatal, on the same rule verify_fires.sh applies:
+# silence about a configuration that is absent reads like confirmation that it ran.
+absent=0
+record() {   # config candidate_dir
+  if [[ -z "$2" ]]; then
+    echo "NO COMPLETE RUN: $1 has no run directory with a full marker set" >&2
+    absent=$((absent + 1))
+    return
+  fi
+  printf '%s\t%s\n' "$1" "$2" >> "$out"
+}
+
 for c in $UNAFFECTED; do
   case "$c" in
     C14a_*|C14b_*) d=$(pick "$NEW/$c-*" 37) ;;   # re-run with the third hook
     *)             d=$(pick "$OLD/$c-*") ;;
   esac
-  [[ -n "$d" ]] && printf '%s\t%s\n' "$c" "$d" >> "$out"
+  record "$c" "$d"
 done
 for c in $AFFECTED; do
   d=$(pick "$NEW/$c-*")
-  [[ -n "$d" ]] && printf '%s\t%s\n' "$c" "$d" >> "$out"
+  record "$c" "$d"
 done
+if [[ $absent -gt 0 ]]; then
+  echo "INCOMPLETE: $absent configuration(s) have no complete run -- RUNS.txt would" >&2
+  echo "name fewer configurations than this script was asked to gather. Re-run them," >&2
+  echo "or set ALLOW_INCOMPLETE=1 to gather a partial set deliberately." >&2
+  [[ ${ALLOW_INCOMPLETE:-0} = 1 ]] || exit 2
+  echo "WARNING: gathering an INCOMPLETE set because ALLOW_INCOMPLETE=1" >&2
+fi
 sort "$out" -o "$out"
-cp "$out" "$NEW/RUNS.txt"
+cp "$out" "$NEW/RUNS.txt" || { echo "gather_out.sh: could not write $NEW/RUNS.txt" >&2; exit 2; }
 wc -l < "$out"

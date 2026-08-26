@@ -48,7 +48,22 @@ printf 'scenario\tprotocol\tN\tstall_ms\trep\towners\n' > "$RESULTS"
 
 emit() { printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" "$5" "$6" >> "$RESULTS"; }
 
-count_owners() { awk -F'\t' '$7=="owner"' "$1" | wc -l | tr -d ' '; }
+# `awk ... | wc -l` counts 0 just as happily over a log that does not exist as over one
+# in which nobody claimed ownership, and `wc` succeeds either way -- so a trial whose
+# python never ran at all (wrong PYTHON, missing lockrace.py) emitted owners=0, and
+# summarise.sh scored 1200 staging failures as 1200 protocol failures. Every role ends
+# by recording exactly one of owner/lost/gave_up, so a log with none of them is a trial
+# that did not happen. That is VOID -- the same verdict the staging checks already give
+# -- and never a protocol result.
+count_owners() {   # log -> owner count, or VOID if the log records no outcome at all
+  if [[ ! -s "$1" ]] || ! awk -F'\t' '$7=="owner"||$7=="lost"||$7=="gave_up"{f=1}
+                                      END{exit !f}' "$1"; then
+    echo "$1: no process recorded an outcome -- trial VOID" >&2
+    printf 'VOID\n'
+    return
+  fi
+  awk -F'\t' '$7=="owner"' "$1" | wc -l | tr -d ' '
+}
 
 newdir() {
   local d="$OUT/$1"; rm -rf "$d"; mkdir -p "$d"; printf '%s\n' "$d"

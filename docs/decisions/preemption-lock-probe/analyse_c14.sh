@@ -23,8 +23,23 @@ T=${1:?traces dir}
 shift
 CFGS=${*:-"C14a_shared_unlink C14b_perplayer_unlink"}
 
+# The three inputs are checked before they are read. awk aborts on a file it cannot
+# open, so a traces directory missing any of them printed the "=== <config> ===" heading
+# and not one line under it, and this script exited 0 -- a crux left underived, reported
+# as a run that had nothing to report.
+miss=0
 for c in $CFGS; do
   echo "=== $c ==="
+  absent=0
+  for f in "$T/$c.player.log" "$T/$c.markers.tsv" "$T/$c.hook-kills.log"; do
+    [[ -f "$f" && -r "$f" ]] && continue
+    echo "  MISSING INPUT: $f" >&2
+    absent=1; miss=$((miss + 1))
+  done
+  if [[ $absent -eq 1 ]]; then
+    echo "  (inputs missing -- not analysed)"
+    continue
+  fi
   awk -F'\t' '
     FILENAME ~ /player\.log$/ {
       if ($4=="player_start") { st[$3]=$1+0; pid[$3]=$2 }
@@ -59,3 +74,9 @@ for c in $CFGS; do
       printf "   (%d trials had no live player at hook C and are excluded)\n", notlive
     }' "$T/$c.player.log" "$T/$c.markers.tsv" "$T/$c.hook-kills.log"
 done
+
+if [[ $miss -gt 0 ]]; then
+  echo "INCOMPLETE: $miss input(s) missing from $T -- at least one configuration above" >&2
+  echo "was not analysed at all. This is NOT a pass." >&2
+  exit 2
+fi

@@ -28,10 +28,33 @@ first=1
 : > "$DEST/preemption-trials.tsv"
 while read -r cfg d; do
   [[ -n "${d:-}" ]] || continue
-  bash "$R/collect.sh" "$d" "$cfg" > /dev/null
+  # collect.sh's exit status used to be discarded and $d/trials.tsv read regardless.
+  # A run directory that has been collected before still HOLDS a trials.tsv, so a
+  # failed re-collection published the OLD one as this assembly's evidence -- a stale
+  # file standing in for the missing one, which is worse than an empty column because
+  # it looks like data. Collection must succeed AND leave a file behind.
+  if ! bash "$R/collect.sh" "$d" "$cfg" > /dev/null; then
+    echo "assemble.sh: collect.sh failed for $cfg ($d) -- refusing to publish." >&2
+    echo "Anything already in $d/trials.tsv is from an EARLIER collection." >&2
+    exit 2
+  fi
+  if [[ ! -f "$d/trials.tsv" ]]; then
+    echo "assemble.sh: collect.sh left no $d/trials.tsv for $cfg." >&2
+    exit 2
+  fi
   if [[ $first == 1 ]]; then head -1 "$d/trials.tsv" >> "$DEST/preemption-trials.tsv"; first=0; fi
   tail -n +2 "$d/trials.tsv" >> "$DEST/preemption-trials.tsv"
 done < "$O/RUNS.txt"
+
+# An empty RUNS.txt leaves a zero-byte file here, and `wc` at the end reports it
+# without complaint. verify_fires.sh normally catches that first, but ALLOW_INCOMPLETE=1
+# is a deliberate way past it and must not also be a way to publish no evidence at all.
+rows=$(( $(wc -l < "$DEST/preemption-trials.tsv") - 1 ))
+if [[ $rows -lt 1 ]]; then
+  echo "assemble.sh: $O/RUNS.txt yielded no trials -- wrote an empty evidence file." >&2
+  echo "This is NOT a successful assembly." >&2
+  exit 2
+fi
 
 # A row-20-only run must not leave a STALE lock-owners.tsv in place and then have the
 # wc below report it as part of this assembly. Say so and fail, rather than publishing
@@ -45,3 +68,9 @@ elif [[ -f "$DEST/lock-owners.tsv" ]]; then
   [[ ${ALLOW_STALE_LOCK:-0} = 1 ]] || exit 2
 fi
 wc -l "$DEST/preemption-trials.tsv" "$DEST/lock-owners.tsv" 2>/dev/null
+# The closing report must not decide this script's exit status. `wc` fails merely
+# because a row-20-only assembly has no lock-owners.tsv to count, which reported a
+# FAILURE for an assembly that had succeeded -- the mirror of the defect this revision
+# sweeps, and just as misleading to anything reading the status. Every real failure
+# above exits explicitly, so reaching here means success.
+exit 0

@@ -22,12 +22,21 @@
 # it will call a trial adversarial.
 #
 # usage: hook_probe.sh <speak_dir> <marker_dir> <tag> <job_id> <text_file>
+#
+# Every step below that can fail is now fatal, and the trailing `exit 0` is gone. It
+# reported success unconditionally: a hook whose marker directory did not exist stamped
+# nothing, a hook whose text file was unreadable published a job with no text, and a
+# hook whose rename failed still stamped $TAG.Rdone -- which collect.sh reads as
+# "publication demonstrably complete" and uses to classify a trial as adversarial. The
+# driver saw 0 either way and ran the next trial. verify_fires.sh catches the missing
+# markers afterwards, but only for a run somebody remembers to check, and it cannot
+# catch a Rdone that was stamped after a rename that never happened.
 set -u
 SD=$1; MD=$2; TAG=$3; JID=$4; TXT=$5
 
-: > "$MD/$TAG.entry"
+: > "$MD/$TAG.entry" || { echo "hook_probe.sh: cannot stamp $MD/$TAG.entry" >&2; exit 3; }
 
-: > "$MD/$TAG.K"
+: > "$MD/$TAG.K" || { echo "hook_probe.sh: cannot stamp $MD/$TAG.K" >&2; exit 3; }
 found=0
 if [[ -d "$SD/playerdir" ]]; then
   for f in "$SD"/playerdir/*; do
@@ -64,8 +73,15 @@ fi
 sleep "${HOOK_GAP_S:-0.09}"
 
 tmp="$SD/.job.$$"
-{ printf '%s\n' "$JID"; cat "$TXT"; } > "$tmp"
-: > "$MD/$TAG.R"
-mv -f "$tmp" "$SD/job"
-: > "$MD/$TAG.Rdone"
+if ! { printf '%s\n' "$JID"; cat "$TXT"; } > "$tmp"; then
+  echo "hook_probe.sh: could not stage the job file from $TXT" >&2
+  rm -f "$tmp"
+  exit 3
+fi
+: > "$MD/$TAG.R" || { echo "hook_probe.sh: cannot stamp $MD/$TAG.R" >&2; exit 3; }
+# Rdone is stamped ONLY after the rename has actually returned 0. It is the marker
+# collect.sh treats as proof that publication completed, so stamping it beside a failed
+# mv would manufacture the very ordering the adversarial predicate tests for.
+mv -f "$tmp" "$SD/job" || { echo "hook_probe.sh: publish rename to $SD/job failed" >&2; exit 3; }
+: > "$MD/$TAG.Rdone" || { echo "hook_probe.sh: cannot stamp $MD/$TAG.Rdone" >&2; exit 3; }
 exit 0

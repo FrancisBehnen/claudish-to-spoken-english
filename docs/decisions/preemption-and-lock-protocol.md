@@ -281,7 +281,8 @@ Rig: [`preemption-lock-probe/`](preemption-lock-probe/README.md). Every figure b
 from committed files with `awk` and `sort` only — `summarise.sh <dir>` over the four committed
 TSVs, and `analyse_round2.sh preemption-lock-probe/traces` over the committed traces, are the
 derivations. (Round 3 wrote "from the committed TSVs" for both; `analyse_round2.sh` takes the
-trace directory, and pointing it at the TSVs prints `(trace missing)` for every block.)
+trace directory, and pointing it at the TSVs prints `(trace missing)` for every block — and,
+since round 12, **exits 2** instead of reporting a successful analysis that derived nothing.)
 `verify_fires.sh` is the check that every hook fired, and over the committed `traces/` it
 **fails** — see below; that is a real gap in the evidence set, not a formality. **And until
 round 5 it could not run from the repository at all, while reporting that it had.** It read a

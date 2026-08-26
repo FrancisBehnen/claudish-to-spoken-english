@@ -8,6 +8,16 @@ set -u
 D=${1:?dir}
 for f in preemption-trials-replication.tsv preemption-trials.tsv; do
   echo "-- $f"
+  # An AGREEMENT check has to fail loudly when it has nothing to compare. awk aborts on
+  # a file it cannot open and this script has no `set -e`, so a missing evidence file
+  # printed its "-- <name>" heading, no rows underneath, and exited 0 -- which reads
+  # exactly like the two passes agreeing on an empty set of disagreements. The column
+  # comment below records that this comparison has already silently compared nothing
+  # once, for a different reason; that is why it is checked rather than assumed.
+  if [[ ! -f "$D/$f" || $(wc -l < "$D/$f") -lt 2 ]]; then
+    echo "compare_passes.sh: $D/$f is missing or has no data rows -- nothing to compare." >&2
+    exit 2
+  fi
   # Columns, from the TSV header: 13 player_pid, 14 rc, 16 alive_s, 17 player_log_sig.
   # These offsets predated the insertion of Rdone_b and were reading player_pid as rc
   # and alive_s as player_log_sig, so every row scored "unknown" and this comparison

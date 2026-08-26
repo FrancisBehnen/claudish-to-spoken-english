@@ -36,12 +36,21 @@ WPID=$!
 for _ in $(seq 1 400); do [[ -f "$SD/ready" ]] && break; sleep 0.05; done
 [[ -f "$SD/ready" ]] || { echo "FATAL: worker never ready" >&2; exit 1; }
 
-"$RIG/hook_probe.sh" "$SD" "$MD" warmup w0 "$TXT"
+# A failed hook is fatal here for the same reason as in run_preempt.sh: it measures
+# nothing, and this arm has three trials, so one silent loss is a third of section E.
+hook() {   # tag job_id text_file
+  "$RIG/hook_probe.sh" "$SD" "$MD" "$1" "$2" "$3" && return 0
+  echo "FATAL: hook $1 failed in $SID -- the run is not measurable" >&2
+  kill -TERM "$WPID" 2>/dev/null
+  exit 1
+}
+
+hook warmup w0 "$TXT"
 sleep 8
 for i in $(seq 1 "$N"); do
-  "$RIG/hook_probe.sh" "$SD" "$MD" "t${i}a" "j${i}a" "$TXT"
+  hook "t${i}a" "j${i}a" "$TXT"
   sleep 1.4
-  "$RIG/hook_probe.sh" "$SD" "$MD" "t${i}b" "j${i}b" "$OUT/$SID/text2"
+  hook "t${i}b" "j${i}b" "$OUT/$SID/text2"
   sleep 12
 done
 kill -TERM "$WPID" 2>/dev/null

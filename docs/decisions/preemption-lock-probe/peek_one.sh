@@ -5,10 +5,18 @@ set -u
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 RIG=${RIG:-$HERE}
 OUT=${OUT:-$HOME/.local/share/kokoro/bench/preempt-lock-2026-08-25/out}
+[[ -f "$OUT/RUNS.txt" ]] || { echo "peek_one.sh: no $OUT/RUNS.txt." >&2; exit 2; }
 for c in "$@"; do
   d=$(awk -v c="$c" '$1==c{print $2}' "$OUT/RUNS.txt")
   [[ -n "${d:-}" && -d "$d" ]] || { echo "=== $c (not run) ==="; continue; }
-  bash "$RIG/collect.sh" "$d" "$c" >/dev/null 2>&1
+  # `>/dev/null 2>&1` discarded both the collector's output and its diagnosis, and the
+  # summary below was then printed from whatever trials.tsv that directory already had
+  # -- an earlier collection's numbers under today's heading. Failure is now visible
+  # and the stale rows are not printed at all.
+  if ! bash "$RIG/collect.sh" "$d" "$c" >/dev/null; then
+    echo "=== $c (COLLECTION FAILED -- any rows here would be stale) ==="
+    continue
+  fi
   echo "=== $c ==="
   awk -F'\t' 'NR>1{
     a="?";

@@ -4,17 +4,39 @@
 # them, plus the two defects review found in the round-1 repair.
 #
 # usage: analyse_round2.sh <traces_dir>
+#
+# ROUND 12: every block below used to end in `2>/dev/null || echo "(trace missing)"`,
+# and the script still exited 0 when every one of them had printed it -- an analysis
+# that derived none of the facts it names, reported as a success. Worse, one block
+# ended in `| head -20 ||`, where the status belongs to `head` and never to awk, so a
+# missing trace there printed nothing at all. Inputs are now checked before they are
+# read, `2>/dev/null` no longer hides awk's own runtime errors, and a missing input is
+# fatal at the end.
 set -u
 T=${1:?traces dir}
 
 hdr() { printf '\n== %s ==\n' "$1"; }
+
+miss=0
+need() {   # file... -> 0 if all present, else name what is absent and count it
+  local f rc=0
+  for f in "$@"; do
+    # -r, not just -f: awk aborts on a file it cannot READ just as surely as on one
+    # that is not there, and one of the blocks below ends in a pipe that would hide it.
+    [[ -f "$f" && -r "$f" ]] && continue
+    echo "  MISSING INPUT: $f" >&2
+    echo "  (trace missing)"
+    miss=$((miss + 1)); rc=1
+  done
+  return $rc
+}
 
 hdr "C12b: what ACTUALLY attributes the kill to the process group?"
 echo "   Round 2 wrote 'the record sweep in the same election reported swept=0, so"
 echo "   only the group could have reached it'. That is FALSE and is corrected here:"
 echo "   the record sweep's target list is unbounded and it does reach pids left by"
 echo "   earlier trials. The attribution is the killpg that was SENT, plus C12c."
-awk -F'\t' '
+need "$T/C12b_pgid_sweepfirst.worker.trace" && awk -F'\t' '
   { n=split($6,f," "); delete V; for(i=1;i<=n;i++){split(f[i],kv,"="); V[kv[1]]=kv[2]} }
   $5=="election_sweep_record" { el++; if (V["swept"]+0 > 0) sw++
                                 r=V["rows"]+0; if (r>maxrows) maxrows=r
@@ -24,30 +46,30 @@ awk -F'\t' '
                el+0, sw+0, maxrows+0, warm+0
         printf "  pgid kill_attempts: sent=%d  ESRCH=%d  (one live group per election, the rest already empty)\n",
                sent+0, esrch+0 }
-' "$T/C12b_pgid_sweepfirst.worker.trace" 2>/dev/null || echo "  (trace missing)"
+' "$T/C12b_pgid_sweepfirst.worker.trace"
 echo "   and the control, C12c -- identical timing, pgid sweep REMOVED:"
-awk -F'\t' '
+need "$T/C12c_perplayer_recordonly.worker.trace" && awk -F'\t' '
   { n=split($6,f," "); delete V; for(i=1;i<=n;i++){split(f[i],kv,"="); V[kv[1]]=kv[2]} }
   $5=="election_sweep_pgid" { g++ }
   END { printf "  pgid sweeps in C12c = %d\n", g+0 }
-' "$T/C12c_perplayer_recordonly.worker.trace" 2>/dev/null || echo "  (trace missing)"
+' "$T/C12c_perplayer_recordonly.worker.trace"
 
 hdr "C13a: did the ledger truncate ERASE a live player's entry?"
 echo "   (an entry appended between the sweep's read and its truncate is wiped"
 echo "    without ever having been signalled -- review comment on speakd_probe.py:167)"
-awk -F'\t' '
+need "$T/C13a_ledger_truncate.worker.trace" && awk -F'\t' '
   { n=split($6,f," "); delete V; for(i=1;i<=n;i++){split(f[i],kv,"="); V[kv[1]]=kv[2]} }
   $5=="election_sweep_record" { printf "  sweep read pids=%s swept=%s\n", V["pids"], V["swept"] }
   $5=="ledger_truncated" { printf "  truncate held=%-12s ERASED=%s\n", V["held_at_truncate"], V["erased"] }
-' "$T/C13a_ledger_truncate.worker.trace" 2>/dev/null | head -20 || echo "  (trace missing)"
+' "$T/C13a_ledger_truncate.worker.trace" | head -20
 
 hdr "C13b: same timing, per-player records -- nothing to truncate"
-awk -F'\t' '
+need "$T/C13b_perplayer_sametiming.worker.trace" && awk -F'\t' '
   { n=split($6,f," "); delete V; for(i=1;i<=n;i++){split(f[i],kv,"="); V[kv[1]]=kv[2]} }
   $5=="ledger_truncated" { t++ }
   $5=="election_sweep_pgid" { g++ }
   END { printf "  ledger_truncated events=%d   pgid sweeps=%d\n", t+0, g+0 }
-' "$T/C13b_perplayer_sametiming.worker.trace" 2>/dev/null || echo "  (trace missing)"
+' "$T/C13b_perplayer_sametiming.worker.trace"
 
 hdr "C14a: did an OLDER player's reap unlink a NEWER player's record?"
 echo "   (read-then-unlink TOCTOU -- review comment on the doc at :573)"
@@ -65,7 +87,7 @@ echo "        An unlink after it therefore destroyed a record that certainly exi
 echo "    (b) the hook side, below: a later hook that reads NO record while that newer"
 echo "        player is demonstrably live can only mean the record was published and"
 echo "        then destroyed -- nothing else in this arm unlinks."
-awk -F'\t' '
+need "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.worker.trace" && awk -F'\t' '
   # pass 1: the player log, keyed by pid.
   FNR==NR { if ($4=="player_start") START[$2]=$1; next }
   { n=split($6,f," "); delete V; for(i=1;i<=n;i++){split(f[i],kv,"="); V[kv[1]]=kv[2]} }
@@ -94,10 +116,9 @@ awk -F'\t' '
     printf "      at all -- the unlink lands inside the newer player%s unobserved\n", "'"'"'s"
     printf "      Popen->publish->exec gap. See the hook side for what settles them.\n"
   }
-' "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.worker.trace" 2>/dev/null \
-  || echo "  (trace missing)"
+' "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.worker.trace"
 echo "   and the consequence, from the hook side:"
-awk -F'\t' '
+need "$T/C14a_shared_unlink.hook-kills.log" && awk -F'\t' '
   { r = $0; sub(/^.*result=/, "", r); sub(/[ \t].*$/, "", r)
     if ($1 ~ /a$/)      A[r]++
     else if ($1 ~ /b$/) B[r]++
@@ -114,9 +135,10 @@ awk -F'\t' '
         printf "      unlink removed the a-player%s OWN record -- the b-player had not\n", "'"'"'s"
         printf "      published yet. The count of destroyed records is therefore NOT the\n"
         printf "      cross-unlink count above.\n" }' \
-  "$T/C14a_shared_unlink.hook-kills.log" 2>/dev/null || echo "  (log missing)"
+  "$T/C14a_shared_unlink.hook-kills.log"
 echo "   the two sides added up -- this is the figure the document quotes:"
-awk -F'\t' '
+need "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.hook-kills.log" \
+     "$T/C14a_shared_unlink.worker.trace" && awk -F'\t' '
   FILENAME ~ /player\.log$/   { if ($4=="player_start") START[$2]=$1; next }
   FILENAME ~ /hook-kills\.log$/ { if ($1 ~ /c$/) { if ($0 ~ /result=nopid/) hookc++ } ; next }
   { n=split($6,f," "); delete V; for(i=1;i<=n;i++){split(f[i],kv,"="); V[kv[1]]=kv[2]} }
@@ -129,18 +151,18 @@ awk -F'\t' '
         printf "  They fall in the SAME %d trials, and they are distinct unlinks: the first\n", hookc+0
         printf "  unlink of such a trial is caught by hook C, the second by the player log.\n" }
 ' "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.hook-kills.log" \
-  "$T/C14a_shared_unlink.worker.trace" 2>/dev/null || echo "  (trace missing)"
+  "$T/C14a_shared_unlink.worker.trace"
 
 hdr "C14b: per-player records -- an unlink can only remove its own name"
-awk -F'\t' '
+need "$T/C14b_perplayer_unlink.worker.trace" && awk -F'\t' '
   { n=split($6,f," "); delete V; for(i=1;i<=n;i++){split(f[i],kv,"="); V[kv[1]]=kv[2]} }
   $5=="record_unlinked" { if (V["path"] ~ ("^" V["player_pid"] "\\.")) own++; else other++ }
   END { printf "  unlinks of own record=%d   of another player%s record=%d\n", own+0, "'"'"'s", other+0 }
-' "$T/C14b_perplayer_unlink.worker.trace" 2>/dev/null || echo "  (trace missing)"
+' "$T/C14b_perplayer_unlink.worker.trace"
 echo "   and the consequence, from the hook side:"
-awk '{ if ($0 ~ /result=norecord/) none++ ; if ($0 ~ /result=sent/) sent++ ; if ($0 ~ /result=esrch/) esrch++ }
+need "$T/C14b_perplayer_unlink.hook-kills.log" && awk '{ if ($0 ~ /result=norecord/) none++ ; if ($0 ~ /result=sent/) sent++ ; if ($0 ~ /result=esrch/) esrch++ }
   END { printf "  hook reads: norecord=%d  sent=%d  esrch=%d\n", none+0, sent+0, esrch+0 }' \
-  "$T/C14b_perplayer_unlink.hook-kills.log" 2>/dev/null || echo "  (log missing)"
+  "$T/C14b_perplayer_unlink.hook-kills.log"
 
 hdr "C15c/C16: was killpg USED or SKIPPED, and did the player still die?"
 echo "   (the pending marker bounds pgid-reuse blast radius to the narrow window)"
@@ -148,6 +170,7 @@ echo "   C15c is included because round 2 credited its 12/12 to the pgid sweep. 
 echo "   not: killpg is skipped on every election and the RECORD sweep does the work,"
 echo "   which is why clause 7(iv-a) exists."
 for c in C15c_norecheck_death_pgid C16a_pending_sweepfirst C16b_pending_pubfirst; do
+  need "$T/$c.worker.trace" || continue
   awk -F'\t' -v c="$c" '
     { n=split($6,f," "); delete V; for(i=1;i<=n;i++){split(f[i],kv,"="); V[kv[1]]=kv[2]} }
     $5=="election_sweep_pgid" { if (V["skipped"] != "") skip++; else used++ }
@@ -156,5 +179,12 @@ for c in C15c_norecheck_death_pgid C16a_pending_sweepfirst C16b_pending_pubfirst
     $5=="pending_created" { created++ }
     END { printf "  %-26s pending created=%d found_at_sweep=%d | killpg used=%d skipped=%d | record sweeps that signalled=%d\n",
                  c, created+0, found+0, used+0, skip+0, recswept+0 }
-  ' "$T/$c.worker.trace" 2>/dev/null || echo "  $c (trace missing)"
+  ' "$T/$c.worker.trace"
 done
+
+if [[ $miss -gt 0 ]]; then
+  echo "INCOMPLETE: $miss input(s) missing from $T -- the facts above are a SUBSET" >&2
+  echo "of what this script names, and the ones it could not derive are not marked in" >&2
+  echo "the output the document quotes from. This is NOT a pass." >&2
+  exit 2
+fi

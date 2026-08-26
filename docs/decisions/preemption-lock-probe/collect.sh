@@ -13,6 +13,20 @@ set -u
 D=${1:?rundir}; CFG=${2:?config}
 MD="$D/markers"
 
+# Check the inputs BEFORE parsing them. awk aborts on a file it cannot open, so a run
+# directory missing any of these left an EMPTY trials.tsv behind -- and this script then
+# exited 0, because its last command was the `wc` that counted the nothing. That is the
+# null-as-pass defect at its source: every caller that runs collect.sh and reads
+# trials.tsv afterwards inherited it.
+#
+# All four exist in any run that happened: the warm-up job alone makes every hook write
+# kills.log and its markers, and makes one player write player.log. An absent file means
+# the run did not happen, not that there was nothing to record.
+[[ -d "$D" ]] || { echo "collect.sh: no run directory $D" >&2; exit 2; }
+for f in "$MD" "$MD/kills.log" "$D/player.log" "$D/worker.trace"; do
+  [[ -e "$f" ]] || { echo "collect.sh: $D is not a complete run -- missing $f" >&2; exit 2; }
+done
+
 # ---- markers.tsv
 {
   printf 'tag\tevent\tts\n'
@@ -118,5 +132,15 @@ END {
       (jb in S ? sprintf("%.6f", S[jb]) : "-"), ord
   }
 }
-' "$D/markers.tsv" "$MD/kills.log" "$D/player.log" "$D/worker.trace" > "$D/trials.tsv"
+' "$D/markers.tsv" "$MD/kills.log" "$D/player.log" "$D/worker.trace" > "$D/trials.tsv" \
+  || { echo "collect.sh: the parser failed on $D -- trials.tsv is not usable" >&2; exit 2; }
+
+# A trials.tsv with a header and no rows is a parse that matched nothing: the trace
+# exists but carries no S_claim, so no trial was reconstructed. Callers append this file
+# to the published evidence, so it must fail here rather than contribute nothing there.
+rows=$(( $(wc -l < "$D/trials.tsv") - 1 ))
+if [[ $rows -lt 1 ]]; then
+  echo "collect.sh: no trials parsed out of $D -- wrote a header only." >&2
+  exit 2
+fi
 wc -l < "$D/trials.tsv"
