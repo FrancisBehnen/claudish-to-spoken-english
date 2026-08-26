@@ -104,6 +104,16 @@ measured on both sides of the ordering that matters.**
   **24 of 25** elections), and three separate sites signalled a pid taken straight from it. The
   record's **content** is now `<pid>.<starttime>`, as PR #27 clause 7(i) specifies, and the hook,
   the election sweep and the claim-time kill all verify it (§4b(i)).
+  **And the one signalling site that was EXEMPTED from that repair did not deserve the
+  exemption — round 26, and it is the fifth pid-reuse site.** Clause (iii)'s in-memory
+  `Popen` handle was excused on the grounds that a retained handle reserves the pid. It does
+  not: the reaper's `proc.wait()` is what *releases* the pid, and nothing dropped the handle,
+  so **12 of `C10b`'s 24 `via=handle` kills already signal a released pid** — `ESRCH` every
+  time, about **2.6 s** after that player exited **[trials]**. The four record-based sites were
+  guarded and the one path that reads no record was not, which is the same asymmetry as the
+  player-record finding one level in. The repair is to the handle's **lifecycle** rather than to
+  any test — retire it while the pid is still reserved, under the mutex the signal takes — and
+  it is **`[inferred]`** with a re-run as its closing condition (§2.5 item 7, §4b(iii)).
   And a sweep signal that anything ignores makes the sweep a silent no-op:
   `nohup` sets `SIGHUP` to `SIG_IGN`, inherited across `fork` and `exec`, which produced a
   **false "the repair fails"** for a whole run (§2.5).
@@ -211,17 +221,21 @@ the two arms are compared under the same predicate rather than across a changed 
 [`preemption-trials-replication.tsv`](preemption-trials-replication.tsv) the replication, and
 `preemption-lock-probe/compare_passes.sh` prints them side by side.
 
-**Twelve derivation defects have been found by review, and all twelve are fixed here. Five of
+**Thirteen derivation defects have been found by review, and all thirteen are fixed here. Five of
 them made the reproducibility claim false, which was the claim the whole document rested on.**
 The first three came from review of the first revision; the next two from round 5, the sixth from
 round 15, the seventh and eighth from round 16, the ninth and tenth from round 17, the eleventh
-from round 21, the twelfth from round 24, and all of them are of the same kind — a figure whose
+from round 21, the twelfth from round 24, the thirteenth from round 26, and all of them are of
+the same kind — a figure whose
 name and whose derivation are not the same quantity, or a derivation that does not reach the
 figure it is cited for.
-**Numbers 11 and 12 are both defects in the fix for number 9**, on the same figure, and that is
-worth saying plainly: `C14a`'s destruction count has now been through a withdrawal and three
+**Numbers 11, 12 and 13 are all defects in the fix for number 9**, on the same figure, and that is
+worth saying plainly: `C14a`'s destruction count has now been through a withdrawal and four
 repairs. It has not moved through any of them, and that is a fact about this data rather than
-about the arguments, each of which was wrong when it was made.
+about the arguments, each of which was wrong when it was made. **Number 13 is the sharpest form
+of the pattern in this list**: the round-25 repair it corrects did not fail to fix its own target,
+it fixed it by moving the misclassification into the arm next door — a defect whose only
+symptom would have been the *opposite* claim about the same trial.
 
 1. **The medians were not medians.** `summarise.sh` took `v[int((NR+1)/2)]`, the **lower middle**
    observation. Every sample here is even-sized, so the script systematically did not re-derive
@@ -432,6 +446,38 @@ about the arguments, each of which was wrong when it was made.
    preempt"* while reading only `hook-kills.log`, which carries no timestamps and so cannot
    support any liveness claim at all. It now says the count, says it cannot settle liveness, and
    points at witness (b), which can.
+13. **Restricting the `reached` arm to `sent` moved the misclassification into the `blind` arm —
+   round 26, and this is the FIFTH revision of the same figure.** Round 25 found that
+   `analyse_c14.sh`'s reached branch tested `!= nopid && != norecord`, which is not its own
+   premise — the premise is that the kill returned **0** — and narrowed it to `HC[i] == "sent"`.
+   Correct as far as it went, and **`blind` was the `else`**, so the rows it evicted did not
+   leave the derivation: they landed in the arm that means *"the hook found NO record"*. Neither
+   evicted outcome means that. `esrch` means a record was found and its pid was gone;
+   `record_skipped` means a record was found and **deliberately not signalled**, which is the
+   near-opposite of an absence — and it carries `verdict=` and no `result=` at all, so the field
+   parsed **empty** and fell through as well. On an identity-enabled re-run a trial where the
+   hook read an intact record and refused it on identity grounds could therefore have been
+   published as a **record destruction**. Round 21 had already found this exact shape in three
+   `hook-kills.log` parsers inside `analyse_round2.sh` and repaired them by testing the event
+   column first; `analyse_c14.sh` reads the same file and was never given that test, and round
+   25's narrowing is what made the gap point the dangerous way. **`blind` now requires `nopid`
+   or `norecord` BY NAME**, every other outcome is excluded **by name and printed** with the
+   outcome that caused it, a trial carrying more than one hook-C row is excluded rather than
+   silently reduced to its last row, and the block asserts that its arms plus its exclusions sum
+   to the 12 trials it iterates — **exiting 2 rather than printing a note**, because a
+   derivation that has lost a trial must not be able to report a figure and a zero status at
+   once. **THE FIGURE SURVIVES UNCHANGED — `C14a` 4 unreachable / 8
+   reachable, `C14b` 0 / 12**, verified rather than assumed: on the committed traces the only
+   outcomes on a hook-C row are `nopid` (4) and `sent` (20), and every trial carries exactly
+   one. Latent, exactly as defects 7 and 11 were. Both directions are demonstrated on a
+   synthetic 12-trial fixture: a `record_skipped … verdict=recycled` row and an `esrch` row are
+   each **named and excluded** where the round-25 script counted both as destructions (4 blind
+   → 2), a trial with two hook-C rows is excluded with both outcomes printed where the round-25
+   script silently kept the last, and `nopid`, `norecord` and `sent` are all still accepted into
+   the arms they belong to. **The accounting check is demonstrated firing too**, which needs a
+   mutation rather than an input: with one exclusion counter's increment removed it prints
+   `ACCOUNTING ERROR: 10 of 12` and exits **2**, and on the committed traces it is silent and
+   exits 0.
 
 **Four HARNESS defects were also found and are disclosed here, because three of them changed
 results and one of them destroyed data.** They are listed rather than quietly fixed, since a
@@ -790,6 +836,10 @@ section F prints whichever arm it is pointed at.)
 - **Clause (iii) must kill BOTH targets.** `handle` and `pidfile` are indistinguishable while
   the record exists (`C3` vs `C6`, 24/24 identical) and **opposite** when it does not
   (`C10a` NOTHING vs `C10b` killed, 12/12 each way).
+  **What is measured is that the handle target is load-bearing, not that it is safe** — round 26
+  found the handle signalling a released pid on **12 of `C10b`'s 24** `via=handle` rows, so the
+  target stays required and now carries a lifecycle requirement that is **`[inferred]`** and
+  unrun (item 7 of §2.5, §4b(iii)).
 - **Clause (i)'s independent value is latency.** In `C2` the hook reached the player a median
   **134 ms** sooner (range 123–143) than the worker's next claim would have.
 - **Clause (ii) is correctness-relevant only in the absence of AN ELECTION-TIME SWEEP, and this
@@ -885,7 +935,7 @@ run, and the warm-up player `94309` is in **24 of the 25** sweeps).
    exactly the line an implementer adds for unrelated reasons.
 3. **The sweep signal must not be one anything ignores.** See §2.5.
 
-### 2.5 Six things the run found that nobody asked about
+### 2.5 Seven things the run found that nobody asked about
 
 **1. `kill(2)` on an unreaped zombie SUCCEEDS.** In `C7` the worker never `wait()`s its
 player; both kill sites then reported success on all 12 trials against a process the hook had
@@ -998,6 +1048,24 @@ targets the superseded **worker**'s group: `killpg(19781) → ESRCH` is *positiv
 the player left that group, because a process group persists while any member lives. The
 mis-parse touched only the separate record sweep, which in `C17` legitimately had no record to
 find — the player publishes 1.5 s later. It is a defect in the rig's parser, not in the arm.
+
+**7. Half of `C10b`'s handle kills already target a pid that has been released — the one
+signalling site this document exempted from the pid-reuse guard.** Clause (iii) kills two
+targets, and §4b argued the in-memory `Popen` handle needed no identity test because *"the pid
+is reserved until this process reaps it"*. The premise names the right condition and the probe
+did not meet it: the reaper calls `proc.wait()`, which is what releases the pid, and nothing
+cleared the handle afterwards. In `C10b_nopid_handle` — the arm whose whole purpose is to make
+the handle the *only* target — **24** rows are `via=handle` and **12** of them are
+`result=ESRCH` **[trials]**. They are the twelve `jNa` claims, and each signals the previous
+trial's b-player about **2.6 s** after that player's `player_exit`. This is item 2 of this list
+one path over: the *stale read* is observed 12/12, the *recycling* is not, and the difference
+between harmless and catastrophic is whether the kernel handed that number to someone else
+inside those 2.6 s. It is the **fifth** pid-reuse site in this design, after the owner record,
+the player record's content, the per-player filename (item 6) and the hook — and the only one
+whose exemption was argued rather than measured. The repair is in the handle's lifecycle, not
+in a test: retire the handle while the pid is still reserved, under the same mutex the signal
+takes (§4b(iii)). **`[inferred]`**; nothing has run it, and the closing condition is a re-run
+of `C10b_nopid_handle` and `C6_handle`.
 
 ### 2.6 The real-audio arm
 
@@ -1544,10 +1612,14 @@ annotate them.
 >   generation, so all 400 trials ran with every generation present. §13 row 21's closing
 >   condition now names it.
 >
-> **Measured: exactly 1 owner on 400 of 400 trials** — but **none of those 400 is confirmed to
-> have exercised reclamation of a dead owner** (§3.3): its three reclamation scenarios, 100
+> **Measured: exactly 1 owner on 400 of 400 trials** — but **exactly ONE of those 400 is
+> confirmed by a committed trace to have exercised reclamation of a dead owner** (§3.3): its
+> three reclamation scenarios, 100
 > trials, all staged their incumbent or their stale observation by a fixed sleep, and for this
-> protocol a mis-staged trial yields the same 1 owner a pass yields; 220 more are structurally
+> protocol a mis-staged trial yields the same 1 owner a pass yields — but
+> `lock-S3_aba-proposed-r1.tsv` records one trial in which both racers classify the incumbent
+> `pid_dead` and one supersedes it, so the confirmed sample is **1 of 100** and the other **99**
+> are unconfirmed; 220 more are structurally
 > vacuous and the remaining 80 answer the who-wins race. It is unfalsified, not validated —
 > against 121/400 wrong for `current` and
 > **61/400 wrong for the clause this replaces**. Worst case observed for both of the others was
@@ -1609,6 +1681,12 @@ annotate them.
 >     **the worker's claim-time kill ((iii) below)** — which reads the same records through
 >     the same code and whose `kill` is the same act. Guarding two of three is how this
 >     repair would ship broken.
+>     **Round 26: three is the count of sites that read a RECORD, and it is still three — but
+>     it is not the count of sites that signal a player pid.** There is a FOURTH, and it
+>     reads no record and cannot be fixed by this rule: the claim-time kill's **other**
+>     target, the retained `Popen` handle. It was exempted from the identity test on a
+>     premise about pid reservation that the implementation did not provide, and the fix is
+>     to the handle's lifecycle rather than to any test — (iii) below.
 >   - **The start time rides in the CONTENT, not in the name**, and that is a deliberate
 >     match to **PR #27's §10.5 clause 7(i)**, which specifies the same anchored name and
 >     the same `<pid>.<starttime>` content. The two documents must describe **one** scheme,
@@ -1647,12 +1725,46 @@ annotate them.
 >   indistinguishable while a record exists (24/24) and opposite when none does (12/12 each
 >   way, `C10a`/`C10b`).
 >   - **The two targets need DIFFERENT treatment under (i)'s identity rule, and this is the
->     third signalling site round 21 added it to.** The **handle** is a `Popen` object for a
->     child this process forked, so its pid is reserved until this process reaps it and can
->     never name a stranger — no test, and none is possible. The **record** is read from
+>     third signalling site round 21 added it to.** The **record** is read from
 >     disk and is exactly (i)'s case: re-read the start time, skip on mismatch. A reader who
 >     guarded the sweep and the hook and left this one alone would keep a `kill` at an
 >     arbitrary recycled pid on the ordinary claim path.
+>   - **THE HANDLE IS NOT A RESERVATION UNLESS THE IMPLEMENTATION MAKES IT ONE — round 26,
+>     and this bullet used to assert the opposite.** It read: *"the handle is a `Popen`
+>     object for a child this process forked, so its pid is reserved until this process reaps
+>     it and can never name a stranger — no test, and none is possible."* The first clause is
+>     true and the conclusion does not follow, because **reaping is exactly what releases the
+>     pid** and nothing in the probe dropped the handle when the reaper ran. `C10b_nopid_handle`
+>     is the committed trace of it: of its **24** `via=handle` rows, **12** are
+>     `result=ESRCH` **[trials]** — one per `jNa` claim, each signalling the previous trial's
+>     b-player about **2.6 s** after that player's own `player_exit`. Nothing was killed and
+>     nothing was harmed, and that is the same "harmless until the number names something
+>     else" this document says about the hook in §2.5 item 2. So this is the **fifth**
+>     pid-reuse site, after clause 2's owner record, (i)'s player-record content, the
+>     per-player filename (§2.5 item 6) and the hook — and it is the one path that was
+>     *excused* from the guard the other four now carry.
+>     - **The clause is therefore normative about the LIFECYCLE, not about a test.** An
+>       implementation may signal through a retained child handle **only while that child's
+>       pid is still reserved**, and it must establish that rather than assume it: wait for
+>       the child to become *waitable without consuming it*
+>       (`waitid(P_PID, pid, WEXITED|WNOWAIT)`), drop the handle, and only then reap — with
+>       the drop and every handle signal under one mutex, because a signaller that reads a
+>       live handle and is descheduled would otherwise still `kill` after the reap. On the
+>       far side of that, the target is live or an unreaped zombie: reserved either way, and
+>       `kill(2)` on an unreaped zombie succeeds while killing nothing (§2.5 item 1), which
+>       is the harmless failure and not the dangerous one. **A generation counter or an
+>       identity re-read would only DETECT the stale handle**; this removes it, and the
+>       identity re-read would additionally put a `ps` fork on the claim path at a
+>       one-second resolution where this is exact. **A `pidfd` would be better than all
+>       three and Darwin has none** — `os.pidfd_open` is absent on this machine
+>       **[measured-here]**, and kqueue's `EVFILT_PROC` must be armed with the pid it is
+>       watching, so it inherits the race instead of closing it.
+>     - **[inferred]**, and the residual is named: the repair is in the probe and **no
+>       committed trace was produced with it**. **To close:** re-run `C10b_nopid_handle` and
+>       `C6_handle` and confirm every `jNa` claim records `result=no_target` preceded by a
+>       `handle_retired` row, and every `jNb` claim still records
+>       `via=handle … result=sent`, 12/12. Both directions are demonstrated on a bench run
+>       of the committed rig in §5; that run is not published as an arm.
 > - **(iv) A newly elected worker kills the PROCESS GROUP of each superseded owner, before it
 >   loads the model. REQUIRED, and it is the only thing that reaches a player which has
 >   published nothing.** Membership is established by `fork(2)`, before the child executes an
@@ -1879,7 +1991,15 @@ annotate them.
 > anchored name added in round 20 is a parsing fix, the record outlives its player for the whole
 > session (`C12b`, **24 of 25** elections), and three sites signalled a pid straight out of it.
 > The content is now `<pid>.<starttime>`, matching PR #27 clause 7(i), and the hook, the record
-> sweep and the claim-time kill all verify it (§4b(i)). **[inferred]**, unrun |
+> sweep and the claim-time kill all verify it (§4b(i)). **[inferred]**, unrun.
+> **Round 26: the FIFTH pid-reuse site is the one that reads no record and was exempted on
+> purpose** — clause (iii)'s in-memory `Popen` handle. The exemption rested on a retained handle
+> reserving the pid; reaping is what releases it and nothing dropped the handle, so **12 of
+> `C10b`'s 24 `via=handle` kills** already signal a released pid, `ESRCH`, about **2.6 s** after
+> that player exited. Fixed in the handle's lifecycle rather than by a test — wait for the child
+> to be waitable *without* consuming it, drop the handle, then reap, with the drop and every
+> handle signal under one mutex — which needs no start-time stamp and no pid-wrap drive, only a
+> re-run of the two handle arms (§4b(iii)). **[inferred]**, unrun |
 > **YES** — the repair is measured but it is the third proposed repair in three rounds, its
 > `.pending` bound has now failed review five times running, and the identity test that replaces
 > that bound has had exactly one round of review, which found a hole in it |
@@ -1892,10 +2012,13 @@ annotate them.
 > quarantine ABA** (`rename` is atomic on a *path*, so a reclaimer acting on a stale
 > observation renames a fresh lock and gets success, not `ENOENT`). A third protocol — owner
 > published by `symlink(2)`, dead owners superseded by generation rather than removed —
-> yielded **exactly 1 owner on 400/400** — **but none of those 400 is confirmed to have exercised
+> yielded **exactly 1 owner on 400/400** — **but only ONE of those 400 is confirmed by a
+> committed trace to have exercised
 > reclamation of a dead owner**: all 100 of its reclamation trials (S3, S4, S6) staged the
 > incumbent or the stale observation by a fixed sleep, and for this protocol a mis-staged trial
-> yields the same 1 owner a pass yields; 220 more are structurally vacuous and 80 answer the
+> yields the same 1 owner a pass yields, so the confirmed sample is **1 of 100**
+> (`lock-S3_aba-proposed-r1.tsv`) and the other **99** are unconfirmed; 220 more are
+> structurally vacuous and 80 answer the
 > who-wins race. The staging fixes are in the harness, not in the run. **The measured 8/8 `mkdir` result is untouched and
 > is a different race**, re-run here at N ≤ 16 for all three protocols, 1 owner on 80/80 each
 > **[measured-here]** | **YES** — the shipped clause is now known false, and its replacement
@@ -1944,6 +2067,27 @@ Each of these is named with the experiment that closes it, not softened.
   space is not established here (`sysctl kern.pid_max` is *"unknown oid"* on this machine;
   `kern.maxproc` is **4000**, a live-process ceiling and not the pid space
   **[measured-here]**). So the margin is **[inferred]** and closes on the same pid-wrap drive.
+  **Round 26 adds a FIFTH site and takes it out of this bullet's scope**, because it is the one
+  pid-reuse site that does not need the start-time stamp at all. Clause (iii)'s in-memory
+  handle was exempted from the identity rule on a premise the code did not provide, and the
+  committed `C10b_nopid_handle` already shows the stale read: **12 of its 24 `via=handle` kills
+  are `ESRCH`**, about **2.6 s** after the target's own exit **[trials]**. Because the signaller
+  is the child's own parent it can make the premise TRUE instead of testing for its failure —
+  `waitid(P_PID, pid, WEXITED|WNOWAIT)`, then drop the handle and reap, with the drop and every
+  handle signal under one mutex — which is **exact** where `ps -o lstart=` is one-second. So
+  this site needs **no** pid-wrap drive; it needs a re-run of the two handle arms, and that is
+  its whole closing condition (§4b(iii)). Both directions are bench-demonstrated on the
+  committed rig and neither is published as an arm: **run of `C10b_nopid_handle`, 12 trials** —
+  every `jNb` claim still records `via=handle … result=sent` and its player still dies by the
+  claim signal, **12/12**, so the arm's conclusion is untouched, while `via=handle` rows fall
+  from **24 to 12** and `result=ESRCH` from **12 to 0**, each `jNa` claim recording
+  `no_target` after a `handle_retired … reserved=1` row; **run of `C10a_nopid_pidfile`,
+  12 trials** — the record path is unchanged, **25** `no_target` and **25** players at `rc=0`,
+  which are the two counts the committed `C10a` trace carries (the per-trial *timings* are a
+  fresh sample and are not republished); and the option that selects the site refuses to run
+  at all where the reservation primitive is missing — with `os.waitid` removed,
+  `--claim-kill handle` records `FATAL` and exits **5** before the election, while
+  `--claim-kill pidfile` runs to `idle_exit` unaffected.
 - **A worker dying at any point other than `P`→`W`, which is the ONE point staged.** The
   probe also implements `--die-after pid` (death just after the record is published), but
   **no committed configuration sets it and no trace contains `worker_die where=after_W`** —
@@ -2398,7 +2542,7 @@ close was finally staged (`C11b`), **the single-record form failed.**
 The original argument for non-blocking was that these clauses are *"cheap, obviously correct on
 inspection, and their failure windows are microseconds wide."*
 
-1. **"Obviously correct on inspection" has now failed on fourteen distinct clauses** — the two
+1. **"Obviously correct on inspection" has now failed on fifteen distinct clauses** — the two
    lock clauses, clause (ii)'s scope (twice: first mis-scoped, then credited to the wrong
    sweep), the shared-record lifecycle, the append-only ledger's truncate, the
    player-authored-record repair, the process-group sweep's own blast radius, the sweep's
@@ -2410,8 +2554,11 @@ inspection, and their failure windows are microseconds wide."*
    pid from a record that outlives its process, with an anchored *name* mistaken for an
    identity) and the **election's** treatment of an unverifiable owner (superseding read as
    harmless because the sweep refuses separately, when superseding is the licence to consume
-   jobs and therefore the route to two owners).
-   Inspection is what produced all fourteen. The player-authored-record repair is the sharpest
+   jobs and therefore the route to two owners) — and, in round 26, the **claim-time kill's
+   handle target**, the one signalling site the identity rule deliberately exempted, on a
+   premise about pid reservation that the implementation never provided and that the committed
+   `C10b` trace contradicts 12 times over.
+   Inspection is what produced all fifteen. The player-authored-record repair is the sharpest
    case: it was proposed *in response to* a measured defect, read as obviously correct by its
    author, and **fails 12/12** once the ordering it was written for is actually staged. The
    `setsid()` omission is the second-sharpest, because it is the *invisible* kind: the clause
@@ -2475,7 +2622,12 @@ non-blocking:
 **One thing I will state as a judgement rather than a measurement.** If a reviewer decides to
 ship anyway, the least-bad subset is **clause (iii) with both kill targets, clause (i) as
 per-player records, and clause (v)'s reaping** — each is measured, each is falsified when
-removed, and none depends on the newest mechanism or on `killpg`. The two election-time sweeps
+removed, and none depends on the newest mechanism or on `killpg`. **Round 26 attaches one
+condition to that subset and it is not a small one:** clause (v)'s reaping and clause (iii)'s
+handle target are the same mechanism seen from two ends, and reaping is what releases the pid
+the handle names. So the subset is only least-bad **with the handle retired while its pid is
+still reserved** (§4b(iii)) — which is `[inferred]` and unrun, and without which the cheapest
+clause in the set signals a released pid on half of `C10b`'s handle kills. The two election-time sweeps
 would then be the one deferred piece, and the honest cost of deferring them is stated in §2.4:
 a worker dying in a sub-2 ms window orphans one utterance, which plays to completion. That is a *bounded, single-utterance, low-rate* failure —
 which is a defensible thing to ship, and a very different thing from shipping the lock clauses,

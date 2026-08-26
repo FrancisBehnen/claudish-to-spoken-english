@@ -83,6 +83,21 @@ Round 21, after review found the SAME defect one record over:
                          keys on the OPTION and never on the record -- round 16's lesson,
                          applied here before it could be learned twice.
 
+Round 26, after review found the site round 21 deliberately SKIPPED:
+  --claim-kill handle    the in-memory `Popen` handle was exempted from the identity
+                         test because "the pid is reserved until this process reaps it".
+                         Reaping is what RELEASES the pid, `reap()` reaped, and nothing
+                         cleared the handle -- so 12 of C10b's 24 `via=handle` kills
+                         already signalled a released pid, ESRCH, ~2.6 s after that
+                         player exited. The premise is now MADE TRUE rather than tested
+                         for: `waitid(P_PID, pid, WEXITED|WNOWAIT)` waits for the child
+                         without consuming it, the handle is retired and the child reaped
+                         under `player_lock`, and `kill_player` holds that same lock
+                         across its `os.kill`. So a handle is signalled only while its
+                         pid is reserved -- live, or an unreaped zombie. Without
+                         `waitid(WNOWAIT)` there is no safe handle kill, so the option
+                         REFUSES TO START rather than degrade. See `reap()`.
+
 Timestamps recorded, named as spec 13 row 20 names them:
   S  claim (rename job -> job.taken.<pid>)   S2 prespawn recheck stat
   P  player Popen                            W  pid record published
@@ -666,6 +681,23 @@ if _dispo["SWEEP_PGID"] == "SIG_IGN" or _dispo["SIGUSR2"] == "SIG_IGN":
     rec("FATAL", why="a sweep signal is SIG_IGN; the sweep would be a silent no-op")
     sys.exit(3)
 
+# ROUND 26. The handle kill's safety rests on `waitid(WNOWAIT)` holding the child's pid
+# reserved while the handle is retired -- see `reap()`. Without that primitive there is
+# no safe handle kill at all, so the arm REFUSES TO RUN rather than degrading to the
+# round-25 behaviour under an option that now claims to be guarded. Checked HERE, beside
+# the other startup fatal and before the election, so the refusal costs no model load and
+# leaves no elected owner behind. `waitid` is present on this Darwin/Python
+# [measured-here]; the branch exists because a silent degradation is how the identity
+# check shipped broken in round 15.
+HANDLE_RESERVE = all(hasattr(os, n) for n in ("waitid", "P_PID", "WEXITED", "WNOWAIT"))
+if A.claim_kill in ("handle", "both") and not HANDLE_RESERVE:
+    rec("FATAL", why="claim_kill names the handle but waitid(WNOWAIT) is absent, so a "
+                     "reaped pid cannot be retired before the kernel can recycle it")
+    sys.stderr.write("speakd_probe: --claim-kill %s needs os.waitid(WNOWAIT) to hold the "
+                     "pid reserved while the handle is retired; refusing to run.\n"
+                     % A.claim_kill)
+    sys.exit(5)
+
 if not elect():
     sys.exit(0)
 
@@ -1081,6 +1113,47 @@ with open(READY, "w") as fh:
 
 player = None            # in-memory handle: what --claim-kill handle uses
 
+# ROUND 26: THE HANDLE WAS NEVER A RESERVATION, AND THE COMMITTED TRACE SAYS SO.
+# `kill_player` used to exempt the in-memory `Popen` handle from the identity test on
+# the grounds that "the pid is reserved until this process reaps it". The premise is
+# true; the code did not satisfy it. `reap()` calls `proc.wait()` -- which releases the
+# pid -- and NOTHING cleared this global, so the handle went on naming a reaped child
+# until the next `Popen` overwrote it. In `C10b_nopid_handle` that is not a corner: of
+# its 24 `via=handle` rows, 12 are `result=ESRCH` [trials], one per `jNa` claim, each
+# signalling the previous trial's b-player about 2.6 s after its `player_exit`. Only
+# the kernel declining to recycle a pid inside those 2.6 s kept `os.kill` off a
+# stranger -- which is the hazard the record path is guarded against, in the one path
+# that was excused from the guard, and it is the FIFTH pid-reuse site (after the owner
+# record, the player record's content, the per-player filename and the hook).
+#
+# THE REPAIR IS TO MAKE THE PREMISE TRUE RATHER THAN TO TEST FOR ITS FAILURE.
+# `os.waitid(P_PID, pid, WEXITED | WNOWAIT)` blocks until the child is waitable and
+# LEAVES IT UNREAPED, so its pid is still reserved when it returns. The reaper then
+# retires the handle and reaps under `player_lock`; a signaller reads the handle and
+# calls `os.kill` under the SAME lock. So at every instant a handle is signalled, the
+# child is either live or an unreaped zombie -- reserved either way -- and the exemption
+# from the identity test becomes a fact instead of an assertion. Clearing the global
+# alone would NOT have been enough: the signaller could read the handle, lose the CPU,
+# and kill after the reap. The lock is what removes that window, and it is only
+# affordable because `proc.wait()` under it cannot block -- `waitid` has already
+# established that the status is there.
+#
+# The two alternatives were weaker. A per-job generation counter DETECTS a stale handle
+# instead of removing it, and leaves the same read/kill window unless it is also locked,
+# so it is this repair plus a counter. Re-reading `<pid>.<starttime>` gives the handle
+# the record path's guard, but that guard resolves to ONE SECOND (`ps -o lstart=`) where
+# this one is exact, and it would put a `ps` fork on the claim path -- inside the very
+# window several published figures measure. A real `pidfd` would be better than all
+# three and DARWIN HAS NONE: `os.pidfd_open` is absent on this machine [measured-here],
+# and kqueue's `EVFILT_PROC` needs the pid it is arming against, so it inherits the
+# same race rather than closing it.
+#
+# [inferred]. No committed trace was produced with this code. TO CLOSE: run
+# `C10b_nopid_handle` and `C6_handle` and confirm every `jNa` claim records
+# `result=no_target` with a `handle_retired` row before it, and every `jNb` claim still
+# records `via=handle ... result=sent` 12/12.
+player_lock = threading.Lock()
+
 
 def reap(proc, jid, t_popen, record):
     """Attribution comes from the player's EXIT STATUS, read by its parent.
@@ -1094,8 +1167,52 @@ def reap(proc, jid, t_popen, record):
     Reaping also removes the zombie, which matters: kill(2) on an unreaped zombie
     SUCCEEDS, so a worker that does not reap makes every kill site report success
     while killing nothing.
+
+    ROUND 26 -- REAPING IS ALSO WHAT RELEASES THE PID, so it is where the in-memory
+    handle has to be retired, and the retirement has to happen WHILE THE PID IS STILL
+    RESERVED. `waitid(WNOWAIT)` waits for the child to become waitable without
+    consuming it, so on the far side of that call the child is an unreaped zombie: its
+    pid cannot be handed to anyone else, and a concurrent handle kill can only reach a
+    process this worker forked. The handle is dropped and the child reaped under
+    `player_lock`, which `kill_player` also holds while it signals -- so there is no
+    instant at which a signaller can be holding a pid this function has released.
+    `proc.wait()` under the lock cannot block, because `waitid` has already established
+    that the status is available.
     """
-    rc = proc.wait()
+    global player
+    reserved = 0
+    if HANDLE_RESERVE:
+        try:
+            os.waitid(os.P_PID, proc.pid, os.WEXITED | os.WNOWAIT)
+            reserved = 1
+        except OSError:
+            # `ChildProcessError` means something already reaped it, so there is no
+            # reservation left to lean on; any other `OSError` means the wait itself
+            # failed. `reserved` stays 0 and the trace says so.
+            pass
+    if reserved:
+        # THE LOCK MAY ONLY SPAN `proc.wait()` WHEN THE STATUS IS ALREADY THERE. `waitid`
+        # returning is exactly that guarantee, so this `wait()` cannot block and cannot
+        # hold a claim-time kill behind it.
+        with player_lock:
+            if player is proc:
+                player = None
+                rec("handle_retired", job=jid, player_pid=proc.pid, reserved=1)
+            rc = proc.wait()
+    else:
+        # DEGRADED, AND FAIL-CLOSED. Without the reservation the pid may be released the
+        # instant this thread reaps, so the handle is retired FIRST -- possibly while the
+        # child is still live -- and the reap happens OUTSIDE the lock, because a blocking
+        # `wait()` under it would stall every claim-time kill for a whole player. Retiring
+        # early can only LOSE a kill, never misdirect one, and losing one is loud: it
+        # breaks the handle arm's 12/12 rather than passing quietly. Unreachable on a
+        # platform with `waitid(WNOWAIT)`, and the startup guard refuses the handle site
+        # on one without it.
+        with player_lock:
+            if player is proc:
+                player = None
+                rec("handle_retired", job=jid, player_pid=proc.pid, reserved=0)
+        rc = proc.wait()
     rec("player_exit", job=jid, player_pid=proc.pid, rc=rc,
         killed_by_sig=(-rc if rc < 0 else 0),
         alive_s=round(time.time() - t_popen, 4))
@@ -1114,13 +1231,29 @@ def reap(proc, jid, t_popen, record):
                 err=errno.errorcode.get(e.errno, e.errno))
 
 
+def signal_one(how, target, sig, site, jid):
+    try:
+        os.kill(target, sig)
+        rec("kill_attempt", by="worker-claim", site=site, via=how,
+            target=target, sig=sig, result="sent", job=jid)
+    except ProcessLookupError:
+        rec("kill_attempt", by="worker-claim", site=site, via=how,
+            target=target, sig=sig, result="ESRCH", job=jid)
+    except OSError as e:
+        rec("kill_attempt", by="worker-claim", site=site, via=how,
+            target=target, result=type(e).__name__, job=jid)
+
+
 def kill_player(site, sig, jid):
+    acted = 0
+    # THE RECORD SCAN RUNS FIRST, exactly as the round-25 code did. It emits
+    # `record_skipped` rows, and reordering it against the handle kill would reorder
+    # those rows in the trace and -- under `--unlink-on-reap on` -- change which records
+    # the scan can still see, because the handle kill can start the reap that unlinks
+    # them. No committed configuration sets `--claim-kill both`, so nothing published
+    # would move either way; the order is preserved because a rig whose trace ordering
+    # changes for no reason is a rig whose old traces stop being comparable.
     targets = []
-    if site in ("handle", "both") and player is not None:
-        # The in-memory handle is NOT a record and needs no identity test. It is a
-        # `Popen` object for a child this process forked, so the pid is reserved until
-        # this process reaps it -- there is no window in which it can name a stranger.
-        targets.append(("handle", player.pid))
     if site in ("pidfile", "both"):
         # ROUND 21. The third signaller of a recorded player pid, and the one the review
         # did not name -- it reads the same records the sweep does, through the same
@@ -1135,21 +1268,34 @@ def kill_player(site, sig, jid):
                     job=jid)
                 continue
             targets.append(("record", p))
-    if not targets:
+    if site in ("handle", "both"):
+        # THE HANDLE IS READ AND SIGNALLED UNDER `player_lock`, AND THAT IS WHAT MAKES
+        # IT NEED NO IDENTITY TEST. The old comment here claimed the exemption outright
+        # -- "the pid is reserved until this process reaps it, there is no window in
+        # which it can name a stranger" -- and the code did not provide it: `reap()`
+        # reaped and left this global naming the dead child, which `C10b`'s 12 `ESRCH`
+        # rows are the trace of. Holding the lock across the `os.kill` is the window's
+        # only closure: without it a signaller can read a live handle, be descheduled,
+        # and signal after `reap()` has released the pid. With it, `reap()` cannot reap
+        # while this call is in flight, so the target is live or an unreaped zombie --
+        # reserved either way, and `kill` on an unreaped zombie succeeds while killing
+        # nothing, which is the harmless failure rather than the dangerous one.
+        # The handle is signalled BEFORE the records, which is the order the round-25
+        # `targets` list produced.
+        with player_lock:
+            ph = player
+            if ph is not None:
+                signal_one("handle", ph.pid, sig, site, jid)
+                acted += 1
+    for how, target in targets:
+        signal_one(how, target, sig, site, jid)
+        acted += 1
+    # `no_target` still means NOTHING WAS SIGNALLED, over both sites together, which is
+    # what `C10a`/`C10b` read it as. A retired handle now reaches it where the round-25
+    # code recorded a `via=handle ... ESRCH` against a released pid instead.
+    if acted == 0:
         rec("kill_attempt", by="worker-claim", site=site, target="none",
             result="no_target", job=jid)
-        return
-    for how, target in targets:
-        try:
-            os.kill(target, sig)
-            rec("kill_attempt", by="worker-claim", site=site, via=how,
-                target=target, sig=sig, result="sent", job=jid)
-        except ProcessLookupError:
-            rec("kill_attempt", by="worker-claim", site=site, via=how,
-                target=target, sig=sig, result="ESRCH", job=jid)
-        except OSError as e:
-            rec("kill_attempt", by="worker-claim", site=site, via=how,
-                target=target, result=type(e).__name__, job=jid)
 
 
 # ------------------------------------------------------------------- kqueue
@@ -1293,10 +1439,20 @@ while True:
         player = subprocess.Popen(["/bin/sh", "-c", sh, "_"] + inner, env=env,
                                   start_new_session=(A.player_setsid == "on"))
         record = recpath.replace("PIDPLACEHOLDER", str(player.pid))
-    rec("P_popen", job=jid, player_pid=player.pid, pid_mode=A.pid_mode,
+    # THE REST OF THIS ITERATION HOLDS ITS OWN REFERENCE, because from here on the
+    # reaper thread may retire the global at any instant (round 26). The `publish_refused`
+    # path in particular calls `.terminate()` on the child it just spawned, and reading
+    # the global there would be an `AttributeError` on a short player. The global exists
+    # for `kill_player`, which wants "the CURRENT player or nothing"; this block wants
+    # "the child THIS iteration forked", and they are not the same question.
+    # The global is assigned outside `player_lock` on purpose: `reap()` retires it only
+    # when `player is proc`, so a reaper for the previous child can never clear a handle
+    # this line has just installed, in either interleaving.
+    proc = player
+    rec("P_popen", job=jid, player_pid=proc.pid, pid_mode=A.pid_mode,
         record=os.path.basename(record) if record else "-")
     if A.reap == "on":
-        threading.Thread(target=reap, args=(player, jid, t_popen, record),
+        threading.Thread(target=reap, args=(proc, jid, t_popen, record),
                          daemon=True).start()
     if A.die_after == "popen":
         rec("worker_die", where="between_P_and_W")
@@ -1318,7 +1474,7 @@ while True:
             # An earlier revision of this comment concluded from that distinction that
             # writing a bare record was "fail-safe in BOTH" -- see immediately below for
             # why that was wrong.
-            outcome, st = (ps_starttime(player.pid) if A.player_identity == "on"
+            outcome, st = (ps_starttime(proc.pid) if A.player_identity == "on"
                            else (None, None))
             # A BARE RECORD IS NOT FAIL-SAFE HERE, and the comment above used to claim it
             # was. It is fail-safe for the SIGNALLER -- every reader treats a bare record
@@ -1337,30 +1493,37 @@ while True:
             if A.player_identity == "on" and outcome == PS_ERROR:
                 for _ in range(4):
                     time.sleep(0.002)
-                    outcome, st = ps_starttime(player.pid)
+                    outcome, st = ps_starttime(proc.pid)
                     if outcome != PS_ERROR:
                         break
             if A.player_identity == "on" and outcome == PS_ERROR:
-                rec("publish_refused", job=jid, player_pid=player.pid,
+                rec("publish_refused", job=jid, player_pid=proc.pid,
                     why="identity_lookup_failed",
                     action="player_terminated_via_handle")
+                # ROUND 26: THIS IS THE SECOND SITE THAT SIGNALS THROUGH A HANDLE, so it
+                # takes the same rule as the first. `Popen.terminate()` polls, sees no
+                # returncode, and calls `os.kill` -- and between those two the reaper
+                # thread can reap, which releases the pid. Under `player_lock` the reaper
+                # cannot, so the target is live or an unreaped zombie. A repair applied to
+                # one of two handle sites is the shape this document keeps finding.
                 try:
-                    player.terminate()
+                    with player_lock:
+                        proc.terminate()
                 except OSError as e:
                     rec("publish_refused_kill_failed", job=jid,
-                        player_pid=player.pid, err=type(e).__name__)
-                rec("W_pid_write", job=jid, player_pid=player.pid, by="worker",
+                        player_pid=proc.pid, err=type(e).__name__)
+                rec("W_pid_write", job=jid, player_pid=proc.pid, by="worker",
                     result="refused", identity="lookup_failed")
             else:
                 with open(PIDF, "w") as fh:
-                    fh.write(f"{player.pid}.{st}\n" if st else f"{player.pid}\n")
-                rec("W_pid_write", job=jid, player_pid=player.pid, by="worker",
+                    fh.write(f"{proc.pid}.{st}\n" if st else f"{proc.pid}\n")
+                rec("W_pid_write", job=jid, player_pid=proc.pid, by="worker",
                     identity=(st if st else
                               "off" if A.player_identity == "off" else "absent"))
         else:
-            rec("W_pid_write", job=jid, player_pid=player.pid, result="disabled")
+            rec("W_pid_write", job=jid, player_pid=proc.pid, result="disabled")
     else:
-        rec("W_pid_write", job=jid, player_pid=player.pid, by="player",
+        rec("W_pid_write", job=jid, player_pid=proc.pid, by="player",
             result="deferred_to_player")
     if A.die_after == "pid":
         rec("worker_die", where="after_W")
