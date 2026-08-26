@@ -40,6 +40,7 @@
 #
 # usage: summarise.sh <evidence_dir>
 set -u
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 E=${1:?evidence dir}
 P="$E/preemption-trials.tsv"
 L="$E/lock-owners.tsv"
@@ -62,6 +63,34 @@ for f in "$P" "$L"; do
     exit 2
   fi
 done
+
+# ROUND 19. THE ROW-20 DENOMINATOR HAD THE SAME GAP, and it was left behind when round
+# 17 closed row 21's -- an asymmetry with no justification: removing one trial, or a whole
+# configuration, from preemption-trials.tsv still exited 0 and recomputed EVERY row-20
+# rate over a smaller denominator. The manifest already exists (expected-configs.txt is
+# what verify_fires.sh checks hook markers against), so the same 26 names are the
+# expectation here, at 12 trials each.
+P_MANIFEST=${P_MANIFEST:-$HERE/expected-configs.txt}
+P_TRIALS=${P_TRIALS:-12}
+if [[ -f $P_MANIFEST ]]; then
+  p_missing=$(awk -F'\t' -v man="$P_MANIFEST" -v want="$P_TRIALS" '
+    BEGIN { while ((getline L < man) > 0) { sub(/[ \t]*#.*/, "", L); gsub(/[ \t]/, "", L)
+                                            if (L != "") EXP[L]=1 } }
+    NR>1 { seen[$1]=1; k=$1 SUBSEP $2; if (!(k in T)) { T[k]=1; n[$1]++ } }
+    END { bad=0
+          for (c in EXP) { if (!(c in seen)) { printf "  MISSING configuration: %s\n", c > "/dev/stderr"; bad++ }
+                           else if (n[c] != want) { printf "  SHORT %s: %d distinct trials, expected %d\n", c, n[c], want > "/dev/stderr"; bad++ } }
+          for (c in seen) if (!(c in EXP)) { printf "  UNEXPECTED configuration: %s\n", c > "/dev/stderr"; bad++ }
+          print bad+0 }' "$P")
+  if [[ ${p_missing:-1} -ne 0 ]]; then
+    echo "summarise.sh: row-20 evidence does not match the manifest ($p_missing problem(s))." >&2
+    echo "Every rate below would be computed over a different denominator than the one" >&2
+    echo "the document quotes. This is NOT a re-derivation." >&2
+    exit 2
+  fi
+else
+  echo "summarise.sh: no manifest at $P_MANIFEST -- the row-20 denominator was NOT checked." >&2
+fi
 
 # ROUND 17. THE ROW-21 DENOMINATOR WAS NEVER VALIDATED, ONLY CHECKED FOR EMPTINESS.
 # The loop above rejects a lock-owners.tsv with no data rows and accepts every other

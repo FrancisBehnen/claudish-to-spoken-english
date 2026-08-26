@@ -245,6 +245,16 @@ MYGEN = None             # the generation THIS worker created; tags its .pending
 # one changes no primitive and no atomicity argument: it is still one exclusive-create
 # and there is still no partially-initialised state to interpret.
 MY_STARTTIME = proc_starttime(os.getpid()) if A.owner_identity == "on" else None
+if A.owner_identity == "on" and MY_STARTTIME is None:
+    # Degrading to a bare pid here is worse than not starting. `on` PROMISES a
+    # <pid>.<starttime> record, so a bare one published under `on` is read by the next
+    # contender as `unverifiable` -- and unverifiable supersedes, deliberately. A worker
+    # that cannot state its own identity would therefore be superseded while alive, and
+    # two workers would own the session: the exact failure the identity test was added to
+    # prevent, reached by the mechanism meant to prevent it.
+    sys.stderr.write("speakd_probe: --owner-identity=on but this process's own start "
+                     "time is unreadable; refusing to publish a bare-pid record.\n")
+    sys.exit(4)
 OWNER_RECORD = (f"{os.getpid()}.{MY_STARTTIME}" if MY_STARTTIME
                 else str(os.getpid()))
 
@@ -827,11 +837,20 @@ while True:
         inner = [sys.executable, PLAYER, str(A.player_secs), A.player_log, jid]
         if A.ledger == "on":
             inner.append(LEDGER)
+        # PUBLICATION IS A PREREQUISITE FOR PLAYBACK, and it was not: the `if ... fi`
+        # status was discarded and `exec` ran unconditionally, so a failed write or a
+        # failed `mv` produced AUDIBLE playback with neither a published record nor a
+        # pending marker. That is the one state no preemption path can reach -- the hook
+        # has no record to read, the record sweep has no name to signal, and the pgid
+        # sweep has no marker to authorise it -- while the player is making a sound. It
+        # is exactly the invariant this document asserts, inverted, inside the rig that
+        # measures it. Exit 97 instead of exec'ing, so the reap attributes it rather than
+        # reading it as a player that ran to completion.
         sh = ('sleep "$PUBDELAY"; '
               'rp=$(printf %s "$REC" | sed "s/PIDPLACEHOLDER/$$/"); '
               'if [ -n "$PENDING" ]; then printf "%s\\n" "$$" > "$PENDING" && '
-              'mv "$PENDING" "$rp"; '
-              'else printf "%s\\n" "$$" > "$rp.tmp" && mv "$rp.tmp" "$rp"; fi; '
+              'mv "$PENDING" "$rp" || exit 97; '
+              'else printf "%s\\n" "$$" > "$rp.tmp" && mv "$rp.tmp" "$rp" || exit 97; fi; '
               'exec "$@"')
         env = dict(os.environ, REC=recpath, PENDING=(pending or ""),
                    PUBDELAY=str(A.publish_delay_ms / 1000.0))

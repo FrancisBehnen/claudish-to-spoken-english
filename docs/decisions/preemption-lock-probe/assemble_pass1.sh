@@ -81,6 +81,17 @@ for d in "${RUNS[@]}"; do
     echo "assemble_pass1.sh: collect.sh left no $d/trials.tsv for $cfg." >&2
     exit 2
   fi
+  # Exactly-one-directory per configuration is not the same as a COMPLETE directory.
+  # collect.sh only compares the rows it parsed against that run's own attempted hooks,
+  # so eleven complete ONE-trial runs satisfy every check above and publish an 11-row
+  # file as the documented 132-row replication arm. Require the trial count too.
+  got=$(awk -F'\t' 'NR>1 && !($2 in T) { T[$2]=1; n++ } END { print n+0 }' "$d/trials.tsv")
+  if [[ $got -ne ${PASS1_TRIALS:-12} ]]; then
+    echo "assemble_pass1.sh: $cfg has $got distinct trials in $d/trials.tsv," >&2
+    echo "  expected ${PASS1_TRIALS:-12}. Publishing it would shrink the replication" >&2
+    echo "  denominator while the file still looked complete." >&2
+    exit 2
+  fi
   if [[ $first == 1 ]]; then head -1 "$d/trials.tsv" >> "$DEST/preemption-trials-replication.tsv"; first=0; fi
   tail -n +2 "$d/trials.tsv" >> "$DEST/preemption-trials-replication.tsv"
 done
