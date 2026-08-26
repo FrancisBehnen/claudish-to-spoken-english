@@ -30,13 +30,18 @@ bench/bench notes.txt --voice af_bella                # any text file
 bench/
   bench              launcher: finds the Kokoro venv, execs bench.py in it
   bench.py           the harness: timing, synthesis, playback, reporting
-  sanitizers.py      the pluggable sanitizer registry
   first-sentence.py  a sibling: TTFA for sentence one alone, for #9
   audition-page.py   builds the local listening page for #8, #9, #10 and #13
   README.md          this file
 ```
 
-`first-sentence.py` imports `sanitizers.py` and edits nothing. It answers the question `bench.py`
+`sanitizers.py` and the sentence splitter no longer live here. They moved to `speech/` at the
+plugin root so the shipped `Stop` hook can import them without reaching into a bench directory,
+and because `first-sentence.py`'s hyphen makes it un-importable by module name. **This harness is
+now the second caller of both, not their owner** — which is the point: the figure measured here
+and the code that ships are literally the same code.
+
+`first-sentence.py` imports `speech/sanitizers.py` and `speech/split.py` and edits neither. It answers the question `bench.py`
 raises but cannot answer — what a *pipelined* worker's TTFA would be — by synthesizing only sentence
 one and timing it with the same four-phase definition. Run it in the venv directly
 (`~/.local/share/kokoro/venv/bin/python bench/first-sentence.py --stream --whole`); results in
@@ -50,7 +55,7 @@ Section 5, added for #11, is a third pair section over `audition-11/`: same voic
 its `settled` pairs move **seven** axes at once rather than one, so it is filed apart from a section
 whose whole readability comes from moving one.
 
-`audition-page.py` also imports `sanitizers.py` and edits nothing. It synthesizes nothing either —
+`audition-page.py` also imports `speech/sanitizers.py` and edits nothing. It synthesizes nothing either —
 it globs the wavs `bench.py` already wrote and builds one self-contained HTML page for listening to
 them and recording a verdict per pair:
 
@@ -190,7 +195,7 @@ macOS, so the harness gives the player `audio_duration * 2 + 10` seconds, then `
 
 ## Sanitizers
 
-A sanitizer is a function `(text, opts) -> text` in `sanitizers.py`, registered with a decorator.
+A sanitizer is a function `(text, opts) -> text` in `speech/sanitizers.py`, registered with a decorator.
 **Adding one more is writing one function** — no other file changes:
 
 ```py

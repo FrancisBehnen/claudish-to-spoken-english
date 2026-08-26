@@ -26,9 +26,12 @@ Model load is excluded for the same reason bench/bench.py excludes it: a
 resident worker pays it once at startup, not per utterance. It is reported in
 the header.
 
-This is a sibling of bench.py, not a modification of it: bench.py and
-sanitizers.py are untouched and sanitizers.py is imported, so the rules are
-literally the same code #6 ran.
+This is a sibling of bench.py, not a modification of it: bench.py is untouched
+and the sanitizer registry is imported, so the rules are literally the same
+code #6 ran. The registry now lives at `speech/sanitizers.py` and this file's
+splitter now lives at `speech/split.py` -- both moved to the plugin root so the
+shipped Stop hook imports the same code this script measures. Nothing about
+either changed in the move.
 
 Three modes, selectable together so they share a process:
 
@@ -47,7 +50,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import re
 import statistics
 import sys
 import time
@@ -56,31 +58,20 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
-sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(REPO))
 
-import sanitizers  # noqa: E402
+# Both moved to the plugin root under speech/ so the shipped Stop hook can
+# import them without reaching into bench/, and because this file's own name
+# has a hyphen in it and cannot be imported by module name at all. THIS FILE IS
+# NOW THE SECOND CALLER OF BOTH, not their owner: `_SENT_END` and
+# `first_sentence` are the same code, in one place, so the figure this script
+# measures and the splitter that ships cannot drift.
+from speech import sanitizers  # noqa: E402
+from speech.split import _SENT_END, first_sentence  # noqa: E402,F401
 
 KROOT = Path(os.environ.get("KOKORO_ROOT", Path.home() / ".local/share/kokoro"))
 DEFAULT_OUT = KROOT / "bench" / "first-sentence"
 DEFAULT_CORPUS = Path(os.environ.get("CLAUDISH_CORPUS", REPO / "corpus" / "spoken"))
-
-# A sentence ends at . ! ? followed by whitespace or end of text. Kokoro's own
-# _split_phonemes also breaks on , and ; -- those are chunk seams, not
-# sentences, and a pipeliner speaks a sentence.
-_SENT_END = re.compile(r"[.!?](?=\s|$)")
-
-
-def first_sentence(text: str, min_chars: int) -> str:
-    """The first sentence, extended until it is at least min_chars long.
-
-    min_chars exists because rule B turns a heading line into its own
-    one-word 'sentence'. Speaking 'Summary.' at 0.3s would be a TTFA win that
-    means nothing, so --min-chars is the sensitivity check on that.
-    """
-    for m in _SENT_END.finditer(text):
-        if m.end() >= min_chars:
-            return text[: m.end()].strip()
-    return text.strip()
 
 
 @dataclass

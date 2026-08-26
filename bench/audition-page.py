@@ -59,9 +59,11 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
-sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(REPO))
 
-import sanitizers  # noqa: E402
+# See bench/bench.py: sanitizers.py now lives at speech/sanitizers.py, on the
+# plugin's runtime path. Registry and `run()` are unchanged.
+from speech import sanitizers  # noqa: E402
 
 
 # --------------------------------------------------------------------------

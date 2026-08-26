@@ -22,9 +22,13 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
-sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(REPO))
 
-import sanitizers  # noqa: E402
+# `sanitizers.py` moved to speech/sanitizers.py at the plugin root, so the
+# shipped Stop hook can import it without reaching into bench/. This file is
+# now the SECOND caller of it rather than its owner; nothing about the registry
+# or `run()` changed.
+from speech import sanitizers  # noqa: E402
 
 KROOT = Path(os.environ.get("KOKORO_ROOT", Path.home() / ".local/share/kokoro"))
 DEFAULT_OUT = KROOT / "bench"

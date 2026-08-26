@@ -27,8 +27,9 @@ import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent.parent
-sys.path.insert(0, str(REPO / "bench"))
-import sanitizers  # noqa: E402
+sys.path.insert(0, str(REPO))
+# See bench/bench.py: sanitizers.py now lives at speech/sanitizers.py.
+from speech import sanitizers  # noqa: E402
 
 KROOT = pathlib.Path(os.environ.get("KOKORO_ROOT",
                                     pathlib.Path.home() / ".local/share/kokoro"))
