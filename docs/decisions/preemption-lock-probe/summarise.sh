@@ -352,6 +352,13 @@ echo "   quoted as the other:"
 echo "     timerstart_to_exit_s  upper bound; timer starts before Popen"
 echo "     popen_to_exit_s       lower bound; the child was forked inside the Popen this"
 echo "                           excludes. Neither is a measure of AUDIBILITY."
+echo "     overlap_s             ROUND 27: an UPPER BOUND on how long the two player"
+echo "                           PROCESSES existed at once -- reap stamp of the stale one"
+echo "                           minus P_popen of the newer one, so BOTH ends over-count."
+echo "                           This line was missing while the document quoted the"
+echo "                           number as 'two utterances overlapped'. It is not a"
+echo "                           measure of AUDIBILITY either: NOTHING IN THIS RIG"
+echo "                           LISTENS, so no column below is an audio observation."
 if [[ -f "$R" ]]; then
   # A present-but-empty file is the same omission as an absent one, and it reaches this
   # loop as zero iterations: section E prints its explanatory preamble, no arms, and

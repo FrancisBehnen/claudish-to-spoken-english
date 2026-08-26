@@ -184,6 +184,28 @@ start_worker() {
   WPID=$!
 }
 
+# EVERY FATAL PATH MUST TAKE THE CURRENT WORKER WITH IT. Three of them did not: the
+# initial readiness failure, the per-trial generation readiness failure, and the
+# replacement readiness failure all `exit 1` with a worker running under
+# `--idle-exit-s 600` -- ten minutes of stranded background process per failed run,
+# holding this configuration's speak dir and its own election. A stranded worker from
+# a failed sweep is not merely untidy: it competes for the next run's jobs and shows up
+# in its resource usage, so the retry that was supposed to diagnose the failure is
+# measuring two workers.
+#
+# The trap is declared ONCE, here beside `start_worker`, rather than repeated at each
+# `exit` -- the defect is that a fatal path added later gets forgotten, and a guard
+# spelled out per-site is the same defect waiting. It reads $WPID AT TRAP TIME, which is
+# what makes it correct in a driver that restarts the worker per trial: whichever worker
+# `start_worker` last launched is the one terminated and reaped.
+kill_worker() {
+  [[ -n ${WPID:-} ]] || return 0
+  kill -TERM "$WPID" 2>/dev/null
+  wait "$WPID" 2>/dev/null
+  return 0
+}
+trap kill_worker EXIT
+
 wait_ready() {
   # The stale marker is cleared by start_worker BEFORE it launches, not here. Clearing it
   # here is a race the parent loses whenever the child is fast: the worker reaches ready,
@@ -203,7 +225,6 @@ if ! wait_ready; then echo "FATAL: worker never became ready" >&2; exit 1; fi
 hook() {   # tag job_id text_file
   "$RIG/hook_probe.sh" "$SD" "$MD" "$1" "$2" "$3" && return 0
   echo "FATAL: hook $1 failed in $CFG -- the run is not measurable" >&2
-  kill -TERM "$WPID" 2>/dev/null
   exit 1
 }
 
@@ -246,6 +267,7 @@ for i in $(seq 1 "$N"); do
   sleep 6
 done
 
-kill -TERM "$WPID" 2>/dev/null
-sleep 0.3
+# The EXIT trap terminates and REAPS the worker, so the normal path no longer needs its
+# own kill and no longer sleeps hoping the process is gone by the time the caller reads
+# the path this prints.
 printf '%s\n' "$OUT/$SID"

@@ -16,8 +16,19 @@
 #             lifetime, because the child was forked during the Popen this excludes.
 #             Neither is "time audible": nothing here listens (see the doc's §2.6).
 #   sig       what killed it (0 = ran to completion)
-#   overlap_s for an arm where nothing kills the stale player: how long the two
-#             players were alive at the same time. "-" when the stale one was killed.
+#   overlap_s for an arm where nothing kills the stale player: an UPPER BOUND on how long
+#             the two player PROCESSES existed at the same time. "-" when the stale one
+#             was killed. ROUND 27 CORRECTED THE LABEL AND ADDED THIS PARAGRAPH: the two
+#             columns above carry "neither is time audible" and this one did not, while
+#             the document quoted it eight times as "two utterances overlapped". It is
+#             `EX[jNa] - POP[jNb]` -- the stale player's REAP stamp minus the parent's
+#             P_popen stamp for the newer one -- and BOTH ENDPOINTS OVER-COUNT. P_popen is
+#             taken the instant Popen returns, so the newer process has not necessarily
+#             reached exec and has certainly not opened the output device or handed it a
+#             sample; the reap is at or after the stale process's real exit, which is
+#             itself at or after the last sample it wrote. So it bounds process
+#             CO-EXISTENCE, and overlapping SOUND is a further inference nothing here can
+#             make: nothing listens, in either direction.
 #
 # <out_dir> may hold either the run directories a fresh run produces (REAL-<arm>-<ts>/
 # with a worker.trace inside) or the flat committed traces (REAL-<arm>.worker.trace),

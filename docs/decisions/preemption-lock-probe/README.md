@@ -380,8 +380,16 @@ at once" would otherwise be indistinguishable from "never started".
 
 Synthesis and playback are stubbed by default — a controlled `sleep` — because the
 question is an **ordering**, and a stub isolates it far better than real audio. The
-real-audio arm (`run_real.sh`) exists to answer the one thing the stub cannot: whether
-the stale utterance is *audible*.
+real-audio arm (`run_real.sh`) runs that same ordering against a **real player decoding a
+real wav** instead of a `sleep`.
+
+**It does not answer audibility, and this section used to say it did** — *"the one thing
+the stub cannot: whether the stale utterance is audible"*. Round 27: **nothing in this rig
+listens.** Every figure the arm produces is an `afplay` **process** stamp, `afplay`'s
+time-to-first-sample is instrumented nowhere, and a newer `afplay` process existing does
+not establish when its output became audible. Audibility needs a loopback capture of the
+output device, which no script here performs; see the decision document's §2.6 and its
+derivation defect 14, which lists every site that had the wording wrong.
 
 ## The signal-attribution table, round 2
 

@@ -42,9 +42,15 @@ measured on both sides of the ordering that matters.**
 
 - **Confirmed.** The adversarial ordering `R < S2 < R_b < P < W` was provoked and held on
   **48 of 48** trials, with the hook's own kill hitting nothing every time. Clause (iii), the
-  worker's claim-time kill, is **load-bearing**: with it the stale player dies before it makes
-  a sound (36/36); without it, in the identical ordering, it runs to completion (12/12), and in
-  real audio two utterances overlap for **3.25–3.50 s** **[measured-here]**.
+  worker's claim-time kill, is **load-bearing**: with it the stale player is killed **before it
+  `exec`s** — it never logs a start and has no exit status — 36/36; without it, in the identical
+  ordering, it runs to completion (12/12), and in real audio the two `afplay` **processes
+  co-existed for 3.25–3.50 s** **[measured-here]**. **All three of those are process
+  observations and this document no longer states them as audio ones.** Nothing here listened,
+  `afplay`'s time-to-first-sample was never measured, and *whether* the stale utterance reached
+  the output device — for any part of a 19 ms process life or of a 3.5 s co-existence — is
+  **[inferred]** (§2.6). The 36/36 is the strongest of the three precisely because it is not an
+  audio claim: a process killed before `exec` had not begun to open the device.
 - **Uncovered region.** A worker dying between `Popen` and the pid write orphans a player
   nothing can reach — **12/12 played to completion**. The window is **median 1.41 ms** (range
   0.43–5.61, n = 72), so this is a low-rate failure and is not presented as more. The figure is
@@ -173,10 +179,14 @@ owner's pid, which only row 21's generation protocol supplies — a protocol tha
 record of the worker it replaced cannot. They can no longer be signed off independently.
 
 **Both rows stay ship-blocking**, and the reason has changed: they are no longer unverified.
-**Ten consecutive rounds of review have each found a real defect in the previous round's
-confident answer**, including in the repair this document proposed, in the *text* of the repair
+**Twelve consecutive rounds of review have each found a real defect in the previous round's
+confident answer** — §6 counts them off its own table, which is a floor rather than a total, and
+round 27 replaced the three different numbers this document used to carry for the one tally.
+Among them: a defect in the repair this document proposed, one in the *text* of the repair
 that replaced it, round 16's defect in the identity check round 15 added to repair the repair,
-and — round 17 — in the *derivations* of two published figures rather than in any mechanism. See §6.
+round 17's in the *derivations* of two published figures rather than in any mechanism, and round
+27's in the document's own **choice of noun** — a quantity called *audibility*, tagged
+`[measured-here]`, derived entirely from process stamps by a rig in which nothing listens. See §6.
 
 ---
 
@@ -201,10 +211,15 @@ for the worker's claim-time kill, `SIGUSR2` 31 for the election sweep (Darwin nu
 The shipped design would use `TERM` for all three; the substitution changes nothing about
 the mechanism and is the only reason the trace can say *which* step fired rather than
 merely that the player died. **"Was it audible" was never the observation** — the brief was
-explicit that it is insufficient, and the data shows why twice over: `C3` and `C6` are
-audibly identical (both silent, 12/12) and use different kill targets; `C3` and `C10b` are
-audibly *different* (silent versus 0.70 s) while both are killed by the same clause. An
-audibility-only record would have merged the first pair and split the second.
+explicit that it is insufficient, and the data shows why twice over: `C3` and `C6` have
+**identical outcomes at the player** (both killed before `exec`, 12/12) and use different kill
+targets; `C3` and `C10b` have **different** ones (killed before `exec` versus a 0.70 s process
+life) while both are killed by the same clause. An outcome-only record would have merged the
+first pair and split the second. **These are process outcomes and round 27 stopped calling them
+audible ones** — the arms named here are stubs, in which no audio device is opened at all, so
+*"audibly identical"* and *"both silent"* described a sound that never existed either way. The
+paragraph's point survives the correction and is sharper for it: distinct signals are what make
+the trace say which step fired, and no audio observation could.
 
 **Attribution is read from the player's wait status, cross-checked against the player's
 own log.** This matters and cost one wasted pass to learn: a kill landing inside the
@@ -221,11 +236,13 @@ the two arms are compared under the same predicate rather than across a changed 
 [`preemption-trials-replication.tsv`](preemption-trials-replication.tsv) the replication, and
 `preemption-lock-probe/compare_passes.sh` prints them side by side.
 
-**Thirteen derivation defects have been found by review, and all thirteen are fixed here. Five of
-them made the reproducibility claim false, which was the claim the whole document rested on.**
-The first three came from review of the first revision; the next two from round 5, the sixth from
-round 15, the seventh and eighth from round 16, the ninth and tenth from round 17, the eleventh
-from round 21, the twelfth from round 24, the thirteenth from round 26, and all of them are of
+**Fourteen derivation defects have been found by review, and all fourteen are addressed here —
+thirteen fixed, and the fourteenth re-labelled because it cannot be fixed by deriving anything.
+Five of them made the reproducibility claim false, which was the claim the whole document rested
+on.** The first three came from review of the first revision; the next two from round 5, the sixth
+from round 15, the seventh and eighth from round 16, the ninth and tenth from round 17, the
+eleventh from round 21, the twelfth from round 24, the thirteenth from round 26, the fourteenth
+from round 27, and all of them are of
 the same kind — a figure whose
 name and whose derivation are not the same quantity, or a derivation that does not reach the
 figure it is cited for.
@@ -478,11 +495,58 @@ symptom would have been the *opposite* claim about the same trial.
    mutation rather than an input: with one exclusion counter's increment removed it prints
    `ACCOUNTING ERROR: 10 of 12` and exits **2**, and on the committed traces it is silent and
    exits 0.
+14. **AUDIBILITY WAS NEVER MEASURED AND WAS PUBLISHED AS `[measured-here]` ANYWAY — round 27,
+   and it is the only defect in this list that is in the document's own words rather than in a
+   script.** It is the same kind as the other thirteen — a figure whose name and whose
+   derivation are not the same quantity — but the mismatch is in the noun. §2.6's arm was
+   introduced as *"this arm answers audibility only"*, and its two figures are `afplay`
+   **process** stamps: `timerstart_to_exit_s` for the millisecond bound, and
+   `overlap_s = EX[jNa] − POP[jNb]` — a reap stamp minus a `Popen`-return stamp — for the
+   3.25–3.50 s one. **Nothing here listens, `afplay`'s time-to-first-sample was never
+   instrumented, and a newer `afplay` process existing does not establish when its output became
+   audible.** §2.6 had already conceded exactly this, for the millisecond figure only, in the
+   paragraph immediately below the table; the concession never reached the overlap figure or any
+   of the places either number is quoted. **That is the failure mode: one claim, corrected in one
+   place.** All thirteen sites, now restated as process observations with audibility left
+   `[inferred]`:
+   1. §0's headline bullet — *"dies before it makes a sound"* **and** *"two utterances overlap
+      for 3.25–3.50 s"*, under one **[measured-here]** tag.
+   2. §1's *"Attribution is by distinct signal"* paragraph — `C3`/`C6` *"audibly identical (both
+      silent)"* and `C3`/`C10b` *"audibly different"*, **in stub arms that open no audio device
+      at all**, inside the paragraph whose own point is that audibility was never the
+      observation.
+   3. §1's statement of what `summarise.sh` covers — *"the audibility intervals"*. No TSV column
+      holds one.
+   4. §2.2's attribution table — the whole last column was headed *"stale audio, s"*, on **26
+      rows of stub arms** whose player is a `sleep`.
+   5. §2.3's clause (iii) bullet — *"two utterances overlapped"*.
+   6. §2.6's opening sentence — *"this arm answers audibility only"*.
+   7. §2.6's results table — *"overlapped for 3.2486, 3.2564 and 3.4981 s"*.
+   8. §4d's proposed §13 row 20 — *"36/36 killed before any sound"* and *"two real utterances
+      overlap"*, which is the wording that would have shipped into the spec.
+   9. §5's limitation bullet — *"the real arm only answers audibility"*, closing on `n = 12`,
+      which buys process samples and no audio observation.
+   10. `run_real.sh`'s header — *"whether the stale utterance is audible, and for how long"*.
+   11. `collect_real.sh`'s column comment — `overlap_s` as *"how long the two players were alive
+       at the same time"*, with the *"neither is time audible"* caveat attached to the other two
+       columns and not to this one.
+   12. `summarise.sh` section E's preamble — same shape: it says *"neither is a measure of
+       AUDIBILITY"* about the two lifetime columns and prints `overlap_s` beside them unqualified.
+   13. `README.md`'s stub section — the real arm *"exists to answer the one thing the stub
+       cannot: whether the stale utterance is audible"*.
 
-**Four HARNESS defects were also found and are disclosed here, because three of them changed
+   **The figures do not move and none is withdrawn.** They are re-labelled: process lifetime and
+   process co-existence, both **upper bounds** (§2.6 derives why both of `overlap_s`'s endpoints
+   over-count), with audibility **[inferred]** and a loopback capture as its closing condition.
+   **This one cannot be closed by re-deriving**, which puts it with harness defect 4 rather than
+   with the twelve that were fixable in a script: the observation does not exist in these traces,
+   and nothing on this machine can listen.
+
+**Five HARNESS defects were also found and are disclosed here, because three of them changed
 results and one of them destroyed data.** They are listed rather than quietly fixed, since a
 reader deciding how much to trust these numbers should know what went wrong in producing them.
-The fourth was found in round 3 and it touches a published figure.
+The fourth was found in round 3 and it touches a published figure; the fifth, in round 27, is
+the only one that could have contaminated a *future* run rather than a past one.
 
 1. **`nohup` made the process-group sweep a silent no-op.** The sweep used `SIGHUP`; `nohup`
    sets it to `SIG_IGN`, inherited across `fork` *and* `exec`. `killpg` returned success and
@@ -530,6 +594,29 @@ The fourth was found in round 3 and it touches a published figure.
    committed traces marks the wrapper's `mv` and no publish→destruction interval is derivable
    from them at all. What replaces it, and what it cost the `C14a` claim, is §2.5 item 3 — and
    the cost is not only the lag: the *count* was anchored on the same stamp too.
+5. **A failed run left its worker running for ten minutes — round 27, and in the real-audio arm
+   that stranded a loaded model into the retry.** `run_real.sh` and `run_preempt.sh` start their
+   worker in the background, capture `WPID`, and then `exit 1` on a readiness timeout **without
+   terminating it**: `run_real.sh`'s initial gate, and `run_preempt.sh`'s initial gate, its
+   per-trial generation gate and its replacement gate — **four fatal paths across two drivers**.
+   Every one of those workers carries `--idle-exit-s 600`, so each failed run leaves a live
+   worker holding that configuration's speak dir, its election and its own generation for ten
+   minutes. **In the real arm the stranded process also holds a ~340 MB Kokoro model**, which is
+   how a harness leak becomes a measurement problem: the obvious response to a failed run is to
+   run it again, and the retry's resource usage is then two workers while looking like one.
+   Reproduced on the committed drivers before the fix: **the readiness gate strands the worker on
+   both, and `C8_orphan`'s generation gate strands the RESTARTED worker while the first is
+   correctly reaped** **[measured-here]**. Both drivers now install an **EXIT trap immediately
+   after `WPID` is captured**, reading `$WPID` at trap time so it covers whichever worker
+   `start_worker` last launched, and `wait`ing rather than only signalling; the per-site `kill`s
+   are removed as redundant. Demonstrated in both directions on each driver: readiness withheld →
+   `rc=1` and the worker reaped; readiness granted → the gate passes and a later fatal path still
+   reaps; and the whole happy path → `rc=0`, run directory printed, every worker reaped.
+   **No committed figure is affected** — a run that took one of these paths produced no trace to
+   collect, so nothing published came from one — and the defect is disclosed because the
+   contamination it enables would have been invisible in the run that suffered it.
+   (`run_lock.sh` was checked for the same shape and does **not** have it: every background
+   `lockrace.py` is `wait`ed, including on its VOID paths, and none carries an idle timeout.)
 
 **The first two are the reason this revision re-ran everything rather than patching numbers.**
 
@@ -693,8 +780,10 @@ from committed files with `awk` and `sort` only — `summarise.sh <dir>` over th
 TSVs, and `analyse_round2.sh preemption-lock-probe/traces` over the committed traces, are the
 derivations. **They are disjoint, both are required, and neither is a check on the other. Where
 the line falls, stated rather than left to inference:** the aggregate TSVs hold **one row per
-trial**, so `summarise.sh` covers per-trial quantities — the attribution table, the audibility
-intervals, the window widths, the owner counts. Figures that are counts of trace **events**
+trial**, so `summarise.sh` covers per-trial quantities — the attribution table, the **player
+lifetime and process-overlap** intervals (round 27: this list said *"the audibility intervals"*,
+and no TSV column holds an audibility interval, because none was measured), the window widths,
+the owner counts. Figures that are counts of trace **events**
 (`record_unlinked`, `pending_found`/`pending_created`, the sweep-skip records) are in **no TSV
 column at all**, so `C14a`'s **8 destructions across 4 trials** and the `C15c`/`C16` 25-election
 `killpg`-used/skipped counts come only from `analyse_round2.sh`. Round 16 found `summarise.sh`'s
@@ -786,7 +875,15 @@ on every row where both exist. `killed-before-exec` means the player was spawned
 logged a start, and has no exit status — a player that survives to run always logs, so this
 is a kill that landed before `exec`.
 
-| config | what it varies | which step killed the player | stale audio, s |
+**The last column used to be headed *"stale audio, s"* and that was wrong on every row —
+corrected in round 27 (§1 derivation defect 14).** Every configuration in this table is a
+**stub** arm: the player is a controlled `sleep`, no audio device is opened and nothing is
+synthesised, so there is no audio to have a duration. What the column holds is the stale
+player's **process lifetime**, from the trial's wait status and the player's own log, and
+`full` means it lived out its configured `--player-secs`. Only §2.6 used a real player, and
+even there the quantity is process lifetime (see the limit stated in that section).
+
+| config | what it varies | which step killed the player | stale player lifetime, s |
 | --- | --- | --- | --- |
 | `C1_prespawn` | recheck sees the newer job | **no player spawned** | none |
 | `C2_hookside` | `R_b` after `W` | **hook kill** | 0.556–0.581, med 0.565 |
@@ -832,7 +929,9 @@ section F prints whichever arm it is pointed at.)
 
 - **Clause (iii), the claim-time kill: REQUIRED, and confirmed by falsification.** Remove it
   and the stale player runs its full length, 12/12 (`C4`), with nothing in the design touching
-  it. In real audio two utterances overlapped for **3.25–3.50 s**.
+  it. In real audio the two `afplay` **processes co-existed for 3.25–3.50 s** — a
+  process-overlap bound, not a measurement of overlapping sound; audibility is **[inferred]**
+  and §2.6 says why.
 - **Clause (iii) must kill BOTH targets.** `handle` and `pidfile` are indistinguishable while
   the record exists (`C3` vs `C6`, 24/24 identical) and **opposite** when it does not
   (`C10a` NOTHING vs `C10b` killed, 12/12 each way).
@@ -1070,13 +1169,22 @@ of `C10b_nopid_handle` and `C6_handle`.
 ### 2.6 The real-audio arm
 
 Real Kokoro synthesis on `bf_emma`, `is_phonemes=False`, `/usr/bin/afplay` as the player, two
-distinguishable utterances, the `C3` ordering, 3 trials per arm. This arm answers audibility
-only; the stub arms establish the ordering and the attribution.
+distinguishable utterances, the `C3` ordering, 3 trials per arm. The stub arms establish the
+ordering and the attribution; this is the only arm that used real synthesis and a real player.
 
-| arm | result |
+**IT DOES NOT ANSWER AUDIBILITY, and round 27 removed the claim that it does.** This section
+used to open *"this arm answers audibility only"*, and every figure in it is derived from
+`afplay` **process** stamps — `Popen` return, reap — with **nothing listening at any point**.
+This section held two of the sites; **seven further sites in this document and four in the rig**
+then repeated the process numbers as audio ones. §1's derivation defect 14 enumerates all
+thirteen. What the arm actually adds over a stub is that the process
+being killed was a real `afplay` on a real 5.7 s wav rather than a `sleep`, which is worth
+having and is not the same thing as hearing it.
+
+| arm | result — **process observations** |
 | --- | --- |
-| claim-time kill **on** | the stale `afplay` existed for **at most 13.0, 17.5 and 18.6 ms** against a 5.7 s wav; the newer utterance then played in full, 3/3 |
-| claim-time kill **off** | both `afplay`s ran to completion and **overlapped for 3.2486, 3.2564 and 3.4981 s**, 3/3 |
+| claim-time kill **on** | the stale `afplay` process existed for **at most 13.0, 17.5 and 18.6 ms** against a 5.7 s wav; the newer utterance's process then ran to completion, 3/3 |
+| claim-time kill **off** | both `afplay` processes ran to completion and **their lifetimes overlapped by at most 3.2486, 3.2564 and 3.4981 s**, 3/3 |
 
 **[measured-here]**, and now re-derivable from the repository alone: `real-audio-trials.tsv` is a
 committed evidence file, `summarise.sh` section E prints these figures from it, and
@@ -1099,13 +1207,38 @@ result by a factor of seven. The figure is therefore **an upper bound of 13–19
 measurement of 13–19 ms**, and §1's derivation defect 4 records how it was published as the
 latter.
 
-**One honest limit, and the correction above does not touch it.** What is bounded is the
-process's existence. Whether ≤ 19 ms is short enough that no sample reached the output device is
-**[inferred]** — `afplay`'s time-to-first-sample was not measured, and nothing here listens. If
-anything the correction sharpens the limit rather than weakening it: `popen_to_exit_s` shows the
-process was reaped 1.6–2.8 ms after `Popen` returned, which makes the audibility question turn
-almost entirely on launch latency the harness never instrumented. The experiment that removes
-the inference is a loopback capture, not a longer run.
+**AND THE 3.25–3.50 s FIGURE HAD NO SUCH PARAGRAPH UNTIL ROUND 27, WHICH IS THE DEFECT.** The
+limit below was written for the millisecond figure and applied only to it, while the overlap
+figure — the one this document quotes six times as *"two utterances overlapped"* — kept its
+audio wording. It is derived the same way and has the same limit, plus two of its own.
+`collect_real.sh` computes it as `EX[jNa] − POP[jNb]`: the **reap stamp of the stale player**
+minus the **parent's `P_popen` stamp for the newer one**. Neither endpoint is an instant at
+which anything was audible, and **both endpoints push the number up**, so the figure is an
+**upper bound on process co-existence**:
+- `POP[jNb]` is stamped in the worker the moment `subprocess.Popen` **returns**. This arm runs
+  `--pid-mode worker`, so that `Popen` is `["/usr/bin/afplay", wav]` with no publish wrapper —
+  the newer process therefore does exist at the interval's start, but it has not necessarily
+  reached `exec`, and it certainly has not opened the output device or handed it a sample. **The
+  interval starts strictly before any newer sound could begin.**
+- `EX[jNa]` is the **reap** stamp, at or after the stale process's real exit — and `afplay`
+  exiting is itself at or after the last sample it wrote, not when the device stopped playing.
+
+So the honest sentence is *"the two `afplay` processes co-existed for at most 3.25–3.50 s"*, and
+any statement about overlapping **sound** is a further inference on top of that — one this
+harness cannot make, in either direction, because it never observed the device.
+
+**One honest limit, and the two corrections above do not touch it — they widen its scope.** What
+is bounded is process existence, on both arms. Whether ≤ 19 ms is short enough that no sample
+reached the output device is **[inferred]**, and so is whether any part of the ≤ 3.50 s
+co-existence was two voices at once: `afplay`'s time-to-first-sample was not measured, and
+nothing here listens. If anything the corrections sharpen the limit rather than weakening it:
+`popen_to_exit_s` shows the process was reaped 1.6–2.8 ms after `Popen` returned, which makes
+the audibility question turn almost entirely on launch latency the harness never instrumented.
+**The experiment that removes the inference is a loopback capture, not a longer run** — record
+the output device through an aggregate/loopback sink for the duration of each trial and derive
+first-sample and two-voices-at-once from the recording. Until that exists, **no audibility
+figure in this document is `[measured]`, and none is written as one**; `n = 12` per arm (§5)
+would buy more process samples and not one audio observation.
 
 ## 3. Row 21 — the lock protocol
 
@@ -1554,12 +1687,66 @@ annotate them.
 >   whatever is at the path now — including a fresh lock a different process legitimately
 >   just created — and gets success rather than `ENOENT`. Measured.
 > - **Ownership is "I created the highest generation record"**, read with one `readdir` and
->   one `readlink`. **A loser retries; it does not fail.** `symlink` returning `EEXIST` means
->   only that someone else got to this generation number first, so the elector re-reads the
->   highest generation and starts over — `lockrace.py:243` and `:249` both `rec("publish_lost")`
->   and `continue`, bounded at 60 attempts. **This is what gives S3, S4 and S6 their liveness**
+>   one `readlink`. **A loser of the PUBLICATION race retries.** `symlink` returning `EEXIST`
+>   means only that someone else got to this generation number first, so the elector re-reads
+>   the highest generation and starts over — `lockrace.py:370` and `:391` both
+>   `rec("publish_lost")` and `continue`. **This is what gives S3, S4 and S6 their liveness**
 >   and the old clause never stated it: without the restart, a legitimate reclaimer that lost a
 >   generation race would conclude nothing rather than re-examine a lock that is now live.
+>
+>   **THE OLD CLAUSE ALSO SAID *"it does not fail"*, AND THAT WAS FALSE — corrected in round
+>   27.** The retry loop has a bound, 60 attempts, in both implementations
+>   (`lockrace.py:364`/`:393`, `speakd_probe.py`'s `ELECT_ATTEMPTS`), and falling off the end
+>   returns the same `False` that losing to a live owner returns; in `speakd_probe.py` that is
+>   `sys.exit(0)` and the worker does not start. So there are **three** terminal outcomes, not
+>   two, and the clause has to name all three. (The sentence also cited the wrong two lines —
+>   `:243`/`:249` are the `current` protocol's `unlink`/`rmdir` path, not `publish_lost`.)
+>   - **WON** — this elector created the highest generation.
+>   - **LOST** — a live owner was observed. Correct, terminal, and the design's intent.
+>   - **EXHAUSTED** — the budget ran out with no owner observed either way. **This is a real
+>     liveness failure and is specified rather than denied.**
+>
+>   **What spends the budget is two different things and only one of them is a spin.** A
+>   collision is progress *by somebody else*: the next `highest_gen()` reads a higher
+>   generation, so spending all 60 that way needs 60 successful publications inside one
+>   election, and retrying with no pause is the right response. An **unreadable** record is not
+>   progress at all — `highest_gen()` returns the same `g` and the read fails on it again — so
+>   unpaced it burnt the whole budget in **microseconds** and gave up. Measured on the committed
+>   probe as it stood: a `worker.lock.0` symlink whose target does not parse as a pid made the
+>   worker **exit 0 after 0.12 s with `signal_dispositions` as the only line in its trace**
+>   **[measured-here]**. A worker that declines to run and says nothing about why is the
+>   null-as-pass shape of this rig, in the election — **the same shape round 15 found one
+>   protocol over**, where `lockrace.py`'s `rmdir_failed` was the one exit from an election that
+>   recorded no terminal outcome (`lockrace.py:248`). That one was found and named; this one was
+>   in `speakd_probe.py` the whole time, and the clause above asserted it could not exist.
+>   - **The exhaustion is now RECORDED, with the breakdown**: `election_gave_up attempts=
+>     collisions= unreadable= lookup_failures=`. "60 collisions" and "60 unreadable reads" call
+>     for opposite operator actions, and `election_lost` must not be able to stand in for
+>     either. Also recorded per attempt is *why* a read failed — **absent** (removed between the
+>     `readdir` and the `readlink`, genuinely transient) versus **unparseable** (present and
+>     malformed, which no retry will fix).
+>   - **The unreadable path gets a 20 ms backoff, so the budget spans a STATED interval** —
+>     at most `60 × 20 ms = 1.2 s` — rather than an unstated one. Same input as above, after the
+>     repair: **60 `owner_record_unreadable … why=unparseable` records over 1.2 s, then
+>     `election_gave_up attempts=60 collisions=0 unreadable=60 lookup_failures=0`**, and no
+>     `ready` and no `election_won` **[measured-here]**. The collision path deliberately keeps
+>     no backoff.
+>   - **The recovery policy: exhaustion costs ONE WORKER INVOCATION, not the session.** This
+>     rests on a property of the caller and is stated as such: **PR #27 §10.5 clause 4's
+>     ensure-worker step runs on *every* `MessageDisplay` invocation**, so a worker that
+>     exhausted its budget is re-elected by the next invocation from a fresh one. Nothing
+>     durable is written by a worker that exhausted, and no job is consumed. If that clause ever
+>     becomes a once-per-session step, this policy is void and the exhaustion becomes a
+>     session-level failure — which is why the dependency is named here rather than assumed.
+>     **What it does NOT do is retry until a live owner is observed**, and that is the choice:
+>     an unbounded retry against a permanently malformed record is a worker that never returns,
+>     which converts a per-invocation liveness failure into a hung hook. The price is stated
+>     rather than hidden — **a persistently unreadable record wedges the session**, and it
+>     wedges it exactly as the `unverifiable`/pid-held refusal above does: liveness not safety,
+>     one session (`$BUF_ROOT/<session_id>/speak/`, cleared by removing that directory), and
+>     loud, now that the give-up is recorded. **[inferred]**, since no arm has exhausted a
+>     budget in a measured run; the closing condition is an arm that seeds a malformed
+>     generation record and counts the elections it costs.
 > - **Obsolete generations, and the ordering the round-2 text left out. `rewrite.sh:117` does
 >   NOT reclaim them, and citing it as the backstop was wrong.** Verbatim **[repo]**:
 >
@@ -1589,8 +1776,11 @@ annotate them.
 >   has to be ordered** — and it has to be specified against a `speak/` directory that can
 >   vanish under the worker doing the cleaning.
 > - **The ordering, stated. [inferred] and UNRUN.** A worker may unlink generation `g` **only
->   after both halves of its election sweep against `g`'s owner have reached a TERMINAL result**
->   — 7(iv) and 7(iv-a) — and **only the worker that created `g+1` may do it**.
+>   after both halves of ITS OWN election sweep against `g`'s owner have reached a TERMINAL
+>   result** — 7(iv) and 7(iv-a) — **and only while holding a generation above `g`**. Round 4
+>   wrote the second condition as *"only the worker that created `g+1`"*; that is a strictly
+>   stronger rule and it made cleanup non-recoverable, which is the round-22 paragraph at the end
+>   of this bullet.
 >   **"Completed" is the wrong condition and would re-open the region it closes.** A sweep
 >   completes when it has *attempted* the signal, and 7(iv) deliberately RETAINS the `.pending`
 >   marker on `EPERM` or any other non-terminal `killpg` failure so that a later election can
@@ -1611,6 +1801,53 @@ annotate them.
 >   12/12 those two arms measured. **Nothing here is measured:** `lockrace.py` never unlinks a
 >   generation, so all 400 trials ran with every generation present. §13 row 21's closing
 >   condition now names it.
+>
+>   **AND *"only the worker that created `g+1`"* MADE CLEANUP NON-RECOVERABLE — round 27, and
+>   this is a defect in the tightening, not in the ordering.** The two conditions were written as
+>   one, and only the first is load-bearing. If the creator of `g+1` crashes **after** its
+>   terminal sweeps and **before** its unlink — a window that includes the whole model load and
+>   every job it serves — then no worker is ever again permitted to remove `g`. This document has
+>   already established that nothing external reaches these records (`rewrite.sh:117` cannot
+>   match a depth-3 symlink), so `g` is immortal, and **a crash loop accumulates generations
+>   without bound**: every restart adds one, every `readdir`/`readlink` of the election and every
+>   pass of the sweep pays for all of them, and the only thing that ever clears them is the
+>   session directory going away.
+>   - **THE PERMISSION, AND ITS CONDITION.** A worker whose own generation is `n` may unlink
+>     generation `g` **iff (a) `g < n`** — it is obsolete, and `n` still exists, so nothing can
+>     mistake the removal for reclaiming a live lock — **and (b) THIS worker's own election sweep
+>     against `g`'s recorded owner has itself reached a terminal result in both halves**, with
+>     `g`'s `.pending` marker retired in the same step.
+>     **"Re-establish" has to mean re-perform, and that is the whole of the condition.** A later
+>     worker may not inherit, assume or read off the crashed worker's sweep result — there is
+>     nothing on disk that records one — so the permission is not an exception to the ordering,
+>     it is the ordering with the identity of the sweeper dropped. The clause needed `g < n`
+>     rather than `g = n − 1` for a reason that was already in the code: `sweep_pgid` walks
+>     `for gg in range(g, -1, -1)`, so **an elected worker already sweeps every generation below
+>     its own**, and it was only ever forbidden to *finish the job* on the ones it did not
+>     directly supersede. The interleaving the rule exists to prevent is untouched: at the
+>     instant of any unlink, that generation's owner group has been signalled or is provably
+>     gone, so a later sweep's `continue` past a missing `g` loses nothing. What is still
+>     forbidden — and this is the half that was doing the work — is unlinking on *completion*,
+>     or on somebody else's terminal result.
+>   - **WHAT IT COSTS, stated.** (1) **It does not eliminate the accumulation, it bounds it to
+>     the non-terminal verdicts.** `recycled`, `unverifiable` and `lookup_failed` are deliberately
+>     *not* terminal (4b(iv)), so a generation whose owner pid has been recycled is never
+>     unlinked by anyone — correctly, since signalling it would hit a stranger's group. Those
+>     generations still accumulate, but only for as long as the session lives, and each costs one
+>     `readlink` and a recorded skip rather than a `killpg`. (2) **A generation's group can now be
+>     signalled more than once**, once per elected worker that reaches a terminal `same` verdict
+>     on it before somebody unlinks it. Harmless — the group is being killed either way, and a
+>     repeat against a gone group is `ESRCH` — but it is a visible duplicate in the trace and
+>     must not be read as two orphans. (3) **Concurrent unlinks of the same `g` are possible**
+>     now that the unlinker is not unique: a worker at `n` and one at `n+1` can both qualify. The
+>     loser gets `ENOENT`, which is not an error here, and a generation number is never reused,
+>     so nothing can be recreated under a racing unlink. (4) The per-election work is
+>     `O(generations still present)`, which is exactly what the permission exists to keep small.
+>   - **Closing condition.** `[inferred]` and unrun, like the rest of this bullet. To close: add
+>     the unlink, add a death point **between the terminal sweep and the unlink**, and show both
+>     directions — `g` still present after the creator of `g+1` dies there, then unlinked by the
+>     next elected worker once *its own* sweep of `g`'s owner terminates; and `g` **retained** by
+>     that worker when its verdict on `g`'s owner is `recycled`.
 >
 > **Measured: exactly 1 owner on 400 of 400 trials** — but **exactly ONE of those 400 is
 > confirmed by a committed trace to have exercised reclamation of a dead owner** (§3.3): its
@@ -1944,9 +2181,10 @@ annotate them.
 > | **20** | ~~§10.6's preemption rests on three worker-side hooks that are all [inferred]~~ |
 > **MEASURED 2026-08-25/26 and PARTLY FALSIFIED — twice.** 312 trials over 26 switchable
 > configurations. The adversarial `R < S2 < R_b < P < W` was provoked **48/48** with the hook's
-> kill hitting nothing every time; clause (iii) is confirmed load-bearing (36/36 killed before
-> any sound) and its absence fatal (**12/12** run to completion; two real utterances overlap
-> **3.25–3.50 s**). **The two-kill partition leaves a third region** — a worker dying between
+> kill hitting nothing every time; clause (iii) is confirmed load-bearing (36/36 killed **before
+> `exec`**) and its absence fatal (**12/12** run to completion; two real `afplay` **processes
+> co-exist** for **≤ 3.25–3.50 s** — a process bound, audibility **[inferred]**, §2.6).
+> **The two-kill partition leaves a third region** — a worker dying between
 > `Popen` and the record write orphans a player nothing reaches, **12/12**, window median
 > **1.41 ms** over the 72 worker-published trials. **The first proposed repair does not close
 > it:** a single player-written record fails **12/12** when the sweep lands before publication,
@@ -2025,8 +2263,10 @@ annotate them.
 > is unreviewed. **Closing conditions:** (1) a review pass by someone other than §4a's author;
 > (2) **the generation garbage collection is specified but UNRUN** — `lockrace.py` never
 > unlinks a generation, so all 400 trials ran with every generation present, and the ordering
-> rule §4a now states (unlink `g` only after completing both halves of the election sweep
-> against `g`'s owner, and only from the worker that created `g+1`) has no arm behind it.
+> rule §4a now states (unlink `g` only after both halves of the unlinking worker's **own**
+> election sweep against `g`'s owner have reached a terminal result, and only while it holds a
+> generation above `g`) has no arm behind it — **including the round-22 recovery permission**,
+> whose closing arm is a worker killed between its terminal sweep and its unlink.
 > `rewrite.sh:117` is **not** a backstop for it and §4a no longer claims it is; (3) **re-run S3,
 > S4 and S6 under the synchronised driver.** This is now the binding evidence item, not a
 > footnote: five consecutive review rounds have each found a staging defect in the previous
@@ -2109,10 +2349,22 @@ Each of these is named with the experiment that closes it, not softened.
   to zero for that reason, and no arm here staged two deaths inside one player's lifetime.
   **[inferred]**. To close: stage two consecutive worker deaths inside one player's
   lifetime and count survivors under the paired sweeps.
-- **Real `afplay` in the adversarial ordering at scale.** The real-audio arm is 3 trials,
-  not 12 (§2.6). The stub establishes the ordering and the attribution; the real arm only
-  answers audibility. To close: run `run_real.sh` at n = 12 per arm. It costs ~5 minutes and
-  real synthesis is local and free, so this is a scope choice, not a limitation.
+- **AUDIBILITY ITSELF — nothing in this document measured it, and until round 27 the
+  real-audio arm was described as though it had.** Every figure in §2.6 is derived from
+  `afplay` **process** stamps (`Popen` return, reap); **nothing listened at any point**, and
+  `afplay`'s time-to-first-sample was never instrumented. So *"the stale player did not last
+  long enough to be heard"* and *"two utterances overlapped for 3.25–3.50 s"* are both
+  inferences on top of a process bound, and the second one had no such caveat anywhere in the
+  document — the audio wording stood at **nine** sites in this document and **four** in the rig
+  while the honest paragraph sat beside one of them (§1 derivation defect 14). **Nothing here can close this, and that is the
+  point: this machine has no path from a process stamp to an audio observation.** To close:
+  capture the output device — an aggregate/loopback sink recorded for the length of each trial —
+  and derive time-to-first-sample and two-voices-at-once from the recording. **Scale does not
+  substitute.** Which is the correction to the bullet this replaces: it said the real arm
+  *"only answers audibility"* and named `n = 12 per arm` as the closing condition, and n = 12
+  buys twelve more process samples and no audio observation at all. Running it is still worth
+  doing for the process figures (~5 minutes, real synthesis is local and free), and it is a
+  scope choice; **audibility is a missing instrument, not a missing sample size.**
 - **The hook in bash under real `Stop` dispatch.** `hook_probe.sh` *is* bash, but its
   kill-to-rename interval is a `sleep` calibrated to the measured median (0.086 s) rather
   than three `jq` invocations and a `shasum`. The distribution's *tails* (0.063 and 0.219 s)
@@ -2178,11 +2430,17 @@ Each of these is named with the experiment that closes it, not softened.
     `-type d` each exclude on their own, so that sweep can never remove one. The safety
     argument is also stronger than round 2's "the highest generation always exists while its
     owner lives", because the sweep walks *every* generation down to zero and an unlinked one
-    is a `continue` rather than a signal: **unlink `g` only after completing both halves of the
-    election sweep against `g`'s owner, and only from the worker that created `g+1`.** All
+    is a `continue` rather than a signal: **unlink `g` only after both halves of the unlinking
+    worker's OWN election sweep against `g`'s owner have reached a terminal result, and only
+    while it holds a generation above `g`.** Round 4 wrote that second condition as *"only the
+    worker that created `g+1`"*, and **round 27 found that this made cleanup non-recoverable** —
+    a creator that crashes between its terminal sweep and its unlink strands `g` forever, and a
+    crash loop then accumulates generations without bound, since nothing external reaches a
+    depth-3 symlink. §4a states the recovered permission, its condition and its four costs. All
     **[inferred]**. To close: add the unlink and re-run S3, S4 and S6 with a reclaim delay
-    straddling it, and add an arm that kills the electing worker between the unlink and the
-    sweep.
+    straddling it, add an arm that kills the electing worker between the unlink and the
+    sweep, and add the mirror arm that kills it between the **sweep and the unlink** and shows
+    the next elected worker completing the cleanup — and refusing to, on a `recycled` verdict.
   - **Player records and `.pending` markers.** `playerdir/` accumulates a record per player and
     nothing removes the records of players that died without reaping (the warm-up player's
     record is visible in the committed `C12b` trace, still present several generations later).
@@ -2501,9 +2759,25 @@ and cannot be conflated.
 ## 6. Should rows 20 and 21 stay ship-blocking?
 
 **Both stay ship-blocking. The case is now much stronger than it was, and it is no longer an
-argument about labels — it is an induction over nine rounds of review.**
+argument about labels — it is an induction over every round in the table below.**
 
-### What the nine rounds actually did
+### What the rounds actually did
+
+**THE COUNT IS THE TABLE'S OWN ROW COUNT, and round 27 made it so.** This heading read *"what
+the nine rounds actually did"* over the **eleven** rows the table then had, while the paragraph
+under the table said
+*"ten consecutive rounds"* — three numbers for one tally, none of them defined, in the section
+whose entire argument is an induction over that tally. **One row per round in which review found
+a real defect** is the rule, `PR #27`'s pre-measurement round included, and the count is now
+**twelve** because this round adds one. Two things a reader should know before trusting it:
+- **The table has been behind the body since rev 9.** Its last row before this one is labelled
+  *review round 21*, and the body cites findings from **rounds 24, 25 and 26** (derivation
+  defects 11, 12 and 13; the fifth pid-reuse site in §0 and §2.5 item 7). Those rounds changed
+  the document and never got rows. **This round did not invent them** — summarising somebody
+  else's round from its residue is how a tally stops being evidence — so the twelve rows are a
+  **floor** on the rounds, not the rounds.
+- **Twelve is therefore the smallest defensible number here**, which is the direction a
+  disclosure tally is allowed to be wrong in.
 
 | round | the clause it examined | verdict |
 | --- | --- | --- |
@@ -2517,10 +2791,17 @@ argument about labels — it is an induction over nine rounds of review.**
 | **PR #28 rev 6** | **§4b's `killpg` bound itself, and the four scripts that decide what counts as a completed run** | **The `.pending` marker still does not bound `killpg`, and this is the FOURTH distinct defect in that one mechanism** — each found only after the previous one was repaired (§5 tabulates all four). The generation tag stopped one marker authorising *other* generations; it validates no identity for its **own**, only the highest generation's owner is ever liveness-tested, and a marker has no expiry — so a superseded owner's pid recycled as an unrelated group leader is `killpg`'d by a stale marker. **Shown on a bench rig, not measured as an arm:** with the round-14 code a seeded stale marker's `killpg` killed an unrelated live process group; with clause 2's `<pid>.<starttime>` and the three-way test it is skipped, the marker expired, and the group left alive — no committed trace, and the repair stays `[inferred]`. **This is the first round whose principal finding is in the DESIGN rather than the staging.** Alongside it, four validators each accepted a partial or stale run as a pass: `run_lock.sh` proved only that *one* racer finished, `collect.sh` accepted any non-zero number of reconstructed trials, `summarise.sh` annotated `VOID` and exited 0, `publish.sh` merged a new rig over a stale one, and one `analyse_round2.sh` block put its exit status on `head` — which was also silently dropping **30 of 50** output rows, 8 of the 12 erasures among them, so the 12/25 figure the document quotes from that block was not derivable from it |
 | **PR #28 rev 7** | **rev 6's own repair of the `killpg` bound, and the four scripts that decide what may be published** | **The identity test rev 6 added had a hole in the shape of the thing it was added to close — the FIFTH distinct defect in this one bound, and the first that is in the fix rather than the mechanism.** `owner_identity()` guarded on `option == "off" OR the record has no start time`, putting the deliberate falsification arm and a **record shape** behind one `or` — so under `--owner-identity on` a **bare or legacy record** degraded silently to `kill(pid, 0)`, called a recycled pid `same`, and let a `.pending` marker authorise `killpg` on a stranger's whole group. The option closed the hazard for records it had written and left it open for every record it had not, which is the entire population during a migration. The degradation now keys on the **option** and never on the record; a bare record is a fourth verdict, `unverifiable`, and the two sites fail safe in **opposite** directions — the sweep refuses to signal and keeps the marker, the election supersedes without signalling. Bench-demonstrated in five arms, both directions, stranger alive where it must be and dead where it must be; still `[inferred]`. Alongside it, four validators: **`publish.sh`'s rollback destroyed the evidence it existed to protect** — `mv`ing `traces/` out of the live destination before the swap, so a failed swap restored a gutted directory and the `EXIT` trap deleted the only copy (**all 114 committed trace files, measured on the round-15 script**); **its required-file set omitted the producers of four of the committed TSVs**, `collect_real.sh` among them; **`verify_fires.sh` was a subset check, not an exact-set check**, so a re-run appended to `RUNS.txt` gave a duplicate configuration that passed and would have made the 312-trial denominator **324**; and **`assemble_pass1.sh` pinned `C3` to one historical timestamp**, so any other valid pass silently published **10 of 11** configurations while the aggregate guard succeeded. Plus two derivation defects: the attribution chain let the player's own log outrank the kernel's wait status (latent — **no published figure moves**, verified over every row), and `summarise.sh`'s header claimed to re-derive *every* published figure when the event counts come only from `analyse_round2.sh` |
 | **PR #28 rev 8** | **the two derivations that carry `C14a`'s destruction count and row 21's denominator** | **Two findings, and both are the same shape: a published number whose own script does not establish it.** `analyse_round2.sh` printed *"PROVEN destructions of a published record: N + M"* by adding two **global** counters that share no key — not the trial, not the unlink — and then **asserted** that the two witnesses fell in the same trials and saw distinct unlinks. Neither half was derived, and the figure resting on it, **8 across 4 trials**, is itself the correction that replaced a withdrawn 24-across-12/12. The join keys were in the traces all along, including a **third file the block never opened**: `markers.tsv`'s `tNc entry` is the timestamp `hook-kills.log` does not carry. It is now a three-way join on `(trial, unlink timestamp)` that binds each hook-C witness to **one** unlink and prints the **union** with the intersection computed and each event's **rank** in its trial; the committed traces give intersection **0**, ranks **#1 and #2**, and the **same 8 across 4** — unchanged, now derived, and narrowing rather than asserting where a window is ambiguous. And `summarise.sh` checked only that `lock-owners.tsv` was **non-empty**, so an interrupted run or one missing a whole protocol × scenario cell re-derived the **1200-trial / 400-per-protocol** result over a smaller denominator and still exited 0. The matrix — **60 cells × 20 reps**, transcribed from `run_lock.sh` and deliberately *not* derived from the file under test — is now checked, rep numbers included, before any section prints. Its own first draft passed everything by **failing to run** (a literal newline in an `awk -v` assignment, which BWK awk rejects with no output); it now refuses when it cannot run |
-| **PR #28 rev 9 (this), review round 21** | **the PROTOCOL, for the first time in ten rounds — two clauses and the derivation that carries `C14a`** | **Three findings, and the first two are in the design rather than in a script.** **(1) The player records never had an identity.** Round 20 anchored the record *name* to `<pid>.<8-hex>` so a `.pending` marker could not be parsed as a pid, and that parsing fix was read as though it made the pid an identity. It does not: nothing removes a player record when its player dies, so a record outlives its process for the whole session — the committed `C12b` warm-up record is in the election sweep's target list on **24 of its 25** elections — and **three** sites then signal a number taken straight from it (the hook, the election-time record sweep, and the claim-time kill the review did not name). The content is now the player's own `<pid>.<starttime>`, matching **PR #27 clause 7(i)** field for field so the two documents specify one scheme, and all three sites skip in silence on a mismatch. **(2) Superseding an `unverifiable` owner was not fail-safe, and the reason given for it was false.** Round 16 argued the election may supersede freely because the sweep refuses that verdict separately — but superseding is the licence to **consume jobs**, so a bare record belonging to a live legacy worker produces **two owners and overlapping audio**, which is the single invariant this document exists to hold. Nor can superseding be made into a drain: nothing in the protocol re-reads the lock after winning, and no notice can reach a worker that by definition predates it. The election now supersedes a **vacant** pid and refuses a **held** one, mixed-mode operation is declared **out of contract**, and the cost is stated — a session that **wedges** when a bare record's pid has been recycled, bounded to one session and loud in the trace. **(3) The repair for rev 8's own finding used an invalid bound.** The hook-C witness was bound to one unlink by `(W_pid_write[jNb], tNc entry)`, and `W` is the **parent's** deferral stamp taken after `Popen` returns while the wrapper is already running — harness defect 4, reintroduced as a bound by the block that had just withdrawn a lag figure for it. There is no observed publication instant in these traces to substitute, so the binding no longer needs one: it is now a **uniqueness** argument over `(S2_prespawn_stat[jNb], tNc entry)` with the trial filter removed. **The figure survives byte-identical at 8 across 4** — on this data the invalid bound happened to select the same events (nearest unlink **+41.258 ms**, bound uncertainty at most **2.687 ms**), so it was latent exactly as defect 7 was. All three are bench-demonstrated in both directions, 18 arms; all three stay **`[inferred]`** |
+| **PR #28 rev 9, review round 21** | **the PROTOCOL, for the first time in ten rounds — two clauses and the derivation that carries `C14a`** | **Three findings, and the first two are in the design rather than in a script.** **(1) The player records never had an identity.** Round 20 anchored the record *name* to `<pid>.<8-hex>` so a `.pending` marker could not be parsed as a pid, and that parsing fix was read as though it made the pid an identity. It does not: nothing removes a player record when its player dies, so a record outlives its process for the whole session — the committed `C12b` warm-up record is in the election sweep's target list on **24 of its 25** elections — and **three** sites then signal a number taken straight from it (the hook, the election-time record sweep, and the claim-time kill the review did not name). The content is now the player's own `<pid>.<starttime>`, matching **PR #27 clause 7(i)** field for field so the two documents specify one scheme, and all three sites skip in silence on a mismatch. **(2) Superseding an `unverifiable` owner was not fail-safe, and the reason given for it was false.** Round 16 argued the election may supersede freely because the sweep refuses that verdict separately — but superseding is the licence to **consume jobs**, so a bare record belonging to a live legacy worker produces **two owners and overlapping audio**, which is the single invariant this document exists to hold. Nor can superseding be made into a drain: nothing in the protocol re-reads the lock after winning, and no notice can reach a worker that by definition predates it. The election now supersedes a **vacant** pid and refuses a **held** one, mixed-mode operation is declared **out of contract**, and the cost is stated — a session that **wedges** when a bare record's pid has been recycled, bounded to one session and loud in the trace. **(3) The repair for rev 8's own finding used an invalid bound.** The hook-C witness was bound to one unlink by `(W_pid_write[jNb], tNc entry)`, and `W` is the **parent's** deferral stamp taken after `Popen` returns while the wrapper is already running — harness defect 4, reintroduced as a bound by the block that had just withdrawn a lag figure for it. There is no observed publication instant in these traces to substitute, so the binding no longer needs one: it is now a **uniqueness** argument over `(S2_prespawn_stat[jNb], tNc entry)` with the trial filter removed. **The figure survives byte-identical at 8 across 4** — on this data the invalid bound happened to select the same events (nearest unlink **+41.258 ms**, bound uncertainty at most **2.687 ms**), so it was latent exactly as defect 7 was. All three are bench-demonstrated in both directions, 18 arms; all three stay **`[inferred]`** |
+| **PR #28 rev 10 (this), review round 27** | **the two clauses round 4 and round 21 left behind, and the DOCUMENT'S OWN WORDS** | **Four findings, and the one that matters most is not in any script.** **(1) The real-audio arm never measured audibility, and said it did.** Every figure in §2.6 is an `afplay` **process** stamp — `overlap_s` is a reap stamp minus a `Popen`-return stamp, so **both endpoints over-count** — and nothing in this rig listens at any point. §2.6 had already conceded exactly that, for the *millisecond* figure only, in the paragraph under its own table; the concession never reached the **3.25–3.50 s** overlap figure or any of the places either number is quoted. The audio wording stood at **nine sites in this document and four in the rig**, including the §2.2 attribution table's entire last column (*"stale audio, s"*, over 26 rows of **stub** arms that open no audio device) and the §4d row-20 text that would have shipped into the spec. All thirteen are now process observations with audibility **`[inferred]`**; no figure moves and none is withdrawn (derivation defect **14**, the first in that list that is in the prose rather than in a script, and the second — after harness defect 4 — that **re-deriving cannot fix**). **(2) Round 4's own tightening of generation cleanup made it NON-RECOVERABLE.** *"Only the worker that created `g+1`"* means a creator that crashes between its terminal sweep and its unlink strands `g` **forever** — this document having already established that nothing external reaches a depth-3 symlink — so a crash loop accumulates generations without bound. The permission is recovered with a **condition rather than an exception**: a worker at generation `n` may unlink `g < n` only after **its own** sweep of `g`'s owner terminates, which is the ordering rule with the sweeper's identity dropped and not a hole in it. Four costs are stated, including the one it does **not** fix — `recycled` is deliberately non-terminal, so those generations still accumulate for the life of the session. **(3) *"A loser retries; it does not fail"* contradicted the 60-attempt bound in both implementations.** There are **three** terminal outcomes, not two, and the third — budget exhausted — left **no trace record at all**: measured on the committed probe, a `worker.lock.0` whose target does not parse made the worker **exit 0 after 0.12 s with `signal_dispositions` as the only line in its trace**. The exhaustion is now recorded with its breakdown, the unreadable-record path gets a backoff so the budget spans a **stated** 1.2 s instead of microseconds, and the recovery policy is named along with the caller property it rests on (§10.5 clause 4's per-invocation ensure step) and the wedge it accepts. **(4) Four fatal paths across two drivers left a worker running** under `--idle-exit-s 600` — ten minutes, and in the real arm holding a loaded ~340 MB model into the retry that was meant to diagnose the failure. `EXIT` traps installed at `WPID` capture, reading `$WPID` at trap time so a restarted worker is covered; demonstrated in both directions on both drivers plus the pre-fix contrast. `run_lock.sh` was checked and does not have the shape. Findings 2 and 3 stay **`[inferred]`** and unrun; finding 1 is a label correction; finding 4 is **[measured-here]** |
 
-**Ten consecutive rounds, and every round found a real defect in the previous round's
-confident answer.** Rev 5 was the sharpest form of the pattern in the staging: **four of its five
+**Twelve rows, and every one of them a round that found a real defect in the previous round's
+confident answer** — counted off the table rather than carried, and a floor rather than a total
+for the reason stated above. **Round 27 is the sharpest form of the pattern in the DOCUMENT**:
+two of its four findings are defects in clauses this document itself proposed as repairs (round
+4's cleanup ordering, round 21's election policy), and a third is in the document's own choice of
+noun — a figure named *audibility* and derived from process stamps, sitting one paragraph above
+the sentence that says audibility was never measured. Nothing in any script was wrong about it;
+the words were. Rev 5 was the sharpest form of the pattern in the staging: **four of its five
 findings were defects in rev 4's repairs**, not in anything older. Rev 6 and rev 7 are the
 sharpest form of it in the design: the `.pending` bound has now failed review **five** times,
 each failure only visible once the previous repair was in place — and rev 7's is the first that
@@ -2537,32 +2818,42 @@ record, the thing measured was an append-only ledger, and the arm that measured 
 delay that guaranteed the sweep always ran after publication. When the ordering rev 1 claimed to
 close was finally staged (`C11b`), **the single-record form failed.**
 
-### So the counter-argument is now refuted nine times over
+### So the counter-argument is now refuted in every round in that table — twelve of them
 
 The original argument for non-blocking was that these clauses are *"cheap, obviously correct on
 inspection, and their failure windows are microseconds wide."*
 
-1. **"Obviously correct on inspection" has now failed on fifteen distinct clauses** — the two
-   lock clauses, clause (ii)'s scope (twice: first mis-scoped, then credited to the wrong
-   sweep), the shared-record lifecycle, the append-only ledger's truncate, the
-   player-authored-record repair, the process-group sweep's own blast radius, the sweep's
-   dependence on an unstated `setsid()`, the missing record sweep at election time, the
-   generation GC's non-existent reclaimer, the `.pending` GC's undeterminable set, the
+1. **"Obviously correct on inspection" has now failed on seventeen distinct clauses.** Counted
+   the way the list below reads: **the two lock clauses are two**, and **clause (ii)'s scope is
+   one clause that failed twice** — the count is of clauses, not of failures. (1) and (2) the two
+   lock clauses; (3) clause (ii)'s scope (twice: first mis-scoped, then credited to the wrong
+   sweep); (4) the shared-record lifecycle; (5) the append-only ledger's truncate; (6) the
+   player-authored-record repair; (7) the process-group sweep's own blast radius; (8) the sweep's
+   dependence on an unstated `setsid()`; (9) the missing record sweep at election time; (10) the
+   generation GC's non-existent reclaimer; (11) the `.pending` GC's undeterminable set; (12) the
    `.pending` marker's absent owner **identity** — that one being a defect in the
    repair for the one before it, which is itself the third such in a row on that mechanism —
-   and, in round 21, the **PLAYER record's** absent identity (three signalling sites taking a
+   and, in round 21, (13) the **PLAYER record's** absent identity (three signalling sites taking a
    pid from a record that outlives its process, with an anchored *name* mistaken for an
-   identity) and the **election's** treatment of an unverifiable owner (superseding read as
+   identity) and (14) the **election's** treatment of an unverifiable owner (superseding read as
    harmless because the sweep refuses separately, when superseding is the licence to consume
-   jobs and therefore the route to two owners) — and, in round 26, the **claim-time kill's
+   jobs and therefore the route to two owners) — and, in round 26, (15) the **claim-time kill's
    handle target**, the one signalling site the identity rule deliberately exempted, on a
    premise about pid reservation that the implementation never provided and that the committed
-   `C10b` trace contradicts 12 times over.
-   Inspection is what produced all fifteen. The player-authored-record repair is the sharpest
+   `C10b` trace contradicts 12 times over — and, in round 27, (16) the **generation-unlink
+   ORDERING rule**, whose *"only the worker that created `g+1`"* made cleanup non-recoverable and
+   let a crash loop accumulate generations without bound (a different clause from (10), and a
+   defect in the repair for it), and (17) the **ownership clause's liveness claim**, *"a loser
+   retries; it does not fail"*, which contradicted a 60-attempt bound present in both
+   implementations from the start.
+   Inspection is what produced all seventeen. The player-authored-record repair is the sharpest
    case: it was proposed *in response to* a measured defect, read as obviously correct by its
    author, and **fails 12/12** once the ordering it was written for is actually staged. The
    `setsid()` omission is the second-sharpest, because it is the *invisible* kind: the clause
    reads correctly, and the line it silently depends on is in the probe rather than in the text.
+   **(17) is a third kind, and worth naming separately: the clause was contradicted by the code
+   it was written to describe, and both had been in the repository, side by side, for ten
+   rounds.**
 2. **"Microseconds wide" is false for most of them.** The pid-less lock window is a scheduling
    delay (unbounded). The ABA window is a reclaimer's own think-time. The publication window is
    as wide as the wrapper stays descheduled — `C11b` widened it deliberately, but nothing bounds

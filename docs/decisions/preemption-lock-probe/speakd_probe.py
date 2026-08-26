@@ -506,11 +506,35 @@ def owner_identity(pid, st):
 LOOKUP_RETRIES = 5
 LOOKUP_BACKOFF_S = 0.02
 
+# ROUND 27. THE ATTEMPT BUDGET IS NAMED, AND SO IS ITS EXHAUSTION. §4a used to claim "a
+# loser retries; it does not fail", which contradicted this loop: it has always had a
+# bound, and falling off the end returned False -- WITH NO TRACE RECORD AT ALL, so the
+# one terminal outcome the document said could not happen was also the only one that left
+# no evidence. `election_lost` and `election_gave_up` are different facts and now read
+# differently: the first is a live owner observed, the second is a budget spent.
+#
+# WHAT SPENDS THE BUDGET, and why only one of the two gets a backoff:
+#   * a COLLISION (`FileExistsError` on either symlink) means somebody else published the
+#     generation this attempt wanted. That is progress by another process -- the next
+#     `highest_gen()` reads a HIGHER generation -- so retrying immediately is correct, and
+#     spending all 60 this way needs 60 successful publications during one election.
+#   * an UNREADABLE record makes no progress at all: `highest_gen()` returns the same `g`
+#     and `read_owner` fails on it again. Unpaced, this burnt the whole budget in
+#     microseconds and gave up, which is a spin dressed as a retry. It gets the backoff,
+#     so the budget spans a stated interval (<= 60 * 20 ms = 1.2 s) instead of an
+#     unstated one, and the reason is recorded per attempt -- ENOENT (the record was
+#     removed between the readdir and the readlink, genuinely transient) is a different
+#     fact from a record that is present and does not parse, which no retry will fix.
+ELECT_ATTEMPTS = 60
+UNREADABLE_BACKOFF_S = 0.02
+
 
 def elect():
     global MYGEN
     lookup_failures = 0
-    for _ in range(60):
+    collisions = 0
+    unreadable = 0
+    for _ in range(ELECT_ATTEMPTS):
         g = highest_gen()
         if g is None:
             try:
@@ -519,9 +543,15 @@ def elect():
                 rec("election_won", gen=0, record=OWNER_RECORD)
                 return True
             except FileExistsError:
+                collisions += 1
                 continue
         own = read_owner(g)
         if own is None:
+            unreadable += 1
+            rec("owner_record_unreadable", site="election", gen=g,
+                why=("absent" if not os.path.lexists(gen_path(g)) else "unparseable"),
+                attempt=unreadable)
+            time.sleep(UNREADABLE_BACKOFF_S)
             continue
         owner, owner_st = own
         verdict, live_st = owner_identity(owner, owner_st)
@@ -651,6 +681,7 @@ def elect():
         try:
             os.symlink(OWNER_RECORD, gen_path(g + 1))
         except FileExistsError:
+            collisions += 1
             continue
         for gg in range(g, -1, -1):
             prev = read_owner(gg)
@@ -661,6 +692,14 @@ def elect():
         rec("election_won", gen=g + 1, superseded=g, prev_owner=owner,
             record=OWNER_RECORD)
         return True
+    # THE BUDGET IS SPENT AND NO OWNER WAS OBSERVED. This worker does not start
+    # (`sys.exit(0)` below), which is a liveness failure of ONE worker invocation and not
+    # of the session -- the next hook re-enters ensure-worker and elects again. Recorded
+    # with the breakdown, because "60 collisions" and "60 unreadable reads" call for
+    # opposite operator actions and the bare `return False` this replaces could say
+    # neither. §4a states the policy and prices it.
+    rec("election_gave_up", attempts=ELECT_ATTEMPTS, collisions=collisions,
+        unreadable=unreadable, lookup_failures=lookup_failures)
     return False
 
 
