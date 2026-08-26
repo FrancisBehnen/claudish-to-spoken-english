@@ -228,7 +228,8 @@ mechanism survives residency intact: the pid file at `$BUF_ROOT/<session_id>/spe
 next hook invocation before it drops its job. What changes is **who writes it.** §10.6 says "the speech
 child"; under residency there is no per-turn speech child, so **the worker writes the player's pid
 there** after spawning it. With that, playback already in progress dies within the hook's own wall cost
-— **median 0.086 s, max 0.219 s** measured — which is a *tighter* bound than the worker-side kill the
+— **median 0.086 s, max 0.219 s** measured, and now a **lower** bound rather than the measured figure
+(see the as-of note under *What the hook itself costs*) — which is still a *tighter* bound than the worker-side kill the
 probe used, because the hook runs before the worker has noticed anything at all. **But it is not a
 replacement for the worker-side kill, and an earlier draft of this document treated it as one.** That
 error is corrected in (d).
@@ -248,7 +249,10 @@ the pid at **P**. The interleaving **R < S < P < W** is unguarded:
 
 **P1 is now playing stale audio and no specified step kills it.** The hook's one kill is spent; the
 worker's pre-spawn stat already passed. And R < S < P < W is not a hair-splitting window: the hook's own
-wall cost between its kill and its rename is **0.063–0.219 s, median 0.086 s** measured, while the
+wall cost between its kill and its rename is **0.063–0.219 s, median 0.086 s** measured — and here the
+as-of note under *What the hook itself costs* cuts the argument's way rather than against it: the added
+`readdir`s and `ps` fork **widen** this window, and the point being made is that it is wide enough to
+contain the other one — while the
 worker's S→P gap is one `Popen` plus one small write. The wide window is the hook's, and it comfortably
 contains the narrow one.
 
@@ -265,7 +269,7 @@ With that, the timeline has no gap, because the two kills partition it at the `s
 | J2 published… | who kills the stale player |
 | --- | --- |
 | before the worker writes `speak/pid` | the **worker**, on claiming J2 — one kqueue wake after publication (handoff median **0.079 s**) |
-| after the worker writes `speak/pid` | the **hook**, directly — within its own wall cost, median **0.086 s** |
+| after the worker writes `speak/pid` | the **hook**, directly — within its own wall cost, median **0.086 s** measured, a lower bound as specified (as-of note under *What the hook itself costs*) |
 
 So (c) is a latency optimisation that fires when it happens to see a live pid; **(d) is the correctness
 guarantee**, and it is the worker's, because the worker is the only party that knows it spawned a
@@ -285,7 +289,9 @@ ways nobody has looked at.
 corrected statement, and it is **[inferred]** throughout — none of (b), (c) or (d) has been measured:
 
 - With (a)–(d), **no stale utterance survives longer than one kqueue wake or one hook wall cost after
-  the newer job is published** — bounded by the measured **0.079 s** and **0.086 s** respectively, plus
+  the newer job is published** — bounded by the measured **0.079 s** and **0.086 s** respectively, the
+  second of them a **lower** bound on the specified hook rather than a current measurement (as-of note
+  under *What the hook itself costs*), plus
   a residual **6–38 ms** window between the pre-spawn stat and the spawn in which a player starts at all.
   On that reading §10.6's semantics hold.
 - **Only then** is synthesis cancellation reduced to a latency question — the *newer* utterance waiting
@@ -646,6 +652,17 @@ This is the number §6 actually cares about — how long the prompt is held — 
 does not change it, because the hook drops a file and leaves whether or not a worker exists. §10.4's
 `"timeout": 10` has at least **45× headroom** against the slowest hook observed.
 
+**AS-OF, and every use of this figure as a BOUND below inherits it.** The measurement stands as a
+measurement — it is what a hook process did on this machine on this build. But it measured the hook the
+probe ran, and [`speech-integration-spec.md`](speech-integration-spec.md) has since put **two
+`readdir`s and a `ps` fork** into the hook body where there were two `stat`s: §10.3 step 6 and step 12
+now scan `speak/playerdir/` and `speak/`, and step 12's liveness test validates identity with
+`ps -o lstart=` rather than a builtin `kill -0`. So wherever this document uses the range or the median
+as a **bound on how fast the specified hook does something**, that bound is the **historical measurement
+plus unmeasured overhead** — a **lower bound**, not a re-measured figure. Nothing has re-run the hook;
+the spec carries the same caveat at §10.3 and says explicitly that staying inside the old range is
+**[inferred]**.
+
 ### The cold start that outruns the timeout
 
 §10.5 asks what happens "when a cold start outruns the timeout". Measured directly, by inserting a
@@ -741,7 +758,8 @@ therefore kill the previous one itself.
    pid is "written by the speech child". Under §10.5's mechanism there is no per-turn speech child, so
    **the resident worker writes the player's pid there** after spawning it, and the next hook invocation
    kills it exactly as §10.6 already says. Playback in progress therefore dies within the hook's own
-   wall cost, median **0.086 s**. Without this sentence an implementer reads §10.6 and finds nothing
+   wall cost, median **0.086 s** measured — a lower bound as the hook is now specified, per the as-of
+   note under *What the hook itself costs*. Without this sentence an implementer reads §10.6 and finds nothing
    left in the design that writes the file.
 2. **"A newer message kills stale playback" needs two more clauses to be true, not one.** A message
    newer than a synthesis *in progress* is not covered by the pid kill — no player exists yet to kill.
@@ -800,7 +818,10 @@ cheap: the mechanism already has a warm-up trigger and a wake handler would reus
   the sanitize phase is 0.2–9.2 ms and does not move the result.
 - **The shipped hook in bash.** The probe is `zsh -f`, for the clock. The hook's measured wall cost
   (0.063–0.219 s, median 0.086 s) is dominated by three `jq` invocations and a `shasum`, not by the interpreter, so I
-  expect bash to land in the same band — **but that is an expectation, not a measurement.**
+  expect bash to land in the same band — **but that is an expectation, not a measurement.** The
+  composition claim is also as-of: the specified hook has since added two `readdir`s and a `ps` fork
+  (as-of note under *What the hook itself costs*), so "three `jq`s and a `shasum`" describes what was
+  measured, not what will ship.
 - **The hook's causal contribution to the bench-to-hook gap**, because the control shares hardware but
   not load or cadence — see *The control* above. What is owed is **interleaved paired runs**: the same
   corpus item synthesized alternately through `bench/first-sentence.py` and through the hook, A/B/A/B in
