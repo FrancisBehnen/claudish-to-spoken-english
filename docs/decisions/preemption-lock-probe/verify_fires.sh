@@ -13,15 +13,18 @@
 #
 # usage: verify_fires.sh <out_dir_or_traces_dir> <trials>
 set -u
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 O=${1:?out dir}; N=${2:-12}
 fail=0
 seen=0
+SEEN_CFG=()
 
 check() {   # cfg entry K Rdone
   local cfg=$1 e=$2 k=$3 r=$4 want
   # C14a/C14b fire a third hook per trial to observe the TOCTOU's consequence
   case "$cfg" in C14a_*|C14b_*) want=$((1 + 3 * N)) ;; *) want=$((1 + 2 * N)) ;; esac
   seen=$((seen + 1))
+  SEEN_CFG+=("$cfg")
   if [[ "$e" -eq "$want" && "$k" -eq "$want" && "$r" -eq "$want" ]]; then
     printf 'OK    %-28s entry=%s K=%s Rdone=%s\n' "$cfg" "$e" "$k" "$r"
   else
@@ -53,6 +56,30 @@ if [[ $seen -eq 0 ]]; then
   echo "NO INPUT: $O has neither RUNS.txt nor *.markers.tsv -- this is NOT a pass" >&2
   exit 2
 fi
+
+# A PARTIAL evidence set is not a pass either, and this is the second half of the same
+# defect: the zero-input guard above was added after this script reported "all hooks
+# fired" over nothing at all, but it still greenlit 21 inputs against a document that
+# claims 26 configurations. Silence about the five that are absent reads exactly like
+# confirmation that they fired. EXPECTED is the manifest; anything missing is a failure.
+EXPECTED=${EXPECTED:-$HERE/expected-configs.txt}
+if [[ -f $EXPECTED ]]; then
+  missing=0
+  while read -r want; do
+    [[ -z $want || $want == \#* ]] && continue
+    if ! printf '%s\n' "${SEEN_CFG[@]}" | grep -qx "$want"; then
+      echo "MISSING: $want has no marker evidence in $O" >&2
+      missing=$((missing + 1))
+    fi
+  done < "$EXPECTED"
+  if [[ $missing -gt 0 ]]; then
+    echo "INCOMPLETE: $missing of $(grep -cvE '^\s*(#|$)' "$EXPECTED") expected configurations have no evidence -- this is NOT a pass" >&2
+    exit 2
+  fi
+else
+  echo "WARNING: no manifest at $EXPECTED, so completeness was NOT checked" >&2
+fi
+
 [[ $fail -eq 0 ]] && echo "all hooks fired ($seen configurations)" \
                   || echo "SOME HOOKS DID NOT FIRE -- do not read those configs"
 exit $fail

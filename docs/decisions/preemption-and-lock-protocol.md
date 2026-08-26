@@ -1228,15 +1228,36 @@ Each of these is named with the experiment that closes it, not softened.
     owner. The nonce binds to no generation and to no owner pid, so when `killpg` fires there is
     no mapping from a marker to the owners the marker prompted it to signal. Specify it
     concretely instead:
-    - **Remove exactly the `.pending` names returned by the `listdir` that gated THIS sweep** —
-      the list is already in hand at that point and is the only set with a defensible meaning.
+    - **Tag the marker with its owner generation — `playerdir/<gen>.<nonce>.pending`.** Round 5
+      specified removal by `listdir` membership, and that was still not a determinable set: it
+      cannot say *whose* marker it is, so an election cannot tell a marker it superseded from a
+      marker a live generation is about to use. The generation tag is what makes ownership
+      readable, and it is the same shape §10.5 of the spec now specifies, so the two documents
+      agree rather than describing two schemes.
+    - **Remove exactly the markers whose generation is among the ones this election superseded**,
+      and leave every other marker alone.
     - **Do it BEFORE the electing worker forks any player of its own.** Otherwise the GC
       deletes the marker for a fork that has not happened yet, the next election sees no
       `.pending`, skips `killpg`, and the design collapses into `C12c` — the record-sweep-only
       arm that fails 12/12.
-    Both are **[inferred]**; nothing removes a `.pending` in any committed arm. To close:
-    implement both cleanups and re-run `C12b`, `C16a` and `C16b` with a pre-seeded stale
-    `.pending` and a pre-seeded dead record.
+
+    **Why an un-reaped marker is not merely untidy — measured, in `C16a`.** The wrapper renames
+    its own marker away as its **first act**, so a `killpg` that *works* kills the wrapper
+    **before** that act and strands the marker that authorised it. Every successful sweep leaked
+    exactly one. The committed trace: **25 markers created, 0 removed**, `pending_found` climbing
+    **1 → 12** across twelve generations, and `33f62e9b.pending` surviving from `gen1` to
+    `gen12r`. The consequence is the opposite of the bound the marker was introduced to provide —
+    **23 of 25 elections ran `killpg` although only 12 orphan windows were ever staged.** The
+    marker did not bound the window; it accumulated, and after the first leak the gate is
+    permanently open. The trace separates the two halves cleanly: the leaked names are exactly
+    the killed players, while `6fad43e5.pending`, whose player published normally, never
+    reappears.
+
+    The reaping is implemented in `speakd_probe.py` (`pending_reaped` / `pending_reap_failed`),
+    but it is **[inferred]** as a *result*: the committed traces predate it and were produced
+    under the un-tagged name, so no arm here exercises it. To close: re-run `C12b`, `C16a` and
+    `C16b` under the tagged marker with a pre-seeded stale `.pending` and a pre-seeded dead
+    record, and confirm `pending_found` does not grow across generations.
 
 ### One thing this run deliberately did not re-open
 

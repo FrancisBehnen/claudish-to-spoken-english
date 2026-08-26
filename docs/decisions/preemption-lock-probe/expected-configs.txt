@@ -1,0 +1,28 @@
+# The 26 row-20 configurations the decision document reports.
+# Generated from preemption-trials.tsv; verify_fires.sh fails if any has no evidence.
+C1_prespawn
+C10a_nopid_pidfile
+C10b_nopid_handle
+C11a_shared_pubfirst
+C11b_shared_sweepfirst
+C12a_pgid_pubfirst
+C12b_pgid_sweepfirst
+C12c_perplayer_recordonly
+C13a_ledger_truncate
+C13b_perplayer_sametiming
+C14a_shared_unlink
+C14b_perplayer_unlink
+C15a_recheck_death
+C15b_norecheck_death
+C15c_norecheck_death_pgid
+C16a_pending_sweepfirst
+C16b_pending_pubfirst
+C17_setsid_player
+C2_hookside
+C3_adversarial
+C4_noclaimkill
+C5_norecheck
+C6_handle
+C7_noreap
+C8_orphan
+C9_ledger

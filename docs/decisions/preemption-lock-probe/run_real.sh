@@ -8,8 +8,9 @@
 #
 # Paths resolve from this script, not from a private bench dir -- see run_preempt.sh.
 # PYTHON is overridable but NOT defaulted to a bare python3 as in the stub drivers:
-# this arm imports kokoro and loads a ~340 MB model, so the default stays the venv that
-# has it. Point PYTHON at any interpreter that can `import kokoro`.
+# this arm imports kokoro_onnx (the installed distribution is kokoro-onnx; the probe does
+# `from kokoro_onnx import Kokoro`) and loads a ~340 MB model, so the default stays the venv
+# that has it. Point PYTHON at any interpreter that can `import kokoro_onnx`.
 set -u
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 RIG=${RIG:-$HERE}

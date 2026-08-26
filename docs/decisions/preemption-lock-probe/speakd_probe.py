@@ -100,7 +100,7 @@ ap.add_argument("--sweep-gap-ms", type=float, default=0.0)
 ap.add_argument("--reap-delay-ms", type=float, default=0.0)
 ap.add_argument("--unlink-on-reap", choices=["on", "off"], default="off")
 ap.add_argument("--pending-marker", choices=["off", "on"], default="off",
-                help="perplayer only. The worker creates playerdir/<nonce>.pending "
+                help="perplayer only. The worker creates playerdir/<gen>.<nonce>.pending "
                      "BEFORE forking, and the wrapper RENAMES it to <pid>.<nonce> as "
                      "its first act. So the existence of a .pending entry is an "
                      "observable 'an unnamed player may exist right now', and the "
@@ -174,14 +174,17 @@ def highest_gen():
 
 
 superseded = []          # [(gen, owner_pid)] this worker took over from
+MYGEN = None             # the generation THIS worker created; tags its .pending markers
 
 
 def elect():
+    global MYGEN
     for _ in range(60):
         g = highest_gen()
         if g is None:
             try:
                 os.symlink(str(os.getpid()), gen_path(0))
+                MYGEN = 0
                 rec("election_won", gen=0)
                 return True
             except FileExistsError:
@@ -203,6 +206,7 @@ def elect():
             except (OSError, ValueError):
                 continue
             superseded.append((gg, p))
+        MYGEN = g + 1
         rec("election_won", gen=g + 1, superseded=g, prev_owner=owner)
         return True
     return False
@@ -250,6 +254,28 @@ def sweep_pgid():
             rec("election_sweep_pgid", skipped="no_pending_marker", groups=0)
             return
         rec("pending_found", n=len(pend), names=",".join(sorted(pend)))
+        # CLEAN UP EXACTLY WHAT AUTHORISED THIS SWEEP, and do it before this worker
+        # forks any player of its own -- otherwise the unlink can remove a marker for
+        # a fork that has not happened yet, which converts the bounded design into the
+        # C12c failure. Only markers whose generation tag is among the superseded
+        # generations are removed; a marker belonging to a live generation is left.
+        #
+        # WHY THIS IS REQUIRED, from the committed C16a trace: the wrapper renames its
+        # marker away as its FIRST act, so a killpg that WORKS kills the wrapper before
+        # that act and strands the marker that authorised it. Every successful sweep
+        # leaked one. 25 markers created, 0 removed, pending_found climbing 1 -> 12
+        # across twelve generations, and 33f62e9b.pending surviving from gen1 to
+        # gen12r. So 23 of 25 elections ran killpg although only 12 orphan windows
+        # were ever staged: the marker did not bound the window, it accumulated.
+        supersededgens = {str(g) for g, _ in superseded}
+        for name in pend:
+            head = name.split(".")[0]
+            if head in supersededgens:
+                try:
+                    os.unlink(os.path.join(PLAYERDIR, name))
+                    rec("pending_reaped", name=name, gen=head)
+                except OSError as e:
+                    rec("pending_reap_failed", name=name, err=type(e).__name__)
     n = 0
     for g, p in superseded:
         if p == os.getpid():
@@ -373,7 +399,7 @@ def reap(proc, jid, t_popen, record):
     startup terminates it by the signal's default action before any handler is
     installed, so the log stays empty and "killed at once" is indistinguishable from
     "never started". The returncode is exact:
-      -15 hook kill   -30 claim kill   -31 sweep by record   -1 sweep by pgid
+      -15 hook kill   -30 claim kill   -31 sweep by record   -14 sweep by pgid
         0 played to completion; NOTHING killed it
     Reaping also removes the zombie, which matters: kill(2) on an unreaped zombie
     SUCCEEDS, so a worker that does not reap makes every kill site report success
@@ -508,7 +534,12 @@ while True:
             recpath = os.path.join(PLAYERDIR, "PIDPLACEHOLDER." + nonce)
             if A.pending_marker == "on":
                 # created BEFORE the fork, so it exists whenever an unnamed player can
-                pending = os.path.join(PLAYERDIR, nonce + ".pending")
+                # <gen>.<nonce>.pending -- the generation is part of the name because
+                # the sweep must be able to clean up EXACTLY the markers it just acted
+                # on. An un-tagged marker cannot be attributed to an owner, so the
+                # round-4 rule "remove the entries it has just swept" named no
+                # determinable set. See the leak this repairs, below.
+                pending = os.path.join(PLAYERDIR, f"{MYGEN}.{nonce}.pending")
                 open(pending, "w").close()
                 rec("pending_created", job=jid, name=os.path.basename(pending))
         inner = [sys.executable, PLAYER, str(A.player_secs), A.player_log, jid]
