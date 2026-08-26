@@ -1,6 +1,13 @@
 # Preemption and the lock protocol — §13 rows 20 and 21, measured
 
-**Date:** 2026-08-25. **Owner issue:** #11 (spec) — this document does **not** edit
+**Date:** 2026-08-25, with **one correction on 2026-08-26**: §4a's generation-cleanup bullet
+cited PR #27's §10.5 clause 6 as excluding the `speak/` sweep, and a machine sleep measured
+that exclusion false. **Nothing else changed, no arm was re-run, and no figure in this
+document moves** — the 312 preemption trials, the 1200 lock trials and every published
+count are untouched, and the corrected sentence strengthens the conclusion it was
+supporting. **The defect is in PR #27's clause, not in this document's protocol**, so this
+correction is deliberately **not** counted in the induction over review rounds in §6 or in
+that section's tally of clauses that failed inspection. **Owner issue:** #11 (spec) — this document does **not** edit
 `speech-integration-spec.md`; PR #27 is open on it. §"What §10.5, §10.6 and §13 will need
 to say" carries the proposed replacement text, which is how every other measurement in
 this project has been handed to #11.
@@ -15,8 +22,14 @@ and `b73f471a3f100d111d7a69387be3d0adaa8e37c6552b52362f7209fdbb3f945f` after.
 ## Evidence labels
 
 Same scheme as the rest of `docs/decisions/`. **[measured-here]** — produced by this
-run's rig. **[rig]** — read out of a probe's own source. **[repo]** — read out of the
-shipped tree. **[hook]** / **[obs]** — carried over from an earlier run, cited. **[inferred]**
+run's rig, **plus, for the clock figures added on 2026-08-26, the platform's own clocks
+and power log**: `sysctl kern.boottime`, `time.monotonic()`, `pmset -g log`, and
+`rewrite.sh:117`'s `find` predicate run verbatim against a staged directory. **Those are
+the only [measured-here] figures in this document that no arm of the probe produced**, they
+are about Darwin rather than about this protocol, and they are cited in exactly one place —
+§4a's generation-cleanup bullet, where this document had asserted that PR #27's §10.5
+clause 6 excluded a hazard it does not. **[rig]** — read out of a probe's own source.
+**[repo]** — read out of the shipped tree. **[hook]** / **[obs]** — carried over from an earlier run, cited. **[inferred]**
 — reasoned, not measured; every remaining one is named as such.
 
 ---
@@ -1490,9 +1503,23 @@ annotate them.
 >   `-maxdepth 2` excludes, and **a symlink**, which `-type d` excludes again (`find` without
 >   `-L` types a symlink as `l`). That sweep can never remove an obsolete generation. The one
 >   thing at depth 2 it *can* match is `speak/` itself — which takes the **current** generation
->   with it, and is precisely the hazard PR #27's §10.5 clause 6 exists to exclude by keeping
->   the worker's idle exit strictly shorter than the sweep window. So there is no backstop:
->   **generation cleanup has to be specified, and it has to be ordered.**
+>   with it. **This sentence used to continue *"and is precisely the hazard PR #27's §10.5
+>   clause 6 exists to exclude by keeping the worker's idle exit strictly shorter than the sweep
+>   window"*, and that clause of it is now MEASURED FALSE — corrected 2026-08-26.** Clause 6's
+>   20-minute idle window was to be timed on `time.monotonic()`, which on Darwin is
+>   `mach_absolute_time` and **does not advance while the system sleeps**, while `find -mmin` is
+>   wall clock. One unplanned 40-minute idle sleep on this machine put **2324 s (38 min 44 s)**
+>   of divergence between the two against a margin sized at **10 minutes**, and over this boot
+>   the figure is **269.694 h**; `:117`'s predicate run verbatim selects a `speak/` that a
+>   monotonic idle timer still calls **12.51 min** young **[measured-here]**. **A shorter number
+>   is not a shorter window when the two are read off different clocks**, so clause 6 excludes
+>   nothing until it mandates the wall clock — which PR #27's §10.5 clause 6 now does, from the
+>   swept directory's own mtime, and its §13 row 24 is ship-blocking as a result.
+>   **This strengthens the conclusion below rather than weakening it.** Not only is `:117` no
+>   backstop for an *obsolete* generation, it is an active hazard to the **current** one on the
+>   ordinary path, with no contention required: **generation cleanup has to be specified, and it
+>   has to be ordered** — and it has to be specified against a `speak/` directory that can
+>   vanish under the worker doing the cleaning.
 > - **The ordering, stated. [inferred] and UNRUN.** A worker may unlink generation `g` **only
 >   after both halves of its election sweep against `g`'s owner have reached a TERMINAL result**
 >   — 7(iv) and 7(iv-a) — and **only the worker that created `g+1` may do it**.
