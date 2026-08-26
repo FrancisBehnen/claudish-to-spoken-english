@@ -165,12 +165,21 @@ site "$ROUNDS" "S6 rows-are-a-floor" \
   'so the ([a-z]+) rows are a'
 
 # The two defect-list counts, at every site that states them.
+#
+# ROUND 34: THE CAPTURE CLASS HAD TO INCLUDE A HYPHEN, and the reason is worth recording because
+# it is the failure mode this guard is for. `w2n` has understood `twenty-one` since round 32, but
+# these three patterns captured `[A-Za-z]+`, which stops at the hyphen -- so the first time the
+# derivation list crossed twenty, all three sites reported MISSING SITE rather than a wrong number.
+# That is the guard behaving correctly (it refuses a site it cannot read, and did not pass), but the
+# class was too narrow for the numbers the document was always going to reach. Widening it accepts
+# more WORDS, not more VALUES: an unreadable word is still `UNREADABLE` and a wrong one still
+# `MISMATCH`.
 site "$DERIV" "S1 derivation-defect count" \
-  '\*\*([A-Za-z]+) derivation defects have been found'
+  '\*\*([A-Za-z-]+) derivation defects have been found'
 site "$DERIV" "S1 all N are addressed" \
-  'and all ([a-z]+) are addressed here'
+  'and all ([a-z-]+) are addressed here'
 site "$DERIV" "S1 recurrence denominator" \
-  'of ([a-z]+) have come back \*\*the same way\*\*'
+  'of ([a-z-]+) have come back \*\*the same way\*\*'
 site "$HARN" "S1 harness-defect count" \
   '\*\*([A-Za-z]+) HARNESS defects were also found'
 site "$HARN" "S1 sharpest of the N" \

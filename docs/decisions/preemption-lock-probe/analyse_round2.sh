@@ -12,7 +12,28 @@
 # missing trace there printed nothing at all. Inputs are now checked before they are
 # read, `2>/dev/null` no longer hides awk's own runtime errors, and a missing input is
 # fatal at the end.
+#
+# ROUND 34: `need()` TESTED `-f && -r` AND A READABLE-BUT-EMPTY TRACE PASSES BOTH. awk then
+# runs the block over a file with no records, most of the blocks below reach their `END`
+# clause anyway, and they print their counts as zeros -- so an EMPTY C12b/C12c/C14/C16
+# trace produced a section that reads exactly like a section that derived a real zero, and
+# the script exited 0. That is the whole class: a validator that checks a file EXISTS but
+# not that it CONTAINS anything. `need()` now calls the one shared definition of that check
+# (require.sh), which the other five sites in this rig also call.
 set -u
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+if [[ ! -f "$HERE/require.sh" ]]; then
+  echo "analyse_round2.sh: missing $HERE/require.sh -- the input-validation rule lives" >&2
+  echo "there, and every block below would derive over unchecked input." >&2
+  exit 2
+fi
+# shellcheck source=require.sh
+. "$HERE/require.sh"
+if ! declare -F require_nonempty >/dev/null; then
+  echo "analyse_round2.sh: $HERE/require.sh defined no require_nonempty -- an empty trace" >&2
+  echo "would print a section of zeros and exit 0." >&2
+  exit 2
+fi
 T=${1:?traces dir}
 
 hdr() { printf '\n== %s ==\n' "$1"; }
@@ -29,14 +50,16 @@ derive_failed() {   # section-name -- called when the awk for that section did n
   echo "  (derivation failed)"
   broke=$((broke + 1))
 }
-need() {   # file... -> 0 if all present, else name what is absent and count it
+need() {   # file... -> 0 if all usable, else name what is wrong with each and count it
   local f rc=0
   for f in "$@"; do
-    # -r, not just -f: awk aborts on a file it cannot READ just as surely as on one
-    # that is not there, and one of the blocks below ends in a pipe that would hide it.
-    [[ -f "$f" && -r "$f" ]] && continue
-    echo "  MISSING INPUT: $f" >&2
-    echo "  (trace missing)"
+    # NOT `-f && -r`: that is satisfied by a ZERO-BYTE trace, and a zero-byte trace makes
+    # every block below print its counts as zeros from an END clause it still reaches --
+    # indistinguishable in the output from a section that derived a real zero. The shared
+    # check requires a regular, readable file with at least one byte, and names which of
+    # the four conditions failed.
+    require_nonempty "analyse_round2.sh" "$f" && continue
+    echo "  (trace missing or empty)"
     miss=$((miss + 1)); rc=1
   done
   return $rc
@@ -475,7 +498,7 @@ for c in C15c_norecheck_death_pgid C16a_pending_sweepfirst C16b_pending_pubfirst
 done
 
 if [[ $miss -gt 0 || $broke -gt 0 ]]; then
-  echo "INCOMPLETE: $miss input(s) missing from $T and $broke derivation(s) failed --" >&2
+  echo "INCOMPLETE: $miss input(s) missing or empty in $T and $broke derivation(s) failed --" >&2
   echo "the facts above are a SUBSET of what this script names, and the ones it could" >&2
   echo "not derive are not marked in the output the document quotes from. NOT a pass." >&2
   exit 2

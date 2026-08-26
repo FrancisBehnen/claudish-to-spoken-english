@@ -8,6 +8,18 @@
 set -u
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 R=${RIG:-$HERE}
+if [[ ! -f "$R/require.sh" ]]; then
+  echo "assemble_pass1.sh: missing $R/require.sh -- the input-validation rule lives there," >&2
+  echo "and the per-configuration trial check is one of its definitions." >&2
+  exit 2
+fi
+# shellcheck source=require.sh
+. "$R/require.sh"
+if ! declare -F require_exact_id_set >/dev/null; then
+  echo "assemble_pass1.sh: $R/require.sh defined no require_exact_id_set -- a run with the" >&2
+  echo "right NUMBER of trials and the wrong SET would publish as the replication arm." >&2
+  exit 2
+fi
 O=${OUT:-$HOME/.local/share/kokoro/bench/preempt-lock-2026-08-25/out-pass1}
 DEST=${1:?dest}
 mkdir -p "$DEST"
@@ -65,8 +77,25 @@ for cfg in "${PASS1[@]}"; do
   RUNS+=("${matches[0]}")
 done
 
+# THE SAME TRUNCATION AS assemble.sh HAD, IN THE SCRIPT THAT PUBLISHES THE OTHER COMMITTED
+# TSV, and it is fixed the same way and for the same reason: this used to be
+# `: > "$DEST/preemption-trials-replication.tsv"`, so every `exit 2` below left the committed
+# replication arm replaced by a partial file. The finding named assemble.sh; leaving its
+# sibling standing is the shape §1 keeps meeting -- one fix applied to one site and not to the
+# copy beside it -- and it is why the two truncations are one entry.
+#
+# Nothing was lost here either: `preemption-trials-replication.tsv` is 133 lines at
+# `07c3944`, at `c293618` and at HEAD, and `c293618` is a one-line header rename with
+# byte-identical data rows.
 first=1
-: > "$DEST/preemption-trials-replication.tsv"
+STAGE=$(mktemp "$DEST/.preemption-trials-replication.tsv.XXXXXX") || {
+  echo "assemble_pass1.sh: cannot create a staging file in $DEST -- refusing to assemble" >&2
+  echo "in place, because every failure below would then leave the committed replication" >&2
+  echo "arm replaced by a partial file." >&2
+  exit 2; }
+cleanup_stage() { [[ -n ${STAGE:-} && -e ${STAGE:-} ]] && rm -f "$STAGE"; return 0; }
+trap cleanup_stage EXIT
+
 for d in "${RUNS[@]}"; do
   cfg=$(basename "$d"); cfg=${cfg%-*}
   # Same defect as assemble.sh: the collector's status was discarded and trials.tsv
@@ -85,15 +114,34 @@ for d in "${RUNS[@]}"; do
   # collect.sh only compares the rows it parsed against that run's own attempted hooks,
   # so eleven complete ONE-trial runs satisfy every check above and publish an 11-row
   # file as the documented 132-row replication arm. Require the trial count too.
-  got=$(awk -F'\t' 'NR>1 && !($2 in T) { T[$2]=1; n++ } END { print n+0 }' "$d/trials.tsv")
-  if [[ $got -ne ${PASS1_TRIALS:-12} ]]; then
-    echo "assemble_pass1.sh: $cfg has $got distinct trials in $d/trials.tsv," >&2
-    echo "  expected ${PASS1_TRIALS:-12}. Publishing it would shrink the replication" >&2
-    echo "  denominator while the file still looked complete." >&2
+  #
+  # ROUND 34 -- AND A COUNT OF DISTINCT IDS IS NOT THE ID SET. The old check was
+  # `distinct($2) == 12`, which is the same shape as the five existence-only input checks
+  # this round closed: it validates a PROPERTY of the set and not the set. Three runs pass
+  # it and are not the run this arm publishes:
+  #
+  #   * ids `1..11,13` -- twelve distinct values, so trial 12 is MISSING and a trial 13 that
+  #     is outside the twelve-trial experiment is published in its place;
+  #   * twenty-four rows carrying ids `1..12` twice -- twelve distinct values again, and the
+  #     replication denominator this arm exists to compare against is DOUBLED;
+  #   * any twelve distinct ids at all, including `101..112`.
+  #
+  # The requirement is the row count, uniqueness, and the exact set 1..PASS1_TRIALS -- all
+  # three, through the one shared definition, which tests membership with array subscripts
+  # rather than `==` (see require.sh: on BWK awk here a trailing U+2032 PRIME is invisible to
+  # `==` and visible to a subscript, so `12<PRIME>` is reported out-of-range rather than
+  # silently accepted as trial 12).
+  want=${PASS1_TRIALS:-12}
+  require_uint "assemble_pass1.sh" "PASS1_TRIALS" "$want" 1 || exit 2
+  if ! require_exact_id_set "assemble_pass1.sh ($cfg)" "$d/trials.tsv" 2 "$want"; then
+    echo "assemble_pass1.sh: $cfg in $d/trials.tsv is not a complete $want-trial run." >&2
+    echo "  Publishing it would move the replication denominator while the file still" >&2
+    echo "  looked complete -- and a count of distinct trial ids cannot see a gap, an" >&2
+    echo "  out-of-range id, or a duplicated row." >&2
     exit 2
   fi
-  if [[ $first == 1 ]]; then head -1 "$d/trials.tsv" >> "$DEST/preemption-trials-replication.tsv"; first=0; fi
-  tail -n +2 "$d/trials.tsv" >> "$DEST/preemption-trials-replication.tsv"
+  if [[ $first == 1 ]]; then head -1 "$d/trials.tsv" >> "$STAGE"; first=0; fi
+  tail -n +2 "$d/trials.tsv" >> "$STAGE"
 done
 # $O defaults to a path that exists only on the author's machine. Point this anywhere
 # else and, before round 16, every branch of the loop was skipped, leaving a file with
@@ -104,11 +152,22 @@ done
 # This is now a BACKSTOP and no longer the only check: the per-configuration
 # exactly-one requirement above has already refused an incomplete tree by name, and the
 # aggregate row count is what that requirement was found unable to see.
-rows=$(( $(wc -l < "$DEST/preemption-trials-replication.tsv") - 1 ))
+#
+# Over the STAGING file, and with awk`s NR rather than `wc -l`: wc counts newlines, so a
+# final row written without one is invisible to it.
+rows=$(( $(awk 'END { print NR }' "$STAGE") - 1 ))
 if [[ $rows -lt 1 ]]; then
   echo "assemble_pass1.sh: none of the pass-1 run directories under $O matched --" >&2
-  echo "wrote no trials. This is NOT a successful assembly; set OUT= to the pass-1" >&2
-  echo "run tree." >&2
+  echo "staged no trials. This is NOT a successful assembly; set OUT= to the pass-1" >&2
+  echo "run tree. $DEST/preemption-trials-replication.tsv is untouched." >&2
   exit 2
 fi
+
+# Every check has passed, so the rename happens now and not before. rename(2) replaces the
+# destination in one step: a reader sees the old file or the new one, and every exit above
+# this line leaves the committed file exactly as it was.
+mv -f "$STAGE" "$DEST/preemption-trials-replication.tsv" || {
+  echo "assemble_pass1.sh: cannot rename the staged file into place." >&2
+  exit 2; }
+STAGE=""
 wc -l "$DEST/preemption-trials-replication.tsv"

@@ -66,12 +66,46 @@
 # input -- and this is the first time this document has met it TWICE IN ONE FILE, one
 # commit after that file was written as the repair for a different defect.
 #
+# ROUND 34 FOUND A THIRD HOLE IN THE SAME GUARD, AND IT IS THE ONE THE ROUND-33 REPAIR
+# LOOKED LIKE IT HAD CLOSED. The count check compares the GLOB SIZE against 7. The awk
+# below dispatches per file on `FNR == 1`, which a ZERO-BYTE file never fires -- so an empty
+# trace is counted by the shell and absent from awk. Seven files of which three are empty
+# passes the count check, reports `traces read=4`, and exits 0 if any of the remaining four
+# still has two overlapping owners: the coverage fraction the document quotes derived over
+# FEWER traces than its own numerator names, which is verbatim what round 33 said it had
+# fixed. The `files == 0` guard added in round 33 only catches the case where ALL of them
+# are empty, which is the case the round-33 test happened to use.
+#
+# It is closed at BOTH layers, because the two layers fail for different reasons:
+#   * the shell refuses a non-regular, unreadable or ZERO-BYTE trace before awk is invoked
+#     (`require_nonempty_all`, the one shared definition in `require.sh`); and
+#   * awk asserts that it READ every file it was handed -- `files == want_files` -- so a
+#     future dispatch condition subtler than emptiness cannot drop a file silently either.
+# The second is the guard that would have caught this one without anyone predicting it.
+#
 # usage: lock_overlap.sh <traces_dir> [expected_lock_traces]
 #        expected_lock_traces defaults to the committed set's size. `0` disables the
 #        count check and says so on stderr; it is for a caller deriving over logs whose
 #        size is not known in advance, and it is never the default.
 set -u
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# The null-as-pass rule -- "exists" is not "contains anything" -- has ONE definition in
+# this rig, for the reason the attribution rule does. This script is the file that met the
+# shape twice, so it is the last file that should carry its own private copy of the check.
+if [[ ! -f "$HERE/require.sh" ]]; then
+  echo "lock_overlap.sh: missing $HERE/require.sh -- the input-validation rule lives there," >&2
+  echo "and this script must not fall back to checking its inputs a private way." >&2
+  exit 2
+fi
+# shellcheck source=require.sh
+. "$HERE/require.sh"
+if ! declare -F require_nonempty_all >/dev/null; then
+  echo "lock_overlap.sh: $HERE/require.sh defined no require_nonempty_all. An include that" >&2
+  echo "sources cleanly and defines nothing would leave every input unchecked." >&2
+  exit 2
+fi
+
 T=${1:?traces dir}
 
 # THE SIZE OF THE COMMITTED EVIDENCE, in one place, because it is what the document's
@@ -88,17 +122,13 @@ T=${1:?traces dir}
 # loudly in between -- which is the intended direction.
 COMMITTED_LOCK_TRACES=7
 WANT=${2:-$COMMITTED_LOCK_TRACES}
-if [[ ! $WANT =~ ^[0-9]+$ ]]; then
-  # `[[ $WANT -gt 0 ]]` evaluates a non-numeric WANT as 0, i.e. straight back into the
-  # disabled-by-accident state this round removed. Refuse it instead.
-  echo "lock_overlap.sh: expected_lock_traces must be a non-negative integer, got '$WANT'." >&2
-  exit 2
-fi
+# `[[ $WANT -gt 0 ]]` evaluates a non-numeric WANT as 0, i.e. straight back into the
+# disabled-by-accident state round 33 removed. Refuse it instead -- through the shared
+# check, which also refuses `010` (bash arithmetic reads that as octal 8, so a value can
+# compare as a different number than it reads as).
+require_uint "lock_overlap.sh" "expected_lock_traces" "$WANT" 0 || exit 2
 
-if [[ ! -d $T ]]; then
-  echo "lock_overlap.sh: $T is not a directory -- nothing to derive." >&2
-  exit 2
-fi
+require_dir "lock_overlap.sh" "$T" || exit 2
 
 # HOLD IS NOT HAND-CARRIED. The release instant is an inference from the producer, so the
 # producer is where the number has to come from; a 500 typed into this file would drift
@@ -131,6 +161,16 @@ if [[ ${#traces[@]} -eq 0 ]]; then
   echo "an empty check is not a passing one." >&2
   exit 2
 fi
+# EVERY trace must be a regular, readable, NON-EMPTY file, and this runs BEFORE the count
+# check below rather than after it. A zero-byte trace satisfies the count and vanishes from
+# awk`s `FNR == 1` dispatch -- see the third hole in the header.
+if ! require_nonempty_all "lock_overlap.sh" "${traces[@]}"; then
+  echo "lock_overlap.sh: at least one trace above is not readable evidence. The coverage" >&2
+  echo "fraction this script derives is over the WHOLE committed set, so a set with an" >&2
+  echo "unusable member derives a fraction whose numerator is wrong -- and the shell count" >&2
+  echo "cannot see that, because an empty file still counts as a file." >&2
+  exit 2
+fi
 if [[ $WANT -eq 0 ]]; then
   echo "lock_overlap.sh: expected_lock_traces=0 -- the coverage check is DISABLED for this" >&2
   echo "run, deliberately. ${#traces[@]} trace(s) read; whatever fraction this establishes is" >&2
@@ -151,7 +191,7 @@ echo "   sleep() is a LOWER bound on the hold, so the interval is a SUBSET of th
 echo "   one: overlap PROVES concurrency, absence of overlap only leaves it unestablished."
 echo
 
-awk -F'\t' -v hold_ms="$HOLD_MS" '
+awk -F'\t' -v hold_ms="$HOLD_MS" -v want_files="${#traces[@]}" '
 function fail(msg) { printf "  FAIL %s\n", msg; bad++ }
 # The interval END. A recorded `released` is an OBSERVATION; owner + HOLD is a LOWER BOUND
 # on it, because lockrace.py ends a hold with sleep() and sleep() may overrun. Both are
@@ -224,6 +264,20 @@ END {
   # nothing -- the same null-as-pass one layer in.
   if (files == 0) {
     printf "\nNO RECORDS: every file handed to this derivation parsed to zero rows.\n"
+    exit 4
+  }
+  # AND THE SAME QUESTION FOR EVERY OTHER FRACTION OF THE SET, which is the hole round 34
+  # found in the two guards above. `files` counts the files this program actually DISPATCHED
+  # on, and dispatch is `FNR == 1`; anything that never reaches a first record is counted by
+  # the shell and invisible here. The shell now refuses the known cause (a zero-byte trace),
+  # and this refuses the CLASS: the derivation reports over exactly as many traces as it was
+  # handed, or it reports nothing. A guard that had asked this in round 33 would have caught
+  # round 34s finding without anyone having to think of empty files.
+  if (files != want_files) {
+    printf "\nPARTIAL READ: %d file(s) were handed to this derivation and %d were read.\n",
+      want_files, files
+    printf "The coverage fraction this script exists to derive would be over the smaller\n"
+    printf "number while the document quotes the larger. That is not a derivation.\n"
     exit 4
   }
   # ROUND 33: THIS USED TO BE A NOTE AND EXIT 0. It is the whole finding -- the script that

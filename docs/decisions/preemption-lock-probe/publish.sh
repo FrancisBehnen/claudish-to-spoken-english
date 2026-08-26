@@ -69,6 +69,13 @@ REQUIRED=(
                           #   SOURCE; all three refuse to run without it, so a rig
                           #   without this file passes every other name and derives
                           #   nothing
+  require.sh              # round 34: the null-as-pass rule -- "this file exists" is not
+                          #   "this file contains anything". SIX scripts source it
+                          #   (collect.sh, analyse_c14.sh, analyse_round2.sh,
+                          #   lock_overlap.sh, run_lock.sh, assemble_pass1.sh) and
+                          #   assemble.sh a seventh; all refuse to run without it, for the
+                          #   reason attrib.sh is listed one line up -- a rig published
+                          #   without it satisfies every other name and validates nothing
   verify_fires.sh         # the completeness check
   analyse_round2.sh       # the round-2 protocol facts the document quotes
   analyse_c14.sh          # the document's "third derivation", over the C14 traces

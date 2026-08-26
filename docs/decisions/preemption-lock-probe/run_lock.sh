@@ -58,6 +58,46 @@ RIG=${RIG:-$HERE}
 PY=${PYTHON:-python3}
 OUT=${OUT:-$RIG/out/lock}
 mkdir -p "$OUT"
+if [[ ! -f "$RIG/require.sh" ]]; then
+  echo "run_lock.sh: missing $RIG/require.sh -- the input-validation rule lives there, and" >&2
+  echo "this driver validates both its argument and its own output through it." >&2
+  exit 2
+fi
+# shellcheck source=require.sh
+. "$RIG/require.sh"
+if ! declare -F require_uint >/dev/null; then
+  echo "run_lock.sh: $RIG/require.sh defined no require_uint -- REPS would go unvalidated." >&2
+  exit 2
+fi
+
+# ROUND 34 -- `REPS` WAS NOT VALIDATED, AND THE DRIVER REPORTED `DONE` OVER A SWEEP THAT WAS
+# NOT THE SWEEP. Every trial below runs inside `for r in $(seq 1 "$REPS")`, and neither
+# `seq`s output nor its status was inspected. The review that found this said `0` and `abc`
+# both produce no trials. MEASURED ON THIS MACHINE, ONE HALF OF THAT IS RIGHT AND THE OTHER
+# HALF IS WORSE THAN STATED, because /usr/bin/seq here is BSD seq and BSD seq COUNTS DOWN:
+#
+#   $(seq 1 abc)  -> nothing, rc=2. `run_lock.sh abc` ran ZERO trials, left a header-only
+#                    owners.tsv, printed DONE and exited 0. Exactly as reviewed.
+#   $(seq 1 0)    -> `1` then `0`, rc=0. `run_lock.sh 0` did NOT run an empty sweep -- it
+#                    ran TWO reps of every cell, one of them numbered `0`, and published 120
+#                    trials with an out-of-range rep id as the documented 1200-trial sweep.
+#                    That is not a run that produced nothing; it is a run that produced rows
+#                    the document has no denominator for, which is the direction this rig
+#                    treats as the dangerous one.
+#   $(seq 1 -1)   -> `1 0 -1`, three reps, same shape again.
+#
+# So the premise holds -- an unvalidated count lets this driver report a finished run over a
+# result set that is not the documented one -- and the mechanism is stated here as measured
+# rather than as reviewed. Both ends are closed: the ARGUMENT before the sweep, through the
+# shared range check, and the RESULT after it, through the shared record count and a per-cell
+# rep-set check that would have caught the rep numbered `0` on its own.
+require_uint "run_lock.sh" "reps (argument 1)" "${1:-20}" 1 || {
+  echo "run_lock.sh: reps is the repetition count of every cell in the sweep, and it must" >&2
+  echo "be a positive integer. On this machine seq(1) is BSD seq: it cannot count to 'abc'" >&2
+  echo "(so every loop is empty and the run records nothing) and it counts DOWN to 0 or a" >&2
+  echo "negative bound (so the run records reps this experiment does not have). Neither is" >&2
+  echo "the documented sweep." >&2
+  exit 2; }
 REPS=${1:-20}
 HOLD=500
 RESULTS="$OUT/owners.tsv"
@@ -71,9 +111,15 @@ printf 'scenario\tprotocol\tN\tstall_ms\trep\towners\n' > "$RESULTS" || {
   echo "that could not be recorded." >&2
   exit 2; }
 
+# EMITS counts the appends this run MADE, so the closing check compares the driver`s own
+# count of what it did against the file`s count of what arrived, and hand-carries neither.
+# (The alternative was a literal 60 cells x REPS, which is the shape of every drifting
+# constant this rig has removed.)
+EMITS=0
 emit() { printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" "$5" "$6" >> "$RESULTS" || {
     echo "run_lock.sh: cannot append to $RESULTS -- aborting; the run so far is incomplete" >&2
-    exit 2; }; }
+    exit 2; }
+  EMITS=$((EMITS + 1)); }
 
 # `awk ... | wc -l` counts 0 just as happily over a log that does not exist as over one
 # in which nobody claimed ownership, and `wc` succeeds either way -- so a trial whose
@@ -441,4 +487,70 @@ for pr in current spec proposed; do
     for r in $(seq 1 "$REPS"); do trial_deadN "$pr" "$n" "$r"; done
   done
 done
+
+# ---- THE RESULT, CHECKED BEFORE `DONE` IS PRINTED.
+#
+# `DONE` used to be the last line of this file with nothing between it and the sweep, so
+# every way of producing no rows -- an unvalidated REPS, a sweep whose every cell was
+# skipped -- reported a finished run. Three checks, none of them hand-carrying a constant:
+#
+#   1. the file holds at least one record BEYOND its header (the shared record count; the
+#      header check at the top of this file only establishes that the header could be
+#      WRITTEN, which is also true of a run that produced nothing else);
+#   2. as many records arrived as this driver appended -- EMITS is its own count of what it
+#      did, so a lost append is visible without knowing how many there should have been;
+#   3. every cell in the sweep carries the rep set 1..REPS exactly once. This is the check
+#      that would have caught an empty `seq` without anyone validating REPS: a cell present
+#      with the wrong reps, or a cell of duplicates, is a sweep that is not the sweep the
+#      document quotes. Cells are partitioned with ARRAY SUBSCRIPTS (SUBSEP-joined), not
+#      with `==`: on /usr/bin/awk here (BWK awk 20200816) a trailing U+2032 PRIME is
+#      INVISIBLE to the comparison operators, while a subscript compares by identity and
+#      sees it.
+if ! require_data_rows "run_lock.sh" "$RESULTS" 1; then
+  echo "run_lock.sh: the sweep produced no trials. reps=$REPS." >&2
+  exit 2
+fi
+rows=$(awk 'END { print NR - 1 }' "$RESULTS")
+if [[ ${rows:-0} -ne $EMITS ]]; then
+  echo "run_lock.sh: appended $EMITS trial(s) and $RESULTS holds ${rows:-0} record(s)." >&2
+  echo "The recorded run is not the run that happened." >&2
+  exit 2
+fi
+if ! awk -F'\t' -v reps="$REPS" '
+  NR == 1 { next }
+  { key = $1 SUBSEP $2 SUBSEP $3 SUBSEP $4
+    cells[key] = 1
+    seen[key SUBSEP $5]++ }
+  END {
+    ncells = 0; bad = 0
+    for (k in cells) {
+      ncells++
+      for (r = 1; r <= reps; r++) {
+        split(k, f, SUBSEP)
+        if (!((k SUBSEP r) in seen)) {
+          printf "run_lock.sh: cell %s/%s/N%s/s%s is missing rep %d.\n",
+            f[1], f[2], f[3], f[4], r > "/dev/stderr"
+          bad = 1
+        } else if (seen[k SUBSEP r] > 1) {
+          printf "run_lock.sh: cell %s/%s/N%s/s%s has rep %d recorded %d times.\n",
+            f[1], f[2], f[3], f[4], r, seen[k SUBSEP r] > "/dev/stderr"
+          bad = 1
+        }
+      }
+    }
+    for (kr in seen) {
+      n = split(kr, g, SUBSEP)
+      if (g[n] + 0 < 1 || g[n] + 0 > reps) {
+        printf "run_lock.sh: a cell carries rep %s, which is outside 1..%d.\n",
+          g[n], reps > "/dev/stderr"
+        bad = 1
+      }
+    }
+    if (bad) exit 1
+    printf "run_lock.sh: %d cells x %d reps = %d trials recorded.\n",
+      ncells, reps, ncells * reps
+  }' "$RESULTS"; then
+  echo "run_lock.sh: the recorded sweep is not the sweep this driver ran. NOT a pass." >&2
+  exit 2
+fi
 echo DONE

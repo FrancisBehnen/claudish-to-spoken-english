@@ -58,8 +58,30 @@
 # rather than assumed. It is latent, and `record_skipped` exists only because round 21
 # added the identity test, so a re-run is exactly when it would have bitten.
 #
+# CORRECTED AGAIN, ROUND 34: `-f && -r` IS NOT "THIS FILE HAS ANYTHING IN IT". A ZERO-BYTE
+# player log, marker TSV or hook log passes that test. Every trial then falls into the
+# `nohook` arm -- 12 of 12 -- the accounting check `tot != 12` is SATISFIED because nohook
+# is one of its terms, and the script prints "0 unreachable, 0 reachable" and exits 0. The
+# crux the document calls its third derivation would have been reported as derived with not
+# one observation behind it, which is the same shape as the missing-input defect the check
+# above was written for, one condition further in. The check is now the shared
+# `require_nonempty_all` (see require.sh), so the six sites that had this hole have one
+# definition between them.
+#
 # usage: analyse_c14.sh <traces_dir> [config ...]
 set -u
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+if [[ ! -f "$HERE/require.sh" ]]; then
+  echo "analyse_c14.sh: missing $HERE/require.sh -- the input-validation rule lives there." >&2
+  exit 2
+fi
+# shellcheck source=require.sh
+. "$HERE/require.sh"
+if ! declare -F require_nonempty_all >/dev/null; then
+  echo "analyse_c14.sh: $HERE/require.sh defined no require_nonempty_all -- the inputs" >&2
+  echo "would go unchecked and 12 of 12 trials would classify as nohook and exit 0." >&2
+  exit 2
+fi
 T=${1:?traces dir}
 shift
 CFGS=${*:-"C14a_shared_unlink C14b_perplayer_unlink"}
@@ -74,12 +96,11 @@ for c in $CFGS; do
   echo "=== $c ==="
   absent=0
   for f in "$T/$c.player.log" "$T/$c.markers.tsv" "$T/$c.hook-kills.log"; do
-    [[ -f "$f" && -r "$f" ]] && continue
-    echo "  MISSING INPUT: $f" >&2
+    require_nonempty "analyse_c14.sh" "$f" && continue
     absent=1; miss=$((miss + 1))
   done
   if [[ $absent -eq 1 ]]; then
-    echo "  (inputs missing -- not analysed)"
+    echo "  (inputs missing or empty -- not analysed)"
     continue
   fi
   awk -F'\t' '
@@ -199,12 +220,27 @@ for c in $CFGS; do
         printf "analyse_c14.sh: the classification lost a trial. NOT a pass.\n" > "/dev/stderr"
         exit 2
       }
+      # AND THE TOTAL BEING RIGHT IS NOT THE SAME AS THE DERIVATION HAVING HAPPENED, which
+      # is round 34s finding here. `nohook` is one of the terms above, so twelve trials that
+      # all landed in it sum to twelve and satisfy the accounting -- and this block would
+      # print "0 unreachable, 0 reachable" and exit 0 over inputs that contained nothing.
+      # The shell now refuses a zero-byte input, which is the cause that was found; this
+      # refuses the CONSEQUENCE, for whatever cause. Both denominators empty means the crux
+      # this script exists to settle was never put, exactly as lock_overlap.sh treats a run
+      # with no two-owner trial.
+      if (blind + reached == 0) {
+        printf "  NOT DERIVED: no trial was classified as either reached or blind, so the\n"
+        printf "  reachability question was never answered for any trial.\n"
+        printf "analyse_c14.sh: the two denominators are both empty. An analysis that made no\n" > "/dev/stderr"
+        printf "observation is not a derivation, whatever its accounting total says.\n" > "/dev/stderr"
+        exit 2
+      }
     }' "$T/$c.player.log" "$T/$c.markers.tsv" "$T/$c.hook-kills.log" || bad=$((bad + 1))
 done
 
 if [[ $miss -gt 0 ]]; then
-  echo "INCOMPLETE: $miss input(s) missing from $T -- at least one configuration above" >&2
-  echo "was not analysed at all. This is NOT a pass." >&2
+  echo "INCOMPLETE: $miss input(s) missing or empty in $T -- at least one configuration" >&2
+  echo "above was not analysed at all. This is NOT a pass." >&2
   exit 2
 fi
 # A configuration whose awk block refused is counted separately from a missing input,

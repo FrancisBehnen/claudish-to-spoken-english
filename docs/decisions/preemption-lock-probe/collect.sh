@@ -28,6 +28,22 @@
 #
 # usage: collect.sh <rundir> <config>
 set -u
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# The null-as-pass rule has ONE definition in this rig. This script is the SOURCE of the
+# evidence every other one reads, so it is the site where an unchecked input does the most
+# damage: it does not report a zero, it WRITES one.
+if [[ ! -f "$HERE/require.sh" ]]; then
+  echo "collect.sh: missing $HERE/require.sh -- the input-validation rule lives there, and" >&2
+  echo "this collector must not fall back to checking its inputs a private way." >&2
+  exit 2
+fi
+# shellcheck source=require.sh
+. "$HERE/require.sh"
+if ! declare -F require_nonempty_all >/dev/null; then
+  echo "collect.sh: $HERE/require.sh defined no require_nonempty_all -- an empty input" >&2
+  echo "would be parsed into an evidence file with blank hook fields." >&2
+  exit 2
+fi
 D=${1:?rundir}; CFG=${2:?config}
 MD="$D/markers"
 
@@ -40,10 +56,30 @@ MD="$D/markers"
 # All four exist in any run that happened: the warm-up job alone makes every hook write
 # kills.log and its markers, and makes one player write player.log. An absent file means
 # the run did not happen, not that there was nothing to record.
+#
+# ROUND 34 -- `-e` WAS THE WRONG TEST, AND THIS IS THE SITE WHERE IT MATTERS MOST. The
+# sentence above is the argument for the check and it is an argument about CONTENT: the
+# warm-up job makes the hooks write RECORDS to kills.log and makes a player write RECORDS to
+# player.log. `-e` establishes only that a name exists. A zero-byte kills.log, player.log or
+# worker.trace passed it, and this collector then WROTE an evidence file -- blank hook
+# fields, no player-process evidence, and rows whose kill attribution and timing summaries
+# are the arithmetic of nothing. Every one of the four downstream consumers named above then
+# derives from it, and none of them can tell a truncated run from a run in which nothing was
+# killed. That is worse than the empty-trials.tsv defect this check was written for: an empty
+# file looks empty, and a file of blank columns looks like data.
+#
+# `$MD` is checked as a DIRECTORY (the markers are stat(2)ed out of it one file at a time),
+# and the three logs as regular, readable, NON-EMPTY files, through the one shared
+# definition in require.sh.
 [[ -d "$D" ]] || { echo "collect.sh: no run directory $D" >&2; exit 2; }
-for f in "$MD" "$MD/kills.log" "$D/player.log" "$D/worker.trace"; do
-  [[ -e "$f" ]] || { echo "collect.sh: $D is not a complete run -- missing $f" >&2; exit 2; }
-done
+require_dir "collect.sh" "$MD" || {
+  echo "collect.sh: $D is not a complete run." >&2; exit 2; }
+require_nonempty_all "collect.sh" "$MD/kills.log" "$D/player.log" "$D/worker.trace" || {
+  echo "collect.sh: $D is not a complete run. The warm-up job alone makes every hook write" >&2
+  echo "records to kills.log and one player write records to player.log, so a file that" >&2
+  echo "exists and is EMPTY is a truncated run -- and collecting it manufactures rows of" >&2
+  echo "blank hook fields that read downstream as a run in which nothing was killed." >&2
+  exit 2; }
 
 # ---- publish_refused: A VOID TRIAL THAT USED TO COLLECT AS SUCCESSFUL PREEMPTION
 #
