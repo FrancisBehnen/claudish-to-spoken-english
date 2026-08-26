@@ -76,6 +76,10 @@ REQUIRED=(
                           #   committed TSV column can carry -- and a guard, so a rig
                           #   published without it can print the owner rates and never
                           #   be asked whether the owners were concurrent
+  tally_check.sh          # round 32: the document's own tallies, recounted from their
+                          #   own row blocks. A guard, and listed for the same reason
+                          #   lock_overlap.sh is: without it the document can restate a
+                          #   count by hand and nothing asks whether it is the count
   expected-configs.txt    # the manifest verify_fires.sh checks against
 )
 
