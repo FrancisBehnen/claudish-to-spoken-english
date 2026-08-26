@@ -35,7 +35,15 @@ published earlier in the session the path **is** there, and what it holds is an 
 **generation**: `rewrite.sh:183-188` splices the transcript's last user message into the system prompt,
 so a rewrite is a function of **(assistant text, last user message)** and `H` names only the first
 half. The path is therefore empty of other *messages* and not of other *generations*, and under this
-same timing an already-present file is always the earlier turn's. **The one-line dismissal this
+same timing an already-present file is **overwhelmingly likely to be, and not certainly, the earlier
+turn's**. **This sentence read *"always"* until review round thirteen, and that word contradicted this
+document's own §4 two sections down** — *"it is a race, not a guarantee"*, and *"it is not an
+exceptionless law, and stating it as one invites a reader to disprove the blocker with a single
+counter-example"*. §4's own table is the number: with the publish delayed as §3.1 specifies, `Stop`
+read the **current** text in **1 of 30** turns, and with it immediate in **3 of 30**. The ordering is a
+**bias** toward the earlier generation — a strong one — not a rule selecting it, because this turn's
+own publish can land before the consumer looks, and when it does the resolved generation is the right
+one. **The one-line dismissal this
 document gave that case — section 3's *"the utterance is correct anyway"* — was FALSE, and it and the
 spec's copies of it are corrected**: the utterance is a rewrite of the right text conditioned on the
 wrong question, which is a quality defect with a correctness tail rather than nothing at all. Section 3
@@ -469,9 +477,17 @@ the rate of a comparison that, in production, would mostly not get the chance to
 
 **Not "every turn", and the difference matters.** Three of 32 turns had a dispatch-gap tail long
 enough for an immediate publish to win, and one of those was late enough that `Stop` started after the
-display hook had wholly returned. Section 3's repeated-text collision adds another exception: when the
+display hook had wholly returned. **The two denominators on this page are different measurements and
+not a disagreement**: the dispatch gap is recorded on all **32** turns of [`runs.tsv`](handoff-timing-probe/runs.tsv),
+so the tail is **3 of 32**, while the buffer verdict is `NA` on two of them (`L3_hold4` and `S1_hold4`),
+so the stale/current split is **of 30** — and the three tail turns are exactly the three the immediate
+publish won (`MR0`, `S2_hold4`, `V0`, gaps +261.1 / +298.2 / +322.0 ms).
+
+Section 3's repeated-text collision adds another exception: when the
 source text repeats verbatim within the session `rw.<H>` is already there and the consumer resolves
-immediately — **on the generation the earlier turn published**, which is a rewrite of the right text
+immediately — **overwhelmingly, though not certainly, on the generation the earlier turn published**,
+since this turn's own publish wins the same race the table above measures at 1 of 30 — which is a
+rewrite of the right text
 conditioned on the earlier turn's question rather than a correct utterance outright (section 3's
 blockquote; spec §3.2, §13 row 28). So the honest claim is
 **"silent on the large majority of qualifying turns, unpredictably"** — which for a speech feature is
@@ -880,6 +896,8 @@ no user data was read by the driven session**, which is why the tally can be pub
    published after §3.2 would have read it, measured stale in 29 of 30 turns. §3.5's last row then
    silences **the large majority of qualifying turns** — not all of them: a ~10% dispatch-gap tail and
    section 3's repeated-text collision both let a turn through, which is why the blocker is stated as a
-   rate and not as a law — and the collision lets it through on an **earlier generation** rather than on
-   a guaranteed-correct utterance (spec §13 row 28). **The strings agree. The timing does not.** Filing it is #11's; section 4 now
+   rate and not as a law — and the collision usually lets it through on an **earlier generation** rather
+   than on a guaranteed-correct utterance (spec §13 row 28); *usually* rather than *always*, because the
+   same race decides which generation is on disk when the consumer looks. **The strings agree. The
+   timing does not.** Filing it is #11's; section 4 now
    also says which of the repairs the measurement actually supports.

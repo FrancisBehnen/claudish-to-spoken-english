@@ -1209,9 +1209,19 @@ measured above; clause 7 is reasoned from §1b:
      third had its shape measured and its independent necessity withdrawn; and the remaining two were
      each measured into something other than necessity.** **Per hook, as the arms scored
      them** (spec §10.5 clause 7):
-     - **(iii) the claim-time kill — MEASURED LOAD-BEARING.** `C4_noclaimkill` runs to completion
-       **12/12** at 2.50 s, and it needs *both* targets: `C10a` (published record only, no child handle)
-       kills **nothing**, 12/12 at 2.50 s; `C10b` (handle only, no record) kills 12/12 at 0.56–0.71 s.
+     - **(iii) the claim-time kill — MEASURED LOAD-BEARING, and it is the CHILD-HANDLE target the arms
+       score.** `C4_noclaimkill` runs to completion **12/12** at 2.50 s, so the kill itself is
+       load-bearing. **The two targets are not scored symmetrically, and this bullet read them as if
+       they were until review round thirteen** — it said the kill *"needs both targets"* and then cited
+       two arms, only one of which bears on the record. `C10a` (published record only, no child handle)
+       kills **nothing**, 12/12 at 2.50 s, so the **handle is necessary**; `C10b` (handle only, no
+       record) kills **12/12 at 0.56–0.71 s**, and that is the one arm which drops the record — it
+       *succeeds*. So *"both targets"* is **measured for the handle and `[inferred]` for the record**.
+       What the record half is for is a player the claiming worker did not spawn and holds no handle
+       for, which is also what (iv-a)'s published-record sweep covers, so no arm here isolates it.
+       **The arm that would settle it keeps the handle, drops the record and FAILS; `C10b` is the
+       opposite of that arm.** Spec §10.5 clause 7(iii) carries the same split, and the record half is
+       normative there as an argument rather than as a result.
      - **(iv) the election-time process-group sweep — MEASURED LOAD-BEARING, and the only hook that
        reaches the spawn-to-record region.** `C12a` kills 12/12 (audible 0.738–0.841 s) and `C12b` kills
        **before `exec`**, 12/12; the two repairs that omit it fail 12/12 at full length (`C11b`, `C12c`).
