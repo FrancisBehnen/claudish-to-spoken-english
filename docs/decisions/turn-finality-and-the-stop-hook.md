@@ -205,12 +205,28 @@ content, `rewrite.sh:23-24`), but the reason to keep it on `Stop` is narrower:
 - A `set -e` trip under an unset var, a Kokoro import error, a missing binary — these exit 1, or 127,
   or 2 only by coincidence. They produce a visible `Stop hook error:` warning and **do not hold the
   turn**. Noisy, not looping.
-- **`jq` is the one to watch.** `jq` exits **2** on a usage or compile error in the filter (it uses 5
-  for a filter that errors at runtime, and 1 for a false/null result under `-e`). A `Stop` hook whose
-  first act is to parse its stdin with `jq` can therefore hand the harness a genuine 2 and really
-  block — and then really get re-fired **eight** times, **nine invocations in all** (**[obs]**;
-  [Correction 3](#correction-3--the-block-cap-counts-tolerated-blocks-not-invocations)). That is the
-  loop to design against, and it is one specific mistake rather than a broad class.
+- **`jq` is the one to watch — but not for the reason this bullet used to give.**
+
+  > **CORRECTED 2026-08-25, measured rather than read.** This bullet said *"`jq` exits **2** on a usage or
+  > compile error in the filter"*, and the DECISION below **repeated** the same claim as *"`jq` exits
+  > 2 on a malformed filter"* — it has since been corrected there too, so the error survives only in
+  > this quotation of it. **The compile half is wrong: a malformed filter exits 3, not 2.**
+  > Measured on `jq-1.7.1-apple` under Darwin 25.6.0 — a **bad option, a missing file, or
+  > `--rawfile <missing>` exits 2**; a **malformed filter (program compile error) exits 3**; and
+  > **unparseable JSON on stdin exits 5**. The table of record is in
+  > [`speech-integration-spec.md`](speech-integration-spec.md) §5, SECOND CORRECTION, which also names
+  > the other exit-2 route this bullet missed entirely: **a bash syntax error in the hook script**.
+  >
+  > **The conclusion is unchanged and is if anything better supported** — two real exit-2 routes exist
+  > and one of them (the syntax error) is worse than the one cited, because it can block turn after turn
+  > and speak nothing. But the *mechanism* named here was wrong, and the wording would send an
+  > implementer to guard the wrong thing: the shape to guard is a `jq` invocation handed a **filename**
+  > (`--rawfile`, `--slurpfile`, a positional file), not a filter typo.
+
+  So: a `Stop` hook that hands `jq` a bad option or an unreadable file can hand the harness a genuine 2
+  and really block — and then really get re-fired **eight** times, **nine invocations in all**
+  (**[obs]**; [Correction 3](#correction-3--the-block-cap-counts-tolerated-blocks-not-invocations)).
+  That is the loop to design against, and it is one specific mistake rather than a broad class.
 
 Two rules follow, and they are still cheap — the second for a different reason than before:
 
@@ -600,11 +616,16 @@ available.
 4. **`Stop` only. Never `SubagentStop`.** Subagent silence is free.
 5. **Exit 0 on every path** — but not for the reason an earlier revision gave. **Only exit code 2
    blocks** (**[bin]** @ 9557061; anything else non-zero is, in the harness's own words, a
-   "non-blocking status code" that merely warns). The real trap is narrow: `jq` exits 2 on a malformed
-   filter, so a hook that parses its stdin with `jq` can hand the harness a genuine block and get
-   re-fired **eight** times — **nine invocations in all**, not eight (**[obs]**;
+   "non-blocking status code" that merely warns). The real trap is narrow, and **narrower than this
+   document originally said**: `jq` exits 2 when it is handed a **bad option or a file it cannot read**
+   — a malformed *filter* exits **3**, and unparseable JSON on stdin exits **5**, both measured and both
+   non-blocking — see the correction under
+   [what is the actual hazard](#so-what-is-the-actual-hazard). The other exit-2 route is a **bash syntax error in the hook
+   script**. Either way a hook can hand the harness a genuine block and get re-fired **eight** times —
+   **nine invocations in all**, not eight (**[obs]**;
    [Correction 3](#correction-3--the-block-cap-counts-tolerated-blocks-not-invocations)). An explicit
-   `exit 0` makes that unreachable.
+   `exit 0` makes the `jq` route unreachable; the syntax-error route needs `bash -n` before the file
+   ships, because no runtime guard can run in a file the parser refuses to get past.
 6. **Do not use `stop_hook_active` as an "already spoken" flag.** It means "a previous stop attempt
    was blocked", and Claude replies to the block *before* the re-fire — so the later payload usually
    carries the **newer** text, which is the one the user wants. Blanket silence on `true` would speak

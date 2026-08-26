@@ -19,6 +19,15 @@ Every row is derivable from `residency-timings.tsv` — see *Reproducing the lea
 rows assume the model file is already warm in the page cache** and are optimistic by an unmeasured
 margin; the reason that is a closed limitation rather than an open one is at the end of this document.
 
+**The second and third rows are NOT disjoint populations, and this table reads as though they were.**
+The 30 warm rows are the 25 labelled `warm30` **plus** the five labelled `warm30+mdwarm5`: the
+warmed-during-the-turn rows are a **subset** of the warm rows, not a third arm beside them. So the
+**3.829 s** failure is counted twice — it is one of warm's two misses and the warmed set's single one —
+and 30 and 5 must not be added. On the 25 rows that are warm and *not* warmed-during-the-turn the
+median is **1.085 s** and the line holds **24 times in 25** — re-derived here by filtering
+`residency-timings.tsv` on `set == "warm30"`, and stated as the same caveat against the same three rows
+in spec §10.5. Nothing in the table is arithmetically wrong; each ratio is correct over its own rows.
+
 **§4's headline number survives, but it has to be re-stated.** "Median 0.86 s" is not what a hook
 delivers; **1.22 s** is, and the gap is real and explained below. What does *not* survive is any
 reading of §4 that leaves the cold case implicit: **cold from a hook is a failure against the 3 s
@@ -37,6 +46,158 @@ made about thirty two-word Haiku turns, whose only purpose was to make a hook fi
 
 ---
 
+## SUPERSEDED — this document's DESIGN is proposal, not specification; its MEASUREMENTS stand on their own
+
+**Read this before every design section in this document — §1, §1b, §2, §2a, §3, §4 and §4a–c, §5, §6,
+and the two routing subsections *§10.5 — the OPEN heading comes off* and *§10.6 — two qualifiers*.**
+Everything in this document was written on 2026-08-25 as **proposed** content
+for [`speech-integration-spec.md`](speech-integration-spec.md). They were folded in, and the two
+protocols this document proposes have **since been run** — 1200 lock trials over three protocols and six
+scenarios, and 312 preemption trials over 26 switchable configurations, the spec's **[trials]** arm, §13
+rows 20 and 21 — and **four of the clauses proposed below were falsified.** The spec has replaced them. Nothing here was re-run by that,
+so this document is **qualified rather than rewritten**: the sections below are the design that was
+measured, not the design that is specified. **The distinction is stated once, here, and referenced from
+each site rather than re-argued.**
+
+### The rule, stated once — and it is a STANDING rule, not a list of sites
+
+**Every round that has read this document against the spec has found more sites, and the count is kept
+where it is checkable rather than restated here** — spec §13's note under the defect table, whose FOURTH,
+FIFTH, SIXTH and SEVENTH entries all name this document. Those are not four unrelated errors; they are
+one structural fact about what this document is, discovered four times site by site. The fact, stated as
+a rule instead:
+
+1. **No design sentence in this document is normative, and none of them ever was.**
+   [`speech-integration-spec.md`](speech-integration-spec.md) §10.5 and §10.6 are the specification;
+   every *"the mechanism is…"*, *"the step must…"*, *"the corrected protocol…"* and *"this is what
+   §10.5 should say"* below is a **proposal made on 2026-08-25**, and the spec has since re-derived
+   several of them from evidence this document does not carry. **Where the two agree, this document's
+   version is redundant. Where they differ, the spec wins and this document is the record of what was
+   measured against the older shape.** A reader who needs to know what to build reads the spec; a reader
+   who needs to know what was observed reads this. That rule holds for a spec change nobody has made
+   yet, which is the point of stating it as a rule.
+2. **Every measurement in this document stands on its own**, because a measurement is a record of what
+   a machine did on a date and no later decision can reach back and change it. The latency tables, the
+   `bind()` failure, the eight-hook contention result, the handoff and spawn intervals, the lead times,
+   the warm-up costs: none of these is superseded by anything, and **over-qualifying them would make
+   this document useless as the evidence it exists to be.** Nothing below is hedged for the sake of
+   symmetry.
+3. **The trap is the THIRD category, and it is the only one a rule cannot pre-empt: a measurement whose
+   NUMBER survives while its EVIDENTIAL SCOPE does not.** *What* was measured is fixed; *what it is
+   evidence about* is a claim about the mechanism, and it goes stale exactly when the mechanism does.
+   Item 3 below is the worked example — 0.079 s and 0.086 s are both still measured and neither bounds
+   how long stale audio can last, because the region they bound is not the region the orphan runs in.
+   **These are the sites that need re-qualifying, and there is no rule that finds them in advance**;
+   they have to be checked against the spec each time a mechanism moves. The per-section verdicts below
+   are that check, performed on 2026-08-26.
+
+**What this document's own arm measured, and what therefore survives untouched.** Two things, and
+neither is in question:
+
+- **synthesis and playback latency from a seeded buffer** — the cold / warm / warmed-during-turn TTFA
+  tables, `create()` at 0.49–4.23 s, the player spawn at 6–38 ms (median 9.15 ms, n = 38), the
+  hook-to-worker handoff at median 0.079 s, the 1.33–2.02 s worker startup, and the model-load and
+  warm-up costs;
+- **the hook's own wall cost** — 0.063–0.219 s, median 0.086 s, already separately qualified by the
+  as-of note under *What the hook itself costs*.
+
+Both are facts about **latency**, and none of them depends on which file a player's pid is written to.
+
+**What does NOT survive.**
+
+1. **The single shared pid file is gone.** §1b (c), §10.5's clause 7 and §10.6 below all propose one
+   path, `$BUF_ROOT/<session_id>/speak/pid`, written by the worker after it spawns the player. The spec
+   now says **one shared `speak/pid` must not be used**: the record is **per player**, at
+   `speak/playerdir/<pid>.<nonce>`, published by the **player's own wrapper** before it can make a sound
+   and unlinked **only by exact name** — an older player's reap otherwise erases a newer player's
+   registration — with a **process-group sweep** by each newly elected worker as the thing that reaches a
+   player no record names (spec §10.5 clause 7(i) and 7(iv), §10.6).
+2. **The two kills do NOT partition the timeline.** The table in §1b (d) and the closing sentence of the
+   §10.6 subsection below both claim that a hook-side kill and a claim-time kill divide every publication
+   instant between them at the `speak/pid` write. **That is measured false.** There are **three** regions,
+   not two, and the third is a worker that dies between `Popen` and the record's publication, leaving a
+   player **nothing reaches** — `C8`, plays to completion **12/12**, the window itself a median
+   **1.41 ms**, range 0.43–5.61 ms, n = 72. Neither a single player-written record (`C11b`) nor per-player
+   records alone (`C12c`) closes it, both failing 12/12 at full length; the process-group sweep does —
+   `C12b` kills before `exec`, 12/12, never started.
+3. **So neither 0.079 s nor 0.086 s bounds how long stale audio can last — and that is a tag-honesty
+   correction, not a wording one.** Both figures stay measured; what changed is what they are evidence
+   *about*. They bound the two regions in which **something still holds a reference to the player** — a
+   published record, or the worker's own child handle — and they bound **nothing at all** in the third,
+   where the orphan runs for the **full duration of its utterance** (2.50 s in the trial rig, the whole
+   thing). Every sentence below of the form *"no stale utterance survives longer than one kqueue wake or
+   one hook wall cost"* is wrong for that reason, not because either number is wrong.
+   - **The same range was ALSO used the other way round, and that use is withdrawn as of the tenth
+     review round.** §1b (d)'s interleaving argument cited 0.063–0.219 s as *"the hook's own wall cost
+     between its kill and its rename"* to show the `R → W` window is **wide** enough to contain the
+     worker's `S → P`. The range is `t0` to the hook's **last trace line** — the whole process — and
+     `R → W` is a strict sub-interval, so the number does not measure that window; and a whole-hook
+     duration is an **upper** bound on a sub-interval that ends inside the hook, which licenses no
+     lower bound at all. **The direction is what has to be checked, not the presence of a caveat**: the
+     same range used as a *ceiling* on time-to-kill (§1b (c), and the two-row table) is sound and is
+     separately qualified; using it as a *floor* is not. The conclusion is carried by
+     `C4_noclaimkill` — 12/12 at full length — and the site now says so.
+4. **§2a's stale-lock recovery was falsified as well, both clauses.** The probe's own protocol ended
+   without exactly one owner in **121/400** trials; **the two clauses §2a proposes, in 61/400.** The
+   initializing-lock retry is clean to a 50 ms stall (180/180) and then **40/40 wrong** at 200 ms and
+   1000 ms; the quarantine rename is **20/20 wrong** on the ABA, with a committed trace of a reclaimer
+   quarantining the other reclaimer's *live* lock. **The worst case was 3 owners, not 2** — 2 is the
+   number this document's own closing condition predicts, under *What I could not measure*. The replacement
+   is a `symlink`ed generation record, superseded rather than removed: **0/400 wrong** (spec §10.5
+   clause 2, §13 row 21) — **and that figure must not be quoted bare, because the path this replacement
+   exists to provide is trace-confirmed on 1 trial of 100.** All **100** reclamation trials — S3 (20),
+   S4 (20), S6 (60) — staged their dead incumbent by a **clock**, and the defect is asymmetric: a
+   mis-staged trial yields exactly the `1 owner` a genuine pass yields, so a clean cell cannot by itself
+   separate *"survived a stale-observation reclamation"* from *"never saw one"*. One of the hundred has a
+   committed per-trial trace and it settles that trial — `lock-S3_aba-proposed-r1.tsv`, both racers
+   classifying the incumbent `pid_dead` and one publishing `gen=1 superseded=0` and taking ownership —
+   so the count is **1 confirmed, 99 unconfirmed**, not zero. **0/400 wrong is therefore true**
+   (mis-staging can hide a failure, never invent one) **and is evidence for the reclamation path on a
+   sample of one rather than on none**; row 21 stays ship-blocking on that arm (spec §13 row 21(b)).
+   **§2's `mkdir`-under-contention result is untouched** — 8 hooks → 1 owner is a
+   result about exclusive create under contention, and the replacement still elects by exclusive create.
+
+**What the trials CONFIRMED, because it is the other half of the record.** The **claim-time kill of §1b
+(d) is load-bearing**: without it the stale player runs to completion **12/12** (`C4_noclaimkill`), a
+full 2.50 s. And the **hook-side kill of §1b (c) is a real latency win**, reaching the player a median
+**134 ms** sooner than the worker's next claim would (123–143 ms, n = 12, `C2_hookside`). So (d) is
+confirmed necessary and (c) confirmed valuable; what is falsified is the claim that the *pair* is
+**sufficient**, and the file they were told to use.
+
+### Every design section, checked against the spec — a snapshot dated 2026-08-26
+
+Rule 1 above covers all of these without needing a row each; the rows exist because rule 3 does not, and
+a reader deciding whether to trust a particular sentence needs to know which of the three categories it
+falls in. **The verdict column is the snapshot and will go stale; the rule column will not.**
+
+| section | its design, against the spec | its measurement |
+| --- | --- | --- |
+| **§1** — the address is a file | **RE-DERIVED UNCHANGED.** Spec §10.5 clause 1 and §10.2 specify the same temp-name-plus-`rename` onto `speak/job`, the same coalescing account, and the same consumer claim by `rename(job, job.taken.<pid>)` unlinked only by its private name | **stands on its own.** 116 bytes against a 104-byte `sun_path`, `bind()` fails **[obs]**. Nothing in the replacement shortens that path — the generation records and `playerdir/` go *deeper* than the flat `speak/` this was measured in (spec §10.2) — so the figure is a floor |
+| **§1b** — coalescing and claiming | **(a) re-derived; (c) and (d) FALSIFIED**, items 1–3 above and the block already at that section. **(b) and (d)'s clause list re-scored in review round ten**: the pre-spawn re-check is an **optimisation given the election sweep**, not a requirement (spec §10.5 clause 7(ii)), and *"(i) and (ii) are both required"* is corrected at the site | the eight-hook coalescing result stands; the two intervals do **not** bound stale audio (rule 3, item 3), **and (d)'s use of the hook's whole-process range as a FLOOR on its own `kill`-to-`rename` sub-interval is withdrawn** — item 3's sub-bullet |
+| **§2** — the election | **SUPERSEDED in its primitive.** `mkdir` with a pid written inside and checked by `kill -0` became a `symlink`ed `worker.lock.<gen>` carrying `<pid>.<starttime>`, superseded rather than removed (spec §10.5 clause 2). The two sentences that survive are which of the pre-check and the exclusive create is load-bearing, and that the pre-check is worth keeping anyway | **survives CONTINGENTLY, and the contingency is worth seeing rather than rediscovering: 8 hooks → 1 owner is a result about exclusive create under contention, and it survives only because the replacement also elects by exclusive create.** Had the spec elected by anything else the result would have been about a primitive nobody uses. It is also **no longer the only evidence for that property** — spec §10.5 clause 2 re-measured it on `symlink(2)` at N = 2, 4, 8 and 16, **1 owner on 80 of 80** **[trials]** |
+| **§2a** — stale-lock recovery | **BOTH CLAUSES FALSIFIED**, item 4 above and the block already at that section | the *diagnosis* stands — the probe's own protocol ends without exactly one owner in 121/400 — and the *repair* does not, at 61/400 |
+| **§3** — the `kqueue` wake | **RE-DERIVED UNCHANGED, and its role WIDENED.** Spec §10.5 clause 3 specifies the same `EVFILT_VNODE`/`NOTE_WRITE` over the speak directory with the same 1 s poll as a belt, and adds two jobs this document did not know it was doing: it is the primitive §3.5.1's bounded wait runs on, and the 1 s poll is the belt that fires when `rewrite.sh:117` sweeps a live worker's directory (spec §10.5 clause 6, §13 row 24). **A widened role owes no qualification** — nothing here is withdrawn | median 0.079 s, range 0.059–0.198 s **[hook]**, stands as a latency figure. Rule 3 applies to it and only there: it does **not** bound how long stale audio can last (item 3) |
+| **§4, §4a–c** — the warm-up trigger | **THE TRIGGER SURVIVES; ITS PLACEMENT AND ITS LIVENESS CHECK DO NOT.** Detail in the clause-4 note under *§10.5 — the OPEN heading comes off*, and in §4b | **stands on its own, and it is the largest surviving block in the document**: the 5.16–6.23 s first-invocation lead, the 0.006–0.012 s final-invocation lead and its −0.066/+0.086 s spread over sixteen turns, the 3.05–4.62 s ready lead, the five first-turn TTFAs, turn 31 and the 4.489 s cold short turn. §4c's stated limit is the spec's STATED LIMIT, in the same terms and with the same n = 8 startup range |
+| **§5** — the startup warm-up | **STRENGTHENED, not superseded**: *recommended* → **REQUIRED** (spec §10.5 clause 5). Its closing verdict is withdrawn by this document's own `cold7` pair | the 0.78–1.12 s cost and the 2.13-against-1.41 s first-synthesis pair stand |
+| **§6** — the idle exit | **INTERVAL, REASON AND CLOCK all superseded**, and the reason measured false (spec §10.5 clause 6, §13 row 24) | *"not measured"* was true of this arm and stays true; the measurement that falsified it is not this document's |
+
+**Where this leaves the file, stated rather than implied.** Rules 1 and 2 are closed: a future spec
+change to the job file, the election, the wake, the trigger, the warm-up or the idle exit needs **no edit
+here**, because rule 1 already disclaims every design sentence in the document as a class and by name,
+and rule 2 already protects every measurement. **The residual is rule 3, and it is not closable by any
+structure**: when a mechanism moves, some measurement in this document may turn out to have been evidence
+about that mechanism rather than about latency, and only a read of the spec against the site can tell.
+Three of the eight rows above carry a rule-3 note — §1b's two intervals, §2's contention result, and §3's
+handoff, which is one of §1b's two seen from the other side — and §2's survives on a coincidence of
+primitive rather than on anything anyone chose. **That is the honest residual: the
+verdict table needs re-checking whenever §10.5 or §10.6 changes; the rest of this document does not.**
+
+**Nothing below is deleted.** A measurement taken against a superseded mechanism is still evidence about
+latency; it is simply not evidence about preemption coverage. The spec's §13 rows 20, 21 and 27 are where
+the falsification and its remaining residues live.
+
+---
+
 ## How each fact below was established
 
 | tag | source | what it can and cannot prove |
@@ -50,8 +211,10 @@ made about thirty two-word Haiku turns, whose only purpose was to make a hook fi
 
 **The rig**, so the numbers can be attacked:
 
-- `speak-probe.sh` — a throwaway `Stop` hook that walks §10.3's steps 1–9 and then drops a job and
-  exits. Written in `zsh -f`, **not** bash, for one reason: bash 3.2 is the only bash on this machine
+- `speak-probe.sh` — a throwaway `Stop` hook that walks §10.3's ordered steps and then drops a job
+  and exits. It walked what were then steps 1–9; §10.3 was renumbered when preemption moved above
+  the content-based exits, so the range is quoted here as it stood when the probe ran rather than
+  silently renumbered — the probe is not re-run by that edit. Written in `zsh -f`, **not** bash, for one reason: bash 3.2 is the only bash on this machine
   and has no in-process high-resolution clock, so `t0` would have had to come from a subprocess spawned
   *after* the thing being measured started. `zmodload zsh/datetime; t0=$EPOCHREALTIME` is read on the
   script's second line. The shipped `speak.sh` is specified as bash (§10.2) and this changes nothing
@@ -66,7 +229,11 @@ made about thirty two-word Haiku turns, whose only purpose was to make a hook fi
   `bench/first-sentence.py`'s `first_sentence()` so the text handed to `create()` is produced by
   literally the same code #9 and #13 ran. Neither bench file was edited.
 - The text spoken is a **real corpus rewrite**, seeded into `$SPEAK_DIR/rewrite` — the exact file at
-  the exact path §3.1 says `rewrite.sh` publishes. `rewrite.sh` is not running in a driven session, so
+  the exact path §3.1 specified `rewrite.sh` publishes **at the time this ran**. Like the step range
+  above, that path is quoted as-of: §3.1 has since replaced the mutable `rewrite` buffer with a
+  content-addressed `speak/rw.<H>`, and this probe was not re-run against it. What the arm measures is
+  synthesis and playback latency from a seeded buffer, which does not depend on how the buffer is
+  named. `rewrite.sh` is not running in a driven session, so
   the driver seeds it; the hook then resolves text through §3.5's table and takes the buffered rewrite,
   which is the production path. The `last_assistant_message` of the driven turn is read, checked and
   logged (it is how the hook is proven to have fired) but is not what gets synthesized.
@@ -146,6 +313,12 @@ Every part of that sentence is doing work. Taken in order:
 
 ### 1. The address is a file, not a socket and not a port
 
+> **NOTHING IN THIS SUBSECTION IS SUPERSEDED, and saying so is worth a line** because §1b, §2, §2a, §4,
+> §5 and §6 all are (*SUPERSEDED* at the top). Spec §10.5 clause 1 and §10.2 re-derive the same job file,
+> the same producer rename, the same coalescing account and the same consumer claim-rename. The 116-byte
+> `bind()` failure is a measurement and stands regardless; the replacement mechanisms put records
+> **deeper** than the flat `speak/` measured here, never shallower, so it is a floor.
+
 **Measured, and it decides the question by itself.** The obvious shape for "a resident worker a hook
 talks to" is a Unix domain socket at `$BUF_ROOT/<session_id>/speak/sock`. On this machine that path is
 **116 bytes**, and Darwin's `sun_path` is **104**:
@@ -196,6 +369,11 @@ either: turns were issued sequentially, one job per turn.
 
 Rows two and three need three further things, and only the first of them was in the probe.
 
+**(a)–(d) below are the design that was MEASURED and partly falsified, not the design that is specified**
+— the shared `speak/pid` of (c) is replaced by per-player `playerdir/` records plus a process-group
+sweep, and the partition claim of (d) is measured false. Read *SUPERSEDED* at the top of this document
+once; the sites below point back at it rather than repeating it.
+
 **(a) The consumer needs its own atomic step. The probe had one; the earlier draft failed to write it
 down.** `speakd.py` claims a job by `os.rename(job, job.taken.<pid>)` and then unlinks *that private
 name* — never `speak/job` (**[rig]**, `read_job()`). This is load-bearing rather than tidy: a worker
@@ -213,8 +391,19 @@ synthesis completes. One `stat()` of `speak/job` between `create()` returning an
 newer job is waiting, **discard the finished wav and never play it.** The window in which a badly-timed
 arrival still produces audible stale speech shrinks from the whole of `create()` — **0.49–4.23 s** on
 the rows measured here — to the gap between that `stat()` and the spawn, which is the measured spawn
-cost, **6–38 ms, median 8.9 ms** (n = 38). That narrows the race by two to three orders of magnitude.
+cost, **6–38 ms, median 9.15 ms** (n = 38 — the 39th row is the offline concurrency probe, excluded
+from every aggregate in this document by name, and **8.9 ms** is what its inclusion gives). That
+narrows the race by two to three orders of magnitude.
 It does not close it, and saying otherwise would repeat the mistake this subsection exists to correct.
+
+> **This clause SURVIVED the trials; only its status changed** (*SUPERSEDED* at the top). The spec keeps
+> the re-check and reclassifies it: with the worker surviving, removing it changes nothing —
+> `C5_norecheck` still kills before the player can `exec`, 12/12 — while with the worker dying after the
+> spawn and no process-group sweep, removing it **creates an orphan nothing kills**: `C15b` runs to
+> completion 12/12 at 2.50 s where `C15a`, the re-check present, spawns no player at all. So it is an
+> optimisation given the sweep and a correctness clause without it. **The 6–38 ms residual measured
+> above is this machine's spawn cost and is untouched by any of that**, and *"reasoned, not measured"* is
+> no longer true of the clause — only of this document's evidence for it.
 
 **(c) Keep §10.6's `speak/pid` and its hook-side kill, and reassign only the writer.** **[inferred]**.
 Row three — a newer message while the older is *playing* — is the case §10.6 already specifies, and its
@@ -222,13 +411,38 @@ mechanism survives residency intact: the pid file at `$BUF_ROOT/<session_id>/spe
 next hook invocation before it drops its job. What changes is **who writes it.** §10.6 says "the speech
 child"; under residency there is no per-turn speech child, so **the worker writes the player's pid
 there** after spawning it. With that, playback already in progress dies within the hook's own wall cost
-— **median 0.086 s, max 0.219 s** measured — which is a *tighter* bound than the worker-side kill the
-probe used, because the hook runs before the worker has noticed anything at all. **But it is not a
+— **median 0.086 s, max 0.219 s** measured, which is a **historical baseline** and not a figure for the
+specified hook, whose cost is **unmeasured** (see the as-of note under *What the hook itself costs*) —
+and the *tighter* claim against the worker-side kill the probe used never rested on either number: it
+rests on **order**, because the hook runs before the worker has noticed anything at all. **But it is not a
 replacement for the worker-side kill, and an earlier draft of this document treated it as one.** That
 error is corrected in (d).
 
+> **HISTORICAL. What was measured, what replaced it, and what the measurement still establishes**
+> (*SUPERSEDED* at the top). **Measured here:** the hook's own wall cost, median 0.086 s, max 0.219 s.
+> **Replaced:** the file and the writer. `speak/pid` — one shared path, written by the worker after the
+> spawn — **must not be used**; the record is per player at `speak/playerdir/<pid>.<nonce>`, published by
+> the **player's own wrapper** before it can make a sound and unlinked only by exact name, and the region
+> no record covers is closed by a **process-group sweep**, not by this kill (spec §10.5 clause 7(i),
+> 7(iv)). **What still holds:** the *hook-side* kill is worth having, and the trials put a number on the
+> value this paragraph argued for qualitatively — it reaches the player a median **134 ms** sooner than
+> the worker's next claim would (123–143 ms, n = 12, `C2_hookside`). **What does not:** 0.086 s is not a
+> bound on how long stale audio can last. It bounds the case where the hook finds a live record, which is
+> one of three regions, and bounds nothing in the region where no record exists.
+
 **(d) Keep the worker-side kill as well, and move it to job-claim time. [inferred]** Review of this PR
-found a hole in (b)+(c) taken together, and the hole is real. Write out the two orderings. The hook, per
+found a hole in (b)+(c) taken together, and the hole is real.
+
+> **The RULE this subsection derives is CONFIRMED; the PARTITION it closes with is FALSIFIED**
+> (*SUPERSEDED* at the top). The claim-time kill is load-bearing, measured: without it the stale player
+> runs to completion **12/12**, a full 2.50 s (`C4_noclaimkill`). The interleaving argument below is
+> therefore sound as far as it goes, and the ordering walk-through is the reasoning that found a real
+> hole. **What is false is the closing move** — that (c) and (d) between them *partition* the timeline at
+> the `speak/pid` write. There is a **third** region neither reaches, and the paths below are read against
+> a file the spec has since removed: read the walk-through's `speak/pid` as *"the player's published
+> record"* throughout, and the two-row table as *two of three regions*.
+
+Write out the two orderings. The hook, per
 §10.6, does *kill the pid in `speak/pid`*, then *rename the job onto `speak/job`*. The worker, per (b),
 does *`create()`*, then *`stat(speak/job)`*, then *`Popen`*, then *write `speak/pid`*. Now let the hook
 read the pid at time **R** and publish at time **W** (R < W), and let the worker stat at **S** and write
@@ -241,10 +455,28 @@ the pid at **P**. The interleaving **R < S < P < W** is unguarded:
 4. The hook renames J2 onto `speak/job`.
 
 **P1 is now playing stale audio and no specified step kills it.** The hook's one kill is spent; the
-worker's pre-spawn stat already passed. And R < S < P < W is not a hair-splitting window: the hook's own
-wall cost between its kill and its rename is **0.063–0.219 s, median 0.086 s** measured, while the
-worker's S→P gap is one `Popen` plus one small write. The wide window is the hook's, and it comfortably
-contains the narrow one.
+worker's pre-spawn stat already passed.
+
+> **The interval arithmetic that used to close this paragraph is WITHDRAWN, and the trials carry the
+> conclusion instead.** It read: *"R < S < P < W is not a hair-splitting window: the hook's own wall
+> cost between its kill and its rename is 0.063–0.219 s, median 0.086 s measured … the wide window is
+> the hook's, and it comfortably contains the narrow one."* **Two things are wrong with it.** The range
+> is `t0` to the hook's **last trace line** (*What the hook itself costs*) — the whole process — and
+> `R → W` is `kill` to `rename`, a strict **sub-interval** of it, so the number was cited for a
+> quantity it does not measure. And the argument needs `R → W` to be **large** enough to contain
+> `S → P`; a whole-hook duration is an **upper** bound on a sub-interval that ends inside the hook and
+> therefore licenses no lower bound at all. Nothing in this document measures `R → W`, and the `S → P`
+> side had no number here either (the spawn is measured at **6–38 ms, median 9.15 ms**, n = 38, under
+> §1b (b), but a comparison needs both sides). **What does carry it is `C4_noclaimkill`: with the
+> claim-time kill removed, the stale player runs to completion 12/12 at a full 2.50 s** **[trials]** —
+> which the review block at the head of **(d)** already says, and which is a demonstration that the
+> hole is reachable rather than an argument that the window is wide. **Third instance of one shape in this document** —
+> the 0.079 s / 0.086 s pair quoted as a bound on how long stale audio can last (item 3 above), the
+> withdrawn *"lower bound"* on the specified hook, and now this: a measured number cited for a quantity
+> it does not measure. **The direction is the thing to check.** The same
+> range used as a *ceiling* on a sub-interval that ends inside the hook — §1b (c) and the table below —
+> is sound in direction, and is separately qualified as a historical baseline; it is using it as a
+> *floor* that has no support.
 
 A *post*-spawn stat — repeating the check after writing `speak/pid` — closes step 3/4 but not this
 ordering, because the hook's rename can still land after that second stat. What closes it is not another
@@ -259,13 +491,28 @@ With that, the timeline has no gap, because the two kills partition it at the `s
 | J2 published… | who kills the stale player |
 | --- | --- |
 | before the worker writes `speak/pid` | the **worker**, on claiming J2 — one kqueue wake after publication (handoff median **0.079 s**) |
-| after the worker writes `speak/pid` | the **hook**, directly — within its own wall cost, median **0.086 s** |
+| after the worker writes `speak/pid` | the **hook**, directly — within its own wall cost, median **0.086 s** measured on the hook the probe ran; the specified hook's cost is unmeasured and this cell has no number for it (as-of note under *What the hook itself costs*) |
+
+> **FALSIFIED, 12/12, and this table is the sentence the trials were pointed at** (*SUPERSEDED* at the
+> top; spec §13 row 20). There is a **third row** it does not have: **the worker dies between `Popen` and
+> the record's publication**, which leaves a player nothing reaches — the record was never written, so no
+> hook can find it, and the worker that held the child handle is gone. `C8`, plays to completion
+> **12/12**; the window itself is a median **1.41 ms**, range 0.43–5.61 ms, n = 72. **So the two figures
+> in this table bound two of three regions and bound nothing in the third**, where the stale player runs
+> for the whole of its utterance — 2.50 s in the trial rig. Both numbers stay measured; what is withdrawn
+> is their use as a bound on staleness. Nor does moving the write into the player close the third region:
+> a single player-written record (`C11b`) and per-player records alone (`C12c`) both fail 12/12 at full
+> length, because the wrapper can stay descheduled between `Popen` and its own first instruction. **What
+> closes it is process-group membership**, which `fork(2)` establishes before the child executes an
+> instruction — `C12b` kills before `exec`, 12/12, never started.
 
 So (c) is a latency optimisation that fires when it happens to see a live pid; **(d) is the correctness
 guarantee**, and it is the worker's, because the worker is the only party that knows it spawned a
 player. Adding a post-spawn stat as well is cheap and worth doing — it catches the common case without
 waiting for a wake — but it is not what makes the mechanism sound. **§10.6's semantics need both the pid
-file and the worker-side kill; residency should drop neither.**
+file and the worker-side kill; residency should drop neither.** (Both halves of that last sentence hold
+in the spec's replacement — a record and a claim-time kill — but *"neither"* was one short: it needs the
+election-time process-group sweep as well, and the sweep rather than the record is what makes it sound.)
 
 **What remains genuinely OPEN, and it is smaller than it looks — but not as small as the earlier draft
 claimed.** Interrupting an in-flight `create()` is not solved by any of (a)–(d), and I am **not**
@@ -279,22 +526,48 @@ ways nobody has looked at.
 corrected statement, and it is **[inferred]** throughout — none of (b), (c) or (d) has been measured:
 
 - With (a)–(d), **no stale utterance survives longer than one kqueue wake or one hook wall cost after
-  the newer job is published** — bounded by the measured **0.079 s** and **0.086 s** respectively, plus
+  the newer job is published** — bounded by the measured **0.079 s** and **0.086 s** respectively, the
+  second of them a **historical baseline** rather than any bound on the specified hook, whose cost is
+  **unmeasured** (as-of note under *What the hook itself costs*), plus
   a residual **6–38 ms** window between the pre-spawn stat and the spawn in which a player starts at all.
   On that reading §10.6's semantics hold.
 - **Only then** is synthesis cancellation reduced to a latency question — the *newer* utterance waiting
   out up to one wasted `create()`, 0.49–4.23 s. **Without (d) it is a correctness question**, because a
   stale utterance plays to completion unkilled.
 
+> **The first of those two bullets is FALSE and the trials are what made it false** (*SUPERSEDED* at the
+> top). It is the same claim as (d)'s table and it fails the same way: in the orphan region — worker dead
+> between `Popen` and the record's publication — the stale utterance survives **for its full duration**,
+> so **no** figure measured in this document bounds it. That makes this a tag-honesty defect and not a
+> phrasing one: **0.079 s and 0.086 s are honest [hook] measurements of a wake and of a hook, and were
+> never measurements of staleness.** The second bullet's *"without (d) it is a correctness question"* is
+> confirmed — `C4_noclaimkill`, 12/12 at full length — and its 0.49–4.23 s `create()` range is this
+> document's own measurement and stands. The corrected statement is the spec's: five worker-side hooks,
+> not three, with the process-group sweep of §10.5 clause 7(iv) as the only thing that reaches the third
+> region.
+
 **Routed to §10.6 as OPEN with that reduced scope stated, and with the reduction explicitly conditional
 on (d) shipping.** The measurement that would confirm or refute (b), (c) and (d) is named in *What I
-could not measure* below.
+could not measure* below. **That measurement has since been made** — 312 preemption trials over 26
+configurations — and the verdict is not one word per clause: it **kept** (b), reclassified as an
+optimisation given the sweep; **confirmed** (d)'s rule and **falsified** (d)'s partition; **quantified**
+the hook-side kill (c) argued for while **replacing** (c)'s shared `speak/pid` and its writer; and
+falsified the reduction this paragraph routes. See *SUPERSEDED* at the top and the spec's §13 row 20.
 
 ### 2. The election is `mkdir`, and it lives in the worker
 
 `os.mkdir($SPEAK_DIR/worker.lock)` with the pid written inside it, checked with `kill -0` and torn
 down if stale. This is §10.6's lock/PID-file idiom, one directory over from the `speak/pid` the
-preemption rule already puts there.
+preemption rule already puts there. **Both of those paths are gone from the spec** — the lock is a
+`symlink`ed `worker.lock.<gen>` carrying `<pid>.<starttime>` and the preemption record is a
+`playerdir/` entry per player (*SUPERSEDED* at the top) — **but the measurement in this subsection is
+about exclusive create under contention, and the replacement still elects by exclusive create.**
+**That is a contingency and not a guarantee, which is worth naming rather than leaving to be
+rediscovered:** the 8/8 result survives *because* `symlink(2)` shares `mkdir`'s exclusive-create
+property, and had the spec elected by anything else it would be a result about a primitive nobody uses.
+It is also **no longer the only evidence for that property** — spec §10.5 clause 2 re-measured it on the
+replacement at N = 2, 4, 8 and 16, **1 owner on 80 of 80** **[trials]**, so this subsection's n = 1
+adversarial run is corroborated rather than load-bearing on its own.
 
 **Measured against the adversarial case.** Eight hook processes fired simultaneously against an empty
 speak dir:
@@ -354,6 +627,30 @@ supposed to survive the adversarial case rather than the lucky one.
 
 **The corrected protocol, in two clauses. [inferred] — reasoned, not measured.**
 
+> **BOTH CLAUSES WERE SUBSEQUENTLY MEASURED AND BOTH ARE FALSIFIED** (*SUPERSEDED* at the top; spec §13
+> row 21). 1200 lock trials over three protocols and six scenarios. **What the diagnosis above still
+> establishes:** the race is real — the probe's own protocol ends without exactly one owner in
+> **121/400** trials — and the misclassification of an initializing lock as abandoned is its mechanism.
+> **What the repair does not:** the two clauses below leave **61/400** wrong. Clause 1's bounded backoff
+> is clean to a 50 ms stall (180/180) and then **40/40 wrong** at 200 ms and 1000 ms, because a bounded
+> wait bets on a live process making progress. Clause 2's quarantine rename is **20/20 wrong** on the
+> ABA, because `rename(2)` is path-addressed: a reclaimer acting on a stale observation quarantines a
+> *live* lock and gets success — there is a committed trace of one reclaimer quarantining the other's live
+> lock. **And the worst case was 3 owners, not the 2 this document predicts.** The replacement is
+> §3.1's shape applied here: a record that is created and never mutated, with ownership carried by a name
+> — a `symlink`ed `worker.lock.<gen>` holding the owner's `<pid>.<starttime>`, superseded rather than
+> removed, **0/400 wrong — a figure that is true and that does not certify the reclamation path on its
+> own.** All **100** of the replacement's reclamation trials — S3 (20), S4 (20), S6 (60) — staged their
+> dead incumbent by a **clock**, and a mis-staged trial yields exactly the `1 owner` a genuine pass
+> yields, so those cells cannot separate *"survived a stale-observation reclamation"* from *"never saw
+> one"*. **Exactly 1 of the 100 is trace-confirmed** — `lock-S3_aba-proposed-r1.tsv`, both racers
+> classifying the incumbent `pid_dead` and one superseding it — so it is **1 confirmed, 99 unconfirmed**,
+> which is not zero and is not a hundred. That is why §13 row 21 stays ship-blocking on arm (b) even
+> though the protocol this subsection's two clauses lost to is the one that ships (spec §13 row 21(b)).
+> **The generalisation, which is the part worth keeping:** where this document
+> guards a shared mutable path with an ordering rule, the ordering rule is the smell — and both clauses
+> below are ordering rules over one mutable path.
+
 1. **A lock with no pid file yet is *initializing*, not stale, and must be retried rather than
    reclaimed.** Absence of a pid is not evidence of an abandoned lock; it is the default state of a lock
    for the first few microseconds of its life. Retry the read on a short bounded backoff — a handful of
@@ -379,6 +676,15 @@ pre-check stays a best-effort optimisation. The measured 8/8 result is untouched
 
 ### 3. The wake is `kqueue`, and it costs nothing worth naming
 
+> **NOT SUPERSEDED — re-derived unchanged, and its role WIDENED** (*SUPERSEDED* at the top). Spec §10.5
+> clause 3 specifies the same primitive over the same directory with the same 1 s poll, and gives it two
+> jobs this subsection did not know it was doing: it is the primitive §3.5.1's bounded wait runs on, and
+> **the 1 s poll is the belt that fires when `rewrite.sh:117` sweeps a live worker's directory** (spec
+> §10.5 clause 6, §13 row 24) — which is why that belt is the sole guarantee on the sleep path until
+> clause 6's repair ships. **One thing the handoff figure below does NOT bound**, and it is the one place
+> rule 3 at the top reaches this subsection: how long a stale utterance can last. The 0.079 s bounds the
+> region in which something still holds a reference to the player, and `C8`'s orphan is outside it.
+
 The worker blocks on `kqueue(EVFILT_VNODE, NOTE_WRITE)` over the speak directory's fd, with a 1 s
 timeout as a belt. A rename into the directory wakes it.
 
@@ -387,6 +693,14 @@ interval contains the whole hook — `jq` three times, `shasum`, the job write, 
 kqueue wake. It is not the bottleneck and no cleverness is owed here.
 
 ### 4. The warm-up trigger is *every* `MessageDisplay` invocation — **not** §3.1's publish point
+
+> **THE TRIGGER IN THIS HEADING IS THE SPEC'S; TWO OF ITS IMPLEMENTATION PROPERTIES ARE NOT**
+> (*SUPERSEDED* at the top; spec §10.5 clause 4). Every measurement in §4, §4a, §4b and §4c stands, and
+> so does §4c's stated limit — the spec restates it in the same terms. What is superseded sits in §4b's
+> inference and in clause 4 of the routing section below: the step's placement is **after `session_id` is
+> parsed**, because *"before any parsing"* is not implementable, and its liveness check is a
+> `readdir`/`readlink`/`ps` under clause 2's generation record rather than one `[[ -d ]]` and one
+> `kill -0`. Each is qualified where it appears.
 
 **A worker started by `Stop` is warm for turns 2..n and cold for turn 1.** That is the whole of the
 residency problem, and started-by-`Stop` does not solve it: measured cold median **3.16 s**, over the
@@ -411,7 +725,7 @@ trigger. The review was right, and the gap is three orders of magnitude.** Read 
   != "true" ]; then ... emit_empty; else pass_through; fi`, and both of those `exit 0`. **[repo]**
 - **The rewrite is published only from the final invocation**, after reconstruction (`rewrite.sh:134`),
   after the prose-length gate, and — decisively — **after `llm_complete` returns** (`rewrite.sh:192`),
-  whose default budget is `CLAUDISH_TIMEOUT=45` seconds (`rewrite.sh:66`). **[repo]**
+  whose default budget is `CLAUDISH_TIMEOUT=45` seconds (`rewrite.sh:65`). **[repo]**
 - **There is in fact no `speak/` publish in `rewrite.sh` at all today.** `grep -n 'speak' rewrite.sh`
   returns nothing across all 245 lines. §3.1's publish is proposed spec, not shipped code — consistent
   with `speak.sh` not existing. **[repo]**
@@ -434,8 +748,8 @@ is a scheduling coin-flip. Every figure here is derivable from `residency-timing
 round-trip. A publish-point trigger would therefore start the worker *after* `Stop` has already fired,
 which is strictly worse than triggering on `Stop`.
 
-**Worse, on short turns the publish point never fires at all.** `rewrite.sh:145-155` gates on
-`prose_len < MIN_CHARS` (default **200**, `rewrite.sh:64`) and returns without producing a rewrite.
+**Worse, on short turns the publish point never fires at all.** `rewrite.sh:147-156` gates on
+`prose_len < MIN_CHARS` (default **200**, `rewrite.sh:63`) and returns without producing a rewrite.
 A fifty-character reply produces no publish, ever — so a publish-point trigger provides exactly zero
 warm-up on precisely the turns that need it most. **[repo]**
 
@@ -465,6 +779,18 @@ invocations logged `started=yes` and every later one logged `started=no`. **[hoo
 It is cheap enough to belong there: one `[[ -d ]]` test and one `kill -0` in the common case, on a hook
 that already runs `jq` several times.
 
+> **Two words in that account do not transfer, and the spec's clause 4 is where each is corrected — the
+> LEAD is untouched either way** (*SUPERSEDED* at the top, rule 3; spec §10.5 clause 4). **(1)
+> *"payload-independent"* is a property of the RIG, not of the trigger.** `warm-probe.sh` parses nothing
+> because the harness that launched it handed it `$SPEAK_DIR` **[rig]**; `rewrite.sh` has no such source
+> and must read `session_id` out of the payload at `:108` to know which session's worker to ensure. So
+> the specified step parses `session_id` **first** and the requirement is restated as independence from
+> the payload's **chunk role** — not from parsing. **(2) *"one `[[ -d ]]` test and one `kill -0`"* is no
+> longer the step's cost: clause 2's generation record made it a `readdir`, a `readlink` and a `ps`
+> fork, offset by reusing the `$sid` `:108` already parsed. **The code block above is left exactly as
+> the rig ran it** — it is the record of what produced the numbers, and editing it would break the only
+> thing it is for.
+
 **Measured, on a fresh session with no worker running, driving a 400-word streaming reply:**
 
 | | measured **[hook]** |
@@ -492,18 +818,33 @@ Drive the same fresh session with a reply of fifty characters and the lead disap
 The earlier draft recorded this as *unexplained*. **It is no longer unexplained, and §4a is the
 explanation.** The expectation it violated was that `MessageDisplay` precedes `Stop` by seconds — but
 that is only true of the *non-final* invocations. The final invocation is concurrent with `Stop`
-(median 7.5 ms across sixteen turns, sign not guaranteed), and a fifty-character reply streams in a
-single chunk, so its only invocation *is* the final one. On turn 31 all three of its invocations landed
-after `Stop`'s clock read, and all three found no worker and spawned one — the election then discarded
-two. There is nothing left to explain about hook dispatch ordering; the ordering is a consequence of
-chunk count, which is a consequence of message length.
+(median 7.5 ms across sixteen turns, sign not guaranteed), and a very short reply streams in few enough
+chunks that none of them leads the end of the turn. **Read that carefully against the data, because two
+routes to the same outcome were being described as one.** On turns 37–40 the short reply produced
+`n_md = 1`, so its only invocation *is* the final one, which is the concurrent one. **On turn 31 there
+were three** — `n_md = 3`, not 1 — and all three landed after `Stop`'s clock read, all three found no
+worker and spawned one, and the election discarded two. So more than one chunk is **not** sufficient:
+turn 31 meets the condition that more than one chunk is necessary for and still fails the stated limit
+below, because not one of its three chunks led the end of the turn at all. There is nothing left to explain about hook dispatch ordering;
+the ordering is a consequence of when the chunks arrive, which is a consequence of message length.
 
-The practical rule is unchanged and should go in the spec as a stated limit:
+The practical rule is one condition rather than two, and it goes in the spec as a stated limit written
+over both observed routes rather than over one of them:
 
-> **Warm-up-on-`MessageDisplay` covers the cold start if and only if the turn's message streams in
-> more than one chunk *and* the first chunk arrives more than the worker's startup time
-> (**1.33–2.02 s** measured, n = 8) before the turn ends. On a very short, very fast first turn there
-> is one chunk, it is the final one, it is concurrent with `Stop`, and the first utterance is cold.**
+> **Warm-up-on-`MessageDisplay` covers the cold start if and only if some invocation of the turn
+> arrives more than the worker's startup time (**1.33–2.02 s** measured, n = 8) before the turn ends —
+> equivalently, since the invocations arrive in order, if and only if the FIRST one does. Streaming in
+> more than one chunk is NECESSARY for that and is not sufficient. Both routes to a cold first
+> utterance have been observed and the limit covers both: the turn streams in ONE chunk, which is then
+> the final one and concurrent with `Stop` (turns 37–40, `n_md = 1`, first-chunk lead +0.005 to
+> +0.009 s); or it streams in MORE THAN ONE and every one of them still arrives at the end of the turn
+> (turn 31, `n_md = 3`, the first chunk 0.064 s and the last 0.066 s AFTER `Stop`'s clock read).**
+
+**The second sentence of that block used to read *"on a very short, very fast first turn there is one
+chunk"* and nothing else** — the single-chunk route stated as the only one, four lines under the
+turn-31 data that records three. The single-chunk turns are real, measured and kept; what is withdrawn
+is their standing as *the* explanation of a cold short turn. Spec §10.5 clause 4 carried the same
+one-route explanation over the same turn-31 numbers, and that half is §13 row 14.
 
 That limit is tolerable, and here is why, stated as reasoning rather than measurement
 **[inferred]**: a fifty-character first message is exactly the band §3.3 and §9 are about, and
@@ -520,13 +861,22 @@ columns, and `set`, which names the rows behind each published aggregate:
 | `set` | rows | reproduces |
 | --- | --- | --- |
 | `cold7` | 7 | cold: median 3.161 s, range 2.657–5.496 s, 3/7 under 3 s |
-| `warm30` | 30 | warm: median 1.216 s, range 0.573–4.014 s, 28/30 under 3 s |
+| `warm30` **plus** `warm30+mdwarm5` | 25 + 5 = 30 | warm: median 1.216 s, range 0.573–4.014 s, 28/30 under 3 s |
+| `warm30` alone | 25 | warm and *not* warmed-during-turn: median 1.085 s, 24/25 under 3 s |
 | `warm30+mdwarm5` | 5 | warmed-during-turn: median 1.710 s, range 1.373–3.829 s, 4/5 under 3 s |
 | `concurrency-probe`, `slow-cold-outlier` | 1 each | excluded from every aggregate above, by name |
 
+**The label `warm30` selects 25 rows, not 30, and the row above used to say 30** — the warm aggregate is
+the union of the two labels, because the five warmed-during-turn rows are warm rows as well. A reader who
+filtered on `set == "warm30"` and expected the published 30 got 25 and a median of 1.085 s, which is the
+subset caveat at the top of this document arriving as a reproducibility defect rather than as a reading
+hazard.
+
 `ready_lead_s` is `t_stop − t_worker_ready`: **positive means the worker was resident before `Stop`
 fired**, which is the mechanism working. It is positive exactly on the five `mdwarm5` turns
-(3.051–4.619 s) and negative on every cold turn (−1.382 to −1.734 s), which is the mechanism's whole
+(3.051–4.619 s) and negative on **every cold turn that carries the column — five of the seven**
+(−1.382 to −1.734 s); turns 1 and 7 predate the `t_worker_ready` instrumentation and the cell is empty
+there, so *"every cold turn"* is a claim about 5 rows and not about 7. That is the mechanism's whole
 claim in one column.
 
 ### 5. The worker does a warm-up synthesis at startup
@@ -538,14 +888,52 @@ and says why (**[repo]**).
 markedly slower than the steady state: the same item (`r01`, 88 chars spoken) took **2.13 s** as a
 worker's first synthesis versus **1.41 s** on a worker that had already spoken. The warm-up costs
 **0.78–1.12 s** of startup, which pushes exec→ready from 0.80–1.30 s to **1.33–2.02 s** and therefore
-lengthens the streaming lead the mechanism needs. Net: **a win when there is lead time, a wash when
-there is not.** Recommended, with the trade named.
+lengthens the streaming lead the mechanism needs.
+
+> **The verdict this subsection closed with is WITHDRAWN, and the data that withdrew it is the table in
+> *Cold* below — this document's own.** It read *"Net: a win when there is lead time, a wash when there
+> is not. Recommended, with the trade named."* **Both halves are gone.** The `cold7` set holds a
+> near-controlled pair with **no** lead on either side and the **same** item `r01` — 268 chars in, 88
+> spoken, 5.06 s of audio — named in `residency-timings.tsv`'s `run` column: `E-md-warmup`, no
+> startup warm-up, TTFA **4.489 s** at RTF 0.595, against `G-short-cold`, warm-up present, TTFA
+> **2.657–3.161 s** at RTF **0.241–0.280**. So it is **a win even with no lead at all** — the
+> hook-to-worker interval on a cold start is itself **1.38–1.73 s**, enough to absorb the warm-up — and
+> the win is **1.328–1.832 s of TTFA on every one of the four `G` rows**, with synthesis at
+> **0.41–0.47×** of `E`'s (1218–1414 ms against 3007 ms) and the two RTF ranges not overlapping at all.
+> **That is not a wash. It is also not a pass/fail flip, and this blockquote said it was until review
+> round eleven**: it read *"the difference is between failing the 3 s line and sitting just under it"*,
+> and the top of its own quoted range is the run that fails the line. `G-short-cold` is **3 of 4 under
+> #9's 3 s line, not 4 of 4** — turn 37 is at **3.161 s ❌** in the table below, missing by **161 ms**
+> where `E` misses by **1.489 s**. So the honest comparison is one failing run against an arm where
+> three pass and the fourth nearly does, which still carries the direction; what it cannot carry is a
+> pass, and *"cold from a hook straddles the 3 s line and does not clear it"* in *Cold* below is this
+> document's position on that. The honest limit
+> of the comparison is **n = 1 on the `E` side** and the two runs differ in their run label as well as
+> in the warm-up, so it settles the *direction* and is not an effect size **[hook]**. And the spec has
+> **STRENGTHENED the clause from *recommended* to REQUIRED** on that reading: §10.5 is LOCKED and §13
+> row 2 lists the startup warm-up as part of the *selected* mechanism, so leaving it advisory handed the
+> implementer a decision the lock claims is already made (spec §10.5 clause 5).
 
 ### 6. Idle exit at 30 minutes
 
 Matching `rewrite.sh:117`'s existing sweep window, so a worker never outlives the directory it
 depends on. **Not measured** — the runs here are minutes long. Stated as a design choice, and it does
 re-introduce a cold start after half an hour of silence, which is the honest cost.
+
+> **The interval, the reason and the clock are all superseded, and the reason was measured FALSE.** The
+> spec's clause 6 is **20 minutes**, and *"matching `rewrite.sh:117`'s sweep"* is precisely the reasoning
+> it rejected, because **equal timeouts do not order two events**. Worse, *"a worker never outlives the
+> directory it depends on"* is the claim a measurement then falsified: `find -mmin` is **wall clock**
+> while the spec's clause 6 went on to mandate `time.monotonic()`, which on Darwin does not advance
+> across sleep,
+> so one unplanned 40-minute idle sleep put **38 min 44 s** of divergence against a 10-minute margin and
+> `:117`'s verbatim predicate selects a directory whose worker's own timer reads **12.51 min**. The
+> repair is to read idleness off the speak directory's own mtime against `time.time()`; the residual is
+> a forward clock jump, bounded by the 1 s poll rather than by however long the machine slept. **That
+> measurement is not this document's** — nothing here has slept a machine — and it moved **§13 row 24
+> into the ship-blocking set**, where the deterministic cost is that the first turn after any sleep over
+> thirty minutes is served **cold** (spec §10.5 clause 6, §13 row 24). The *"not measured"* above stays
+> true of this arm and is no longer true of the clause.
 
 ---
 
@@ -556,7 +944,7 @@ re-introduce a cold start after half an hour of silence, which is the honest cos
 | **fresh interpreter per turn** | rejected | already rejected by the spec on #6's 3.93 s; this run's cold rows (2.66–5.50 s from a hook) agree and are worse |
 | **HTTP server on a port** | rejected | #5 declined it on measured evidence; independently, a file drop answers every question a port raises without opening one |
 | **Unix domain socket** | rejected | **[obs]** `bind()` fails at the real path depth — 116 bytes against a 104-byte `sun_path`. The relative-path workaround works but needs `nc -U` in the hook and buys nothing |
-| **`launchd` user agent** | rejected, **not measured** | it would be permanently resident and would survive machine sleep, which is genuinely better on latency. It loses on three other counts: it installs a background daemon for a feature that is **off by default** (§11), it is outside `rewrite.sh:117`'s sweep so nothing reclaims it, and it has no per-session scoping, which makes §10.6's per-session pid file meaningless. **This is a judgement, not a measurement**, and it is the alternative a reviewer should push back on if they think the latency is worth the footprint |
+| **`launchd` user agent** | rejected, **not measured** | it would be permanently resident and would survive machine sleep, which is genuinely better on latency. It loses on three other counts: it installs a background daemon for a feature that is **off by default** (§11), it is outside `rewrite.sh:117`'s sweep so nothing reclaims it, and it has no per-session scoping, which makes §10.6's per-session player records meaningless — *pid file* was the name when this row was written, and one shared `speak/pid` is exactly what the trials removed (*SUPERSEDED* at the top); the judgement is unaffected, because it turns on per-session scoping and not on the record's shape. **This is a judgement, not a measurement**, and it is the alternative a reviewer should push back on if they think the latency is worth the footprint |
 | **worker started by `Stop` only** | rejected | measured: median cold **3.16 s**, 3/7 under the line. This is the mechanism the spec's shape implies today, and it is the one that fails |
 
 ---
@@ -579,8 +967,16 @@ process except the single row marked `offline` (the eight-way concurrency race).
 | 40 | short-cold | **2.657 s** ✅ | 1.383 s | 0.547 s | 1262 ms | 0.250 | 3.45 |
 | | | **median 3.161 s** | | | | | **3/7 pass** |
 
-Turns 37–40 pay a startup warm-up synthesis that turns 1, 7 and 31 do not; that is why their
-`hook→worker` is longer and their `synth` far shorter. It roughly cancels.
+Turns 37–40 pay a startup warm-up synthesis that turns 1, 7 and 31 do not; that is why their `synth` is
+far shorter. **The rest of that sentence used to read *"that is why their `hook→worker` is longer … it
+roughly cancels"*, and neither half survives its own column.** `hook→worker` on turns 37–40 is
+**1.383–1.734 s** against 1.196 s, 1.699 s and 1.465 s on turns 1, 7 and 31 — overlapping, not longer:
+turn 40's 1.383 s is shorter than turn 7's 1.699 s. And it does not cancel. Turn 31 and turns 37–40 are
+the near-controlled pair — both have the clause-4 ensure hook live, both get no lead, all five
+synthesise `r01` — and the warm-up arm lands at **2.657–3.161 s** against **4.489 s**, RTF 0.241–0.280
+against 0.595. The **1.38–1.73 s** hook-to-worker interval absorbs the warm-up rather than paying for
+it, which is why §5's *"a wash when there is no lead"* is withdrawn above and why the spec makes the
+warm-up REQUIRED (spec §10.5 clause 5).
 
 **The honest reading: cold from a hook straddles the 3 s line and does not clear it.** On a quiet
 machine it lands at 2.7–3.2 s; on a busy one it goes to 5.5 s. #6's cold figure of **3.93 s** sits
@@ -640,6 +1036,27 @@ This is the number §6 actually cares about — how long the prompt is held — 
 does not change it, because the hook drops a file and leaves whether or not a worker exists. §10.4's
 `"timeout": 10` has at least **45× headroom** against the slowest hook observed.
 
+**AS-OF, and every use of this figure as a BOUND below inherits it.** The measurement stands as a
+measurement — it is what a hook process did on this machine on this build. But it measured the hook the
+probe ran, and [`speech-integration-spec.md`](speech-integration-spec.md) has since put **two
+`readdir`s and a `ps` fork** into the hook body where there were two `stat`s: §10.3 step 6 and step 12
+now scan `speak/playerdir/` and `speak/`, and step 12's liveness test validates identity with
+`ps -o lstart=` rather than a builtin `kill -0`. So this range is a **HISTORICAL BASELINE** — what that
+hook body cost — and **the cost of the hook as specified is UNMEASURED**. Wherever this document uses
+the range or the median as a **bound on how fast the specified hook does something, there is no such
+bound**, and the sentence's claim has to survive on something other than the number.
+
+> **This note was introduced to stop the figure being read as current, and it overshot in the opposite
+> direction.** It arrived saying *"a **lower bound**, not a re-measured figure"* — and a lower bound is
+> not available either: *adding operations increases work* holds only **under otherwise identical
+> conditions**, and two wall-time samples taken on two different hook bodies under different scheduling,
+> load and cache state are not that comparison. **An old observed range cannot mathematically bound a
+> future one in either direction** — 0.063 s is a fact about forty-seven processes that ran, not a floor
+> under processes that have not. What survives is the **direction and not the magnitude**: the specified
+> hook does more work than the measured one did, all else equal, so expect it to cost more.
+> **[inferred]**, and only a re-run settles the size. The spec carries the same reasoning at §10.3 and
+> counts the *lower bound* framing as a defect in its own LOCKED text at §13 row 9.
+
 ### The cold start that outruns the timeout
 
 §10.5 asks what happens "when a cold start outruns the timeout". Measured directly, by inserting a
@@ -676,9 +1093,64 @@ tested. Row 9 stays open, and this is one more reason to detach rather than a re
 **Not applied here.** #11 owns `speech-integration-spec.md` and two sibling agents are working the
 other blockers; a single integration pass folds this in. This is the proposed content.
 
+**It was applied, and then two of its clauses were run and replaced.** This whole section is the
+**proposal as it stood on 2026-08-25** and is kept as the record of what was proposed off what was
+measured. **Clause 2's stale-lock recovery and clause 7's three preemption hooks are the two that did not
+survive** — see *SUPERSEDED* at the top for what replaced each and what the measurements behind them
+still establish. **Clauses 1 and 3 are the spec's; clause 4 is NOT, and this sentence used to say it
+was.** What survives of clause 4 is its **every-invocation trigger** and nothing else about the step:
+both of the implementation properties the clause states — its placement *before any parsing* and its
+liveness check of one `[[ -d ]]` plus one `kill -0` — are superseded, the first as **impossible** rather
+than merely superseded. The clause's own note below carries the detail. **Clause 5 is the spec's only after a
+STRENGTHENING and a withdrawal**: *recommended* became **REQUIRED**, and the *"a win when there is lead
+time, a wash when there is not"* it closed with is contradicted by this document's own `cold7` pair and
+withdrawn (§5 above, spec §10.5 clause 5). **Clause 6 is the spec's only after TWO
+corrections, not one, and the interval is the one this sentence used to leave out**: its *window* went
+from the 30 minutes below to **20** in review — so *"matching `rewrite.sh:117`'s sweep"*, which is the
+reason clause 6 gives for its number, is precisely the reasoning the spec rejected, because equal
+timeouts do not order two events — and its *clock* was then corrected from a monotonic one to the wall
+clock by a measurement that is not this document's (spec §10.5 clause 6, §13 row 24).
+
 ### §10.5 — the OPEN heading comes off, with the limits attached
 
-The mechanism, in six clauses, each measured above:
+The mechanism, in seven clauses — **and NO aggregate over the seven is true. Two have now been tried and
+both were false, which is why this line no longer carries one.** *"Each measured above"* was false of
+clause 7, whose own text says its hooks are all `[inferred]` and none measured; the *"clauses 1–6 are
+measured above"* that replaced it in `d7e3c4a` and stood through every read since is false of **clause
+6**, whose own subsection says **"Not measured"** in
+those words and means it — the runs here are minutes long, no worker has been resident across a sleep,
+none has been left idle for twenty minutes, and nothing has watched a belt fire. **The sleep measurement
+that later reached clause 6 does not repair that**: it falsified the clause's *clock reasoning* by reading
+Darwin's clocks, and it exercised no worker protocol at all, neither the one clause 6 states nor the
+mtime-and-`time.time()` replacement, because `speak.sh` does not exist. **So the evidence status is stated
+per clause, which is the only form that has survived a round:**
+
+- **Clause 1 — measured in part, and the parts are separable.** The socket's rejection is **observed**
+  (116 bytes against a 104-byte `sun_path`, `bind()` fails, §1) and the producer rename's coalescing is
+  **observed** (*n* jobs dropped, one utterance, §2's eight-hook table). The consumer's own atomic claim —
+  `rename(job, job.taken.<pid>)`, unlinked only by its private name — is **reasoned from §1b** and no arm
+  has run it.
+- **Clause 2 — measured for the one property that survived the primitive.** Eight simultaneous hooks →
+  one worker is **observed**, and it is a result about exclusive create under contention rather than about
+  `mkdir` (§2's own blockquote). The two stale-lock clauses this section grew were later **run and
+  FALSIFIED** — 61/400, worst case 3 owners.
+- **Clause 3 — measured.** Handoff median **0.079 s**, range 0.059–0.198 s **[hook]**, and §3's blockquote
+  states what that figure does not bound.
+- **Clause 4 — the trigger is measured; its two implementation properties are measurements of nothing.**
+  Every lead figure under §4, §4a–c stands. The placement *"before any parsing"* and the one-`[[ -d ]]`,
+  one-`kill -0` liveness check were **reasoned**, and both are superseded — the first as **impossible**.
+- **Clause 5 — measured, with the limit its own blockquote names.** The 0.78–1.12 s startup cost and the
+  1.33–2.02 s exec→ready range are this document's; the win over no warm-up is the `cold7` pair, at
+  **n = 1 on the `E` side**, so it settles direction and is not an effect size.
+- **Clause 6 — NOT measured, and this is the clause the aggregates kept swallowing.** Stated as a design
+  choice; measured false only in its *reasoning about clocks*, by a measurement of Darwin rather than of a
+  worker. The interval, the reason and the clock are all superseded (§6 above, spec §10.5 clause 6, §13
+  row 24).
+- **Clause 7 — `[inferred]` when written, reasoned from §1b, and since measured PER HOOK.** The 312 trials
+  scored the five hooks separately and in two different currencies; that is the block under clause 7 below
+  and it is not a result about the clause as a whole.
+
+The seven clauses themselves, as proposed:
 
 1. **Address**: a job file at `$BUF_ROOT/<session_id>/speak/job`, written to a temp name and `mv`d
    into place. **Not a socket** — the path is 116 bytes against Darwin's 104-byte `sun_path` and
@@ -695,6 +1167,9 @@ The mechanism, in six clauses, each measured above:
    worker's lock and a second worker starts. And reclamation of a genuinely abandoned lock must be
    **serialized by an atomic `rename` into a unique quarantine name** before a fresh lock is created,
    never `rmdir`-then-`mkdir`; the rename can only succeed once, so exactly one reclaimer proceeds.
+   **Both of those two clauses are FALSIFIED — 61/400, worst case 3 owners** (*SUPERSEDED* at the top,
+   §2a's block). What survives is the first three sentences: eight simultaneous hooks → one worker, the
+   pre-check as a race-losing optimisation, and exclusive create as the guarantee.
 3. **Wake**: `kqueue`/`NOTE_WRITE` on the speak dir, 1 s poll as a belt. Handoff median 0.079 s.
 4. **Warm-up trigger**: an ensure-worker step on **every `MessageDisplay` invocation**, placed **before
    `rewrite.sh:127`'s non-final early return** — *not* on §3.1's publish point. The publish point is
@@ -704,9 +1179,48 @@ The mechanism, in six clauses, each measured above:
    5.16–6.23 s from the first invocation. Below `MIN_CHARS` (200) `rewrite.sh` publishes nothing at all,
    so a publish-point trigger gives zero warm-up on short turns. The step must be payload-independent:
    one `[[ -d ]]` and one `kill -0`, before any parsing. **Stated limit:** this covers the cold start
-   only when the message streams in more than one chunk and the first chunk leads the end of the turn by
-   more than the worker's 1.33–2.02 s startup; on a very short first turn there is a single chunk, it is
-   the final one, and the first utterance is cold.
+   only when some invocation of the turn leads the end of the turn by more than the worker's
+   1.33–2.02 s startup — which more than one chunk is necessary for and does not guarantee. Two routes
+   to a cold first utterance are observed: a single chunk, which is then the final one and concurrent
+   with `Stop` (turns 37–40, `n_md = 1`); and three chunks that all arrive after `Stop`'s clock read
+   (turn 31, `n_md = 3`).
+   - **SUPERSEDED IN PART: the every-invocation trigger is the spec's; the two implementation properties
+     stated above are not.** What carries over unchanged is the trigger itself and the reasoning that
+     picked it — an ensure-worker step on **every** `MessageDisplay` invocation, above `rewrite.sh:127`'s
+     non-final early return, and *not* on §3.1's publish point, for the three reasons given (the final
+     invocation's concurrency with `Stop`, the publish's position after `llm_complete`, and the
+     `MIN_CHARS` gate) — together with the **Stated limit**, which the spec restates as its own STATED
+     LIMIT in the same terms (spec §10.5 clause 4). **What carries over is the LEAD-TIME condition, and
+     the single-chunk example is explicitly superseded as an exclusive one** — §4c's own turn 31 streams
+     three chunks and is cold anyway, so both sites state the limit over both routes and neither offers
+     the one-chunk case as the only way to lose the lead. Two things do not carry over:
+     - **"Before any parsing" is not implementable, and the spec says so in those words.** The step's
+       address is `$BUF_ROOT/<session_id>/speak/`, and `rewrite.sh` has exactly one source for
+       `session_id` — the payload, parsed at `:108`; no environment variable, no session file, no
+       argument. The specified placement is therefore **after `session_id` is parsed** and before
+       `:127`'s early return, and the requirement this document meant is restated as the property rather
+       than as an ordering: **the ensure decision must be independent of the payload's *chunk role*** —
+       it must not read or branch on `final` or `delta` and must not sit inside or after `:127`'s test.
+       **Parsing `session_id` is not a violation of that; parsing `final` is.** *"No parsing"* was a
+       proxy for *"not gated on the chunk role"*, and the proxy is what failed. Why this document could
+       not see it: the probe parsed nothing because its `$SPEAK_DIR` was handed to it by the harness that
+       launched it **[rig]**, so payload-independence was a property of the *rig's environment* and not
+       of the trigger. The spec also records the consequence of the placement — `:100`'s enabled-check
+       sits above `:108`, so a disabled rewriter starts no worker — and the guard for an absent
+       `session_id`, neither of which is in this document (spec §10.5 clause 4).
+     - **"One `[[ -d ]]` and one `kill -0`" is superseded by clause 2's replacement, not by anything
+       about clause 4.** Two syscalls at a fixed path became **one `readdir` of `speak/`, one `readlink`
+       and one identity-validated liveness test** — a `ps` fork, because the generation record carries
+       `<pid>.<starttime>` and a bare pid is no longer trusted (spec §10.5 clause 2 and clause 4). The
+       spec prices the difference rather than leaving it to be found: the `readdir` runs five to seven
+       times a turn against a directory that grows for the whole session, and that it stays negligible
+       is **[inferred]**, nothing having timed it. **The `jq` count is the other half of the price and
+       it moves the other way** — the step reuses `:108`'s already-parsed `$sid`, so it costs **zero**
+       extra `jq` calls and is *cheaper* than the probe's shape on that axis while being dearer on this
+       one.
+     - **Neither correction touches a number in §4.** The leads, the ready lead, the five first-turn
+       TTFAs and turn 31 are all measurements of *when invocations fire and when a worker becomes
+       ready*, and no change to what the step does inside an invocation reaches them.
 5. **Startup warm-up synthesis**, per `bench/bench.py:471-475`. Costs 0.78–1.12 s of startup, saves
    ~0.7 s on the first real utterance.
 6. **Idle exit** at 30 minutes, matching `rewrite.sh:117`'s sweep. Re-introduces a cold start after
@@ -720,12 +1234,117 @@ The mechanism, in six clauses, each measured above:
    job *after* the worker's pre-spawn re-check — leaving a stale player running that no other step
    touches (§1b (d)). The pid file bounds the case where the hook sees a live player; the worker-side
    kill bounds the case where it does not. **Both are required.**
+   - **SUPERSEDED: three hooks became FIVE, and the last sentence of this clause is the falsified one**
+     (*SUPERSEDED* at the top; spec §10.5 clause 7, §13 row 20). **Its *"Both are required"* about (i)
+     and (iii) does not survive either, and the spec withdraws it by name**: (iii) with both targets
+     covers every case in which the worker survives the spawn, and (i) exists so that a *different*
+     process can do the killing — a measured latency value, not an independent necessity. What is
+     falsified outright is the **partition**: *"the case where the hook sees a live player"* and *"the
+     case where it does not"* are not
+     the whole timeline, because a worker that dies between `Popen` and the record's publication leaves a
+     player in neither case — `C8`, 12/12 at full length. (i)'s single `speak/pid` is replaced by a
+     per-player `playerdir/<pid>.<nonce>` published by the player's own wrapper; (ii) survives as an
+     optimisation-given-the-sweep; (iii) survives and is now measured load-bearing; and **the two hooks
+     that were added are (iv) the election-time sweep — its process-group half plus (iv-a)'s
+     published-record half, which the spec numbers as one hook in two halves — and (v) the worker's
+     `wait()` of its own player, with the unlink of that player's record.** Without (v), `kill(2)` on an
+     unreaped zombie succeeds, so every kill site in the clause reports success while killing nothing.
+     **The `.pending` marker is not a hook at all** — it is a bound *inside* (iv), and naming it as one
+     of the two additions both invents a fifth mechanism and hides the one that was really added.
+   - **"None measured" is no longer true of this clause. "All of it was measured" is not true either,
+     and on an evidence document the difference is the whole point.** What the 312 trials over 26
+     switchable configurations reached is the **ROLE of each of the five hooks, which is NOT the
+     necessity of all five** — and claiming necessity contradicted both the bullet directly above (*"(ii)
+     survives as an optimisation-given-the-sweep"*) and the spec, where (ii) is an **optimisation given
+     (iv) and a correctness clause only without it**. **And *"necessary"* names TWO DIFFERENT PROPERTIES
+     over these five hooks, so any single unqualified count of how many are necessary is wrong under one
+     of the two readings whichever number it gives. This sentence carried such a count from `fdf0e7c` —
+     the commit that split these results out per hook and wrote the (v) bullet a dozen lines below it —
+     through every read since.** The two senses, named here so that every count anywhere in this block says
+     which one it counts. **NECESSARY FOR SUPPRESSING STALE AUDIO**: without the hook, an utterance the
+     listener should never hear plays, and the arm that removes it scores a surviving utterance —
+     **measured for exactly TWO**, (iii) the claim-time kill (`C4_noclaimkill`, 12/12 at a full 2.50 s) and
+     (iv) the election-time sweep (the two repairs that omit it, `C11b` and `C12c`, 12/12 at full length).
+     **NECESSARY FOR CHECKABILITY**: without the hook, the other hooks' kill sites cannot fail, so no arm
+     can score them at all — **measured for exactly ONE**, (v) the `wait()`, whose own arm `C7_noreap`
+     produced **no surviving utterance** and which is therefore not a member of the first sense.
+     **So three of the five carry a measured necessity and no two of them carry the same one**; the honest
+     figure is 2 + 1 in two currencies and never 3 in one. Of the remaining two, **(i)** had its *shape*
+     measured and its independent necessity withdrawn in favour of a latency value, and **(ii)** was
+     measured to be an **optimisation** given (iv). **Per hook, as the arms scored
+     them** (spec §10.5 clause 7):
+     - **(iii) the claim-time kill — MEASURED LOAD-BEARING, and it is the CHILD-HANDLE target the arms
+       score.** `C4_noclaimkill` runs to completion **12/12** at 2.50 s, so the kill itself is
+       load-bearing. **The two targets are not scored symmetrically, and this bullet read them as if
+       they were until review round thirteen** — it said the kill *"needs both targets"* and then cited
+       two arms, only one of which bears on the record. `C10a` (published record only, no child handle)
+       kills **nothing**, 12/12 at 2.50 s, so the **handle is necessary**; `C10b` (handle only, no
+       record) kills **12/12 at 0.56–0.71 s**, and that is the one arm which drops the record — it
+       *succeeds*. So *"both targets"* is **measured for the handle and `[inferred]` for the record**.
+       What the record half is for is a player the claiming worker did not spawn and holds no handle
+       for, which is also what (iv-a)'s published-record sweep covers, so no arm here isolates it.
+       **The arm that would settle it is one in which the claimant holds NO HANDLE because it did not
+       spawn the running player, run twice with the published record as the only difference: with the
+       record the claim-time kill must land, without it the player must run to full length. `C10b` is
+       NOT the opposite of that arm** — `C10b` is itself handle-present and record-absent, so the arm
+       this bullet named until review round fourteen (*"keep the handle, drop the record, and fail"*)
+       demanded failure from the configuration measured killing 12/12 at 0.56–0.71 s. Spec §10.5
+       clause 7(iii) carried the same unsatisfiable arm and is §13 row 14; the record half stays
+       normative there as an argument rather than as a result.
+     - **(iv) the election-time process-group sweep — MEASURED LOAD-BEARING, and the only hook that
+       reaches the spawn-to-record region.** `C12a` kills 12/12 (audible 0.738–0.841 s) and `C12b` kills
+       **before `exec`**, 12/12; the two repairs that omit it fail 12/12 at full length (`C11b`, `C12c`).
+       Its record half **(iv-a)** covers the player that published before the sweep arrived — `C11a`,
+       `C15c`, `C16b`, all 12/12.
+     - **(i) the per-player record — the SHAPE is measured; the hook's independent necessity is not.**
+       Both alternatives were run and both fail: one shared `speak/pid` (`C14a` against `C14b`) and an
+       append-only ledger (`C13a`, scored `NOTHING-ran-to-end` 12/12 at a full 2.50 s). But the spec
+       withdrew the first revision's *"both are required"* about (i) and (iii) — (iii) with both targets
+       covers every case in which the worker survives the spawn — so what the trials put a number on is
+       (i)'s **latency** value: the hook reaches the player a median **134 ms** sooner than the worker's
+       next claim would, 123–143 ms, n = 12, `C2_hookside`.
+     - **(ii) the pre-spawn re-`stat` — MEASURED TO BE AN OPTIMISATION, not a requirement.** With the
+       worker surviving, removing it changes nothing: `C5_norecheck` still kills before the player can
+       `exec`, 12/12. With the worker dying after the spawn and **no** sweep it *is* a correctness clause
+       — `C15b` runs to completion 12/12 at 2.50 s where `C15a` (re-check present) spawns no player at
+       all — but with (iv) present the orphan is caught anyway: `C15c`, killed by the election sweep
+       12/12, audible 0.386–0.471 s. **Keep it and state the condition; do not call it necessary.**
+     - **(v) the `wait()` of its own player — what the trials establish here is about EVIDENCE, not
+       audio.** `C7_noreap` produced no surviving utterance; what it produced is a kill that cannot fail
+       — the hook's kill lands at 0.549–0.577 s and every later kill site then reports success, on all 12
+       trials, against a process already dead, where `C2` (the same arm with the worker reaping) reports
+       `ESRCH` instead. So (v) is measured necessary in the **CHECKABILITY** sense named above — necessary
+       for the other four to be **checkable** — which is a different claim from stopping stale audio, is
+       the one the arms support, and is why (v) is not one of the two counted under audio suppression.
+     - and **the `.pending` leak itself** (`C16a` — 25 markers created, none removed).
+
+     What **no** committed arm ran is the identity-and-cleanup layer built on those hooks, all of it still
+     `[inferred]`: (i)'s `<pid>.<starttime>` record content and its *signal only on a positive match*
+     rule (spec §13 row 20(c)); (iv)'s four-case owner test and the kernel property its middle two
+     cases rest on (row 20(b)); the required **order** of (iv) before (iv-a) — every measured arm
+     happened to run that order and none ran the reverse, so the 12/12 results are evidence *for* the
+     order while the *requirement* is unrun (row 20(a)); and the generation-tagged `.pending` cleanup,
+     **implemented in no committed trial and ship-blocking** (row 27). **So, and stated in both currencies
+     because one of them will not carry the result: every hook's ROLE is measured; TWO are necessary for
+     SUPPRESSING STALE AUDIO — (iii) and (iv) — and ONE, (v), is necessary for the other four to be
+     CHECKABLE, which is a different property and not a third audio-suppression result; (i)'s shape is
+     measured and its independent necessity is not; (ii) is measured to be an optimisation given (iv); and
+     the identities and the cleanup are not measured at all.**
 
 And the closing condition §10.5 set for itself is now met, with this result:
 **cold from a hook is 2.66–5.50 s (median 3.16 s) and fails the 3 s line; warm from a hook is
 0.57–4.01 s (median 1.22 s) and holds it 28 times in 30.**
 
 ### §10.6 — two qualifiers, and its pid file survives residency
+
+**Its pid file did NOT survive, and the heading above is the shortest statement of what this document got
+wrong** (*SUPERSEDED* at the top). Both qualifiers were folded into the spec as **[inferred]**, and 312
+preemption trials over 26 configurations then **confirmed one of them, falsified the other's central
+claim, and replaced the writer named in the first** — a shared `speak/pid` written by the worker became a
+per-player `playerdir/<pid>.<nonce>` published by the player's own wrapper, plus an election-time
+process-group sweep. The subsection is kept as written because the *reasoning* in qualifier 2 is what
+identified the hole that the trials then measured; only its closing sentence is false. Spec §10.6 and
+§13 row 20 carry the replacement.
 
 §10.6 stays LOCKED and this document reopens none of its decisions. It needs two qualifiers, both from
 §1b, because §10.6 was written for a design in which the hook spawned the speech child and could
@@ -735,8 +1354,20 @@ therefore kill the previous one itself.
    pid is "written by the speech child". Under §10.5's mechanism there is no per-turn speech child, so
    **the resident worker writes the player's pid there** after spawning it, and the next hook invocation
    kills it exactly as §10.6 already says. Playback in progress therefore dies within the hook's own
-   wall cost, median **0.086 s**. Without this sentence an implementer reads §10.6 and finds nothing
+   wall cost, median **0.086 s** measured — a **historical baseline**, with the specified hook's cost
+   **unmeasured**, per the as-of note under *What the hook itself costs*. **A *lower* bound is what that
+   note used to offer here and it was the wrong direction for this sentence anyway**: *"dies within"*
+   wants a ceiling, and a floor licenses none. Without this sentence an implementer reads §10.6 and finds nothing
    left in the design that writes the file.
+   - **The WRITER changed twice and the MECHANISM was not "still the right one".** *"Written by the
+     speech child"* → *"written by the resident worker"* → **published by the player's own wrapper, at a
+     unique per-player path, before the player can make a sound**; one shared `speak/pid` must not be
+     used at all, because an older player's reap erases a newer player's registration. **What this
+     paragraph still gets right is its reason for existing** — without a named writer an implementer
+     finds nothing in the design that writes the record — and **what it still gets right about the
+     number** is that the hook killing directly is faster than waiting for the worker's next claim,
+     now measured at a median **134 ms** sooner, 123–143 ms, n = 12 (`C2_hookside`). **What it gets wrong is *"dies
+     within"***: 0.086 s bounds this path only when a record exists to be found.
 2. **"A newer message kills stale playback" needs two more clauses to be true, not one.** A message
    newer than a synthesis *in progress* is not covered by the pid kill — no player exists yet to kill.
    (i) The worker re-checks `speak/job` after `create()` and before `Popen`, **discarding** the finished
@@ -747,11 +1378,27 @@ therefore kill the previous one itself.
    worker re-checked — and the stale player then plays to completion with nothing specified to stop it
    (§1b (d)). With (ii) the two kills partition the timeline at the `speak/pid` write and every
    publication instant is covered by one of them.
+   - **The last sentence is the falsified one, and it is falsified 12/12** (*SUPERSEDED* at the top; spec
+     §13 row 20). Everything before it holds *as a description of the hole*, and the hole this paragraph
+     identifies is real — but **the two clauses are not both required, and saying they are contradicts
+     this document's own per-hook restatement** (*§10.5 — the OPEN heading comes off*, clause 7, its
+     bullet for hook (ii)) **and spec §10.5 clause 7(ii)**. **(ii), the claim-time kill, is required and measured
+     load-bearing**: `C4_noclaimkill` runs to completion 12/12 at 2.50 s. **(i), the pre-spawn
+     re-check, is an OPTIMISATION given the election sweep**: `C5_norecheck` still kills before the
+     player can `exec`, 12/12, and where the worker dies after the spawn the sweep catches the orphan
+     anyway — `C15c`, 12/12, audible 0.386–0.471 s — while `C15b` (no re-check, **no** sweep) runs to
+     completion 12/12 at 2.50 s against `C15a`, which spawns no player at all. **Keep it; do not call
+     it required.** §1b (b)'s own review note says the same and this cell said the opposite; that is a
+     defect in the commit that wrote §1b (b)'s note, one commit old. **But "every publication instant is covered by one of them" is false** — a worker that dies
+     between `Popen` and the record's publication leaves a player nothing reaches, `C8`, which plays to
+     completion. So this rule needs **three** more clauses to be true, not two, and the third is the
+     election-time **process-group sweep**: `C12b` kills before `exec`, 12/12, never started.
 
 Cancelling an in-flight `create()` stays **OPEN** and stays in §10.6 rather than §10.5. **Its scope
 reduces to the newer utterance's latency rather than the older one's suppression only once clause (ii)
 above is in — without it, stale suppression is itself unsolved and the OPEN is a correctness OPEN, not
-a performance one** — §1b.
+a performance one** — §1b. **That reduction is conditional on the sweep as well, not on (ii) alone**, for
+the reason in the bullet above; cancelling an in-flight `create()` is itself still OPEN in the spec.
 
 ### §4 — the headline number survives, restated
 
@@ -779,6 +1426,12 @@ Row 2 closes. §15's first bullet — *"no TTFA has ever been measured from a ho
 and should be replaced by the load-sensitivity weakness, which is now the honest version of the same
 worry.
 
+**Row 2 did close, and it opened three.** The spec's row 2 now reads *"Rows 20, 21 and 22 are what it did
+not close"*, and **rows 20 and 21 are the two whose measurement falsified the clauses this document
+proposed** — spec §13 rows 20 and 21, and *SUPERSEDED* at the top. That is the honest shape of what this
+document delivered: a closed ship blocker on the TTFA question it was asked, and two ship-blocking rows on
+the two protocols it proposed alongside.
+
 §13 **row 12** (warm-up-on-wake vs a late first utterance) is untouched and stays open and
 non-blocking, as it was scoped. Nothing here measures a sleep/wake; #5's ~4.9 s post-wake figure
 still stands unchallenged. What this document does change about row 12 is that the *decision* is now
@@ -789,18 +1442,36 @@ cheap: the mechanism already has a warm-up trigger and a wake handler would reus
 ## What I could not measure, and why
 
 - **Sleep/wake.** Requires actually sleeping the machine, which was out of scope and disruptive to
-  four live sessions. #5's ~4.9 s stands unmeasured-here. §13 row 12 unchanged.
+  four live sessions. #5's ~4.9 s stands unmeasured-here. §13 row 12 unchanged. **A machine has since
+  slept — unplanned, on 2026-08-26 — and it settled a DIFFERENT question, so this bullet is still owed
+  rather than discharged**: no worker was resident across that sleep (`speak.sh` does not exist), so
+  what it measured is the platform's clock behaviour and it falsified §10.5 clause 6's idle-exit/sweep
+  separation, moving §13 row 24 into the ship-blocking set. Row 12's listening call — a *warm* worker
+  across a wake — is untouched by it, which is why row 12 is *"unchanged"* here rather than closed
+  (spec §13 rows 12 and 24, §10.5 clause 6, and §6 above).
 - **The settled #13 sanitizer combination**, because §13 row 1 has not shipped it. `base` was used;
   the sanitize phase is 0.2–9.2 ms and does not move the result.
 - **The shipped hook in bash.** The probe is `zsh -f`, for the clock. The hook's measured wall cost
   (0.063–0.219 s, median 0.086 s) is dominated by three `jq` invocations and a `shasum`, not by the interpreter, so I
-  expect bash to land in the same band — **but that is an expectation, not a measurement.**
+  expect bash to land in the same band — **but that is an expectation, not a measurement.** The
+  composition claim is also as-of: the specified hook has since added two `readdir`s and a `ps` fork
+  (as-of note under *What the hook itself costs*), so "three `jq`s and a `shasum`" describes what was
+  measured, not what will ship.
 - **The hook's causal contribution to the bench-to-hook gap**, because the control shares hardware but
   not load or cadence — see *The control* above. What is owed is **interleaved paired runs**: the same
   corpus item synthesized alternately through `bench/first-sentence.py` and through the hook, A/B/A/B in
   one session, so both arms see the same load and the same spacing. Until then the ~0.37 s gap is
   decomposed by reasoning, not isolated by experiment.
-- **Preemption, in every case except coalescing.** Nothing here drove a second job at a worker that had
+- **Preemption, in every case except coalescing. THIS EXPERIMENT HAS SINCE BEEN RUN, and it did not
+  confirm the clauses — it falsified TWO of them** (*SUPERSEDED* at the top): 312 preemption trials over
+  26 switchable configurations, spec §13 row 20. The design below is right about *what to record* — the
+  interleaving does turn on which kill fired — and the run's finding is a region this list did not think
+  to ask about: a worker dying between `Popen` and the record's publication, `C8`, 12/12 at full length.
+  **The two it falsified are (c)'s shared `speak/pid` and (d)'s two-kill partition** — the same two the
+  *SUPERSEDED* block lists, which is why that block's count is four across both protocols and two here.
+  What it did *not* falsify: (d)'s rule is confirmed, (b) is kept as an optimisation given the sweep,
+  and the hook-side kill (c) argued for is quantified even though (c)'s file and writer are gone.
+  Read the rest of this bullet as the experiment that was owed, not one still owing. Nothing here drove a second job at a worker that had
   already claimed the first: the driven session issued turns sequentially, and the eight-hook race
   dropped all eight before any worker was ready. So §1b's rows two and three are **reasoned, not
   measured**, and §1b's (b), (c) and (d) are proposals rather than results. **The experiment owed is
@@ -819,11 +1490,26 @@ cheap: the mechanism already has a warm-up trigger and a wake handler would reus
   first is *mid-`create()`* and timing the rename to land just after the worker's pre-spawn check. That
   probably needs an instrumented `speakd.py` with a settable delay between the pre-spawn `stat` and the
   `Popen`, so the window can be widened to something a shell script can reliably hit.
-- **The stale-lock recovery protocol in §2a.** Both clauses are **[inferred]**. Provoking the real
-  window means pausing a winning worker between its `mkdir` and its pid write, which again needs an
-  instrumented worker. Worth doing in the same run as the preemption experiment: **start N workers
-  against a lock held by a worker deliberately stalled before its pid write, and count how many end up
-  believing they own the session.** The current protocol should produce 2; the corrected one, 1.
+- **The stale-lock recovery protocol in §2a. THIS EXPERIMENT HAS ALSO BEEN RUN, and both clauses are
+  FALSIFIED** (*SUPERSEDED* at the top): 1200 lock trials over three protocols and six scenarios, spec
+  §13 row 21. **The design of the experiment below is exactly what was done** — a worker stalled before
+  its pid write, N racers, count the owners — and the prediction attached to it was wrong in both
+  directions: the probe's protocol produced **121/400** wrong outcomes and the two corrected clauses
+  **61/400**, and **the worst case was 3 owners, not the 2 this bullet's closing sentence predicts.**
+  **Read the rest of this bullet as the plan that was owed, not one still owing — and read its two
+  clauses as measured false, not as `[inferred]`, which is what they were when it was written.**
+  HISTORICALLY: *provoking the real window means pausing a winning worker between its `mkdir` and its
+  pid write, which again needs an instrumented worker. Worth doing in the same run as the preemption
+  experiment: start N workers against a lock held by a worker deliberately stalled before its pid write,
+  and count how many end up believing they own the session. The current protocol should produce 2; the
+  corrected one, 1.* **That is exactly the rig that ran — `lockrace.py`, N racers against a stalled
+  incumbent — and the closing prediction is disproved in both halves:** the worst case was **3** owners
+  for both protocols, and the corrected protocol did not produce one owner throughout but a wrong count
+  in **61 of 400** trials. **What is still owed here is not this experiment but two arms of its
+  successor**, and they belong to the replacement rather than to these clauses: the generation
+  **unlink** and its ordering against the election sweep, which `lockrace.py` never ran, and a
+  barrier-staged re-run of the reclamation scenarios, of which exactly 1 of 100 is trace-confirmed
+  (spec §13 row 21(a) and 21(b)).
 - **Whether any of this holds on hardware that is not an M3.** Nothing here is portable evidence.
 
 ### One thing that cannot be measured here, and does not need to be

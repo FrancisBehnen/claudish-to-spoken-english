@@ -15,8 +15,40 @@ this blocker asked, and it is answered.
 spec does not model: **`Stop` does not wait for the `MessageDisplay` hook.** It is dispatched
 concurrently with the final streamed chunk — a median of 6.7 ms after that hook starts, and
 **crucially, by a gap that does not change when the hook is made 65× slower**. `rewrite.sh` publishes
-its buffer only after an LLM call that takes seconds, so at the moment `speak.sh` runs, `speak/source`
-holds the **previous** message: measured stale in 29 of 30 turns, identified by content. The hashes
+its buffer only after an LLM call that takes seconds, so at the moment `speak.sh` runs, the buffer
+holds the **previous** message: measured stale in 29 of 30 turns, identified by content. (This was
+measured against the mutable `speak/source` the spec then had; §3.1 has since replaced it with a
+content-addressed `speak/rw.<H>`. **Two results have to be separated here, and an earlier revision of
+this note ran them together.** The **timing** survives the change untouched: it is a fact about when
+`Stop` runs relative to the publish, and the publish is still seconds after the final chunk. The
+**staleness** does not, and cannot: under content addressing a consumer for `H` finds `rw.<H>`
+**absent** until publication — it cannot read the previous **message** from that path at all — so the
+29-of-30 "the buffer held the previous message" figure
+is **historical**, and what the same timing now implies is a **miss**, not a stale read.
+**The distinction is not pedantry: it is why the current design is in a better position than the
+measured one.** With a mutable buffer §3.2's compare is what stops the wrong answer being spoken;
+with content addressing there is no *other message* at that path to speak, because the path is not
+there.
+**One exception, and the version of this sentence that named it in a subordinate clause — *"unless
+identical text was published earlier"* — was hiding the whole of it.** If the same source text was
+published earlier in the session the path **is** there, and what it holds is an earlier
+**generation**: `rewrite.sh:183-188` splices the transcript's last user message into the system prompt,
+so a rewrite is a function of **(assistant text, last user message)** and `H` names only the first
+half. The path is therefore empty of other *messages* and not of other *generations*, and under this
+same timing an already-present file is **overwhelmingly likely to be, and not certainly, the earlier
+turn's**. **This sentence read *"always"* until review round thirteen, and that word contradicted this
+document's own §4 two sections down** — *"it is a race, not a guarantee"*, and *"it is not an
+exceptionless law, and stating it as one invites a reader to disprove the blocker with a single
+counter-example"*. §4's own table is the number: with the publish delayed as §3.1 specifies, `Stop`
+read the **current** text in **1 of 30** turns, and with it immediate in **3 of 30**. The ordering is a
+**bias** toward the earlier generation — a strong one — not a rule selecting it, because this turn's
+own publish can land before the consumer looks, and when it does the resolved generation is the right
+one. **The one-line dismissal this
+document gave that case — section 3's *"the utterance is correct anyway"* — was FALSE, and it and the
+spec's copies of it are corrected**: the utterance is a rewrite of the right text conditioned on the
+wrong question, which is a quality defect with a correctness tail rather than nothing at all. Section 3
+carries it, and so do [`speech-integration-spec.md`](speech-integration-spec.md) §3.2 and §13 row 28.
+Every remaining analysis of `speak/source` in this document is historical.) The hashes
 then correctly disagree, §3.5's last row fires, and the feature is quiet — for a reason that has
 nothing to do with the match rate and everything to do with ordering.
 [Section 4](#4--the-finding-that-outranks-the-rate-stop-does-not-wait-for-messagedisplay) is that
@@ -48,6 +80,7 @@ else spent a call.
 | **[bin]** | `strings -n 6` over `~/.local/share/claude/versions/2.1.245` | what is compiled into the build actually running |
 | **[repo]** | `rewrite.sh` and `hooks/hooks.json` in this checkout | what the plugin does today |
 | **[docs]** | <https://code.claude.com/docs/en/hooks.md> | states intent; can lag or lead the installed build |
+| **[inferred]** | a step reasoned out from something the capture recorded, rather than read off the capture | the weakest tag here, and the same tag the spec uses. It is used where a thing **could not** be measured by this probe, and it names the measurement it stands in for. **This row was added in review round twelve**: the tag was already carrying weight at two sites with no entry in this table, which is how a third use came to be written as a flat assertion instead. |
 
 Every number below comes from the raw capture, which is [tallied in full](#the-raw-tally). **The
 message bodies are not in this repository and are not in this document** — the repo is public and the
@@ -226,15 +259,92 @@ wrong one and believe it was right. The content hash makes exactly that distinct
 stated requirement — *"prove the buffered rewrite belongs to this turn's **final message**"* — is the
 message-level claim, not the turn-level one.
 
-**So: keep the hash as the key, and use `prompt_id` as a cheap pre-filter.** Both are now known to be
+**So: keep the hash as the key, and treat `prompt_id` as DIAGNOSTIC ONLY.** Both are now known to be
 available and both are now known to agree; the hash is strictly stronger and costs a `sha256` of a
 string the hook already holds. `turn_id` cannot be a key at all — `Stop` does not carry it.
 
+> **SUPERSEDED in review round twelve, and the two fates are not one fate.** This sentence read
+> *"keep the hash as the key, and use `prompt_id` as a cheap pre-filter"*, and it stood as a live
+> instruction to #23 after the locked spec had **withdrawn the pre-filter outright** — in its own
+> review round four, three rounds before this document last changed:
+> *"the hash is the key and `prompt_id` is DIAGNOSTIC ONLY. The pre-filter is WITHDRAWN"*
+> ([`speech-integration-spec.md`](speech-integration-spec.md) §3.2), restated at §5 as *"not a key,
+> and, since review round four, not a pre-filter either"*, and filed there as §13 row 4 — *"`prompt_id`
+> was given two incompatible jobs"*. **`prompt_id` the value is DEMOTED to diagnostic-only; the
+> pre-filter the mechanism is DELETED**, and the difference is not cosmetic: a demoted value still has
+> a place, on the diagnostic path, whereas the mechanism has none anywhere on the correctness path.
+> **The reason is not that it is cheap enough to keep.** The consumer's whole test is
+> `[[ -f speak/rw.<H> ]]` on a path it computes from `H`, so the hash is unconditional and a pre-filter
+> that passes has saved nothing; there is nothing to compare against either, because the buffered
+> generation carries no `prompt_id` — `speak/prompt_id` is one mutable file per session holding
+> whichever message published last, which is the same objection that disqualified it as the key one
+> paragraph up, arriving one layer down. **So its only reachable effect is a FALSE NEGATIVE**: a valid
+> content-addressed hit suppressed by a mutable side file, or pushed into §3.5.1's wait and then into
+> silence. **This document's recommendation is withdrawn at all three sites that carried it** — here,
+> item 2 of *What §3.2 and §13 will need to say*, and item 4 of the DECISION — and this is the site
+> that carries the argument; the other two point here. **Nothing else in this document changes**: the
+> reversal itself was adopted, `prompt_id` really is the weaker key, and the reason given above is the
+> reason the spec accepted.
+
 **One collision worth naming.** Two of the 44 captured messages were byte-identical to an earlier one
 (the same prompt re-driven, answered the same way), and both were long enough to publish. A stale
-buffer therefore *can* produce a false hit — but only when the earlier message had identical text, in
-which case the buffered rewrite is a rewrite of that same text and the utterance is correct anyway.
-Benign, and worth a line in §3.2 rather than a mechanism.
+buffer therefore *can* produce a false hit — but only when the earlier message had identical text.
+
+> **CORRECTED in review round ten, and the sentence that stood here was wrong.** It read *"…in which
+> case the buffered rewrite is a rewrite of that same text and the utterance is correct anyway. Benign,
+> and worth a line in §3.2 rather than a mechanism."* **Same text does not give the same rewrite.**
+> `rewrite.sh:183-188` reads the transcript's last `type=="user"` string message, truncates it to 800
+> codepoints in `jq`, and splices it into the system prompt **[repo]**, so a generation is a function of
+> **(assistant text, last user message)** and the hash covers only the first of the two. Two
+> generations under two different questions are two different rewrites at one name. **What the residual
+> is:** a rewrite of the right text conditioned on an earlier turn's question — a **quality** defect,
+> with a **correctness tail** where the assistant text is anaphoric and the wrong antecedent gets
+> resolved into it. It is **not** the previous turn's answer, which is the failure §3.2 exists to
+> prevent, and that is why the spec keeps the key unchanged and re-argues the acceptance (§3.2, §13
+> row 28) rather than treating it as benign.
+
+> **AND THE LAST STEP OF THAT ROUND'S OWN REPAIR OVERSTATED WHAT WAS MEASURED — corrected in review
+> round twelve, and the direction is the reverse of this document's usual failure.** The sentence that
+> stood here asserted flatly *"**Both of these two captures had the SAME last user message** — the same
+> prompt re-driven — so both fall in the case the old sentence accidentally described correctly"*, and
+> the locked spec classifies that identical step as **`[inferred]`**: *"That last step is `[inferred]`
+> from the capture's own description rather than measured — `userq` was never recorded, because the
+> probe was instrumenting the handoff and not the prompt"*
+> ([`speech-integration-spec.md`](speech-integration-spec.md) §3.2). **The record was stronger than the
+> specification**, which is the opposite of the class this document keeps being corrected for; and it
+> never disclosed the missing capture at all — the word `userq` did not appear in it.
+>
+> **What is measured, and it is only this:** the text recurred. **2 of 44**, the pairs at raw-tally rows
+> **2↔33** and **3↔34** — 1919 bytes and 668 bytes, byte-identical on the `MessageDisplay` and `Stop`
+> sides alike — and both above `MIN_CHARS`. **What was never captured is the prompt.** The probe
+> recorded ten fields on `MessageDisplay` (section 3) and eleven on `Stop` (§2), none of them the
+> transcript's last `type=="user"` string message, and the bodies went with the teardown; no column of
+> the raw tally bears on it.
+>
+> **The gap the tag covers is real rather than pedantic, and this capture demonstrates it.** What
+> `rewrite.sh:183-188` reads is not *"the prompt that was driven"* but the transcript's last
+> `type=="user"` **string** message — and [section 6](#6--stop-fires-again-when-a-background-task-wakes-the-session--13-row-7-closes)
+> observed this very session containing user messages nobody drove: on a background-task wake *"the
+> harness injects a `<task-notification>` **as a user message**, visible in the transcript"*, and
+> **two of these 35 turns are wake fires that no column identifies**. So *"the same prompt was sent"* is
+> a fact about the driving script, and *"`userq` was the same string"* is an inference from it — a sound
+> one, and not a reading of anything.
+>
+> **It is marked `[inferred]` and NOT withdrawn**, which is a judgement and is recorded as one. The
+> claim is not unsupported: the pairs are rows **2↔33** and **3↔34**, rows 33–35 are the slow-probe runs
+> of the original section-4 measurement, and 33 and 34 reproduce rows 2 and 3 in **every committed
+> column but `#` and `prompt_id`** — flushes, both byte counts, fences, paragraphs and both hashes.
+> So *"the same prompt re-driven"* is a property
+> of how the run was driven, recorded in the capture's description, and not a guess about it. Withdrawing it would also assert **more** than is known in the
+> other direction — it would reopen whether these two collisions are themselves the hazardous variant —
+> and it would contradict LOCKED §3.2 text that states the same conclusion under the same tag.
+>
+> **The conclusion below inherits the tag**: the hazardous variant — identical text under a
+> **DIFFERENT** last user message — **was not observed here `[inferred]`**, in the weak sense that
+> nothing in this probe could have observed it, and **its rate is unmeasured** either way. **What does
+> not rest on it:** §13 row 28's verdict, which is non-blocking *"and the reason is the residual's shape
+> rather than its rarity … since the rate is exactly what is unmeasured"*, and whose closing condition
+> is a measurement of that rate first. **The key does not move, and the acceptance does not change.**
 
 ---
 
@@ -325,15 +435,30 @@ unchanged, and the corrected statement is the stronger one.
 
 ### Why this breaks §3.1's handoff as written
 
-§3.1 has `rewrite.sh` publish `speak/rewrite` and `speak/source` at its publication point, which is
-after `$rewrite` has been obtained — that is, **after the LLM call**. `CLAUDISH_TIMEOUT` defaults to
+**As written when this was measured** — §3.1 then had `rewrite.sh` publish `speak/rewrite` and
+`speak/source` at its publication point, which is after `$rewrite` has been obtained, that is
+**after the LLM call**. §3.1 has since replaced both with a content-addressed `speak/rw.<H>`, and
+the qualification below applies to this whole subsection, not only to the step numbers: the
+mechanism named here is the one that was measured, not the locked design. **What the measurement
+establishes survives the change untouched, because it is a fact about WHEN the publish happens
+relative to `Stop`, not about which path it writes** — and the publish is still after the LLM call
+under content addressing. `CLAUDISH_TIMEOUT` defaults to
 45 s (`rewrite.sh:65`) **[repo]**, `hooks/hooks.json:9` declares a 60 s timeout for the display hook
 **[repo]**, and the one end-to-end rewrite anybody has timed took
 [**52.50 s**](provider-switch-traps.md) for ~1,300 words. Whatever the provider, the publish is
 **seconds** after the final flush, and `Stop` is **milliseconds** after it.
 
-§10.3 has `speak.sh` read the buffer at step 8 and exit at step 9 without waiting. So on a turn whose
-final message is long enough to be rewritten:
+§10.3 had `speak.sh` read the buffer at **step 8** and exit at **step 9** without waiting. **Both the
+step numbers and the mechanism below are quoted as they stood when this was measured, and neither is
+the locked protocol any more** — §10.3 renumbered when preemption moved above the content-based exits
+(the hook no longer reads a buffer at all — step 10 classifies and tests for `rw.<H>`, step 12
+enqueues, and the resident worker does the eventual read), and §3.1 replaced the mutable
+`speak/source` this scenario
+walks with a content-addressed `speak/rw.<H>`. Renumbering the sentence alone would make superseded
+evidence read as a description of the current design. **What the measurement establishes is the
+timing** — that `Stop` reads milliseconds after the display hook is entered and the publish lands
+seconds later — and that survives both changes untouched, because it is a fact about dispatch order,
+not about which path is read. So on a turn whose final message is long enough to be rewritten:
 
 1. final chunk arrives; `rewrite.sh` starts its LLM call;
 2. ~7 ms later `Stop` fires, and ~24 ms after the display hook was entered `speak.sh` reads
@@ -352,8 +477,19 @@ the rate of a comparison that, in production, would mostly not get the chance to
 
 **Not "every turn", and the difference matters.** Three of 32 turns had a dispatch-gap tail long
 enough for an immediate publish to win, and one of those was late enough that `Stop` started after the
-display hook had wholly returned. §2's benign collision adds another exception: when the source text
-repeats verbatim, a stale buffer hashes equal and speaks correctly anyway. So the honest claim is
+display hook had wholly returned. **The two denominators on this page are different measurements and
+not a disagreement**: the dispatch gap is recorded on all **32** turns of [`runs.tsv`](handoff-timing-probe/runs.tsv),
+so the tail is **3 of 32**, while the buffer verdict is `NA` on two of them (`L3_hold4` and `S1_hold4`),
+so the stale/current split is **of 30** — and the three tail turns are exactly the three the immediate
+publish won (`MR0`, `S2_hold4`, `V0`, gaps +261.1 / +298.2 / +322.0 ms).
+
+Section 3's repeated-text collision adds another exception: when the
+source text repeats verbatim within the session `rw.<H>` is already there and the consumer resolves
+immediately — **overwhelmingly, though not certainly, on the generation the earlier turn published**,
+since this turn's own publish wins the same race the table above measures at 1 of 30 — which is a
+rewrite of the right text
+conditioned on the earlier turn's question rather than a correct utterance outright (section 3's
+blockquote; spec §3.2, §13 row 28). So the honest claim is
 **"silent on the large majority of qualifying turns, unpredictably"** — which for a speech feature is
 no better than always, and is worse to diagnose. It is not an exceptionless law, and stating it as one
 invites a reader to disprove the blocker with a single counter-example.
@@ -371,7 +507,7 @@ honest way to retire it is to build `speak.sh` and watch.
 
 | repair | verdict after re-measurement |
 | --- | --- |
-| a bounded wait in `speak.sh` for a matching `speak/source` | **the only one the measurement supports.** It is the only option that does not depend on winning a race. Cost is real — it puts a wait on the hook §6 spends its length keeping non-blocking — and the wait must cover the *LLM* call (§4 measured [52.50 s](provider-switch-traps.md) once), so it needs a deadline and a give-up-and-stay-quiet branch, not an unbounded block. |
+| a bounded wait for the matching text to appear — **AS-OF, and the selected design moves BOTH halves of this cell.** The proposal on the table when this was written was a wait inside `speak.sh` — the `Stop` hook itself — for a mutable `speak/source`. The design that was selected puts the wait in §10.5's resident worker rather than in the hook body, and what it waits for is the content-addressed `speak/rw.<H>`; `speak/source` no longer exists. **The verdict is unchanged**, because it turns on not needing to win a race — not on where the wait runs, and not on which path it waits for. | **the only one the measurement supports.** It is the only option that does not depend on winning a race. **The cost is real, and the proposal and the selected design price it DIFFERENTLY — reading them as one hands an implementer the wrong placement and the wrong cost together.** *As proposed here*, the wait sat in the hook, so its cost was **blocking**: it would have spent the non-blocking guarantee §6 spends its length defending. *As selected*, it does not — [`speech-integration-spec.md`](speech-integration-spec.md) §3.5.1 puts the wait in the resident worker **precisely so the hook drops its job and exits 0 without waiting**. **The number that used to sit here overclaimed, and it is restated rather than repeated:** the hook was *measured* at **0.063–0.219 s, median 0.086 s** **[hook]**, but that figure predates the two `readdir`s and the `ps` fork the spec has since put into the hook body — §10.3's *“which steps carry which guarantee”* paragraph says so in the spec's own words — so that range is a **historical baseline** — what that hook body cost — and **the cost of the hook as now specified is unmeasured**. **It is not a lower bound on it either, which is what this cell claimed for one round**: *adding operations increases work* holds only **under otherwise identical conditions**, and two wall-time samples taken on two hook bodies under different scheduling and load are not that comparison, so an old observed range bounds a future one in neither direction. Only the **direction** survives — the specified hook does more work, all else equal, so expect it to cost more, **[inferred]** — and nothing has re-run the hook to say by how much (spec §10.3, §13 row 9). **The verdict in this cell does not move with it**, and that is the point of separating them: this repair wins because it does not need to win a race, which is true at any hook cost — the cost decides how much latency the user hears, not whether the mechanism is sound. What remains is latency and complexity rather than a held prompt: the utterance lands a rewrite-latency after the turn ends, and the wait still needs a deadline and a give-up-and-stay-quiet branch rather than an unbounded block. **The deadline is not this cell's number either.** The locked ceiling is `min( CLAUDISH_TIMEOUT + 2, MD_TIMEOUT ) + 3` — **50 s at the defaults** — and that spec reads the 52.50 s rewrite cited here ([`provider-switch-traps.md`](provider-switch-traps.md), measured standalone at `LLM_TIMEOUT=120` rather than through the hook) as **an example of the timeout branch the wait is supposed to give up on**, not as a publish the wait must sit through. |
 | `rewrite.sh` publishes the **original** hash immediately at the final chunk, the rewrite later | **now known to be a race, not a fix — but a winnable one.** As instrumented it lost 27 of 30, because publishing cost ~52 ms against `Stop`'s ~24 ms read. The budget is now known: **get the bytes on disk within ~20 ms of hook entry.** That means writing the delta concatenation *before* any metadata parsing — the probe's three `jq` forks came first, which is why it lost. Viable only if measured at the real publish path, and it can never be better than a race, so it needs the wait above as a backstop. |
 | move speech off `Stop` onto whatever fires after the display hook completes | **unevaluated, and the measurement neither helps nor hurts it.** No such event was identified in this probe. `MessageDisplay` firing per chunk means "after the display hook completes" is a per-chunk notion, so this needs an event that exists before it can be scored. |
 
@@ -447,6 +583,14 @@ Named so nothing above reads as broader than it is.
   describe.
 - **`speak.sh` going silent.** Section 4's consequence is inferred from two measured facts, not
   watched. The hook does not exist yet.
+- **The last user message on any turn — `userq` was never captured.** The probe instrumented the
+  handoff, not the prompt, and no field it recorded is the transcript's last `type=="user"` string
+  message. Two consequences, both disclosed rather than left implicit: section 3's step from *"the same
+  prompt re-driven"* to *"the same last user message"* is **[inferred]**, and **the hazardous variant of
+  §3.2's identical-text collision — the same assistant text under a *different* last user message — is
+  unobserved here only in the sense that nothing in this probe could have observed it.** Its rate is
+  what spec §13 row 28's closing condition asks for.
+  [Section 3.](#3--messagedisplay-carries-prompt_id--13-row-4-closes)
 - **Any model but `sonnet`, any effort but high, any build but 2.1.245.** Block structure is a
   harness-and-model property and this is one of each.
 - **A blocked turn, an interrupt, or `StopFailure`.** Untouched here; the first is settled elsewhere.
@@ -463,8 +607,11 @@ it.** For the integration pass:
    is unknown and this spec does not claim it is high."*
 2. **Reverse §3.2's `prompt_id` preference.** The sentence *"if the probe shows `MessageDisplay`
    carries `prompt_id`, prefer it"* should become: it does carry one, it is the same one, and it is
-   **still the weaker key** because it identifies a turn and `rewrite.sh` publishes per message. Use
-   it as a pre-filter, not as the key. [Section 3.](#3--messagedisplay-carries-prompt_id--13-row-4-closes)
+   **still the weaker key** because it identifies a turn and `rewrite.sh` publishes per message.
+   [Section 3.](#3--messagedisplay-carries-prompt_id--13-row-4-closes) **The reversal was adopted; the
+   *"use it as a pre-filter, not as the key"* half of this item is SUPERSEDED** — §3.2 withdrew the
+   pre-filter outright in its review round four and made `prompt_id` diagnostic only. Section 3's
+   blockquote carries the argument and the two fates it distinguishes.
 3. **§13 row 4 can be struck.** Answered: yes, `prompt_id` is present on every `MessageDisplay`
    payload. Add the ten-field catalogue beside §2's eleven.
 4. **§13 row 7 can be struck.** Answered: yes, and as a new turn with a new `prompt_id`.
@@ -612,6 +759,25 @@ T0="$(date +%s%N)"; D=<scratch>/cap
 mkdir -p "$D/stop"; cat > "$D/stop/$T0.json"; exit 0
 ```
 
+> **The comment in that second probe is quoted verbatim and it is wrong on one detail.** *"`jq` exits 2
+> on a malformed filter"* is false on this machine: a malformed filter exits **3**. The exit-2 routes are
+> `jq` handed a **bad option or an unreadable file**, and a **bash syntax error** in the hook — measured
+> table in [`speech-integration-spec.md`](speech-integration-spec.md) §5. **The probe was safe on both
+> routes, but only one of them is the write ordering's doing.** Writing the payload before running any
+> `jq` does preserve the capture — but it does not stop a later `jq` status 2 from escaping, and what
+> actually made the probe safe on that route is that it reaches its explicit `exit 0`. **Nor does the
+> write ordering cover a bash syntax error**, and an earlier version of
+> this note claimed it did: a syntax error in the same compound command or enclosing construct is a
+> **parse**-time failure, so the parser executes none of it and there is nothing written before the
+> hook exits 2. What actually covers that route here is that **these probes are syntax-valid** —
+> `bash -n` returns 0 on the quoted body above and on the committed
+> [`stop.sh`](handoff-timing-probe/stop.sh) and [`md.sh`](handoff-timing-probe/md.sh)
+> **[measured-here]** — which is the check
+> [`turn-finality-and-the-stop-hook.md`](turn-finality-and-the-stop-hook.md) requires before a hook
+> ships, *"because no runtime guard can run in a file the parser refuses to get past."* Nothing measured
+> here is affected either way. The comment is left as written rather than retouched, because it is a
+> record of what the probe said; this note is the correction.
+
 ```json
 { "model": "sonnet",
   "env": { "CLAUDISH_ENABLED": "0" },
@@ -718,8 +884,10 @@ no user data was read by the driven session**, which is why the tally can be pub
 3. **§13 row 4 is closed: `MessageDisplay` carries `prompt_id`**, on all 94 payloads, matching
    `Stop`'s 35/35. The payload's ten fields are catalogued in section 3.
 4. **`prompt_id` does not become the key.** It identifies a turn; `rewrite.sh` publishes per message;
-   four driven turns had several. The hash is strictly stronger. Use `prompt_id` as a pre-filter.
-   **This reverses §3.2's stated preference, on evidence §3.2 asked for.**
+   four driven turns had several. The hash is strictly stronger, and `prompt_id` is **diagnostic
+   only** — the *"use `prompt_id` as a pre-filter"* recommendation this decision carried is
+   **SUPERSEDED**, withdrawn outright by §3.2 in its review round four (section 3 carries the
+   argument). **This reverses §3.2's stated preference, on evidence §3.2 asked for.**
 5. **§13 row 7 is closed: a background-task wake produces a second `Stop`**, as a new turn with a new
    `prompt_id`, and the key handles it with no special case.
 6. **A new ship blocker is owed, and section 4 is it.** `Stop` does not wait for the `MessageDisplay`
@@ -727,6 +895,9 @@ no user data was read by the driven session**, which is why the tally can be pub
    dispatch gap does not change when the display hook is made 65× slower. So §3.1's buffer is
    published after §3.2 would have read it, measured stale in 29 of 30 turns. §3.5's last row then
    silences **the large majority of qualifying turns** — not all of them: a ~10% dispatch-gap tail and
-   §2's repeated-text collision both let a turn through, which is why the blocker is stated as a rate
-   and not as a law. **The strings agree. The timing does not.** Filing it is #11's; section 4 now
+   section 3's repeated-text collision both let a turn through, which is why the blocker is stated as a
+   rate and not as a law — and the collision usually lets it through on an **earlier generation** rather
+   than on a guaranteed-correct utterance (spec §13 row 28); *usually* rather than *always*, because the
+   same race decides which generation is on disk when the consumer looks. **The strings agree. The
+   timing does not.** Filing it is #11's; section 4 now
    also says which of the repairs the measurement actually supports.
