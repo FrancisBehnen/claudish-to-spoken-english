@@ -332,7 +332,7 @@ after `$rewrite` has been obtained — that is, **after the LLM call**. `CLAUDIS
 [**52.50 s**](provider-switch-traps.md) for ~1,300 words. Whatever the provider, the publish is
 **seconds** after the final flush, and `Stop` is **milliseconds** after it.
 
-§10.3 has `speak.sh` read the buffer at step 8 and exit at step 9 without waiting. So on a turn whose
+§10.3 has `speak.sh` read the buffer at step 10 and exit at step 12 without waiting. So on a turn whose
 final message is long enough to be rewritten:
 
 1. final chunk arrives; `rewrite.sh` starts its LLM call;
@@ -615,10 +615,19 @@ mkdir -p "$D/stop"; cat > "$D/stop/$T0.json"; exit 0
 > **The comment in that second probe is quoted verbatim and it is wrong on one detail.** *"`jq` exits 2
 > on a malformed filter"* is false on this machine: a malformed filter exits **3**. The exit-2 routes are
 > `jq` handed a **bad option or an unreadable file**, and a **bash syntax error** in the hook — measured
-> table in [`speech-integration-spec.md`](speech-integration-spec.md) §5. **The probe's behaviour was
-> right anyway** (writing the payload before running any `jq` avoids both real routes as well as the
-> imagined one), so nothing measured here is affected. The comment is left as written rather than
-> retouched, because it is a record of what the probe said; this note is the correction.
+> table in [`speech-integration-spec.md`](speech-integration-spec.md) §5. **The probe was safe on both
+> routes, but only one of them is the write ordering's doing.** Writing the payload before running any
+> `jq` does cover the `jq` route. **It does not cover a bash syntax error**, and an earlier version of
+> this note claimed it did: a syntax error in the same compound command or enclosing construct is a
+> **parse**-time failure, so the parser executes none of it and there is nothing written before the
+> hook exits 2. What actually covers that route here is that **these probes are syntax-valid** —
+> `bash -n` returns 0 on the quoted body above and on the committed
+> [`stop.sh`](handoff-timing-probe/stop.sh) and [`md.sh`](handoff-timing-probe/md.sh)
+> **[measured-here]** — which is the check
+> [`turn-finality-and-the-stop-hook.md`](turn-finality-and-the-stop-hook.md) requires before a hook
+> ships, *"because no runtime guard can run in a file the parser refuses to get past."* Nothing measured
+> here is affected either way. The comment is left as written rather than retouched, because it is a
+> record of what the probe said; this note is the correction.
 
 ```json
 { "model": "sonnet",
