@@ -34,6 +34,10 @@ RIG=${RIG:-$HERE}
 OUT=${OUT:-$RIG/out}
 PY=${PYTHON:-python3}
 CFG=${1:?config}; N=${2:-12}
+# SOURCED BEFORE ANY WORKER EXISTS -- see the same line in run_real.sh for why the order
+# is load-bearing rather than tidy: a cleanup.sh that cannot be read must fail while
+# there is still nothing to leak. Nothing here reads $SID or $TRACE at source time.
+. "$RIG/cleanup.sh" || { echo "FATAL: cannot source $RIG/cleanup.sh" >&2; exit 2; }
 
 SYNTH_MS=1000
 PLAYER_SECS=2.5
@@ -198,9 +202,28 @@ start_worker() {
 # spelled out per-site is the same defect waiting. It reads $WPID AT TRAP TIME, which is
 # what makes it correct in a driver that restarts the worker per trial: whichever worker
 # `start_worker` last launched is the one terminated and reaped.
+#
+# ROUND 30 -- AND THE TRAP AS ROUND 27 WROTE IT MADE THIS DOCUMENT'S OWN CENTRAL MISTAKE.
+# It did `kill -TERM "$WPID"` and nothing else. `speakd_probe.py` calls `os.setsid()`, so
+# the worker LEADS a process group and its players are in that group, not in this driver's:
+# a signal to the worker's pid does not reach one of them. So a hook-B failure terminated
+# the worker and left a 2.5 s stub sleeping, and `C17_setsid_player`'s player -- which
+# `setsid()`s ITSELF, and is the arm that exists to show clause 7(iv) failing -- was
+# outside even the worker's group and outside anything this trap could name. THE CLEANUP
+# PATH MADE EXACTLY THE MISTAKE THE PROTOCOL UNDER TEST WAS WRITTEN TO PREVENT: §4b clause
+# 7(iv) is the process-group sweep, and it exists because killing a worker's pid does not
+# reach that worker's player. The rule, the guards and the residual are in cleanup.sh, one
+# copy for both drivers -- sourced at the top of this file, not here, so that a
+# cleanup.sh that cannot be read fails BEFORE there is a worker to leak.
 kill_worker() {
   [[ -n ${WPID:-} ]] || return 0
-  kill -TERM "$WPID" 2>/dev/null
+  kill_worker_group "$WPID"
+  # AND THEN THE PLAYERS NO GROUP KILL CAN REACH, of which this driver stages two kinds:
+  # `PLAYERSETSID=on` (C17) puts the player in its own session, and `DIE=popen` leaves the
+  # group without a live leader, so `kill_worker_group` refuses to name it. Both are read
+  # out of the trace's `P_popen` pids and identity-checked against $SID. cleanup.sh says
+  # why the trace and not the player records, and what is still out of reach.
+  reap_stray_players "$TRACE" "$SID" "$WPID"
   wait "$WPID" 2>/dev/null
   return 0
 }
@@ -238,6 +261,14 @@ for i in $(seq 1 "$N"); do
     # the worker exits inside the P->W window, so it must be (re)started per trial.
     # The old owner record is left in place deliberately: superseding it via the
     # generation election is the realistic path, and the pgid sweep needs to read it.
+    #
+    # THIS ONE IS A PID KILL ON PURPOSE and must not be "fixed" into the group kill the
+    # EXIT trap uses. It is not cleanup: it is the STAGING. The previous generation's
+    # orphaned player is the subject of the trial -- the replacement election's record and
+    # process-group sweeps are what has to reach it -- so a group kill here would destroy
+    # the orphan before the mechanism under test could be observed failing or succeeding
+    # against it. The distinction is the whole of round 30's finding read the other way:
+    # ask what the thing's children are in, then decide whether you want them.
     kill -TERM "$WPID" 2>/dev/null; wait "$WPID" 2>/dev/null
     start_worker "$DIE" "$i"
     wait_ready || { echo "FATAL: worker gen$i never ready" >&2; exit 1; }

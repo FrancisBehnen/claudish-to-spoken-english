@@ -26,6 +26,15 @@ RIG=${RIG:-$HERE}
 OUT=${OUT:-$RIG/out}
 PY=${PYTHON:-$HOME/.local/share/kokoro/venv/bin/python}
 CK=${1:?claim-kill}; N=${2:-3}
+# SOURCED BEFORE THE WORKER EXISTS, and the order is the point. The round-30 draft
+# sourced this at the trap, thirty lines AFTER `speakd_probe.py &` -- so a missing or
+# unreadable cleanup.sh took the `exit 2` branch while the worker it could no longer
+# terminate ran on under `--idle-exit-s 600`. That is harness defect 5 exactly, re-armed
+# by the code written to repair it. Nothing here reads $SID or $TRACE at source time;
+# they are read when the trap CALLS these functions, so sourcing early costs nothing and
+# makes "the cleanup exists before the thing needing cleanup" a property of the file
+# order rather than of a reviewer noticing.
+. "$RIG/cleanup.sh" || { echo "FATAL: cannot source $RIG/cleanup.sh" >&2; exit 2; }
 HOOK_GAP_S=0.09
 export HOOK_GAP_S
 
@@ -57,9 +66,27 @@ WPID=$!
 # the fatal path somebody adds later without remembering this paragraph.
 # $WPID is read AT TRAP TIME, so this covers the current worker in a driver that
 # restarts one (run_preempt.sh does; this one does not, yet).
+#
+# ROUND 30 -- AND THE TRAP AS ROUND 27 WROTE IT MADE THIS DOCUMENT'S OWN CENTRAL MISTAKE.
+# It did `kill -TERM "$WPID"`, which terminates the worker and NOTHING ELSE. The worker
+# calls `os.setsid()`, so it leads its own process group and its `afplay` is in THAT group:
+# a signal to the worker's pid reaches the player not at all. In this arm the player is
+# `afplay` decoding a real 5.7 s wav, so a fatal readiness or hook path terminated the
+# worker and left that process running for the rest of the file, holding the output device
+# it had opened -- into the
+# retry the operator starts next, which is the contamination harness defect 5 exists to
+# disclose, arriving through defect 5's own fix. §4b clause 7(iv) exists precisely because
+# killing a worker's pid does not reach its player. See cleanup.sh, which holds the rule
+# and the guards, in one place for both drivers -- sourced at the top of this file, not
+# here, so that a cleanup.sh that cannot be read fails BEFORE there is a worker to leak.
 kill_worker() {
   [[ -n ${WPID:-} ]] || return 0
-  kill -TERM "$WPID" 2>/dev/null
+  kill_worker_group "$WPID"
+  # `--player-setsid` is off in this arm and `--die-after` is unset, so the worker leads
+  # its group and every `afplay` is inside it: the group kill above is sufficient HERE.
+  # The sweep runs anyway, because "sufficient here" is a property of today's flag set and
+  # the leak it would allow is silent. It signals nothing on a clean run.
+  reap_stray_players "$TRACE" "$SID" "$WPID"
   wait "$WPID" 2>/dev/null
   return 0
 }
