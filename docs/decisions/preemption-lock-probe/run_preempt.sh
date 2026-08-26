@@ -21,10 +21,18 @@
 # PUBDELAY.
 #
 # usage: run_preempt.sh <config> <trials>
+#
+# CORRECTED in round 5's review, for the same reason as run_lock.sh: speakd_probe.py
+# and hook_probe.sh were resolved out of a private bench directory and the interpreter
+# was one user's absolute path. That made the driver unrunnable from a checkout, and on
+# the author's machine it could execute STALE external copies of the probes instead of
+# the files committed beside it -- so "every figure re-derives from the committed rig"
+# was not something the rig itself enforced. Overridable: RIG, PYTHON, OUT.
 set -u
-RIG="$HOME/.local/share/kokoro/bench/preempt-lock-2026-08-25"
-OUT="$RIG/out"
-PY=/Users/francis.behnen/homebrew/bin/python3
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+RIG=${RIG:-$HERE}
+OUT=${OUT:-$RIG/out}
+PY=${PYTHON:-python3}
 CFG=${1:?config}; N=${2:-12}
 
 SYNTH_MS=1000

@@ -1,9 +1,14 @@
 #!/bin/bash
 # Assemble the two committed evidence files from a completed pass.
 # usage: assemble.sh <out_dir> <dest_dir>
+#
+# collect.sh -- the parser that produces the committed preemption-trials.tsv -- now
+# resolves beside this script rather than out of a private bench directory, so a
+# re-assembly cannot silently run a stale copy of it. Overridable with RIG=.
 set -u
 O=${1:?out dir}; DEST=${2:?dest dir}
-R="$HOME/.local/share/kokoro/bench/preempt-lock-2026-08-25"
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+R=${RIG:-$HERE}
 mkdir -p "$DEST"
 
 first=1

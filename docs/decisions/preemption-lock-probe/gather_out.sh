@@ -11,10 +11,14 @@
 # AFFECTED holds the configurations re-run after the SIGHUP/nohup defect was found;
 # they live in out/. Everything else is read from out-round2-sighup/, where its pgid
 # sweep was irrelevant to the result.
+#
+# RIG here names the author's RUN TREE, not the rig's scripts: this walks the two
+# output directories a completed run left behind, and those are not in the repository.
+# Overridable so it can be pointed at another run.
 set -u
-RIG="$HOME/.local/share/kokoro/bench/preempt-lock-2026-08-25"
-OLD="$RIG/out-round2-sighup"
-NEW="$RIG/out"
+RIG=${RIG:-$HOME/.local/share/kokoro/bench/preempt-lock-2026-08-25}
+OLD=${OLD:-$RIG/out-round2-sighup}
+NEW=${NEW:-$RIG/out}
 AFFECTED=" C12a_pgid_pubfirst C12b_pgid_sweepfirst C13b_perplayer_sametiming
 C16a_pending_sweepfirst C16b_pending_pubfirst C15c_norecheck_death_pgid
 C17_setsid_player "

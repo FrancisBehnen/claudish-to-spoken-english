@@ -5,10 +5,16 @@
 # utterance is audible, and for how long.
 #
 # usage: run_real.sh <claim_kill: pidfile|off> <trials>
+#
+# Paths resolve from this script, not from a private bench dir -- see run_preempt.sh.
+# PYTHON is overridable but NOT defaulted to a bare python3 as in the stub drivers:
+# this arm imports kokoro and loads a ~340 MB model, so the default stays the venv that
+# has it. Point PYTHON at any interpreter that can `import kokoro`.
 set -u
-RIG="$HOME/.local/share/kokoro/bench/preempt-lock-2026-08-25"
-OUT="$RIG/out"
-PY="$HOME/.local/share/kokoro/venv/bin/python"
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+RIG=${RIG:-$HERE}
+OUT=${OUT:-$RIG/out}
+PY=${PYTHON:-$HOME/.local/share/kokoro/venv/bin/python}
 CK=${1:?claim-kill}; N=${2:-3}
 HOOK_GAP_S=0.09
 export HOOK_GAP_S

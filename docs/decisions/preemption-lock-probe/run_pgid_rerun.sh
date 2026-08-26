@@ -10,19 +10,25 @@
 #
 # Unaffected and NOT re-run: C11a/C11b/C12c/C13a (record sweep, SIGUSR2),
 # C14a/C14b (no sweep), C15a/C15b (sweep off), C1-C10 (no sweep).
+#
+# Paths resolve from this script, not from a private bench dir -- see run_preempt.sh.
 set -u
-RIG="$HOME/.local/share/kokoro/bench/preempt-lock-2026-08-25"
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+RIG=${RIG:-$HERE}
+OUT=${OUT:-$RIG/out}
+export RIG OUT
+mkdir -p "$OUT"
 for cfg in C12a_pgid_pubfirst C12b_pgid_sweepfirst C13b_perplayer_sametiming \
            C16a_pending_sweepfirst C16b_pending_pubfirst \
            C15c_norecheck_death_pgid C17_setsid_player; do
   echo "=== $cfg ==="
-  d=$(bash "$RIG/run_preempt.sh" "$cfg" 12 2>>"$RIG/out/run.err" | tail -1)
+  d=$(bash "$RIG/run_preempt.sh" "$cfg" 12 2>>"$OUT/run.err" | tail -1)
   # replace any stale entry for this config, then record the new one
-  if [[ -f "$RIG/out/RUNS.txt" ]]; then
-    grep -v "^$cfg	" "$RIG/out/RUNS.txt" > "$RIG/out/RUNS.tmp" || true
-    mv "$RIG/out/RUNS.tmp" "$RIG/out/RUNS.txt"
+  if [[ -f "$OUT/RUNS.txt" ]]; then
+    grep -v "^$cfg	" "$OUT/RUNS.txt" > "$OUT/RUNS.tmp" || true
+    mv "$OUT/RUNS.tmp" "$OUT/RUNS.txt"
   fi
-  printf '%s\t%s\n' "$cfg" "$d" >> "$RIG/out/RUNS.txt"
+  printf '%s\t%s\n' "$cfg" "$d" >> "$OUT/RUNS.txt"
   echo "$cfg -> $d"
 done
 echo PGIDRERUNDONE

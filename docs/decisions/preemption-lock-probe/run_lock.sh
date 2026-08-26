@@ -24,10 +24,19 @@
 # resident workers each holding a ~340 MB model and racing the claim-rename.
 #
 # usage: run_lock.sh <reps>
+#
+# CORRECTED in round 5's review: this script used to resolve lockrace.py out of a
+# private bench directory and invoke one user's absolute interpreter path. On any
+# other checkout it failed outright, and on the author's machine it could run a STALE
+# external copy of lockrace.py rather than the file committed beside it -- which
+# silently voids the claim that every figure re-derives from the committed rig.
+# Helpers now resolve relative to this script; RIG, PYTHON and OUT stay overridable so
+# the original layout is still reachable (RIG=... PYTHON=... OUT=... run_lock.sh).
 set -u
-RIG="$HOME/.local/share/kokoro/bench/preempt-lock-2026-08-25"
-PY=/Users/francis.behnen/homebrew/bin/python3
-OUT="$RIG/out/lock"
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+RIG=${RIG:-$HERE}
+PY=${PYTHON:-python3}
+OUT=${OUT:-$RIG/out/lock}
 mkdir -p "$OUT"
 REPS=${1:-20}
 HOLD=500
@@ -40,6 +49,23 @@ count_owners() { awk -F'\t' '$7=="owner"' "$1" | wc -l | tr -d ' '; }
 
 newdir() {
   local d="$OUT/$1"; rm -rf "$d"; mkdir -p "$d"; printf '%s\n' "$d"
+}
+
+# The winner's publication is COMPLETE at `pid_written` (current/spec: the mkdir is
+# done AND the pid is in it) or at `published` (proposed: the generation symlink
+# exists). S3, S4 and S6 need the incumbent's record to be on disk before a racer
+# looks -- a racer that arrives first sees an EMPTY directory, wins uncontested, and
+# the trial degenerates into S5's who-wins control while still producing owners=1.
+# That is indistinguishable from a genuine pass, so it must be a fact, not a sleep.
+await_publication() {   # log protocol -> 0 published, 1 timed out
+  local log=$1 pr=$2 pat waited=0
+  if [[ $pr == proposed ]]; then pat='published'; else pat='pid_written'; fi
+  until grep -q "$pat" "$log" 2>/dev/null; do
+    sleep 0.002
+    waited=$((waited + 1))
+    [[ $waited -ge 1000 ]] && return 1
+  done
+  return 0
 }
 
 # ---- S1 / S2: winner stalls in the mkdir -> pid-write window, N racers pile in
@@ -105,13 +131,22 @@ trial_init() {   # proto N stall rep scenario
 # The fix is to wait for B's own `classified_stale` record rather than for the clock,
 # and to fail the trial loudly if it never appears. The committed lock-owners.tsv was
 # produced under the old 4 ms sleep; re-running S3 is the open item.
+#
+# ROUND 5 found the SECOND fixed sleep in the same function, which the previous repair
+# left in place: the 50 ms between launching the winner and launching B was staging the
+# incumbent's publication by the clock. Now gated on `pid_written`/`published`.
 trial_aba() {    # proto rep
   local pr=$1 rep=$2 sc=S3_aba
   local dir; dir=$(newdir "$sc-$pr-r$rep")
   local log="$dir/log.tsv"; : > "$log"
   "$PY" "$RIG/lockrace.py" --dir "$dir" --log "$log" --role winner --protocol "$pr" \
       --dead-owner --hold-ms "$HOLD" --trial "$rep" --label "$sc" &
-  sleep 0.05
+  if ! await_publication "$log" "$pr"; then
+    echo "S3 $pr r$rep: incumbent never published -- trial VOID" >&2
+    wait
+    emit "$sc" "$pr" 2 0 "$rep" "VOID"
+    return
+  fi
   # B classifies now, then sits on the decision for 120 ms
   "$PY" "$RIG/lockrace.py" --dir "$dir" --log "$log" --role racer --protocol "$pr" \
       --classify-stall-ms 120 --hold-ms "$HOLD" --trial "$rep" --label "$sc" &
@@ -136,13 +171,24 @@ trial_aba() {    # proto rep
 }
 
 # ---- S4: two reclaimers, no asymmetry
+#
+# CORRECTED in round 5's review, and NOT YET RE-RUN. The 50 ms sleep here staged the
+# dead incumbent's publication by the clock. If the winner's fresh interpreter is slow,
+# both reclaimers see an empty directory, one wins, owners=1 -- S5's control result
+# wearing S4's label, and for `proposed` in particular a mis-staged trial and a genuine
+# pass are the same number. Now gated on the winner's own publication record.
 trial_dual() {   # proto rep
   local pr=$1 rep=$2 sc=S4_dualreclaim
   local dir; dir=$(newdir "$sc-$pr-r$rep")
   local log="$dir/log.tsv"; : > "$log"
   "$PY" "$RIG/lockrace.py" --dir "$dir" --log "$log" --role winner --protocol "$pr" \
       --dead-owner --hold-ms "$HOLD" --trial "$rep" --label "$sc" &
-  sleep 0.05
+  if ! await_publication "$log" "$pr"; then
+    echo "S4 $pr r$rep: incumbent never published -- trial VOID" >&2
+    wait
+    emit "$sc" "$pr" 2 0 "$rep" "VOID"
+    return
+  fi
   local i
   for i in 1 2; do
     "$PY" "$RIG/lockrace.py" --dir "$dir" --log "$log" --role racer --protocol "$pr" \
@@ -172,13 +218,22 @@ trial_scratch() {  # proto N rep
 # ---- S6: legitimate reclamation under CONTENTION. A dead incumbent and N racers,
 #      no asymmetry. For `proposed` this is the real test of exclusive-create
 #      supersession; S1/S2 are structurally vacuous for it (see the doc).
+#
+# CORRECTED in round 5's review, and NOT YET RE-RUN -- same defect as S4, and it bites
+# hardest here, because S6 is the largest block of `proposed` trials the document
+# counts as genuinely exercising reclamation.
 trial_deadN() {  # proto N rep
   local pr=$1 n=$2 rep=$3 sc=S6_deadN
   local dir; dir=$(newdir "$sc-$pr-N$n-r$rep")
   local log="$dir/log.tsv"; : > "$log"
   "$PY" "$RIG/lockrace.py" --dir "$dir" --log "$log" --role winner --protocol "$pr" \
       --dead-owner --hold-ms "$HOLD" --trial "$rep" --label "$sc" &
-  sleep 0.05
+  if ! await_publication "$log" "$pr"; then
+    echo "S6 $pr N$n r$rep: incumbent never published -- trial VOID" >&2
+    wait
+    emit "$sc" "$pr" "$n" 0 "$rep" "VOID"
+    return
+  fi
   local i
   for i in $(seq 1 "$n"); do
     "$PY" "$RIG/lockrace.py" --dir "$dir" --log "$log" --role racer --protocol "$pr" \

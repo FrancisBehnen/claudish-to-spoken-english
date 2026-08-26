@@ -1,9 +1,14 @@
 #!/bin/bash
 # Pass 1's RUNS.txt holds paths from before the directory was renamed, so rebuild
 # the list from the directories that are actually there.
+#
+# collect.sh resolves beside this script (overridable with RIG=), so a re-assembly
+# cannot run a stale copy of the parser. OUT still names the pass-1 RUN TREE, which is
+# genuinely external -- those run directories are not in the repository.
 set -u
-R="$HOME/.local/share/kokoro/bench/preempt-lock-2026-08-25"
-O="$R/out-pass1"
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+R=${RIG:-$HERE}
+O=${OUT:-$HOME/.local/share/kokoro/bench/preempt-lock-2026-08-25/out-pass1}
 DEST=${1:?dest}
 mkdir -p "$DEST"
 first=1

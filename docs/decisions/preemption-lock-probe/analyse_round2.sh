@@ -51,34 +51,85 @@ awk -F'\t' '
 
 hdr "C14a: did an OLDER player's reap unlink a NEWER player's record?"
 echo "   (read-then-unlink TOCTOU -- review comment on the doc at :573)"
+echo "   ROUND 5 REMOVED THE 'publication -> destruction' LAG THIS BLOCK USED TO PRINT."
+echo "   It anchored on W_pid_write, which in a player-published arm is stamped by the"
+echo "   PARENT immediately after Popen and before the wrapper renames -- harness defect"
+echo "   4. So it was never measured from publication, and the 41.3-82.3 ms range it"
+echo "   produced is not an interval between the two events it named. Nothing in the"
+echo "   committed traces marks the wrapper's mv, so no publish->destroy figure is"
+echo "   derivable at all; it is removed rather than caveated."
+echo "   What IS derivable is ORDER, from two independent sides:"
+echo "    (a) the player log. player_start is stamped by the player itself, after the"
+echo "        wrapper renamed and after exec, so it is strictly LATER than publication."
+echo "        An unlink after it therefore destroyed a record that certainly existed."
+echo "    (b) the hook side, below: a later hook that reads NO record while that newer"
+echo "        player is demonstrably live can only mean the record was published and"
+echo "        then destroyed -- nothing else in this arm unlinks."
 awk -F'\t' '
+  # pass 1: the player log, keyed by pid.
+  FNR==NR { if ($4=="player_start") START[$2]=$1; next }
   { n=split($6,f," "); delete V; for(i=1;i<=n;i++){split(f[i],kv,"="); V[kv[1]]=kv[2]} }
-  $5=="W_pid_write" { lastpub=V["player_pid"]; lastpub_t=$1 }
+  $5=="W_pid_write" { last=V["player_pid"]; last_t=$1 }
   $5=="record_unlinked" {
-      if (lastpub != "" && V["player_pid"] != lastpub && $1 > lastpub_t) {
-        bad++
-        lag = ($1 - lastpub_t) * 1000
-        L[bad] = lag
-        if (lag > 1000) slow++          # a SECOND-hook reap, one trial-gap late
-        printf "  t=%.6f  reap of %-6s unlinked %-4s -- newer player %s had published %.1f ms earlier\n",
-               $1, V["player_pid"], V["path"], lastpub, lag
+      if (last != "" && V["player_pid"] != last && $1 > last_t) {
+        cross++
+        ps = (last in START) ? START[last] : ""
+        if (ps != "" && $1 > ps) {
+          proven++
+          d = ($1 - ps) * 1000
+          if (d < lo || proven == 1) lo = d
+          if (d > hi) hi = d
+          printf "  t=%.6f  reap of %-6s unlinked %-4s -- newer player %s was already RUNNING (%.1f ms)\n",
+                 $1, V["player_pid"], V["path"], last, d
+        } else {
+          unordered++
+        }
       } }
-  END { printf "  --> %d unlinks destroyed a newer player%s record\n", bad+0, "'"'"'s"
-        # The lag is what the document quotes as "the record was destroyed N ms after
-        # it was published". Round 2 quoted 31-76 ms, which re-derives from nothing:
-        # the reaps of a trial`s FIRST player land a whole trial gap later.
-        lo = 1e18; hi = 0; lo2 = 1e18; hi2 = 0
-        for (i = 1; i <= bad; i++) {
-          if (L[i] < lo) lo = L[i]; if (L[i] > hi) hi = L[i]
-          if (L[i] <= 1000) { if (L[i] < lo2) lo2 = L[i]; if (L[i] > hi2) hi2 = L[i] } }
-        if (bad) printf "  --> lag publish->destroy: %.1f-%.1f ms overall; %.1f-%.1f ms excluding the %d second-hook reaps\n",
-                        lo, hi, lo2, hi2, slow+0 }
-' "$T/C14a_shared_unlink.worker.trace" 2>/dev/null || echo "  (trace missing)"
+  END {
+    printf "  --> %d unlinks of the shared path landed while a newer player existed\n", cross+0
+    printf "  --> of those, %d are PROVEN destructions: the unlink followed the newer\n", proven+0
+    printf "      player%s own player_start, so its record was certainly already on disk\n", "'"'"'s"
+    if (proven) printf "      (unlink - player_start = %.1f-%.1f ms; a LOWER bound on publish->destroy,\n       not the interval itself)\n", lo, hi
+    printf "  --> the other %d cannot be ordered against publication on the committed data\n", unordered+0
+    printf "      at all -- the unlink lands inside the newer player%s unobserved\n", "'"'"'s"
+    printf "      Popen->publish->exec gap. See the hook side for what settles them.\n"
+  }
+' "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.worker.trace" 2>/dev/null \
+  || echo "  (trace missing)"
 echo "   and the consequence, from the hook side:"
-awk -F'\t' '$5=="kill_attempt" { n=split($5,x,""); }
-  { if ($0 ~ /result=nopid/) nopid++ ; if ($0 ~ /result=sent/) sent++ }
-  END { printf "  hook reads: nopid=%d  sent=%d\n", nopid+0, sent+0 }' \
+awk -F'\t' '
+  { r = $0; sub(/^.*result=/, "", r); sub(/[ \t].*$/, "", r)
+    if ($1 ~ /a$/)      A[r]++
+    else if ($1 ~ /b$/) B[r]++
+    else if ($1 ~ /c$/) C[r]++
+    else                W[r]++
+    T[r]++ }
+  END { printf "  hook reads, all: nopid=%d  sent=%d\n", T["nopid"]+0, T["sent"]+0
+        printf "  hook A (before the trial spawns):   nopid=%d sent=%d\n", A["nopid"]+0, A["sent"]+0
+        printf "  hook B (kills the a-player):        nopid=%d sent=%d\n", B["nopid"]+0, B["sent"]+0
+        printf "  hook C (the b-player is playing):   nopid=%d sent=%d\n", C["nopid"]+0, C["sent"]+0
+        printf "  --> hook C read NO record on %d of %d trials while a live player was\n", C["nopid"]+0, C["nopid"]+C["sent"]+0
+        printf "      there to preempt: those are destructions of a published record.\n"
+        printf "      On the other %d it read the b-player, which means that trial%s first\n", C["sent"]+0, "'"'"'s"
+        printf "      unlink removed the a-player%s OWN record -- the b-player had not\n", "'"'"'s"
+        printf "      published yet. The count of destroyed records is therefore NOT the\n"
+        printf "      cross-unlink count above.\n" }' \
   "$T/C14a_shared_unlink.hook-kills.log" 2>/dev/null || echo "  (log missing)"
+echo "   the two sides added up -- this is the figure the document quotes:"
+awk -F'\t' '
+  FILENAME ~ /player\.log$/   { if ($4=="player_start") START[$2]=$1; next }
+  FILENAME ~ /hook-kills\.log$/ { if ($1 ~ /c$/) { if ($0 ~ /result=nopid/) hookc++ } ; next }
+  { n=split($6,f," "); delete V; for(i=1;i<=n;i++){split(f[i],kv,"="); V[kv[1]]=kv[2]} }
+  $5=="W_pid_write" { last=$6; sub(/^.*player_pid=/,"",last); sub(/[ \t].*$/,"",last); last_t=$1 }
+  $5=="record_unlinked" {
+      if (last != "" && V["player_pid"] != last && $1 > last_t &&
+          (last in START) && $1 > START[last]) plog++ }
+  END { printf "  PROVEN destructions of a published record: %d (player-log order) + %d (hook C read nothing) = %d\n",
+               plog+0, hookc+0, plog+hookc+0
+        printf "  They fall in the SAME %d trials, and they are distinct unlinks: the first\n", hookc+0
+        printf "  unlink of such a trial is caught by hook C, the second by the player log.\n" }
+' "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.hook-kills.log" \
+  "$T/C14a_shared_unlink.worker.trace" 2>/dev/null || echo "  (trace missing)"
 
 hdr "C14b: per-player records -- an unlink can only remove its own name"
 awk -F'\t' '

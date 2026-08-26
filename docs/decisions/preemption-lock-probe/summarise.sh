@@ -94,9 +94,19 @@ awk -F'\t' '$1=="C2_hookside" && $25!="-" && $4!="-" {printf "%.4f\n", ($25-$4)*
 
 echo
 echo "== ROW 20 / E: the real-audio arms =="
+echo "   TWO bounds on the stale player's lifetime, not one, and the document quotes the"
+echo "   UPPER one. Round 3 published \`alive_s\` as \"Popen -> exit\"; it is not. Its timer"
+echo "   starts before subprocess.Popen, so it INCLUDES the fork/exec launch latency, which"
+echo "   on the claim-kill arm is MOST of the published figure. The two columns"
+echo "   of the same row differ by roughly 7x. Both are printed here so neither can be"
+echo "   quoted as the other:"
+echo "     timerstart_to_exit_s  upper bound; timer starts before Popen"
+echo "     popen_to_exit_s       lower bound; the child was forked inside the Popen this"
+echo "                           excludes. Neither is a measure of AUDIBILITY."
 if [[ -f "$R" ]]; then
   for a in $(awk -F'\t' 'NR>1{print $1}' "$R" | sort -u); do
-    awk -F'\t' -v a="$a" 'NR>1 && $1==a {print $5}' "$R" | stats "$a stale_player_life_s"
+    awk -F'\t' -v a="$a" 'NR>1 && $1==a {print $5}' "$R" | stats "$a timerstart_to_exit_s"
+    awk -F'\t' -v a="$a" 'NR>1 && $1==a && $8!="-" {print $8}' "$R" | stats "$a popen_to_exit_s"
     awk -F'\t' -v a="$a" 'NR>1 && $1==a && $7!="-" {print $7}' "$R" | stats "$a overlap_s"
     awk -F'\t' -v a="$a" 'NR>1 && $1==a {print $6}' "$R" | sort | uniq -c \
       | awk -v a="$a" '{printf "%-28s killed_by_sig=%-4s x%s\n", a, $2, $1}'

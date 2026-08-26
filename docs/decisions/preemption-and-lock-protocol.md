@@ -63,11 +63,14 @@ measured on both sides of the ordering that matters.**
   completion 12/12). And a sweep signal that anything ignores makes the sweep a silent no-op:
   `nohup` sets `SIGHUP` to `SIG_IGN`, inherited across `fork` and `exec`, which produced a
   **false "the repair fails"** for a whole run (§2.5).
-- **Two further defects in the first revision's protocol, both reproduced.** Unlinking a
-  *shared* pid record is a TOCTOU — an older player's reap destroyed a newer player's record
-  **12/12**, and a hook fired inside the resulting window could not reach a live player on
-  **4/12** trials. And the ledger's truncate erased registrations it had never signalled on
-  **12 of 25** truncations. Per-player records fix both: **0/12** and **0** respectively.
+- **Two further defects in the first revision's protocol, both reproduced — one of them at a
+  third of the rate previously published.** Unlinking a *shared* pid record is a TOCTOU: an
+  older player's reap destroyed a newer player's record on **4 of 12** trials (**8** unlinks),
+  and a hook fired inside the resulting window could not reach a live player on the same
+  **4/12**. Round 3 reported 12/12 and 24 unlinks; that count was anchored on harness defect
+  4's bad timestamp and does not survive (§2.5). And the ledger's truncate erased registrations
+  it had never signalled on **12 of 25** truncations. Per-player records fix both: **0/12** and
+  **0** respectively — the control is what carries the conclusion, and it is unaffected.
 
 **Row 21 — the spec's two clauses do not hold, and they were known not to hold before this
 was run.** 1200 trials, three protocols, six scenarios **[measured-here]**:
@@ -78,15 +81,21 @@ was run.** 1200 trials, three protocols, six scenarios **[measured-here]**:
 | `spec` — §10.5 clause 2 (a) + (b) | 400 | **3 owners** | 61 | **15.2 %** |
 | **`proposed`** — atomic `symlink` owner record, superseded by generation | 400 † | **1** | **0** | **0.0 %** |
 
-† **20 of `proposed`'s 400 are unconfirmed, not validated.** They are its S3 cell, staged under
-the fixed 4 ms sleep this revision replaced with a handshake on B's own `classified_stale`
-record. The defect is asymmetric: under `current`/`spec` a mis-staged S3 trial degenerates into
-S4 and yields 1 owner, so their 20/20 two-owner results prove their own staging held — under
-`proposed` a mis-staged trial *also* yields 1 owner and is indistinguishable from a genuine
-pass. The harness is fixed and **the fix is unrun**; the committed `lock-owners.tsv` predates
-it. **`proposed`'s genuinely-exercised count is 160** (S4, S5, S6), clean throughout. §2.6 and
-§13 row 21 carry the re-run as an open item. No *failure* in the table is affected: a mis-staged
-trial yields 1 owner, so every 2- and 3-owner result staged correctly.
+† **`proposed` produced 1 owner on 400 of 400 and NONE of those trials is confirmed to have
+exercised reclamation.** Round 3 said 20 were unconfirmed (its S3 cell, staged by a fixed 4 ms
+sleep); round 5 found the same defect in S4 and S6, which stage the dead incumbent's record by a
+fixed `sleep 0.05`. All three reclamation scenarios — **100 trials** — are therefore staged by a
+clock, and the defect is asymmetric: under `current`/`spec` a mis-staged trial degenerates into
+the empty-directory control and yields 1 owner, so their 2- and 3-owner results prove their own
+staging held; under `proposed` a mis-staged trial *also* yields 1 owner and is indistinguishable
+from a pass. Of the remaining 300, **220 (S1, S2) are structurally vacuous** for `proposed` and
+**80 (S5) are valid but answer the who-wins question**, which §3.0 says is a different race. The
+harness is fixed on all three and **every fix is unrun**; the committed `lock-owners.tsv` predates
+them. **No *failure* in the table is affected** — mis-staging can only hide failures, never invent
+them — so `current`'s 121/400 and `spec`'s 61/400 stand. What does not stand is any claim that
+`proposed`'s clean sheet was earned against a dead owner. §3.3 and §13 row 21 carry the re-run as
+an open item, and §3.3 states plainly why no further inspection of this harness should be trusted
+to close it.
 
 `spec` is a genuine improvement and still fails: clean to a 50 ms stall (180/180, where
 `current` fails 60 of the same 180), then **40/40 wrong at 200 ms and 1000 ms** — a bounded
@@ -99,7 +108,7 @@ owner's pid, which only row 21's generation protocol supplies — a protocol tha
 record of the worker it replaced cannot. They can no longer be signed off independently.
 
 **Both rows stay ship-blocking**, and the reason has changed: they are no longer unverified.
-**Four consecutive rounds of review have each found a real defect in the previous round's
+**Five consecutive rounds of review have each found a real defect in the previous round's
 confident answer**, including in the repair this document proposed and in the *text* of the
 repair that replaced it. See §6.
 
@@ -146,9 +155,11 @@ the two arms are compared under the same predicate rather than across a changed 
 [`preemption-trials-replication.tsv`](preemption-trials-replication.tsv) the replication, and
 `preemption-lock-probe/compare_passes.sh` prints them side by side.
 
-**Three derivation defects were found by review of this document's first revision, and all three
-are fixed here. Two of them made the reproducibility claim false, which was the claim the whole
-document rested on.**
+**Five derivation defects have been found by review, and all five are fixed here. Three of them
+made the reproducibility claim false, which was the claim the whole document rested on.** The
+first three came from review of the first revision; the last two from round 5, and both are of
+the same kind as the first three — a figure whose name and whose derivation are not the same
+quantity.
 
 1. **The medians were not medians.** `summarise.sh` took `v[int((NR+1)/2)]`, the **lower middle**
    observation. Every sample here is even-sized, so the script systematically did not re-derive
@@ -172,6 +183,25 @@ document rested on.**
 3. **Section 2.6 had no derivation at all.** There was no input for the `REAL-*` traces, so the
    real-audio figures could not be re-derived. `collect_real.sh` now produces a committed
    [`real-audio-trials.tsv`](real-audio-trials.tsv) and `summarise.sh` has a section over it.
+4. **The stale player's lifetime in §2.6 was published as an interval it is not.** Round 3's
+   `collect_real.sh` wrote `life_s` from the probe's `alive_s` and documented it as
+   *"Popen → exit"*. It is not: `speakd_probe.py` stamps `t_popen` **before** `subprocess.Popen`,
+   so `alive_s` includes the fork/exec launch latency. **The same row's own columns disagree by
+   about 7×** — `p_exit - p_popen` is 2.30, 2.76 and 1.57 ms against `alive_s`'s 17.5, 18.6 and
+   13.0 ms — so most of the published figure was launch, not life. The column is renamed
+   `timerstart_to_exit_s`, `popen_to_exit_s` is added beside it, and §2.6 now says which bound it
+   quotes and why. **This is deliberately NOT filed as a fifth harness defect**, and the reason is
+   worth stating because the count matters: the probe's field is named and computed correctly —
+   `alive_s` measured from a timer is exactly what it says — and nothing in the trace was wrong.
+   What was wrong was the collector's gloss and the document's. That is this list's kind of
+   defect, not the harness list's. Also unlike harness defect 4, it is fixable by re-deriving,
+   and it has been: both bounds come from the same committed traces.
+5. **`collect_real.sh` could not be run against the committed evidence.** It required the run
+   directories a live run leaves behind, which are not in the repository, so the one file added
+   in round 3 *to make §2.6 re-derivable* could not itself be regenerated from anything committed.
+   It now also accepts the flat `traces/REAL-*.worker.trace` files, and the committed
+   `real-audio-trials.tsv` re-derives from the repository alone. That is how defect 4 above was
+   confirmed rather than argued.
 
 **Four HARNESS defects were also found and are disclosed here, because three of them changed
 results and one of them destroyed data.** They are listed rather than quietly fixed, since a
@@ -209,17 +239,52 @@ The fourth was found in round 3 and it touches a published figure.
    defect is not fixable by re-deriving: **the player-published arms cannot supply a real `W`
    at all**, because nothing in the wrapper acknowledges back to the worker after its `mv`.
    Measuring publication on that side needs a handshake the harness does not have, and that is
-   an experiment, not a patch. **It disturbs no other figure**, and the reason is structural
-   rather than lucky: `collect.sh` tests `WPLAYER` *before* both the `W<R` and the adversarial
+   an experiment, not a patch. The `P`→`W` orderings are structurally safe from it rather than
+   luckily so: `collect.sh` tests `WPLAYER` *before* both the `W<R` and the adversarial
    branches, so a player-published trial is labelled `record published by player` and the two
-   orderings that read `W` never see a synthetic one. It does not touch the `C14` results
-   either, which are about the *unlink*, not the write.
+   orderings that read `W` never see a synthetic one.
+
+   **Round 3 wrote that it "disturbs no other figure" and named the `P`→`W` window as its only
+   consumer. That was wrong, and round 5 found the second one.** `analyse_round2.sh` read the
+   same stamp as `C14a`'s publication instant — `$5=="W_pid_write" { lastpub_t=$1 }`, at `:56`
+   before this revision removed it — and
+   printed a **41.3–82.3 ms "publication→destruction" lag** from it. `C14a` runs `pid_mode=shared`,
+   so every one of those samples is the deferral record: the figure was never measured from
+   publication and could not be. **It is removed rather than caveated**, because nothing in the
+   committed traces marks the wrapper's `mv` and no publish→destruction interval is derivable
+   from them at all. What replaces it, and what it cost the `C14a` claim, is §2.5 item 3 — and
+   the cost is not only the lag: the *count* was anchored on the same stamp too.
 
 **The first two are the reason this revision re-ran everything rather than patching numbers.**
 
+**And one defect in the rig itself, which is not a measurement error but which voided the claim
+every other figure rests on.** Every driver in `preemption-lock-probe/` resolved its helpers from
+a private bench directory — `RIG="$HOME/.local/share/kokoro/bench/preempt-lock-2026-08-25"` — and
+`run_lock.sh` and `run_preempt.sh` additionally invoked one user's absolute interpreter path. Two
+consequences, both real. On any other checkout the drivers fail outright, so *"the rig is in the
+repository, so its protocol can be read as well as its output"* was true of reading and false of
+running. And on the author's own machine they would execute **whatever is in that external
+directory** — which is not necessarily what is committed here, and a stale copy would produce a
+result the committed rig cannot reproduce while looking identical. **This is exactly how a
+document whose premise is re-derivability stops being re-derivable without anyone noticing.**
+Every driver now resolves helpers relative to its own location, with `RIG`, `OUT` and `PYTHON`
+overridable so the original layout stays reachable. `run_real.sh` keeps the Kokoro venv as its
+default because that arm imports `kokoro`; the stub drivers default to `python3`. `publish.sh`
+copied a hand-maintained file list that had fallen six files behind the rig, and now globs.
+
 Rig: [`preemption-lock-probe/`](preemption-lock-probe/README.md). Every figure below re-derives
-from the committed TSVs with `awk` and `sort` only — `summarise.sh` and `analyse_round2.sh` are
-the derivations, and `verify_fires.sh` confirms every hook fired (25 entry markers per
+from committed files with `awk` and `sort` only — `summarise.sh <dir>` over the four committed
+TSVs, and `analyse_round2.sh preemption-lock-probe/traces` over the committed traces, are the
+derivations. (Round 3 wrote "from the committed TSVs" for both; `analyse_round2.sh` takes the
+trace directory, and pointing it at the TSVs prints `(trace missing)` for every block.)
+`verify_fires.sh` confirms every hook fired — **and until round 5 it could not do so from the
+repository, while reporting that it had.** It read a `RUNS.txt` that exists only in a live run
+tree; pointed at the committed `traces/`, it iterated over nothing and printed *"all hooks
+fired"*. **A null reported as a pass, by the one script whose entire purpose is to stop a null
+being read as a pass** — the same shape as harness defect 1, in the guard against it. It now also
+reads the committed `<cfg>.markers.tsv` files and exits 2 rather than succeeding over zero inputs.
+Run against `traces/` it reports **21 configurations OK**, which is where the counts below stop
+being an assertion (25 entry markers per
 configuration: one warm-up plus two per trial — **except `C14a` and `C14b`, which fire a third
 hook per trial to observe the TOCTOU's consequence and therefore want `1 + 3N = 37`;
 `verify_fires.sh` special-cases them and their committed `markers.tsv` files carry 37 entries
@@ -433,18 +498,42 @@ an earlier trial. `ESRCH` is harmless; the same read after that pid is **recycle
 Recycling was not observed (**[inferred]**), but the stale read that precedes it was observed
 48/48.
 
-**3. Unlinking a SHARED record is a TOCTOU, and its consequence is observed.** `C14a` gives
-the reaper a 1.2 s delay: on **12 of 12** trials an older player's reap unlinked the shared
-path **after** a newer player had published into it. **24 unlinks** destroyed a newer player's
-record — the trials fire three hooks each, so there are two reaps per trial — and the lag from
-publication to destruction is **41.3–1754.4 ms**, or **41.3–82.3 ms** excluding the four reaps
-that landed a whole trial-gap late. (Round 2 quoted "31–76 ms", which re-derives from nothing;
-`analyse_round2.sh` now prints the lag.) A third hook fired while that newer player was still
-playing then **found no record at all on 4 of 12 trials** — unable to preempt a live player,
-and on the corrected `analyse_c14.sh` predicate all 12 of those trials did have a live player
-at hook C. With per-player records (`C14b`, identical timing) every one of **37** unlinks
-removed only its own name, **0 of another player's**, and the third hook reached the live
-player **12 of 12**.
+**3. Unlinking a SHARED record is a TOCTOU, and its consequence is observed — on 4 of 12 trials,
+not 12 of 12.** This is the claim round 5 cut down, and the reason is harness defect 4 again:
+round 3's test for "an older reap destroyed a newer player's record" was
+`unlink_time > W_pid_write_time`, and in `C14a` — which runs `pid_mode=shared` — `W_pid_write` is
+the parent's deferral stamp, not the publication. It counted **24** such unlinks and quoted a
+**41.3–82.3 ms** publication→destruction lag. **Neither figure survives.** Nothing in the
+committed traces marks the wrapper's `mv`, so the lag is removed outright rather than caveated,
+and the count was measuring "a newer player had been *spawned*", which is not the same event.
+
+What `analyse_round2.sh` derives instead is *order*, from two independent sides, and only where
+the order is actually determined:
+
+- **the player log.** `player_start` is stamped by the player itself, after the wrapper renamed
+  and after `exec`, so it is strictly later than publication. **4 unlinks** landed after it —
+  those destroyed a record that certainly existed. (They are the four second-hook reaps, a whole
+  trial-gap late; `unlink − player_start` is 1597.5–1649.7 ms, a *lower* bound on the lag and not
+  the lag.)
+- **the hook side.** A third hook fires while the newer player is still playing. It **found no
+  record at all on 4 of 12 trials**, and on the corrected `analyse_c14.sh` predicate all 12
+  trials did have a live player at hook C. Nothing else in this arm unlinks, so on those 4 the
+  record was published and then destroyed.
+
+Those two sets are **8 distinct unlinks falling in the same 4 trials** — the trial's first unlink
+caught by the hook, its second by the player log. Of the **16** remaining, **8 are positively
+shown NOT to be destructions**: hook C read the *newer* player's pid, so that trial's first
+unlink removed the older player's **own** record and the newer one had not published yet. The
+last **8** are simply undetermined — the unlink falls inside the newer player's unobserved
+`Popen`→publish→`exec` gap and nothing in the traces resolves it. So the honest statement is
+**4 of 12 trials, 8 proven destructions** — a real defect at a third of the rate round 3
+published, found because the count and the lag shared one bad timestamp.
+
+**The design conclusion is unchanged, and it is the control that carries it.** With per-player
+records (`C14b`, identical timing) every one of **37** unlinks removed only its own name, **0 of
+another player's**, and the third hook reached the live player **12 of 12** — against `C14a`'s
+4/12 blind. A defect that fires on a third of trials is still a defect that per-player records
+make structurally impossible.
 
 **4. The ledger's truncate erases registrations it never signalled.** `C13a` stages a
 publication inside the gap between the sweep's read and its truncate. Of 25 truncations,
@@ -488,16 +577,36 @@ only; the stub arms establish the ordering and the attribution.
 
 | arm | result |
 | --- | --- |
-| claim-time kill **on** | the stale `afplay` lived **13.0, 17.5 and 18.6 ms** against a 5.7 s wav; the newer utterance then played in full, 3/3 |
+| claim-time kill **on** | the stale `afplay` existed for **at most 13.0, 17.5 and 18.6 ms** against a 5.7 s wav; the newer utterance then played in full, 3/3 |
 | claim-time kill **off** | both `afplay`s ran to completion and **overlapped for 3.2486, 3.2564 and 3.4981 s**, 3/3 |
 
-**[measured-here]**, and now re-derivable: `real-audio-trials.tsv` is a committed evidence
-file and `summarise.sh` section E prints these figures from it. The first revision published
-them with no derivation at all.
+**[measured-here]**, and now re-derivable from the repository alone: `real-audio-trials.tsv` is a
+committed evidence file, `summarise.sh` section E prints these figures from it, and
+`collect_real.sh` regenerates the file from the committed `traces/REAL-*.worker.trace`. The first
+revision published these figures with no derivation at all; round 3 added the file but not a way
+to rebuild it from anything committed.
 
-**One honest limit.** What is measured is that the process lived 13–19 ms. Whether that is
-short enough that no sample reached the output device is **[inferred]** — `afplay`'s
-time-to-first-sample was not measured, and nothing here listens. The experiment that removes
+**Which interval those milliseconds are, exactly — round 3 got this wrong and the correction
+matters more than the number.** They are `alive_s`, and the probe starts that timer **before**
+`subprocess.Popen`, so they are **timer-start→exit and include the process launch latency**;
+round 3's `collect_real.sh` documented the column as *"Popen → exit"*, which it is not. The same
+rows' `p_exit − p_popen` is **2.30, 2.76 and 1.57 ms** — the two columns of one row disagree by
+roughly **7×**, and most of the published figure is `fork`/`exec`, not life. Both are now in the
+evidence file (`timerstart_to_exit_s`, `popen_to_exit_s`) and both are printed. **This document
+keeps quoting the larger one**, and deliberately: the claim being supported is *the stale player
+did not last long enough to be heard*, so the conservative bound is the upper one. `alive_s`
+strictly encloses the process's real lifetime — the child is created inside the `Popen` the timer
+already started before — whereas `popen_to_exit_s` excludes the fork and would flatter the
+result by a factor of seven. The figure is therefore **an upper bound of 13–19 ms, not a
+measurement of 13–19 ms**, and §1's derivation defect 4 records how it was published as the
+latter.
+
+**One honest limit, and the correction above does not touch it.** What is bounded is the
+process's existence. Whether ≤ 19 ms is short enough that no sample reached the output device is
+**[inferred]** — `afplay`'s time-to-first-sample was not measured, and nothing here listens. If
+anything the correction sharpens the limit rather than weakening it: `popen_to_exit_s` shows the
+process was reaped 1.6–2.8 ms after `Popen` returned, which makes the audibility question turn
+almost entirely on launch latency the harness never instrumented. The experiment that removes
 the inference is a loopback capture, not a longer run.
 
 ## 3. Row 21 — the lock protocol
@@ -638,7 +747,25 @@ of `proposed`'s 20 S3 trials may never have exercised a stale observation, and t
 say which. `run_lock.sh` now waits for B's own `classified_stale` record before launching A and
 fails the trial if it never appears — **that change is UNRUN**, and the committed
 `lock-owners.tsv` was produced under the 4 ms sleep. To close: re-run S3 under the corrected
-harness. S4, S5 and S6 are untouched: none depends on the ordering of two reclaimers' startups.
+harness.
+
+**The previous round closed that sentence with "S4, S5 and S6 are untouched", and round 5 found
+that this was wrong for two of the three.** The repair replaced the 4 ms sleep between launching B and
+launching A, and left the *other* fixed sleep in the same function — the `sleep 0.05` between
+launching the incumbent and launching B (`run_lock.sh:114` as it stood before this revision).
+`trial_dual` (`:145`) and `trial_deadN` (`:181`) staged their incumbent by the same 50 ms sleep
+and were never touched. That sleep is not staging two
+reclaimers against each other; it is staging **the dead incumbent's record existing at all**, and
+the winner that writes it is a fresh Python interpreter whose startup is of the same order as the
+sleep. When it loses, the racers arrive at an *empty* directory, one wins uncontested, `owners=1`
+— **S5's who-wins control wearing S4's or S6's label**, and producing exactly the number a pass
+produces. All three now gate on the incumbent's own publication record (`pid_written` for
+`current`/`spec`, `published` for `proposed`) and emit `VOID` on timeout. **Those changes are
+UNRUN as well**, on the same committed `lock-owners.tsv`. That a mis-staged S4/S6 trial
+degenerates into S5's control and yields exactly 1 owner is **[inferred]** — it follows from
+`trial_scratch` being `trial_deadN` with the incumbent absent, and no committed cell distinguishes
+the two. **To close, for that inference and for everything it qualifies: re-run S3, S4 and S6
+under the gated driver and confirm the `VOID` count is zero.**
 
 **S1 and S2 had the same defect in a different place, and it is now fixed the same way.**
 `trial_init` staged the racers behind a fixed `sleep 0.004` after forking the winner, which is
@@ -669,34 +796,53 @@ inflate the very rate this table is about. **That change is UNRUN too**, on the 
 does not put any *failure* in doubt: a mis-staged trial degenerates into the empty-directory
 control, which yields **1** owner, so any cell that produced 2 or 3 owners demonstrably staged
 correctly. That covers every wrong result reported here — `current` 121/400 (S1 at 50 ms, 60;
-S2, 40; S3, 20; S6, 1) and `spec` 61/400 (S2, 40; S3, 20; S6, 1). What it qualifies is the
-**clean** cells at stall 0 and 5 ms, plus `spec`'s S1 at 50 ms, which is clean on 60 of 60 and
-is one of the two places the document credits the spec's own fix with working.
+S2, 40; S3, 20; S6, 1) and `spec` 61/400 (S2, 40; S3, 20; S6, 1). What it qualifies is every
+**clean** cell in the table: S1/S2 at stall 0 and 5 ms, `spec`'s S1 at 50 ms — one of the two
+places the document credits the spec's own fix with working — and, after round 5's finding above,
+**S4 in all three protocols and the 59-of-60 clean part of S6 as well**, since those staged their
+incumbent by the same kind of sleep.
 
 **S6's single failures (1 in 60, both protocols) are the same defect at its natural window
 width.** No stall was injected; the ABA simply happened on its own once per 60 trials under
 contention. That is the honest answer to *"the failure windows are microseconds wide"* — at
 N = 8, unprovoked, it fires at roughly 2 %.
 
-**`proposed` is clean on 400 of 400 — with 20 of them unconfirmed; see the qualification below.** It never encounters the pid-less state, because a
-`symlink`'s target is created with the object; it never removes a contested path, because a
-dead owner is superseded by a **new generation**; and it wins the who-wins race at N = 16.
-**S1 and S2 are structurally vacuous for it and this must be said rather than counted as a
-pass** — there is no `mkdir`→write window for a stall to sit in, so a stalled-but-live winner
-is simply seen as alive. The scenarios that genuinely test it are **S3 (20), S4 (20), S5 (80)
-and S6 (60)** — **180 of its 400 trials**; without S4's control that is 160.
+**`proposed` is clean on 400 of 400, and after round 5 the committed run confirms none of that
+as reclamation.** The 400 decompose, and the decomposition is the finding:
 
-**And 20 of those 180 are not yet a validated pass.** S3's staging defect below is
-asymmetric: under `current`/`spec` a mis-staged trial degenerates into S4 and yields
-1 owner, so their 20/20 two-owner results are their own proof the staging held — but
-under `proposed` a mis-staged trial *also* yields 1 owner, and is indistinguishable
-from a genuine pass. So `proposed`'s S3 cell cannot, on the committed data, tell
-"survived a stale-observation reclamation" from "never saw one". The harness is fixed
-(`run_lock.sh` now waits for B's `classified_stale` record); the committed
-`lock-owners.tsv` predates the fix. **Read the headline as 400 of 400 with 20 of them
-unconfirmed, and the genuinely-exercised count as 160, not 180** — S4, S5 and S6 are
-unaffected, and they alone are 160 trials with `proposed` clean throughout. Re-running
-S3 under the synchronized driver is an open item, carried in §13 row 21.
+| `proposed`'s 400 trials | n | what the committed data supports |
+| --- | --- | --- |
+| S1, S2 | 220 | **structurally vacuous.** There is no `mkdir`→write window for a stall to sit in — a `symlink`'s target is created with the object — so a stalled-but-live winner is simply seen as alive. Never a pass to be counted |
+| S5 | 80 | **valid, and answers a different question.** No incumbent, no staging sleep, nothing to mis-stage. It is the who-wins race, which §3.0 says must not be conflated with row 21 |
+| S3, S4, S6 | 100 | **the reclamation scenarios, and all 100 are unconfirmed.** Every one staged by a fixed sleep, and for `proposed` a mis-staged trial yields the same `owners=1` a pass yields |
+
+The asymmetry is what makes this fatal for `proposed` alone. Under `current`/`spec` a mis-staged
+S3 trial degenerates into S4 and yields 1 owner, so their 20/20 two-owner results are their own
+proof the staging held; under `proposed`, `elect_proposed` sees a live owner, records `lost`, and
+returns 1 — indistinguishable from never having seen a dead one. Round 3 applied that reasoning
+to S3 and stopped there, reporting **160 genuinely-exercised trials (S4, S5, S6)**. S4 and S6
+stage their incumbent by `sleep 0.05`, so the same argument applies to them verbatim, and the
+count is not 160.
+
+**Read the headline as: `proposed` produced 1 owner on 400 of 400, of which 80 (S5) exercise the
+who-wins race and 0 are confirmed to have exercised reclamation of a dead owner.** That is not
+evidence `proposed` fails — no trial produced a wrong number, and no *failure* anywhere in the
+table is in doubt, since mis-staging can only hide failures, never invent them. It is a statement
+that **the mechanism `proposed` exists to provide has not yet been shown to have run.** The
+harness is now correct on all three scenarios; the committed `lock-owners.tsv` predates every one
+of those fixes. Re-running S3, S4 and S6 under the synchronised driver is an open item, carried
+in §13 row 21.
+
+**And this is the fifth consecutive round in which review found a defect in the previous round's
+repair of this harness, always in the staging rather than in the design.** §4a and §4b have been
+stable for several rounds. `run_lock.sh` has not: a 4 ms sleep, then a one-way wait, then a
+one-phase barrier, then a two-phase barrier — and now a fixed sleep in three functions the
+previous three repairs walked past. **The honest conclusion is that inspection is not converging
+on this harness, and no further reading of it should be trusted to settle the lock evidence.**
+The committed lock data predates every staging fix listed above, and **the re-run is the only
+thing that closes it.** Until then the row-21 result should be read as: `current` and `spec` are
+falsified (their failures are self-proving and stand), and `proposed` is unfalsified but
+unconfirmed.
 
 ---
 
@@ -763,9 +909,12 @@ annotate them.
 >   generation, so all 400 trials ran with every generation present. §13 row 21's closing
 >   condition now names it.
 >
-> **Measured: exactly 1 owner on 400 of 400 trials** — 20 of them (its S3 cell) staged under the
-> 4 ms sleep and so unconfirmed rather than validated, §2.6; the unaffected S4/S5/S6 are 160
-> trials clean — against 121/400 wrong for `current` and
+> **Measured: exactly 1 owner on 400 of 400 trials** — but **none of those 400 is confirmed to
+> have exercised reclamation of a dead owner** (§3.3): its three reclamation scenarios, 100
+> trials, all staged their incumbent or their stale observation by a fixed sleep, and for this
+> protocol a mis-staged trial yields the same 1 owner a pass yields; 220 more are structurally
+> vacuous and the remaining 80 answer the who-wins race. It is unfalsified, not validated —
+> against 121/400 wrong for `current` and
 > **61/400 wrong for the clause this replaces**. Worst case observed for both of the others was
 > **3** owners, not 2.
 >
@@ -938,7 +1087,9 @@ annotate them.
 > The group sweep is defeated entirely by one `setsid()` on the player (**12/12** orphans
 > survive) and requires one on the *worker*, which no round before this one stated. Also
 > measured: `kill` on an unreaped **zombie succeeds**; a shared record's unlink is a **TOCTOU**
-> (12/12 destroyed a newer record, hook blind to a live player 4/12); the ledger's truncate
+> (a newer player's record proven destroyed on 4/12 trials, 8 unlinks; hook blind to a live
+> player on the same 4/12 — round 3 said 12/12 and 24 unlinks, from a bad timestamp, §2.5);
+> the ledger's truncate
 > **erases unsignalled registrations** (12/25); clause (ii) is a correctness clause **only
 > without an election-time sweep**. Requires row 21's generation protocol —
 > [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md) **[measured-here]** |
@@ -953,8 +1104,11 @@ annotate them.
 > quarantine ABA** (`rename` is atomic on a *path*, so a reclaimer acting on a stale
 > observation renames a fresh lock and gets success, not `ENOENT`). A third protocol — owner
 > published by `symlink(2)`, dead owners superseded by generation rather than removed —
-> yielded **exactly 1 owner on 400/400** (20 of those, its S3 cell, unconfirmed on the committed
-> data — the staging fix is in the harness, not in the run). **The measured 8/8 `mkdir` result is untouched and
+> yielded **exactly 1 owner on 400/400** — **but none of those 400 is confirmed to have exercised
+> reclamation of a dead owner**: all 100 of its reclamation trials (S3, S4, S6) staged the
+> incumbent or the stale observation by a fixed sleep, and for this protocol a mis-staged trial
+> yields the same 1 owner a pass yields; 220 more are structurally vacuous and 80 answer the
+> who-wins race. The staging fixes are in the harness, not in the run. **The measured 8/8 `mkdir` result is untouched and
 > is a different race**, re-run here at N ≤ 16 for all three protocols, 1 owner on 80/80 each
 > **[measured-here]** | **YES** — the shipped clause is now known false, and its replacement
 > is unreviewed. **Closing conditions:** (1) a review pass by someone other than §4a's author;
@@ -962,7 +1116,11 @@ annotate them.
 > unlinks a generation, so all 400 trials ran with every generation present, and the ordering
 > rule §4a now states (unlink `g` only after completing both halves of the election sweep
 > against `g`'s owner, and only from the worker that created `g+1`) has no arm behind it.
-> `rewrite.sh:117` is **not** a backstop for it and §4a no longer claims it is |
+> `rewrite.sh:117` is **not** a backstop for it and §4a no longer claims it is; (3) **re-run S3,
+> S4 and S6 under the synchronised driver.** This is now the binding evidence item, not a
+> footnote: five consecutive review rounds have each found a staging defect in the previous
+> round's repair of `run_lock.sh`, and §3.3 states plainly that no further inspection of that
+> harness should be trusted to close it |
 
 ---
 
@@ -1094,26 +1252,28 @@ and cannot be conflated.
 ## 6. Should rows 20 and 21 stay ship-blocking?
 
 **Both stay ship-blocking. The case is now much stronger than it was, and it is no longer an
-argument about labels — it is an induction over four rounds of review.**
+argument about labels — it is an induction over five rounds of review.**
 
-### What the four rounds actually did
+### What the five rounds actually did
 
 | round | the clause it examined | verdict |
 | --- | --- | --- |
 | PR #27 | *"a newer message kills stale playback"*, `[inferred]` | reviewer found **two races** in the lock clauses before anything was measured |
 | PR #28 rev 1 | those clauses, measured | `current` **and** the spec-corrected protocol both produce 2–3 owners; clause (ii) mis-specified; the `P`→`W` region uncovered |
-| PR #28 rev 2 (this) | **the repair rev 1 proposed** | reviewer found the repair **was not the one measured**, and that the arm which "closed" the region **could not fail**. Staged properly, **rev 1's repair fails 12/12** — and two further protocol defects in it (shared-record TOCTOU, ledger truncation) both reproduce |
+| PR #28 rev 2 | **the repair rev 1 proposed** | reviewer found the repair **was not the one measured**, and that the arm which "closed" the region **could not fail**. Staged properly, **rev 1's repair fails 12/12** — and two further protocol defects in it (shared-record TOCTOU, ledger truncation) both reproduce |
 | PR #28 rev 2, self-review | **the repair THIS revision proposes** | `killpg` blast radius under pid reuse (bounded, measured); one `setsid()` defeats it (measured); and the sweep signal itself was a silent no-op under `nohup` (found only by chasing a null) |
-| **PR #28 rev 3 (this)** | **§4b as rev 2 wrote it, read as an implementer would** | **§4b specified ONE election-time action and its own data credits a second one with the kill** — `C15c` and `C16b` skip `killpg` 25/25 and are killed by the *record* sweep, which §4b never mentioned (clause 7(iv-a)). **§4b never required the worker to `setsid()`**, without which the sweep either signals nothing or signals the harness's own process group. **§4a's garbage collection cited `rewrite.sh:117`, which cannot reach a depth-3 symlink**, and specified no ordering against the sweep — the unordered interleaving is `C11b`/`C12c` at 12/12. **§5's `.pending` GC was not implementable as written.** Plus a fourth harness defect touching a published figure (`W` in the player-published arms), a parser that signalled a filename as a pid, a run script one round behind the document, and two derivations that did not derive what they claimed |
+| PR #28 rev 3 | **§4b as rev 2 wrote it, read as an implementer would** | **§4b specified ONE election-time action and its own data credits a second one with the kill** — `C15c` and `C16b` skip `killpg` 25/25 and are killed by the *record* sweep, which §4b never mentioned (clause 7(iv-a)). **§4b never required the worker to `setsid()`**, without which the sweep either signals nothing or signals the harness's own process group. **§4a's garbage collection cited `rewrite.sh:117`, which cannot reach a depth-3 symlink**, and specified no ordering against the sweep — the unordered interleaving is `C11b`/`C12c` at 12/12. **§5's `.pending` GC was not implementable as written.** Plus a fourth harness defect touching a published figure (`W` in the player-published arms), a parser that signalled a filename as a pid, a run script one round behind the document, and two derivations that did not derive what they claimed |
 
-**Four consecutive rounds, and every round found a real defect in the previous round's
+| **PR #28 rev 4 (this)** | **the probe tooling and the staging, the two things rev 3 did not re-examine** | **The committed harness could not be run from a checkout at all** — every driver resolved its helpers from a private bench directory and two invoked one user's absolute interpreter, so on the author's machine they could execute stale external copies of the very probes this PR commits. **`run_lock.sh` still staged three scenarios by a fixed sleep** — S3's incumbent (`:114`), S4 (`:145`) and S6 (`:181`) — which the previous round's barrier repair walked past, and that costs `proposed` **every one of its 100 reclamation trials** (§3.3). **Harness defect 4 had a second consumer nobody had looked for:** `C14a`'s publication→destruction lag, and with it the *count* — the TOCTOU is 4/12 trials and 8 unlinks, not 12/12 and 24 (§2.5). **§2.6's stale-player lifetime was published as an interval it is not** — timer-start→exit, not `Popen`→exit, differing 7× on the same row |
+
+**Five consecutive rounds, and every round found a real defect in the previous round's
 confident answer.** Rev 1's own headline — *"a repair was built and measured: 12 of 12 orphans
 killed"* — was wrong in the way that matters most: the repair specified was a single replaceable
 record, the thing measured was an append-only ledger, and the arm that measured it had a 1.2 s
 delay that guaranteed the sweep always ran after publication. When the ordering rev 1 claimed to
 close was finally staged (`C11b`), **the single-record form failed.**
 
-### So the counter-argument is now refuted four times over
+### So the counter-argument is now refuted five times over
 
 The original argument for non-blocking was that these clauses are *"cheap, obviously correct on
 inspection, and their failure windows are microseconds wide."*
@@ -1146,7 +1306,7 @@ adversarial reader who did not write the text.** Concretely, before rows 20 and 
 non-blocking:
 
 - **§4a and §4b need one review pass by someone other than their author**, on the standard that
-  found the defects in rounds 1–4. **Round 3 predicted the garbage collection as the most likely
+  found the defects in rounds 1–5. **Round 3 predicted the garbage collection as the most likely
   place for the next defect, and that is where two of round 4's landed** — `rewrite.sh:117`
   cannot reach a generation record, and the `.pending` GC named a set that does not exist. Both
   are now specified rather than gestured at, and **both are still unimplemented and unmeasured**,
@@ -1166,10 +1326,16 @@ non-blocking:
   same clause either signals nothing (`ESRCH` against a non-leader) or, written the other
   obvious way, signals the hook's own group. A reviewer should decide whether that trade is
   acceptable, because I cannot settle it by measurement here (§5).
-- **Two evidence-side items are open and neither is a design question.** `run_lock.sh`'s S3 no
-  longer times B's classification by a 4 ms sleep, but **the committed `lock-owners.tsv` was
-  produced before that fix**, so `proposed`'s S3 cell cannot rule out mis-staged trials (§3.3).
-  And clause (v)'s unlink has never run in combination with either sweep (§4b).
+- **The evidence-side items are open, and one of them is now the largest gap in the document.**
+  `run_lock.sh` no longer stages anything by a clock — B's classification in S3, and the dead
+  incumbent's record in S3, S4 and S6 — but **the committed `lock-owners.tsv` predates every one
+  of those fixes**, so on the committed data `proposed` has **no confirmed reclamation trial at
+  all** (§3.3): 100 of its 400 are the reclamation scenarios and all 100 were clock-staged, 220
+  are structurally vacuous, and the remaining 80 answer the who-wins race. Nothing here suggests
+  `proposed` fails — mis-staging can only hide failures — but the mechanism it exists to provide
+  has not been shown to have run. **Five rounds have each found a staging defect in the previous
+  round's repair of this one script**, so this is not a gap further reading will close; it is a
+  re-run. Separately, clause (v)'s unlink has never run in combination with either sweep (§4b).
 - **Row 21's replacement changes the lock's on-disk shape**, and row 20 now *depends* on that
   change: the process-group sweep has to read the superseded owner's pid, which a protocol that
   deletes the record it replaced cannot supply. **The two rows can no longer be signed off

@@ -8,6 +8,37 @@ proves nothing about the clause that makes it work.
 Nothing here calls an LLM. Nothing here touches `rewrite.sh`, `providers.sh`,
 `hooks/`, `bench/sanitizers.py`, `COND_CUTOFF`, or `~/.claude/settings.json`.
 
+## Running it from a checkout
+
+**Round 5 fixed the thing that made this section impossible to write.** Every driver used to
+resolve its helpers from a private bench directory
+(`RIG="$HOME/.local/share/kokoro/bench/preempt-lock-2026-08-25"`), and `run_preempt.sh` and
+`run_lock.sh` invoked one user's absolute interpreter path. From any other checkout they failed;
+on the author's machine they could execute **stale external copies of the very probes committed
+here**, which is how a document premised on re-derivability quietly stops re-deriving.
+
+Helpers now resolve relative to the script, so the drivers just run:
+
+    ./run_lock.sh 20
+    ./run_preempt.sh C3_adversarial 12
+    ./run_all_preempt.sh 12
+
+Three environment variables override, and the author's original layout is reachable through them:
+
+| var | default | what it names |
+| --- | --- | --- |
+| `RIG` | the script's own directory | where the sibling scripts and probes are found |
+| `OUT` | `$RIG/out` (`$RIG/out/lock` for `run_lock.sh`) | where run directories and results are written |
+| `PYTHON` | `python3` | the interpreter. `run_real.sh` defaults to the Kokoro venv instead, because that arm imports `kokoro`; point `PYTHON` at any interpreter that can |
+
+The stub arms need nothing but a stdlib `python3`. The re-derivations need no interpreter at all:
+`summarise.sh <dir-with-the-four-TSVs>` and `analyse_round2.sh traces` are `awk` and `sort`.
+
+The helpers that address the author's archived **run tree** rather than the rig's scripts —
+`gather_out.sh`, `clean_copies.sh`, `peek.sh`, `peek_one.sh`, `assemble_pass1.sh` — keep the
+external path as their default, because those run directories are not in the repository. They
+take the same overrides.
+
 ## Files
 
 | file | what it is |
@@ -19,11 +50,12 @@ Nothing here calls an LLM. Nothing here touches `rewrite.sh`, `providers.sh`,
 | `run_preempt.sh` | row 20 driver. One warm worker per configuration; the second hook's launch time picks which ordering the trial lands in |
 | `run_all_preempt.sh` | all **twenty-six** configurations in sequence. Round 3 fixed it: the loop listed 24, omitting `C15c_norecheck_death_pgid` and `C17_setsid_player`, so a fresh run did not reproduce the published set |
 | `run_real.sh` | real-audio confirmation: real Kokoro synthesis on `bf_emma`, `afplay` as the player |
-| `run_lock.sh` | row 21 driver. **Six** scenarios (S1 `init`, S2 `longstall`, S3 `aba`, S4 `dualreclaim`, S5 `scratch`, S6 `deadN`) × three protocols × N × stall. **S3's staging was fixed in round 3 and NOT re-run:** it slept a flat 4 ms before launching the second reclaimer instead of waiting for the first one's `classified_stale` record, so a trial could silently fail to exercise a stale observation. The committed `lock-owners.tsv` predates the fix |
+| `run_lock.sh` | row 21 driver. **Six** scenarios (S1 `init`, S2 `longstall`, S3 `aba`, S4 `dualreclaim`, S5 `scratch`, S6 `deadN`) × three protocols × N × stall. **Nothing in it is staged by a clock any more, and none of that is re-run.** Round 3 replaced S3's flat 4 ms wait for the second reclaimer with a wait on `classified_stale`. **Round 5 found the fixed sleeps that repair walked past** — the 50 ms staging the dead incumbent's own record in S3, S4 and S6 — which let those trials degenerate into S5's control while still producing `owners=1`. All three now gate on `pid_written`/`published` and emit `VOID` on timeout. The committed `lock-owners.tsv` predates **every** one of these fixes |
 | `collect.sh` | joins the marker files, `kills.log`, `player.log` and `worker.trace` into one `trials.tsv` per run |
-| `collect_real.sh` | turns the `REAL-*` traces into `real-audio-trials.tsv`, so section 2.6's figures re-derive like every other figure |
+| `collect_real.sh` | turns the `REAL-*` traces into `real-audio-trials.tsv`, so section 2.6's figures re-derive like every other figure. **Round 5:** it now accepts the flat committed `traces/REAL-*.worker.trace` as well as live run directories — round 3 added the file but no way to rebuild it from anything committed — and it emits **both** bounds on the stale player's lifetime, because it had published `alive_s` as "`Popen` → exit" and that is not what `alive_s` measures |
 | `summarise.sh` | every published figure, from the committed TSVs, with `awk` and `sort` only. **Medians average the two middle observations** — round 1 took the lower middle, which for these even-sized samples was not the median. Round 3 added section F (the `Rdone`→`P` adversarial margin) and split section C's `P`→`W` window by who published, both because the document quoted a figure the script did not print |
-| `analyse_round2.sh` | the round-2 protocol facts, from the committed `traces/`. Round 3 added the `C12b` attribution (the `killpg`s actually sent, and the record sweep's unbounded target list), the `C14a` publish→destroy lag, and `C15c` alongside `C16` |
+| `analyse_round2.sh` | the round-2 protocol facts, from the committed `traces/`. Round 3 added the `C12b` attribution (the `killpg`s actually sent, and the record sweep's unbounded target list), a `C14a` publish→destroy lag, and `C15c` alongside `C16`. **Round 5 removed that lag** — it anchored on `W_pid_write`, which in `C14a`'s `pid_mode=shared` is the parent's deferral stamp, so it never measured from publication — and replaced it with two soundly-ordered counts, which also cut the `C14a` destruction count from 24 unlinks to **8**, on **4** trials rather than 12 |
+| `verify_fires.sh` | every hook stamps `$TAG.entry` before it does anything, so a hook that never ran is distinguishable from one that measured zero. **Round 5:** it read a `RUNS.txt` that exists only in a live run tree, so pointed at `traces/` it iterated over nothing and printed *"all hooks fired"* — a null reported as a pass, by the guard against exactly that. It now reads the committed `<cfg>.markers.tsv` too and exits 2 over zero inputs: `verify_fires.sh traces` reports 21 configurations OK |
 | `analyse_c14.sh` | hook C's reachability of a live player in the `C14` arms. **Corrected in round 3** — it had tested only that an END record existed, which every completed player satisfies. It now reads `tNc.entry` from `markers.tsv` and requires `start <= hook_c < end`. Reads the committed `traces/` directly: `analyse_c14.sh traces` |
 
 ## Timestamp names

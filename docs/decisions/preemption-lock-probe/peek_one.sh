@@ -1,9 +1,12 @@
 #!/bin/bash
 # Outcome summary for one configuration, by attribution and audible duration.
+# collect.sh beside this script; OUT names the run tree. Overridable: RIG, OUT.
 set -u
-RIG="$HOME/.local/share/kokoro/bench/preempt-lock-2026-08-25"
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+RIG=${RIG:-$HERE}
+OUT=${OUT:-$HOME/.local/share/kokoro/bench/preempt-lock-2026-08-25/out}
 for c in "$@"; do
-  d=$(awk -v c="$c" '$1==c{print $2}' "$RIG/out/RUNS.txt")
+  d=$(awk -v c="$c" '$1==c{print $2}' "$OUT/RUNS.txt")
   [[ -n "${d:-}" && -d "$d" ]] || { echo "=== $c (not run) ==="; continue; }
   bash "$RIG/collect.sh" "$d" "$c" >/dev/null 2>&1
   echo "=== $c ==="
