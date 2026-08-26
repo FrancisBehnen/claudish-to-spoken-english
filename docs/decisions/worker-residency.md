@@ -50,8 +50,10 @@ made about thirty two-word Haiku turns, whose only purpose was to make a hook fi
 
 **The rig**, so the numbers can be attacked:
 
-- `speak-probe.sh` — a throwaway `Stop` hook that walks §10.3's steps 1–9 and then drops a job and
-  exits. Written in `zsh -f`, **not** bash, for one reason: bash 3.2 is the only bash on this machine
+- `speak-probe.sh` — a throwaway `Stop` hook that walks §10.3's ordered steps and then drops a job
+  and exits. It walked what were then steps 1–9; §10.3 was renumbered when preemption moved above
+  the content-based exits, so the range is quoted here as it stood when the probe ran rather than
+  silently renumbered — the probe is not re-run by that edit. Written in `zsh -f`, **not** bash, for one reason: bash 3.2 is the only bash on this machine
   and has no in-process high-resolution clock, so `t0` would have had to come from a subprocess spawned
   *after* the thing being measured started. `zmodload zsh/datetime; t0=$EPOCHREALTIME` is read on the
   script's second line. The shipped `speak.sh` is specified as bash (§10.2) and this changes nothing
