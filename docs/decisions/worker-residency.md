@@ -435,8 +435,10 @@ corrected statement, and it is **[inferred]** throughout — none of (b), (c) or
 **Routed to §10.6 as OPEN with that reduced scope stated, and with the reduction explicitly conditional
 on (d) shipping.** The measurement that would confirm or refute (b), (c) and (d) is named in *What I
 could not measure* below. **That measurement has since been made** — 312 preemption trials over 26
-configurations — and it confirmed (b) and (d), quantified (c), and falsified the reduction this paragraph
-routes: see *SUPERSEDED* at the top and the spec's §13 row 20.
+configurations — and the verdict is not one word per clause: it **kept** (b), reclassified as an
+optimisation given the sweep; **confirmed** (d)'s rule and **falsified** (d)'s partition; **quantified**
+the hook-side kill (c) argued for while **replacing** (c)'s shared `speak/pid` and its writer; and
+falsified the reduction this paragraph routes. See *SUPERSEDED* at the top and the spec's §13 row 20.
 
 ### 2. The election is `mkdir`, and it lives in the worker
 
@@ -858,8 +860,12 @@ other blockers; a single integration pass folds this in. This is the proposed co
 **proposal as it stood on 2026-08-25** and is kept as the record of what was proposed off what was
 measured. **Clause 2's stale-lock recovery and clause 7's three preemption hooks are the two that did not
 survive** — see *SUPERSEDED* at the top for what replaced each and what the measurements behind them
-still establish. Clauses 1, 3, 4, 5 and 6 are the spec's, with clause 6's *clock* corrected by a later
-measurement that is not this document's (spec §10.5 clause 6, §13 row 24).
+still establish. Clauses 1, 3, 4 and 5 are the spec's. **Clause 6 is the spec's only after TWO
+corrections, not one, and the interval is the one this sentence used to leave out**: its *window* went
+from the 30 minutes below to **20** in review — so *"matching `rewrite.sh:117`'s sweep"*, which is the
+reason clause 6 gives for its number, is precisely the reasoning the spec rejected, because equal
+timeouts do not order two events — and its *clock* was then corrected from a monotonic one to the wall
+clock by a measurement that is not this document's (spec §10.5 clause 6, §13 row 24).
 
 ### §10.5 — the OPEN heading comes off, with the limits attached
 
@@ -914,9 +920,29 @@ The mechanism, in six clauses, each measured above:
      the whole timeline, because a worker that dies between `Popen` and the record's publication leaves a
      player in neither case — `C8`, 12/12 at full length. (i)'s single `speak/pid` is replaced by a
      per-player `playerdir/<pid>.<nonce>` published by the player's own wrapper; (ii) survives as an
-     optimisation-given-the-sweep; (iii) survives and is now measured load-bearing; and the two new
-     hooks are the **election-time process-group sweep** and its `.pending` bound. **"None measured" is no
-     longer true of this clause** — all of it has been through 312 trials over 26 configurations.
+     optimisation-given-the-sweep; (iii) survives and is now measured load-bearing; and **the two hooks
+     that were added are (iv) the election-time sweep — its process-group half plus (iv-a)'s
+     published-record half, which the spec numbers as one hook in two halves — and (v) the worker's
+     `wait()` of its own player, with the unlink of that player's record.** Without (v), `kill(2)` on an
+     unreaped zombie succeeds, so every kill site in the clause reports success while killing nothing.
+     **The `.pending` marker is not a hook at all** — it is a bound *inside* (iv), and naming it as one
+     of the two additions both invents a fifth mechanism and hides the one that was really added.
+   - **"None measured" is no longer true of this clause. "All of it was measured" is not true either,
+     and on an evidence document the difference is the whole point.** What the 312 trials over 26
+     switchable configurations reached is the **existence and necessity of the five hooks**: (i)'s
+     per-player record against the shared file and against a ledger (`C14a` vs `C14b`, `C13a`); (ii)'s
+     reclassification (`C5_norecheck`, `C15a`–`C15c`); (iii) and the need for *both* its targets
+     (`C4_noclaimkill`, `C10a`, `C10b`); (iv) on both sides of publication (`C12a`, `C12b`, against
+     `C11b` and `C12c`); (iv-a)'s record half (`C11a`, `C15c`, `C16b`); (v)'s reap (`C7_noreap` against
+     `C2`); and the `.pending` leak itself (`C16a` — 25 markers created, none removed). What **no**
+     committed arm ran is the identity-and-cleanup layer built on those hooks, all of it still
+     `[inferred]`: (i)'s `<pid>.<starttime>` record content and its *signal only on a positive match*
+     rule (spec §13 row 20(c)); (iv)'s four-case owner test and the kernel property its middle two
+     cases rest on (row 20(b)); the required **order** of (iv) before (iv-a) — every measured arm
+     happened to run that order and none ran the reverse, so the 12/12 results are evidence *for* the
+     order while the *requirement* is unrun (row 20(a)); and the generation-tagged `.pending` cleanup,
+     **implemented in no committed trial and ship-blocking** (row 27). So: the hooks are measured, the
+     identities and the cleanup are not.
 
 And the closing condition §10.5 set for itself is now met, with this result:
 **cold from a hook is 2.66–5.50 s (median 3.16 s) and fails the 3 s line; warm from a hook is
@@ -1034,11 +1060,14 @@ cheap: the mechanism already has a warm-up trigger and a wake handler would reus
   one session, so both arms see the same load and the same spacing. Until then the ~0.37 s gap is
   decomposed by reasoning, not isolated by experiment.
 - **Preemption, in every case except coalescing. THIS EXPERIMENT HAS SINCE BEEN RUN, and it did not
-  confirm the clauses — it falsified one of them** (*SUPERSEDED* at the top): 312 preemption trials over
+  confirm the clauses — it falsified TWO of them** (*SUPERSEDED* at the top): 312 preemption trials over
   26 switchable configurations, spec §13 row 20. The design below is right about *what to record* — the
   interleaving does turn on which kill fired — and the run's finding is a region this list did not think
   to ask about: a worker dying between `Popen` and the record's publication, `C8`, 12/12 at full length.
-  So (b) and (d) are confirmed and (c) is quantified, while the partition they were said to form is not.
+  **The two it falsified are (c)'s shared `speak/pid` and (d)'s two-kill partition** — the same two the
+  *SUPERSEDED* block lists, which is why that block's count is four across both protocols and two here.
+  What it did *not* falsify: (d)'s rule is confirmed, (b) is kept as an optimisation given the sweep,
+  and the hook-side kill (c) argued for is quantified even though (c)'s file and writer are gone.
   Read the rest of this bullet as the experiment that was owed, not one still owing. Nothing here drove a second job at a worker that had
   already claimed the first: the driven session issued turns sequentially, and the eight-hook race
   dropped all eight before any worker was ready. So §1b's rows two and three are **reasoned, not

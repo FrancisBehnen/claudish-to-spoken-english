@@ -3355,7 +3355,23 @@ on. So #11 can lock and #23 can start — with two more blockers than it had yes
 > duration), and changes nothing here. **It is not a row for the same reason the other three are not:
 > the defect was in an evidence document, and this table counts defects in this document's LOCKED text.**
 > Counting it would inflate the total against the table's own stated basis, which is the defect class the
-> table exists to police. **The same pass re-derived the total and found §15's tally still reading NINE
+> table exists to police.
+>
+> **A FIFTH of that class landed the same day and is likewise not a row.**
+> [`worker-residency.md`](worker-residency.md)'s routing note for §10.5 clause 7 named the two hooks the
+> trials added as *"the election-time process-group sweep and its `.pending` bound"* — but the `.pending`
+> marker is a bound **inside** clause 7(iv) rather than a hook, and the second hook actually added is
+> **7(v)**, the worker's `wait()` of its own player — and then closed with *"all of it has been through
+> 312 trials over 26 configurations"*, which is false of every `[inferred]` limb of the clause and
+> contradicts **row 27** outright: the generation-tagged `.pending` cleanup is implemented in **no**
+> committed trial and blocks shipping. The same commit repaired two restatements of what the preemption
+> trials falsified in that document's own §1b — *one* clause where the count is two — and one of what
+> survived in clause 6, which credited the clock correction while omitting the 30 → 20-minute interval.
+> **A `[trials]` coverage claim over a mechanism no trial ran is a tag-honesty defect**, and it is the
+> fifth in the same class rather than a new one: the defect was in an evidence document, and this table
+> counts defects in **this** document's LOCKED text. **The total is unchanged at thirty-three.**
+>
+> **The same pass re-derived the total and found §15's tally still reading NINE
 > reads and THIRTY-ONE over a twelve-item list** while this note and the rest of §15 had moved to
 > thirty-three; that is corrected in §15 and is a **miscount rather than a defect**, on the round-four
 > *"all six defects"* precedent — one number stale in one place, not a rule stale in one place.
