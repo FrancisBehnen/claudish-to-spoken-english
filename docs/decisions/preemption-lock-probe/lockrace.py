@@ -132,6 +132,62 @@ def read_lock_pid():
         return -1
 
 
+def _still_linked(ino):
+    """Does LOCK still name the inode we just read through? See read_lock_identity."""
+    try:
+        return 1 if os.stat(LOCK).st_ino == ino else 0
+    except OSError:
+        return 0
+
+
+def read_lock_identity():
+    """(inode, pid) taken through ONE open directory handle.
+
+    Calling lock_ino() and then read_lock_pid() is itself a TOCTOU, and it is the
+    same class of bug this detector exists to catch: another racer can rmdir and
+    re-create LOCK between the two calls, so the winner's inode gets paired with a
+    DIFFERENT lock's missing pid and the trial is scored as staged when the deciding
+    read never entered the winner's window.
+
+    Opening the directory once fixes what both observations refer to: the descriptor
+    keeps naming the inode it opened even if the path is replaced underneath it, and
+    `pid` is resolved relative to that descriptor rather than by path.
+        Anchoring alone is not quite enough, and the third value says why. Once the
+    descriptor is open the inode stays reachable even after another racer `rmdir`s the
+    directory -- at which point `pid` is missing because the lock was DESTROYED, not
+    because the winner had not written it yet. Both look like "no pid at the winner's
+    inode", and only the first is evidence the staged window was entered.
+
+    `st_nlink` does NOT separate them here: measured on this machine's APFS, `fstat`
+    through the open descriptor still reports a positive link count after the directory
+    is removed. So the discriminator is a CONFIRMATION re-stat of the path after the
+    pid read -- if the path no longer resolves to the inode we read, the lock we were
+    looking at is gone and the read is not window evidence.
+
+    This is deliberately conservative rather than atomic: a winner's lock replaced in
+    the instant after a genuine window read is scored `linked=0` and the trial is
+    VOIDed. It errs toward discarding a real observation, never toward accepting a
+    false one, which is the only direction that is safe for a staging detector.
+    """
+    try:
+        fd = os.open(LOCK, os.O_RDONLY | os.O_DIRECTORY)
+    except OSError:
+        return (-1, -1, 0)
+    try:
+        ino = os.fstat(fd).st_ino
+        try:
+            pfd = os.open("pid", os.O_RDONLY, dir_fd=fd)
+        except OSError:
+            return (ino, -1, _still_linked(ino))
+        try:
+            with os.fdopen(pfd, "r") as fh:
+                return (ino, int(fh.read().strip()), _still_linked(ino))
+        except (OSError, ValueError):
+            return (ino, -1, _still_linked(ino))
+    finally:
+        os.close(fd)
+
+
 def elect_current():
     for _ in range(60):
         try:
@@ -146,10 +202,9 @@ def elect_current():
             # cell would look identical either way. Rather than add a sixth staging
             # mechanism, say what this read actually saw; run_lock.sh VOIDs an S1/S2
             # trial in which no racer's deciding read carried the winner's window.
-            ino = lock_ino()
-            pid = read_lock_pid()
-            rec("election_read", protocol="current", ino=ino, pid=pid,
-                saw_window=("yes" if pid <= 0 else "no"))
+            ino, pid, linked = read_lock_identity()
+            rec("election_read", protocol="current", ino=ino, pid=pid, linked=linked,
+                saw_window=("yes" if (pid <= 0 and linked) else "no"))
             if pid > 0:
                 if alive(pid):
                     rec("lost", held_by=pid)
@@ -195,11 +250,10 @@ def elect_spec():
             # stayed open" with "the window was never entered at all".
             pid = -1
             for _i in range(A.backoff_attempts):
-                ino = lock_ino()
-                pid = read_lock_pid()
+                ino, pid, linked = read_lock_identity()
                 if _i == 0:
-                    rec("election_read", protocol="spec", ino=ino, pid=pid,
-                        saw_window=("yes" if pid <= 0 else "no"))
+                    rec("election_read", protocol="spec", ino=ino, pid=pid, linked=linked,
+                        saw_window=("yes" if (pid <= 0 and linked) else "no"))
                 if pid > 0:
                     break
                 time.sleep(A.backoff_ms / 1000.0)

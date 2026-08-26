@@ -1031,8 +1031,10 @@ annotate them.
 > - **(i) The pid record is per-PLAYER, at a unique path, published by the player before it
 >   can make a sound. REQUIRED.** `speak/playerdir/<pid>.<nonce>`, written by a wrapper that
 >   then `exec`s, and unlinked only by exact name. **One shared `speak/pid` must not be used:**
->   an older player's reap unlinked a newer player's record on 12/12 trials, and a hook firing
->   in that window could not reach a live player on 4/12 (`C14a`); with per-player names, 0/12
+>   an older player's reap unlinked a newer player's record on **8 proven destructions across
+>   4 of 12 trials** — the 12/12 an earlier revision reported here was anchored on harness defect
+>   4's bad `W` stamp and is withdrawn — and a hook firing in that window could not reach a live
+>   player on those same **4/12** (`C14a`); with per-player names, 0/12
 >   (`C14b`). **An append-only ledger must not be used either:** its truncate erased
 >   registrations it had never signalled on 12 of 25 truncations (`C13a`).
 > - **(ii) The pre-spawn re-`stat` of `speak/job` is an optimisation GIVEN AN ELECTION-TIME
