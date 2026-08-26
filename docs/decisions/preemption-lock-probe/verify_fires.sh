@@ -57,21 +57,64 @@ if [[ $seen -eq 0 ]]; then
   exit 2
 fi
 
+# DUPLICATES, checked before the manifest and independently of it -- a configuration
+# counted twice is a defect whether or not there is anything to compare against.
+#
+# ROUND 16. This script checked that every expected name APPEARED. It did not check
+# that each appeared ONCE, which made it a subset test wearing the name of a
+# completeness test. `run_c10.sh`, `run_c16.sh` and `run_tail.sh` all APPEND to
+# RUNS.txt (`>> "$OUT/RUNS.txt"`) and only `run_pgid_rerun.sh` filters the old line out
+# first -- so re-running one configuration to fix it leaves TWO lines naming it, both
+# pointing at run directories that exist. Every name is still present, so this script
+# said "all hooks fired"; `assemble.sh` then walked the same RUNS.txt and appended that
+# configuration's twelve rows TWICE, and the 312-trial denominator the document quotes
+# silently became 324. The guard whose entire job is to stop a miscounted evidence set
+# being read as a pass was the one thing that could not see it.
+dups=$(printf '%s\n' "${SEEN_CFG[@]}" | sort | uniq -d)
+if [[ -n $dups ]]; then
+  printf '%s\n' "$dups" | while read -r d; do
+    n=$(printf '%s\n' "${SEEN_CFG[@]}" | grep -cxF "$d")
+    echo "DUPLICATE: $d appears $n times in $O -- its trials would be counted $n times" >&2
+  done
+  echo "NOT A PASS: the evidence set is not a set. Each configuration must appear" >&2
+  echo "exactly once; a re-run must REPLACE its RUNS.txt line, not append another." >&2
+  exit 2
+fi
+
 # A PARTIAL evidence set is not a pass either, and this is the second half of the same
 # defect: the zero-input guard above was added after this script reported "all hooks
 # fired" over nothing at all, but it still greenlit 21 inputs against a document that
 # claims 26 configurations. Silence about the five that are absent reads exactly like
 # confirmation that they fired. EXPECTED is the manifest; anything missing is a failure.
+#
+# ROUND 16: and anything PRESENT that the manifest does not name is a failure too. The
+# check is now SEEN == EXPECTED exactly -- no subset in either direction. An unexpected
+# name is a configuration the document does not report, and `assemble.sh` would publish
+# its rows into the same denominator.
 EXPECTED=${EXPECTED:-$HERE/expected-configs.txt}
 if [[ -f $EXPECTED ]]; then
+  manifest=$(grep -vE '^[[:space:]]*(#|$)' "$EXPECTED" | sort -u)
+  seenlist=$(printf '%s\n' "${SEEN_CFG[@]}" | sort -u)
+
+  extra=$(comm -23 <(printf '%s\n' "$seenlist") <(printf '%s\n' "$manifest"))
+  if [[ -n $extra ]]; then
+    printf '%s\n' "$extra" | while read -r x; do
+      echo "UNEXPECTED: $x has marker evidence in $O but is not in the manifest" >&2
+    done
+    echo "NOT A PASS: an unreported configuration would be assembled into the published" >&2
+    echo "denominator. Add it to $EXPECTED, or remove its evidence." >&2
+    exit 2
+  fi
+
+  absent=$(comm -13 <(printf '%s\n' "$seenlist") <(printf '%s\n' "$manifest"))
   missing=0
-  while read -r want; do
-    [[ -z $want || $want == \#* ]] && continue
-    if ! printf '%s\n' "${SEEN_CFG[@]}" | grep -qx "$want"; then
+  if [[ -n $absent ]]; then
+    while read -r want; do
+      [[ -n $want ]] || continue
       echo "MISSING: $want has no marker evidence in $O" >&2
       missing=$((missing + 1))
-    fi
-  done < "$EXPECTED"
+    done <<< "$absent"
+  fi
   if [[ $missing -gt 0 ]]; then
     echo "INCOMPLETE: $missing of $(grep -cvE '^\s*(#|$)' "$EXPECTED") expected configurations have no evidence -- this is NOT a pass" >&2
     exit 2

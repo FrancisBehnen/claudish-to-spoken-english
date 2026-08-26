@@ -33,6 +33,11 @@ Three environment variables override, and the author's original layout is reacha
 
 The stub arms need nothing but a stdlib `python3`. The re-derivations need no interpreter at all:
 `summarise.sh <dir-with-the-four-TSVs>` and `analyse_round2.sh traces` are `awk` and `sort`.
+**They are disjoint and both are needed.** `summarise.sh` covers what the aggregate TSVs hold —
+one row per trial. Figures that are counts of trace *events* (`record_unlinked`, `pending_found`,
+the sweep skips) are in no TSV column, so `C14a`'s 8 destructions across 4 trials and the
+`C15c`/`C16` 25-election `killpg` counts come only from `analyse_round2.sh`. Neither script is a
+check on the other.
 
 The helpers that address the author's archived **run tree** rather than the rig's scripts —
 `gather_out.sh`, `clean_copies.sh`, `peek.sh`, `peek_one.sh`, `assemble_pass1.sh` — keep the
@@ -95,6 +100,61 @@ time*. It is the same instrument PR #27's §10.5 clause 2 specifies, so the two 
 one scheme. **Unrun**: the committed traces predate it, and the document tags it `[inferred]` with
 the arms that close it.
 
+## Round 16: a guard is not a guard until it has refused something
+
+Round 15's answer to "produced only some of it" was four new checks. Three of them were wrong, and
+one of the three would have deleted the committed evidence. Every fix below was executed against a
+bad input **and** against the committed evidence, in both directions.
+
+- **The identity test had a hole shaped like the thing it closes.** `owner_identity()` guarded on
+  `option == "off" OR the record has no start time`, putting the deliberate falsification arm and
+  a **record shape** behind one `or`. So under `--owner-identity on`, a bare `<pid>` record —
+  written before the option existed, or by an `off` worker — degraded silently to `kill(pid, 0)`,
+  reported a recycled pid as `same`, and let a `.pending` marker authorise `killpg` on a
+  stranger's whole group. The degradation now keys on the **option** and never on the record;
+  under `on` a bare record is a fourth verdict, `unverifiable`, and the two consumers fail safe in
+  opposite directions because their unsafe acts differ in size: the sweep refuses to signal and
+  **keeps** the marker (nothing here proves the owner gone, so nothing may expire it), while the
+  election supersedes without signalling, since calling it live would restore the liveness failure
+  the test exists to fix and buys no safety the sweep is not already providing. Bench-run in five
+  arms against a live unrelated group leader; the stranger survives the bare record under `on`,
+  dies under `off`, and a verified record still draws its `killpg`.
+- **`publish.sh`'s rollback destroyed what it existed to protect.** It `mv`'d `traces/` **out of**
+  the live destination before the swap, so a failed `mv "$STAGE" "$DEST"` restored an `$OLD` whose
+  traces were already gone while the `EXIT` trap deleted `$STAGE` — the only remaining copy.
+  Measured on the round-15 script with a forced swap failure: **114 of 114 committed trace files
+  destroyed.** It is now a `cp -Rp` verified by entry count before anything irreversible happens;
+  the same forced failure leaves the destination byte-identical, and a failed rollback names the
+  recoverable path instead of exiting silently.
+- **`publish.sh`'s required set omitted the producers of four committed TSVs.** `collect_real.sh`
+  is the only thing that rebuilds `real-audio-trials.tsv`, without which `summarise.sh` fails its
+  whole re-derivation — and it was optional. So were `assemble.sh`, `assemble_pass1.sh`,
+  `run_real.sh`, `compare_passes.sh` and `analyse_c14.sh`. All are required now.
+- **`verify_fires.sh` was a subset check, not a completeness check.** It required every expected
+  name to appear, never that each appear **once**. `run_c10.sh`, `run_c16.sh` and `run_tail.sh`
+  append to `RUNS.txt`; only `run_pgid_rerun.sh` filters the old line first — so re-running one
+  configuration left two lines naming it, the guard passed, and `assemble.sh` appended its twelve
+  rows twice, turning the published 312-trial denominator into 324. Seen set must now **equal**
+  the manifest: duplicates and unexpected names are both refused by name. **The five-`MISSING`
+  refusal over `traces/` is unchanged and byte-identical.**
+- **`assemble_pass1.sh` pinned `C3_adversarial` to one historical timestamp** while every other
+  configuration globbed, so any other valid pass-1 tree published **10 of 11** configurations
+  while the aggregate row guard succeeded. Every configuration is globbed now and each must match
+  **exactly one** run directory — zero and two are both refusals, the second because a tree with
+  two runs of one configuration is an ambiguity the script must not resolve by picking. The
+  historical timestamp survives as `PASS1_C3_adversarial=…`.
+- **`summarise.sh`'s attribution chain let the player's log outrank the kernel.** It tested
+  `sig=="-15" || plog=="15"`, then `-30/30`, `-31/31`, `-14/14` — but `rc` is the parent's wait
+  status and `plog` is the **last** value the player wrote, and the committed `C12b` log has one
+  process writing `sig=14` then `sig=31` 69 µs apart. `sig` decides alone now; `plog` is the
+  fallback for rows with no wait status. **No committed figure moves** — no row in
+  `preemption-trials.tsv` has both fields present and disagreeing — so this is latent, not a
+  correction.
+- **`summarise.sh`'s header claimed more than the script does.** *"Every published figure"* was
+  false: event counts (`record_unlinked`, `pending_found`, the sweep skips) are in no TSV, so
+  `C14a`'s 8-destructions-on-4-trials and the `C15c`/`C16` 25-election `killpg` counts come only
+  from `analyse_round2.sh` over the raw traces. The header now says which script derives what.
+
 ## Files
 
 | file | what it is |
@@ -109,9 +169,9 @@ the arms that close it.
 | `run_lock.sh` | row 21 driver. **Six** scenarios (S1 `init`, S2 `longstall`, S3 `aba`, S4 `dualreclaim`, S5 `scratch`, S6 `deadN`) × three protocols × N × stall. **Nothing in it is staged by a clock any more, and none of that is re-run.** Round 3 replaced S3's flat 4 ms wait for the second reclaimer with a wait on `classified_stale`. **Round 5 found the fixed sleeps that repair walked past** — the 50 ms staging the dead incumbent's own record in S3, S4 and S6 — which let those trials degenerate into S5's control while still producing `owners=1`. All three now gate on `pid_written`/`published` and emit `VOID` on timeout. **Round 11 found that the S1/S2 barrier stages the *observation* and not the *election read*** — after the `GO` token the winner writes its pid while each racer performs its own second, deciding read, and nothing orders the two. The answer is detection rather than a sixth staging mechanism: `trial_init` emits `VOID` unless some racer's `election_read` saw the pid-less state **and** the winner's own lock inode. **Expect that to void most of the `stall=0` cell**, because at 0 ms the window is zero-width and no staging can put a read inside it. The committed `lock-owners.tsv` predates **every** one of these fixes |
 | `collect.sh` | joins the marker files, `kills.log`, `player.log` and `worker.trace` into one `trials.tsv` per run |
 | `collect_real.sh` | turns the `REAL-*` traces into `real-audio-trials.tsv`, so section 2.6's figures re-derive like every other figure. **Round 5:** it now accepts the flat committed `traces/REAL-*.worker.trace` as well as live run directories — round 3 added the file but no way to rebuild it from anything committed — and it emits **both** bounds on the stale player's lifetime, because it had published `alive_s` as "`Popen` → exit" and that is not what `alive_s` measures |
-| `summarise.sh` | every published figure, from the committed TSVs, with `awk` and `sort` only. **Medians average the two middle observations** — round 1 took the lower middle, which for these even-sized samples was not the median. Round 3 added section F (the `Rdone`→`P` adversarial margin) and split section C's `P`→`W` window by who published, both because the document quoted a figure the script did not print |
+| `summarise.sh` | the published figures **that live in the committed TSVs**, with `awk` and `sort` only — sections A-F and nothing else; the trace-event counts come from `analyse_round2.sh` (round 16 narrowed a header that claimed *every* figure).  **Round 16:** the attribution chain checks the kernel's wait status first and consults the player log only where there is none, because the log keeps the *last* of two signals and `C12b` records a process that took two. No committed figure moves. **Medians average the two middle observations** — round 1 took the lower middle, which for these even-sized samples was not the median. Round 3 added section F (the `Rdone`→`P` adversarial margin) and split section C's `P`→`W` window by who published, both because the document quoted a figure the script did not print |
 | `analyse_round2.sh` | the round-2 protocol facts, from the committed `traces/`. Round 3 added the `C12b` attribution (the `killpg`s actually sent, and the record sweep's unbounded target list), a `C14a` publish→destroy lag, and `C15c` alongside `C16`. **Round 5 removed that lag** — it anchored on `W_pid_write`, which in `C14a`'s `pid_mode=shared` is the parent's deferral stamp, so it never measured from publication — and replaced it with two soundly-ordered counts, which also cut the `C14a` destruction count from 24 unlinks to **8**, on **4** trials rather than 12 |
-| `verify_fires.sh` | every hook stamps `$TAG.entry` before it does anything, so a hook that never ran is distinguishable from one that measured zero. **Round 5:** it read a `RUNS.txt` that exists only in a live run tree, so pointed at `traces/` it iterated over nothing and printed *"all hooks fired"* — a null reported as a pass, by the guard against exactly that. It now reads the committed `<cfg>.markers.tsv` too and exits 2 over zero inputs. **Round 10** added `expected-configs.txt` so a *partial* set could not read as a pass either, and that is where the committed evidence stands: **`verify_fires.sh traces 12` prints 21 `OK` lines, then `MISSING` for `C1_prespawn`, `C2_hookside`, `C5_norecheck`, `C6_handle` and `C7_noreap`, and exits 2.** The five have their twelve trial rows in `preemption-trials.tsv`; what they lack is the hook-fired marker evidence, so for those five alone a hook that never fired is indistinguishable from one that measured nothing. **The right response is to re-run them, not to loosen the guard** |
+| `verify_fires.sh` | every hook stamps `$TAG.entry` before it does anything, so a hook that never ran is distinguishable from one that measured zero. **Round 5:** it read a `RUNS.txt` that exists only in a live run tree, so pointed at `traces/` it iterated over nothing and printed *"all hooks fired"* — a null reported as a pass, by the guard against exactly that. It now reads the committed `<cfg>.markers.tsv` too and exits 2 over zero inputs. **Round 10** added `expected-configs.txt` so a *partial* set could not read as a pass either, and that is where the committed evidence stands: **`verify_fires.sh traces 12` prints 21 `OK` lines, then `MISSING` for `C1_prespawn`, `C2_hookside`, `C5_norecheck`, `C6_handle` and `C7_noreap`, and exits 2.** The five have their twelve trial rows in `preemption-trials.tsv`; what they lack is the hook-fired marker evidence, so for those five alone a hook that never fired is indistinguishable from one that measured nothing. **The right response is to re-run them, not to loosen the guard.** **Round 16** made it an EXACT-SET check: a name may appear neither twice nor at all outside the manifest, because three of the four run scripts append to `RUNS.txt` and a re-run therefore left a duplicate that this guard passed and `assemble.sh` counted twice |
 | `analyse_c14.sh` | hook C's reachability of a live player in the `C14` arms. **Corrected in round 3** — it had tested only that an END record existed, which every completed player satisfies. It now reads `tNc.entry` from `markers.tsv` and requires `start <= hook_c < end`. Reads the committed `traces/` directly: `analyse_c14.sh traces` |
 
 ## Timestamp names

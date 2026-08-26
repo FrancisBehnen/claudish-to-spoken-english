@@ -1,5 +1,23 @@
 #!/bin/bash
-# Every published figure, re-derived from the committed TSVs with awk and sort only.
+# The published figures THAT LIVE IN THE COMMITTED TSVs, re-derived with awk and sort
+# only. That is sections A-F below and nothing else.
+#
+# ROUND 16 -- THIS LINE USED TO READ "Every published figure, re-derived from the
+# committed TSVs", AND THAT WAS FALSE. The aggregate TSVs are one row per TRIAL, and
+# several published figures are counts of trace EVENTS that no TSV column carries:
+# `record_unlinked`, `pending_found`/`pending_created`, and the sweep-skip events. So
+#
+#   * C14a's "8 record destructions across 4 trials",
+#   * the C15c/C16 25-election `killpg`-skipped counts, and
+#   * every other statement about what a sweep DID rather than what a player's exit
+#     status WAS,
+#
+# are derivable only by `analyse_round2.sh preemption-lock-probe/traces`, over the
+# committed raw traces. The two derivations are disjoint and both are required; neither
+# is a check on the other. The decision document draws the same boundary in section 1
+# and this script now agrees with it, because "every figure re-derives" is the premise
+# the whole document rests on and a script that overstates its own coverage is the
+# quietest way for that premise to stop being true.
 #
 # Two things this script gets right that round 1 got wrong, both found in review:
 #  * MEDIAN. macOS awk is BWK awk and has no asort(), so percentiles come from a
@@ -53,12 +71,51 @@ stats() {   # label < numbers-on-stdin
 }
 
 # attribution rule, written once. Darwin signal numbers.
+#
+# ROUND 16 -- THE TWO SOURCES WERE INTERLEAVED, AND THE WEAKER ONE COULD WIN.
+# `rc` is the parent's wait status: one value, written once, by the kernel. `player_log_sig`
+# is the LAST `sig=` the player wrote to its own log, and collect.sh keeps only the last
+# (`PSIG[$3] = V2["sig"]`), so a player that is signalled twice reports the second.
+# THAT HAPPENS: the committed C12b log has pid 94309 writing `player_end sig=14` and then
+# `player_end sig=31` 69 us later -- one process, two sites, both recorded.
+#
+# The old chain tested `sig=="-15" || plog=="15"`, then -30/30, then -31/31, then -14/14,
+# so a row with rc=-14 and a final player-log value of 31 matched the RECORD-sweep arm
+# first and was published as a record sweep although the wait status said process group.
+# The player log outranked the kernel purely because 31 was tested before 14.
+#
+# The wait status now decides ALONE whenever it exists, and the player log is consulted
+# ONLY as a fallback for the rows that have no wait status -- the player-published arms,
+# where the parent never reaped the process it is asking about.
+#
+# BLAST RADIUS, verified over the committed preemption-trials.tsv: the only (rc,
+# player_log_sig) pairs present are (-,0) x72, (-,-) x60, (-,31) x48, (-30,-) x36,
+# (-15,15) x36, (0,0) x24, (-30,30) x12, (-,15) x12, (-,14) x12. NO row has both fields
+# present and disagreeing, so NO published attribution changes and the output of this
+# script is byte-identical. This is a LATENT defect that would bite on a re-run -- the
+# C12b arm is one scheduling accident away from producing exactly the row that breaks
+# it -- not a correction to any figure.
 ATTRIB='function attrib(sig, plog, ppid, aud) {
-  if (sig=="-15" || plog=="15") return "hook-pid-kill"
-  if (sig=="-30" || plog=="30") return "worker-claim-kill"
-  if (sig=="-31" || plog=="31") return "election-sweep-record"
-  if (sig=="-14" || plog=="14") return "election-sweep-pgid"
-  if (sig=="0"   || plog=="0")  return "NOTHING-ran-to-end"
+  # 1. The wait status, if the parent has one. Authoritative and sufficient.
+  if (sig != "-") {
+    if (sig=="-15") return "hook-pid-kill"
+    if (sig=="-30") return "worker-claim-kill"
+    if (sig=="-31") return "election-sweep-record"
+    if (sig=="-14") return "election-sweep-pgid"
+    if (sig=="0")   return "NOTHING-ran-to-end"
+    # A status this rig has no kill site for. Falling back to the player log here would
+    # be the same defect again, so name it instead. Unreached on the committed evidence:
+    # rc is one of -, -30, -15, 0 on all 312 rows.
+    return "unrecognised-wait-status:" sig
+  }
+  # 2. No wait status: the player log is the only witness. It is the LAST value the
+  #    player wrote, so where two sites reached one process this under-reports the
+  #    first -- which is why it is the fallback and not the rule.
+  if (plog=="15") return "hook-pid-kill"
+  if (plog=="30") return "worker-claim-kill"
+  if (plog=="31") return "election-sweep-record"
+  if (plog=="14") return "election-sweep-pgid"
+  if (plog=="0")  return "NOTHING-ran-to-end"
   if (ppid=="-")                return "no-player-spawned"
   # Spawned, never logged a start, no exit status: killed BEFORE it could exec.
   # A player that survived to run always logs player_start, so this is unambiguous.

@@ -52,6 +52,12 @@ Round 15, added after review found the FOURTH distinct defect in the `.pending` 
                          shape, kept as the falsification arm. Same instrument as the
                          spec's §10.5 clause 2, deliberately: the two documents describe
                          one scheme rather than two.
+                         ROUND 16: under `on`, a record that carries NO start time --
+                         written by an `off` worker or by one predating the option --
+                         is UNVERIFIABLE, not verified. Round 15 let it degrade to the
+                         pid-existence test, which reopened the whole hazard from the
+                         one input the falsification arm produces. The degradation now
+                         keys on the OPTION and never on the record's shape.
 
 Timestamps recorded, named as spec 13 row 20 names them:
   S  claim (rename job -> job.taken.<pid>)   S2 prespawn recheck stat
@@ -135,7 +141,10 @@ ap.add_argument("--owner-identity", choices=["off", "on"], default="on",
                      "the round-14 bare-pid shape, which is the arm this exists to "
                      "falsify: with it, a `.pending` marker whose owner pid has been "
                      "recycled as an unrelated group leader authorises killpg on that "
-                     "stranger's group.")
+                     "stranger's group. Under `on` a record with NO start time is "
+                     "UNVERIFIABLE and never degrades to the pid test: the sweep "
+                     "refuses to signal it and leaves its marker standing, the election "
+                     "supersedes it without signalling anything.")
 ap.add_argument("--generation", default="1")
 A = ap.parse_args()
 
@@ -247,6 +256,11 @@ def read_owner(g):
     appended, never prepended. A bare-pid record (--owner-identity off, or a record
     written by an older worker) yields a None start time, which every caller below reads
     as 'this record carries no identity' rather than as 'the identity matched'.
+
+    ROUND 16: that sentence was the INTENT and not the behaviour. `owner_identity()`
+    turned a None start time straight back into the pid-existence test, so under `on` a
+    bare record did read as 'the identity matched'. It now yields "unverifiable"; see
+    there for why the sweep and the election fail safe in opposite directions.
     """
     try:
         target = os.readlink(gen_path(g))
@@ -260,11 +274,11 @@ def read_owner(g):
 
 
 def owner_identity(pid, st):
-    """Three-way, not two: SAME / RECYCLED / GONE.
+    """Four-way, not three: SAME / RECYCLED / GONE / UNVERIFIABLE.
 
     `kill(pid, 0)` answers 'does some process have this pid', which is the wrong
-    question everywhere a pid was READ FROM A RECORD. The three cases and what each
-    means for the record's authority:
+    question everywhere a pid was READ FROM A RECORD. The cases and what each means for
+    the record's authority:
 
       "same"     -- a process with that pid exists and started when the record says.
                     It IS the owner. Everything the record authorises is legitimate.
@@ -277,13 +291,35 @@ def owner_identity(pid, st):
                     handed out again, so a pgid derived from it is still reserved to it
                     and any orphan of ours is still inside it. THIS is the case clause
                     7(iv) exists for, and it is the one that must still signal.
+      "unverifiable"
+                 -- the option is ON but the RECORD carries no start time (a bare
+                    `<pid>` written by an `--owner-identity off` worker, or by a worker
+                    that predates the option). There is nothing to compare against, so
+                    none of the three verdicts above can be reached honestly.
 
-    Under --owner-identity off, or against a record that carries no start time, this
-    degrades to the two-way test it replaces and says so, so the trace never shows an
-    identity check that did not happen.
+    ROUND 16 -- THE HOLE THE OPTION LEFT IN ITSELF. Round 15 wrote the guard as
+    `if A.owner_identity == "off" or st is None`, which made a bare record degrade to
+    the pid-existence test SILENTLY, under `on`. That is the exact failure `on` exists
+    to prevent, reachable from the exact input the option's own falsification arm
+    produces: an `off` worker's record read by an `on` worker. A recycled pid came back
+    "same", and at the sweep a pending marker then authorised `killpg` against a
+    stranger's whole process group.
+
+    THE TENSION, AND HOW IT IS RESOLVED. `off` is the deliberate falsification arm and
+    must keep the round-14 bare-pid behaviour exactly, or the arm stops falsifying
+    anything. But `off` and "the record has no start time" are two different facts, and
+    round 15 keyed on their disjunction, which let the RECORD decide whether the check
+    happened. So THE DEGRADATION KEYS ON THE OPTION AND NEVER ON THE RECORD SHAPE:
+    under `off`, every record degrades; under `on`, a record that cannot be verified is
+    reported as unverifiable and each caller fails safe for its own site. No record
+    shape can turn `on` back into `off`.
     """
-    if A.owner_identity == "off" or st is None:
+    if A.owner_identity == "off":
+        # The falsification arm, unchanged: a pid is treated as an identity, which is
+        # the defect being demonstrated.
         return ("same" if alive(pid) else "gone"), None
+    if st is None:
+        return "unverifiable", None
     cur = proc_starttime(pid)
     if cur is None:
         return "gone", None
@@ -315,6 +351,24 @@ def elect():
             # jobs sat unconsumed. Same defect as the sweep's, one clause earlier.
             rec("owner_pid_recycled", site="election", gen=g, pid=owner,
                 recorded=owner_st, live=live_st)
+        if verdict == "unverifiable":
+            # A bare record under --owner-identity on. THE TWO SITES FAIL SAFE IN
+            # OPPOSITE DIRECTIONS, and that is deliberate, because their unsafe outcomes
+            # are not the same size:
+            #   * the SWEEP's unsafe act is `killpg` at an unverified process group --
+            #     it damages a third party, and is irreversible. It refuses.
+            #   * the ELECTION's acts are `symlink` and `return False`. Neither signals
+            #     anything. Treating an unverifiable owner as LIVE would restore the
+            #     precise liveness defect the identity test was added to fix -- a bare
+            #     record whose pid a stranger now holds would hold the lock forever and
+            #     no worker would ever consume a job -- while buying no safety at all,
+            #     because the only destructive consequence of superseding is the pgid
+            #     sweep, and the sweep now refuses this verdict on its own.
+            # So supersede, exactly as for "gone", and let the sweep be the guard. The
+            # entry still enters `superseded`; it is refused THERE, on its own evidence,
+            # rather than by an election that has no better information than the sweep.
+            rec("owner_record_unverifiable", site="election", gen=g, pid=owner,
+                action="superseded_without_signal")
         if verdict == "same":
             rec("election_lost", held_by=owner, gen=g)
             return False
@@ -429,6 +483,26 @@ def sweep_pgid():
             rec("kill_skipped", by="election-sweep", site="pgid", target=p, gen=g,
                 reason="owner_pid_recycled", recorded=st, live=live_st)
             expired.add(str(g))
+            continue
+        if verdict == "unverifiable":
+            # A record with no start time under --owner-identity on. `killpg` here would
+            # be the whole hazard the option was added to close, decided by a coin: the
+            # pid is either still the owner's or already a stranger's group leader, and
+            # a bare record cannot tell those apart. REFUSE TO SIGNAL. This is the only
+            # verdict of the four that neither signals nor expires:
+            #   * not signalled, because the target is unverified and the blast radius
+            #     is a whole process group that may not be ours;
+            #   * NOT EXPIRED, because expiry means "the owner is PROVABLY gone, so this
+            #     marker can never become actionable again", which is true of "recycled"
+            #     and is exactly what is not known here. Retiring it would throw away
+            #     the only record that an unswept generation exists.
+            # The marker therefore survives, this generation stays out of `swept`, and
+            # every later election re-reads and re-refuses it -- a bounded, visible leak
+            # of one marker rather than an unbounded signal at a stranger. It is loud in
+            # the trace on purpose: a `pending_found` that never shrinks alongside these
+            # lines is the operator's signal to drain the bare-record generations.
+            rec("kill_skipped", by="election-sweep", site="pgid", target=p, gen=g,
+                reason="owner_record_has_no_identity", recorded="-")
             continue
         try:
             os.killpg(p, SIG_SWEEP_PGID)
