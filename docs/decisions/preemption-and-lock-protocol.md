@@ -76,7 +76,17 @@ was run.** 1200 trials, three protocols, six scenarios **[measured-here]**:
 | --- | --- | --- | --- | --- |
 | `current` — the residency probe's own | 400 | **3 owners** | 121 | **30.2 %** |
 | `spec` — §10.5 clause 2 (a) + (b) | 400 | **3 owners** | 61 | **15.2 %** |
-| **`proposed`** — atomic `symlink` owner record, superseded by generation | 400 | **1** | **0** | **0.0 %** |
+| **`proposed`** — atomic `symlink` owner record, superseded by generation | 400 † | **1** | **0** | **0.0 %** |
+
+† **20 of `proposed`'s 400 are unconfirmed, not validated.** They are its S3 cell, staged under
+the fixed 4 ms sleep this revision replaced with a handshake on B's own `classified_stale`
+record. The defect is asymmetric: under `current`/`spec` a mis-staged S3 trial degenerates into
+S4 and yields 1 owner, so their 20/20 two-owner results prove their own staging held — under
+`proposed` a mis-staged trial *also* yields 1 owner and is indistinguishable from a genuine
+pass. The harness is fixed and **the fix is unrun**; the committed `lock-owners.tsv` predates
+it. **`proposed`'s genuinely-exercised count is 160** (S4, S5, S6), clean throughout. §2.6 and
+§13 row 21 carry the re-run as an open item. No *failure* in the table is affected: a mis-staged
+trial yields 1 owner, so every 2- and 3-owner result staged correctly.
 
 `spec` is a genuine improvement and still fails: clean to a 50 ms stall (180/180, where
 `current` fails 60 of the same 180), then **40/40 wrong at 200 ms and 1000 ms** — a bounded
