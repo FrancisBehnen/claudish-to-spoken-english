@@ -446,6 +446,53 @@ trial measures. And `speakd_probe.py`'s `idle_exit` path exits without signallin
 its group: a real gap, reached by no configuration (`--idle-exit-s 600` exceeds every run and every
 player is bounded), recorded rather than closed.
 
+## Round 31: the metric was an interpretation
+
+`run_lock.sh` scores a row-21 trial by counting `owner` records, and both this rig and the
+decision document read a count of 2 as *"two resident workers each holding a ~340 MB model"*.
+That is a statement about two processes owning the session **at the same time**, and nothing here
+measured it: no process recorded a release, and no code compared two owners' intervals. Review was
+right about that, and `lock_overlap.sh` is the derivation it was missing.
+
+- **The claim instant is the load-bearing part, and getting it wrong inverts the answer.** The
+  finding that prompted this timed the winner from its `owner` record and concluded that
+  `lock-S2_longstall-spec-N4-s1000-r1` was **sequential**: two `owner` records 0.939 s apart
+  against a 500 ms hold. But the winner claims at `mkdir_ok` — the successful exclusive create,
+  **1.016 s** before its own `owner` record in that trace — and `owner` is where it *finishes
+  publishing* what the `mkdir` already won. That ordering is the entire premise of S1 and S2: the
+  racer misclassifies a winner that has **already won**. Read from the claim, the racer's whole
+  hold is **nested inside** the winner's interval, and the 0.939 s is the width of the
+  misclassification rather than evidence against it.
+- **The soundness runs one way, deliberately.** `lockrace.py` used to end a hold with
+  `time.sleep(hold_ms)` and exit, and `sleep()` is a **lower bound**, so `[claim, owner + HOLD]`
+  is a **subset** of the interval a process actually believed it held. Overlap of two subsets
+  **proves** concurrency; absence of overlap proves nothing. `lock_overlap.sh` says exactly that
+  and never reports a trial as sequential.
+- **Half of the missing instrument is now in the producer.** `lockrace.py` records `released` when
+  a hold ends, on the winner path and the racer path, and not for the `--dead-owner` staging
+  incumbent that never owned anything. `lock_overlap.sh` prefers it over the inference — verified
+  in both directions, including a synthetic **early** release that the `owner + HOLD` inference
+  would have passed and the recorded value correctly refuses. **The other half was not built on
+  purpose:** making the first owner hold until every participant has claimed would *guarantee* the
+  overlap instead of measuring it, and a rig that manufactures its own headline is worse than a
+  stated gap.
+- **A bench run, not published as an arm.** `OUT=... ./run_lock.sh 1` — one repetition of all 60
+  cells, 60 trials, with the `released` record in every log — then `lock_overlap.sh` over its 60
+  logs: **15** trials produced two or more owners and **concurrency is proven on 15 of 15**, every
+  interval end a *recorded* release (79 recorded, 0 inferred). Including an `S2` trial at the
+  1000 ms stall whose two `owner` records are **1.000926 s** apart and whose intervals still
+  overlap by **0.508357 s**, and a four-owner `spec` trial in the same cell where **6 of 6** pairs
+  overlap. Both `S3` trials — the *racer + racer* shape the ordering argument does not cover — are
+  among the 15. **No count from that run is republished**: a fresh sweep produced two owners in
+  cells where the committed run produced one, which is why the committed numbers are the committed
+  numbers. It demonstrates the property, not a rate.
+- **Coverage is the residue, and it is stated as a fraction.** `lock-owners.tsv` is one count per
+  trial with no timestamps, and 7 of 1200 trials have a per-trial trace. So 4 of the 182 failing
+  trials are derived and 178 inferred: 140 by ordering (S1/S2, where the stalled winner claims
+  first and outlives the racer's hold) and **42 by an unbounded scheduling expectation** (S3/S6,
+  two racers with nothing between them), which are the genuinely open ones. They close on the same
+  S1-S6 re-run every other round-3-to-30 staging fix is waiting for, with every trial's log kept.
+
 ## Files
 
 | file | what it is |
@@ -466,6 +513,7 @@ player is bounded), recorded rather than closed.
 | `analyse_round2.sh` | the round-2 protocol facts, from the committed `traces/`. Round 3 added the `C12b` attribution (the `killpg`s actually sent, and the record sweep's unbounded target list), a `C14a` publish→destroy lag, and `C15c` alongside `C16`. **Round 5 removed that lag** — it anchored on `W_pid_write`, which in `C14a`'s `pid_mode=shared` is the parent's deferral stamp, so it never measured from publication — and replaced it with two soundly-ordered counts, which also cut the `C14a` destruction count from 24 unlinks to **8**, on **4** trials rather than 12. **Round 17 made that 8-and-4 a derivation instead of an assertion:** the two counts were global and shared no key, so their *sum* was printed as the destruction total and the sentence *"they fall in the same trials and are distinct unlinks"* was stated rather than derived. The `C14a` block now takes a **third input**, `<cfg>.markers.tsv` — `hook-kills.log` tags its rows `tNc` but carries **no timestamp**, and `tNc entry` is that timestamp — and joins on `(trial, unlink timestamp)`, binding each hook-C witness to **one** unlink. **Round 21 replaced the binding argument**: round 17 used the window `(W_pid_write[jNb], tNc entry)`, whose lower end is the *parent's* deferral stamp taken after `Popen` returns while the wrapper is already running — harness defect 4, reintroduced as a bound by the block that had withdrawn a lag figure for it. No observed publication instant exists in these traces, so the binding is now a **uniqueness** argument that needs none: the record was certainly published before the player's own `player_start`, hook C read nothing while that player was live, and the reaper's `os.unlink` is the only thing in this arm that removes a record — so **exactly one** `record_unlinked` between the b-job's spawn and hook C names the destroyer. The interval is `(S2_prespawn_stat[jNb], tNc R)`, whose lower end is emitted before `Popen` and therefore before the fork, and the trial filter is gone because an unlink from another trial in that interval is a genuine candidate. `W_pid_write` is no longer read by the block at all. **Round 24 moved the upper end out from `tNc entry` and moved the liveness test with it:** `entry` is the hook's first act while the read happens after `K` and the record scan, so the b-player must be shown live **across** `(K, R)` rather than at `entry`, and the candidate interval must reach `R` because that is the latest the scan can have been. Both changes can only make the check refuse. It prints the **union** of distinct events with the intersection computed, the distinct **trial** count, and each event's **rank** within its trial. The committed traces give 0 intersection, ranks #1 and #2, and the same **8 across 4** — byte-identical output through all three repairs. An ambiguous interval or an absent marker **narrows** — the trial counts, the event does not. The hook-read tally block above it no longer claims a live player either: it reads only `hook-kills.log`, which carries no timestamps, so it states the count and points at the witness that can settle liveness |
 | `verify_fires.sh` | every hook stamps `$TAG.entry` before it does anything, so a hook that never ran is distinguishable from one that measured zero. **Round 5:** it read a `RUNS.txt` that exists only in a live run tree, so pointed at `traces/` it iterated over nothing and printed *"all hooks fired"* — a null reported as a pass, by the guard against exactly that. It now reads the committed `<cfg>.markers.tsv` too and exits 2 over zero inputs. **Round 10** added `expected-configs.txt` so a *partial* set could not read as a pass either, and that is where the committed evidence stands: **`verify_fires.sh traces 12` prints 21 `OK` lines, then `MISSING` for `C1_prespawn`, `C2_hookside`, `C5_norecheck`, `C6_handle` and `C7_noreap`, and exits 2.** The five have their twelve trial rows in `preemption-trials.tsv`; what they lack is the hook-fired marker evidence, so for those five alone a hook that never fired is indistinguishable from one that measured nothing. **The right response is to re-run them, not to loosen the guard.** **Round 16** made it an EXACT-SET check: a name may appear neither twice nor at all outside the manifest, because three of the four run scripts append to `RUNS.txt` and a re-run therefore left a duplicate that this guard passed and `assemble.sh` counted twice. **Round 29** added a **tag** check beside the count: `entry=25` passed whether the tags were `warmup + t1..t12` or a set with `t3a` twice and `t7b` never — *"all hooks fired"* over a trial whose hook did not. The expected tag set comes from the hook contract in this script's header, not from the file under test. Deliberately a narrower claim than its two siblings: in a live tree the tags are filenames and unique by construction. The committed evidence is unaffected — still 21 `OK`, the same five `MISSING`, exit 2 |
 | `analyse_c14.sh` | hook C's reachability of a live player in the `C14` arms. **Corrected in round 3** — it had tested only that an END record existed, which every completed player satisfies — and **again in round 24**, because `tNc entry` is the instant the hook *started* and the `nopid` read happens after `K` and the record scan. Blind rows now require the b-player live **across** the scan (`start <= tNc K` and `end > tNc R`); reached rows are joined to their own trial's b-player by the kill itself, which is the only evidence available since the kill is what ends that player. **Round 25 narrowed `reached` to `result=sent` and round 26 found that this MOVED the misclassification rather than removing it:** `blind` was the `else`, so `esrch` and `record_skipped` rows — a record found and skipped is the *opposite* of an absence, and it carries no `result=` at all — landed in the arm that means *"the hook found no record"*, where they would have been published as record destructions. `blind` now requires `nopid` or `norecord` **by name**, every other outcome is excluded **by name and printed**, a trial with more than one hook-C row is excluded instead of silently reduced to its last row, and the arms plus the exclusions are asserted to sum to 12. All figures unchanged, **4 of 12** and **0 of 12**. Reads the committed `traces/` directly: `analyse_c14.sh traces` |
+| `lock_overlap.sh` | **round 31: row 21's concurrency, which the owner count never established.** `run_lock.sh` counts `owner` records and the document reads a count of 2 as *"two resident workers"* — a claim about two processes owning the session **at the same time**. Nothing recorded a release and nothing compared two owners' intervals. This builds each owner an interval `[claim, release]` — `claim` being `mkdir_ok` / `published` and **not** `owner`, because a winner that has returned from `mkdir(2)` owns the lock while `owner` is where it *finishes publishing* one injected stall later — and reports the overlap. **4 of the 4 committed two-owner traces establish concurrency**, one of them (`lock-S2_longstall-spec-N4-s1000-r1`) with the racer's entire 500 ms hold **nested inside** the winner's interval although the two `owner` records are 0.939 s apart. It is a guard too: exits 2 on a two-owner trace that does not overlap, on an `owner` with no claim record, and on being handed no traces. `HOLD` is read out of `run_lock.sh` rather than typed in here, and a recorded `released` is preferred over `owner + HOLD` wherever a run wrote one. Reaches the **7 of 1200** trials that have a trace; the other 178 failing trials are inferred, and the document says so. `lock_overlap.sh traces` |
 
 ## Timestamp names
 

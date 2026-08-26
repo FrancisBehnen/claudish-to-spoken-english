@@ -19,6 +19,15 @@
 # the whole document rests on and a script that overstates its own coverage is the
 # quietest way for that premise to stop being true.
 #
+# ROUND 31 ADDS A THIRD DERIVATION AND THE SAME BOUNDARY APPLIES TO IT. Sections A-C
+# below re-derive row 21's owner COUNTS. They cannot say whether a trial's two owners
+# held the session at the SAME TIME, because lock-owners.tsv is one count per trial with
+# no timestamps in it -- and section 3.1 of the document reads `owners=2` as two workers
+# resident at once, which is a claim about time. That claim is derived by
+# `lock_overlap.sh preemption-lock-probe/traces`, over the per-trial lock traces, and it
+# reaches the 7 trials that have one. Do not read a rate below as a count of concurrent
+# holds; §3.4 states which part of it is derived and which part is inferred.
+#
 # Two things this script gets right that round 1 got wrong, both found in review:
 #  * MEDIAN. macOS awk is BWK awk and has no asort(), so percentiles come from a
 #    `sort -n` pipeline. Round 1 then took v[int((NR+1)/2)], which is the LOWER
@@ -423,6 +432,9 @@ awk -F'\t' 'NR==1{next}{printf "%s\t%s\t%s\t%s\towners=%s\n", $1,$2,$3,$4,$6}' "
 
 echo
 echo "== ROW 21 / B: per-protocol worst case and duplicate-owner rate =="
+echo "   trials_not_exactly_1 counts ownership CONCLUSIONS, not concurrent holds. Whether a"
+echo "   trial's two owners held the session at once is derived by lock_overlap.sh over the"
+echo "   per-trial traces (4 of 4 two-owner traces do); this file has no timestamps. §3.4."
 # VOID means the STAGING failed, not the protocol. awk would coerce it to 0 and
 # score it as a duplicate-owner failure while keeping it in the denominator, so a
 # synchronisation problem would read as a protocol problem. Excluded from both, and

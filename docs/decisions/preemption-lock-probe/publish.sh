@@ -72,6 +72,10 @@ REQUIRED=(
   verify_fires.sh         # the completeness check
   analyse_round2.sh       # the round-2 protocol facts the document quotes
   analyse_c14.sh          # the document's "third derivation", over the C14 traces
+  lock_overlap.sh         # round 31: row 21's concurrency, the one row-21 claim no
+                          #   committed TSV column can carry -- and a guard, so a rig
+                          #   published without it can print the owner rates and never
+                          #   be asked whether the owners were concurrent
   expected-configs.txt    # the manifest verify_fires.sh checks against
 )
 

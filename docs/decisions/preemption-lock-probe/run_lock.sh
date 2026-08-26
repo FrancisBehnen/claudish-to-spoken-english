@@ -23,8 +23,25 @@
 #  S4 dualreclaim  two reclaimers with no asymmetry at all, to separate "simultaneous
 #                reclamation" from "reclamation on a stale observation".
 #
-# Metric: how many processes log `owner` in one trial. 1 is correct; 2 is two
-# resident workers each holding a ~340 MB model and racing the claim-rename.
+# Metric: how many processes log `owner` in one trial. 1 is correct.
+#
+# ROUND 31 CORRECTED THE SECOND HALF OF THIS COMMENT, WHICH WAS AN INTERPRETATION WEARING
+# A DEFINITION. It read "2 is two resident workers each holding a ~340 MB model and racing
+# the claim-rename" -- and that is a claim about two processes owning the session AT THE
+# SAME TIME, which this script does not measure. It counts `owner` records. Nothing here
+# recorded a release or compared two owners intervals, so the concurrency was asserted.
+#
+# It is derived instead by `lock_overlap.sh <traces_dir>`, which builds each owner an
+# interval from its CLAIM -- `mkdir_ok` / `published`, NOT `owner` -- to its release, and
+# proves the overlap where the traces allow: 4 of the 4 committed two-owner traces. The
+# claim instant is the load-bearing part. A winner that has returned from mkdir(2) owns the
+# lock; `owner` is where it FINISHES publishing, one injected stall later, which is why the
+# review that read the winners `owner` record as its claim concluded a nested pair was
+# sequential. That ordering is the whole premise of S1/S2: the racer misclassifies a winner
+# that has ALREADY WON.
+#
+# `lockrace.py` now records `released` when a hold ends, so a re-run OBSERVES each interval
+# rather than inferring its end from HOLD below. lock-owners.tsv predates that record.
 #
 # usage: run_lock.sh <reps>
 #

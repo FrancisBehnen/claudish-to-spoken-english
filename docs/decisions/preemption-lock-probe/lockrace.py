@@ -603,6 +603,16 @@ if A.role == "winner":
         if not A.dead_owner:
             rec("owner", via="election")
     time.sleep(A.hold_ms / 1000.0)
+    # ROUND 31. THE HOLD HAD NO END RECORD, AND THE METRIC IS READ AS A CONCURRENCY CLAIM.
+    # `owners` counts `owner` records, and the document reads 2 as two workers resident AT
+    # ONCE -- so the interval each owner believed it held had to be inferred from this
+    # file's `hold_ms` rather than observed. That inference is sound in one direction only
+    # (sleep() is a lower bound), which is enough to PROVE an overlap and never enough to
+    # rule one out. Recording the release makes the interval an observation on any future
+    # run; `lock_overlap.sh` prefers it over the inference when it is present, and the
+    # committed traces predate it exactly as they predate every other producer change here.
+    if not A.dead_owner:
+        rec("released", after_ms=A.hold_ms)
 else:
     fn = {"current": elect_current, "spec": elect_spec, "proposed": elect_proposed}
     ack_barrier()
@@ -613,4 +623,5 @@ else:
     if won:
         rec("owner", via="election")
         time.sleep(A.hold_ms / 1000.0)
+        rec("released", after_ms=A.hold_ms)   # see the winner path: round 31
 sys.exit(0)
