@@ -105,6 +105,15 @@ if [[ -d "$SD/playerdir" ]]; then
     [[ $b == *.pending ]] && continue
     [[ $b =~ ^[0-9]+\.[0-9a-f]{8}$ ]] || continue
     pid=${b%%.*}
+    # The name shape permits `0.<nonce>`, and `kill -TERM 0` signals THIS hook's whole
+    # process group -- the harness's. The shared-record branch below already refuses the
+    # unsafe domain; this one did not. Identity mode is not a substitute: `ps -p 0` fails,
+    # which is classified `gone`, and `gone` is signalled.
+    if [[ $pid -le 1 ]] 2>/dev/null; then
+      printf '%s\thook\t%s\trecord_skipped\tby=hook via=perplayer target=%s verdict=unsafe_pid\n' \
+        "$TAG" "$$" "$pid" >> "$MD/kills.log"
+      continue
+    fi
     rec_st=$(record_starttime "$f" "$pid") || rec_st=""
     v=$(identity_verdict "$pid" "$rec_st")
     if [[ $v == recycled || $v == unverifiable ]]; then

@@ -1378,8 +1378,19 @@ annotate them.
 >   the worker's idle exit strictly shorter than the sweep window. So there is no backstop:
 >   **generation cleanup has to be specified, and it has to be ordered.**
 > - **The ordering, stated. [inferred] and UNRUN.** A worker may unlink generation `g` **only
->   after it has completed BOTH halves of its election sweep against `g`'s owner** — 7(iv) and
->   7(iv-a) — and **only the worker that created `g+1` may do it**. The reason is §5's own
+>   after both halves of its election sweep against `g`'s owner have reached a TERMINAL result**
+>   — 7(iv) and 7(iv-a) — and **only the worker that created `g+1` may do it**.
+>   **"Completed" is the wrong condition and would re-open the region it closes.** A sweep
+>   completes when it has *attempted* the signal, and 7(iv) deliberately RETAINS the `.pending`
+>   marker on `EPERM` or any other non-terminal `killpg` failure so that a later election can
+>   retry. Unlinking `g` on mere completion throws away the one thing that retry needs: the
+>   later sweep walks generations and finds `g` gone, `continue`s, and never reaches that
+>   owner's group again — so the marker is kept for a retry that has been made impossible, and
+>   an unnamed player survives permanently rather than until the next election. Terminal means
+>   the group was signalled or is provably gone (`ESRCH`); it does not mean the call returned.
+>   **The marker's retirement and the generation's unlink are therefore the same decision** and
+>   must be taken together: retire the marker and unlink `g` only on a terminal result, keep
+>   both otherwise. The reason is §5's own
 >   safety argument: the sweep walks *every* generation down to zero
 >   (`speakd_probe.py`'s `for gg in range(g, -1, -1)`), and an unlinked generation is a `continue`,
 >   not a signal. Unordered, the interleaving is the `C11b`/`C12c` failure by another door: `W1`

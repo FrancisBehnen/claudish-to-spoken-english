@@ -48,6 +48,19 @@ mkdir -p "$DEST"
         for (t = 1; t <= 99; t++) {
           ja = "j" t "a"; jb = "j" t "b"
           if (!(ja in POP)) continue
+          # A ROW IS A MEASURED TRIAL, NOT A SPAWNED ONE. This emitted as soon as the
+          # stale job had a P_popen, so a truncated trace produced a row with "-" in the
+          # outcome fields that still counted toward the exact three-per-arm denominator
+          # below -- collection succeeding without having measured whether the player
+          # exited or was killed, which is the whole content of section E. The exit
+          # fields and the paired newer spawn are what make the row a measurement.
+          if (!(ja in EX) || !(ja in SIG) || !(jb in POP)) {
+            printf "collect_real.sh: %s trial %d is incomplete (", arm, t > "/dev/stderr"
+            printf "%splayer_exit %spaired-spawn) -- not emitting a row\n",
+                   ((ja in EX) && (ja in SIG) ? "has " : "no "),
+                   ((jb in POP) ? "has " : "no ") > "/dev/stderr"
+            continue
+          }
           ov = "-"
           # the stale player overlapped the newer one only if it was still alive
           # when the newer one was spawned and nothing had killed it

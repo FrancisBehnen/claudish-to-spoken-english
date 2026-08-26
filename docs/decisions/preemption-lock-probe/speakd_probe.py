@@ -750,7 +750,18 @@ def read_player_records():
             if not m:
                 continue
             path = os.path.join(PLAYERDIR, name)
-            named_pid = int(m.group(1))
+            # THE DOMAIN RULE APPLIES TO THE FILENAME TOO, and it did not. Round 22 put
+            # safe_pid() on the record CONTENT parsers and left this path on a bare int()
+            # -- and RECORD_RE matches `0.abcdef01`, so a corrupt per-player name reached
+            # alive(0) and os.kill(0, sig): the worker's OWN process group. Identity mode
+            # does not rescue it either, because `ps -p 0` fails and that is classified
+            # `gone`, which is then signalled. The domain is a safety property and cannot
+            # depend on an option.
+            named_pid = safe_pid(m.group(1))
+            if named_pid is None:
+                rec("record_skipped", by="reader", site="perplayer",
+                    target=m.group(1), verdict="unsafe_pid")
+                continue
             st = None
             if A.player_identity == "on":
                 try:
