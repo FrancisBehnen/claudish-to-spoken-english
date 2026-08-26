@@ -14,7 +14,10 @@ if [[ "$(cd "$RIG" && pwd)" == "$(cd "$(dirname "$DEST")" 2>/dev/null && pwd)/pr
   echo "refusing to publish $RIG onto itself" >&2; exit 2
 fi
 mkdir -p "$DEST"
-for f in "$RIG"/README.md "$RIG"/*.py "$RIG"/*.sh; do
+# expected-configs.txt is NOT optional decoration: verify_fires.sh only WARNS when the
+# manifest is absent, so publishing without it silently restores the partial-evidence
+# false pass this revision exists to prevent.
+for f in "$RIG"/README.md "$RIG"/*.py "$RIG"/*.sh "$RIG"/expected-configs.txt; do
   [[ -f "$f" ]] && cp "$f" "$DEST/$(basename "$f")"
 done
 chmod +x "$DEST"/*.sh "$DEST"/*.py

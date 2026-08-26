@@ -786,9 +786,18 @@ the winner see the last ack and publish before that racer looks. So a racer now
 acknowledges only **after it has actually observed the state under test** — for
 `current`/`spec` a lock directory with no `pid` in it, for `proposed` an existing
 generation record, there being no pid-less state to observe. The winner blocks after
-claiming until `N` such acknowledgements appear, and only then applies the stall and
-writes its pid. The window is therefore
-established by *ordering* rather than by out-running an interpreter start.
+claiming until `N` such acknowledgements appear.
+
+**And that was still only half a barrier — the name was aspirational for two revisions.**
+A racer that acknowledges and then walks straight into its protocol lets the **first**
+racer reclaim or replace the pid-less lock before racers 2..N ever look at it, so an
+N-racer cell was still race-dependent no matter how well the winner was staged. The
+second phase is now real: the winner writes a **`GO` token** once it has collected all
+`N` acknowledgements, and every racer waits for that token before electing. So the
+ordering is: winner claims → each racer observes the window and acknowledges → winner
+releases all of them at once → winner applies the stall and writes its pid. The window is
+therefore established by *ordering* rather than by out-running an interpreter start, and
+no racer can destroy the state another racer was staged to observe.
 A trial whose staging still fails emits `VOID` — and `summarise.sh` excludes `VOID` from
 both the numerator and the denominator and reports it on its own line, because a staging
 failure coerced to `owners=0` would otherwise read as a *protocol* failure and quietly

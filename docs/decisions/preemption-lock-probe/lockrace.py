@@ -278,12 +278,22 @@ def await_barrier():
         return
     os.makedirs(A.barrier_dir, exist_ok=True)
     deadline = time.time() + 5.0
-    while len(os.listdir(A.barrier_dir)) < A.barrier_n:
+    while len([x for x in os.listdir(A.barrier_dir) if x.startswith("r")]) < A.barrier_n:
         if time.time() > deadline:
-            rec("barrier_timeout", seen=len(os.listdir(A.barrier_dir)),
+            rec("barrier_timeout",
+                seen=len([x for x in os.listdir(A.barrier_dir) if x.startswith("r")]),
                 wanted=A.barrier_n)
             return
         time.sleep(0.001)
+    # PHASE 2. Release every racer at once, only now that all N have observed the
+    # window. Without this the barrier was not two-phase at all: a racer acknowledged
+    # and went straight into its protocol, so the FIRST racer could reclaim or replace
+    # the pid-less lock before racers 2..N ever looked at it, and the staging was
+    # race-dependent again.
+    try:
+        open(os.path.join(A.barrier_dir, "GO"), "w").close()
+    except OSError:
+        pass
     rec("barrier_released", n=A.barrier_n)
 
 
@@ -324,6 +334,15 @@ def ack_barrier():
         rec("barrier_ack", observed="pid_less" if A.protocol != "proposed" else "gen")
     except OSError:
         pass
+    # PHASE 2. Wait to be released. Acknowledging and proceeding immediately is what
+    # let the first racer destroy the state the others were staged to observe.
+    go = os.path.join(A.barrier_dir, "GO")
+    deadline = time.time() + 5.0
+    while not os.path.exists(go):
+        if time.time() > deadline:
+            rec("release_timeout")
+            return
+        time.sleep(0.0005)
 
 
 # ===================================================================== main

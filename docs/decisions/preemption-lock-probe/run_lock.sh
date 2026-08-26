@@ -106,7 +106,7 @@ trial_init() {   # proto N stall rep scenario
   # `observe_timeout` if it never saw the state it was supposed to observe. Either
   # one voids the trial, and summarise.sh excludes VOID from both the numerator and
   # the denominator.
-  if grep -qE 'barrier_timeout|observe_timeout' "$log" 2>/dev/null; then
+  if grep -qE 'barrier_timeout|observe_timeout|release_timeout' "$log" 2>/dev/null; then
     echo "$sc $pr N$n s$stall r$rep: staging never established the window -- trial VOID" >&2
     emit "$sc" "$pr" "$n" "$stall" "$rep" "VOID"
     return
