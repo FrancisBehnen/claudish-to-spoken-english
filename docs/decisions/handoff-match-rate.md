@@ -15,8 +15,12 @@ this blocker asked, and it is answered.
 spec does not model: **`Stop` does not wait for the `MessageDisplay` hook.** It is dispatched
 concurrently with the final streamed chunk — a median of 6.7 ms after that hook starts, and
 **crucially, by a gap that does not change when the hook is made 65× slower**. `rewrite.sh` publishes
-its buffer only after an LLM call that takes seconds, so at the moment `speak.sh` runs, `speak/source`
-holds the **previous** message: measured stale in 29 of 30 turns, identified by content. The hashes
+its buffer only after an LLM call that takes seconds, so at the moment `speak.sh` runs, the buffer
+holds the **previous** message: measured stale in 29 of 30 turns, identified by content. (This was
+measured against the mutable `speak/source` the spec then had; §3.1 has since replaced it with a
+content-addressed `speak/rw.<H>`. **The staleness result is unaffected** — it is a fact about when
+`Stop` runs relative to the publish, not about which path holds the text — but `speak/source` is not
+the current design and is named here only where the measurement is described.) The hashes
 then correctly disagree, §3.5's last row fires, and the feature is quiet — for a reason that has
 nothing to do with the match rate and everything to do with ordering.
 [Section 4](#4--the-finding-that-outranks-the-rate-stop-does-not-wait-for-messagedisplay) is that
@@ -624,7 +628,9 @@ mkdir -p "$D/stop"; cat > "$D/stop/$T0.json"; exit 0
 > `jq` handed a **bad option or an unreadable file**, and a **bash syntax error** in the hook — measured
 > table in [`speech-integration-spec.md`](speech-integration-spec.md) §5. **The probe was safe on both
 > routes, but only one of them is the write ordering's doing.** Writing the payload before running any
-> `jq` does cover the `jq` route. **It does not cover a bash syntax error**, and an earlier version of
+> `jq` does preserve the capture — but it does not stop a later `jq` status 2 from escaping, and what
+> actually made the probe safe on that route is that it reaches its explicit `exit 0`. **Nor does the
+> write ordering cover a bash syntax error**, and an earlier version of
 > this note claimed it did: a syntax error in the same compound command or enclosing construct is a
 > **parse**-time failure, so the parser executes none of it and there is nothing written before the
 > hook exits 2. What actually covers that route here is that **these probes are syntax-valid** —

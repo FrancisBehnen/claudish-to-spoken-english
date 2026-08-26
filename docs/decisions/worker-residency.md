@@ -68,7 +68,11 @@ made about thirty two-word Haiku turns, whose only purpose was to make a hook fi
   `bench/first-sentence.py`'s `first_sentence()` so the text handed to `create()` is produced by
   literally the same code #9 and #13 ran. Neither bench file was edited.
 - The text spoken is a **real corpus rewrite**, seeded into `$SPEAK_DIR/rewrite` — the exact file at
-  the exact path §3.1 says `rewrite.sh` publishes. `rewrite.sh` is not running in a driven session, so
+  the exact path §3.1 specified `rewrite.sh` publishes **at the time this ran**. Like the step range
+  above, that path is quoted as-of: §3.1 has since replaced the mutable `rewrite` buffer with a
+  content-addressed `speak/rw.<H>`, and this probe was not re-run against it. What the arm measures is
+  synthesis and playback latency from a seeded buffer, which does not depend on how the buffer is
+  named. `rewrite.sh` is not running in a driven session, so
   the driver seeds it; the hook then resolves text through §3.5's table and takes the buffered rewrite,
   which is the production path. The `last_assistant_message` of the driven turn is read, checked and
   logged (it is how the hook is proven to have fired) but is not what gets synthesized.

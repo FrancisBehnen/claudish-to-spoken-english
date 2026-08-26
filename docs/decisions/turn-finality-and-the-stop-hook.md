@@ -208,8 +208,9 @@ content, `rewrite.sh:23-24`), but the reason to keep it on `Stop` is narrower:
 - **`jq` is the one to watch — but not for the reason this bullet used to give.**
 
   > **CORRECTED 2026-08-25, measured rather than read.** This bullet said *"`jq` exits **2** on a usage or
-  > compile error in the filter"*, and the same claim is repeated in the DECISION below as *"`jq` exits
-  > 2 on a malformed filter"*. **The compile half is wrong: a malformed filter exits 3, not 2.**
+  > compile error in the filter"*, and the DECISION below **repeated** the same claim as *"`jq` exits
+  > 2 on a malformed filter"* — it has since been corrected there too, so the error survives only in
+  > this quotation of it. **The compile half is wrong: a malformed filter exits 3, not 2.**
   > Measured on `jq-1.7.1-apple` under Darwin 25.6.0 — a **bad option, a missing file, or
   > `--rawfile <missing>` exits 2**; a **malformed filter (program compile error) exits 3**; and
   > **unparseable JSON on stdin exits 5**. The table of record is in
