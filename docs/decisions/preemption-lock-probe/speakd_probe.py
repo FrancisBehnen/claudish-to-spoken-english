@@ -309,6 +309,25 @@ OWNER_RECORD = (f"{os.getpid()}.{MY_STARTTIME}" if MY_STARTTIME
                 else str(os.getpid()))
 
 
+
+# A parsed pid is a SIGNAL TARGET, so its DOMAIN is a safety property, not tidiness.
+# kill(2)/killpg(2) give 0 and negatives special meaning: 0 is "every process in the
+# caller's own process group", -1 is "every process the caller may signal", and any other
+# negative is that process group. So a record whose pid field reads `0` turns this rig's
+# own sweep into killpg(0, ...) -- it signals the PROBE's process group, or under
+# hook_probe.sh the HOOK's, which is the harness's. That is the catastrophic over-reach
+# this document already prices for a missing setsid(), reachable through a completely
+# different door: one corrupt or truncated record. 1 is init and is never a player.
+# Nothing may reach a signal call unless it is an integer strictly greater than 1.
+def safe_pid(text):
+    """int(text) if it is a plausible signal target, else None."""
+    t = text.strip()
+    if not t.isdigit():            # rejects "", "-1", "+3", "0x10", " 12"
+        return None
+    v = int(t)
+    return v if v > 1 else None
+
+
 def read_owner(g):
     """(pid, starttime) of generation g's owner, or None if the record is unreadable.
 
@@ -704,23 +723,6 @@ def split_record(field):
     return None if v is None else (v, st or None)
 
 
-
-# A parsed pid is a SIGNAL TARGET, so its DOMAIN is a safety property, not tidiness.
-# kill(2)/killpg(2) give 0 and negatives special meaning: 0 is "every process in the
-# caller's own process group", -1 is "every process the caller may signal", and any other
-# negative is that process group. So a record whose pid field reads `0` turns this rig's
-# own sweep into killpg(0, ...) -- it signals the PROBE's process group, or under
-# hook_probe.sh the HOOK's, which is the harness's. That is the catastrophic over-reach
-# this document already prices for a missing setsid(), reachable through a completely
-# different door: one corrupt or truncated record. 1 is init and is never a player.
-# Nothing may reach a signal call unless it is an integer strictly greater than 1.
-def safe_pid(text):
-    """int(text) if it is a plausible signal target, else None."""
-    t = text.strip()
-    if not t.isdigit():            # rejects "", "-1", "+3", "0x10", " 12"
-        return None
-    v = int(t)
-    return v if v > 1 else None
 
 def read_player_records():
     """Every pid currently published: (pid, path, recorded_starttime).
