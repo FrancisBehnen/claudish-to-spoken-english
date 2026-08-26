@@ -45,17 +45,21 @@ own decision doc. What they changed, in the order the sections appear:
 | [`settled-set-audition.md`](settled-set-audition.md) | §4.2 **closes** — the settled combination was built, registered and heard 9–0 blind. §4.1 clause 3 is corrected from **segments** to **boundaries** | `COND_CUTOFF`'s position, now *contradicted* at 4 (§13 row 5); a slash-terminated path, which has no rule at all (§13 row 18); and §4.3, which is **false as written** |
 | [`worker-residency.md`](worker-residency.md) | §10.5 **closes** — a lazy, self-electing, per-session resident worker, with the first TTFA ever measured from a hook. §10.6 gains the two clauses that make its own rule true | ~~three measurements the mechanism's correctness clauses rest on are [inferred]~~ **two of the three have since been run and falsified four clauses** — [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md). What is left from this file is the bench-to-hook gap (§13 row 22) |
 | [`stop-hook-block-mechanics.md`](stop-hook-block-mechanics.md) | §5's cap is **nine invocations**, and nine is never an utterance count | `async: true`, `SubagentStop`, a raised cap, and two blocking hooks at once |
-| [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md) — **a fifth, later than the other four** | §13 rows 20 and 21 are **measured**: 1200 lock trials and 312 preemption trials ([`lock-owners.tsv`](lock-owners.tsv), [`preemption-trials.tsv`](preemption-trials.tsv)). §10.5 clause 2 is replaced, clause 7 goes from three hooks to five, §10.6's partition sentence is replaced | the generation unlink's ordering, and `killpg` under pid reuse — **neither is closed and both are new residues rather than survivals**. §13 rows 20 and 21 stay ship-blocking |
+| [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md) — **a fifth, later than the other four** | §13 rows 20 and 21 are **measured**: 1200 lock trials and 312 preemption trials ([`lock-owners.tsv`](lock-owners.tsv), [`preemption-trials.tsv`](preemption-trials.tsv)). §10.5 clause 2 is replaced, clause 7 goes from three hooks to five, §10.6's partition sentence is replaced | the generation unlink's ordering, and `killpg` under pid reuse — **neither is closed and both are new residues rather than survivals**. §13 rows 20 and 21 stay ship-blocking. **Round five split the pid-reuse residue into an owner case and a player case and added row 27**, the `.pending` marker that bounds `killpg` and that nothing removes — read alongside that document's §5, which carries the same two cleanups |
 
-**Read §13 for the lock's own status.** **Six rows closed — 1, 2, 3, 4, 7 and 16 — and ten opened,
-17 through 26**, verified against the table rather than carried over from an earlier draft: `main`'s
+**Read §13 for the lock's own status.** **Six rows closed — 1, 2, 3, 4, 7 and 16 — and eleven opened,
+17 through 27**, verified against the table rather than carried over from an earlier draft: `main`'s
 copy of this document has no row above 16 at all **[repo]**. The honest answer to *"can #11 lock?"* is
 stated there rather than implied here, and **the count going up is not a regression** — the closed rows
 were decisions nobody had made, the new ones are verifications of mechanisms that now exist on paper.
-**Still three of them block shipping (17, 20, 21)**, unchanged across two further review rounds.
+**FOUR of them now block shipping (17, 20, 21, 27)**, and that number moved for the first time in
+review round five: row 27 is not a new hazard but the missing removal path for the `.pending` marker
+that row 20(b)'s reasoning treats as a bound. §13 says why a bound nothing removes does not count as
+one.
 
 > **This sentence read *"three rows closed, three opened"* until review caught it**, and *"eight opened,
-> 17 through 24"* until a fourth round added rows 25 and 26. It had understated the closures by half and
+> 17 through 24"* until a fourth round added rows 25 and 26, and *"ten opened, 17 through 26"* until a
+> fifth added row 27. It had understated the closures by half and
 > the openings by more than half, while sitting three paragraphs above the table that contradicts it.
 > **Worth noticing as a class of defect rather than a typo**: a summary written before the table it
 > summarises, and then not re-derived from it. **The same defect was found a second time in §13 itself**
@@ -1784,7 +1788,8 @@ its override per backend** rather than assuming "unset is safe".
 | `$BUF_ROOT/<session_id>/speak/worker.lock.<gen>` | the **worker** creates, by `symlink` | §10.5 clause 2. A **symlink whose target is `<pid>.<starttime>`** — verifiable process identity, not a bare pid: `symlink(2)` publishes the record and its content in one exclusive-create, so there is no pid-less and no starttime-less state to interpret. The owner is the creator of the **highest** generation; a dead owner is superseded by `<gen>+1`, never removed. **Not reclaimed by `rewrite.sh:117`** — a symlink at depth 3 is selected by neither `-maxdepth 2` nor `-type d`. |
 | `$BUF_ROOT/<session_id>/speak/worker.retiring.<gen>` | the **worker** creates, by `symlink`, when its idle timer expires | §10.5 clause 6. Target `<pid>.<starttime>`, the same record shape as the lock. Its whole meaning is *"generation `<gen>`'s owner is no longer live, whatever `ps` says"*, so a reader that sees it elects `<gen>+1`. **Created once, never mutated and never removed** — retirement is not cancellable, for clause 2's reason. Depth 3, so `rewrite.sh:117` does not select it either. |
 | `$BUF_ROOT/<session_id>/speak/spoken` | the **worker** writes, at the moment text goes to synthesis | dedup hash (§5.1, as amended by §3.5.1 clause 6) |
-| `$BUF_ROOT/<session_id>/speak/playerdir/<pid>.<nonce>` and `playerdir/<nonce>.pending` | the **player's wrapper** publishes its own record before it can make a sound; the **worker** writes the `.pending` marker before the fork | the preemption records (§10.6, §10.5 clause 7(i)). **One shared `speak/pid` must not be used**, and **the record must be unlinked by exact name only**: an older player's reap otherwise erases a newer player's registration, which is measured in [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md) §4b(i) (`C14a` against `C14b`) and is not re-derivable from `preemption-trials.tsv` alone. **The writer changed twice**: §10.6 was written for a design where the hook spawned the speech child, and the single worker-written `speak/pid` that replaced it is itself superseded. |
+| `$BUF_ROOT/<session_id>/speak/playerdir/<pid>.<nonce>` | the **player's wrapper** publishes its own record before it can make a sound | the preemption records (§10.6, §10.5 clause 7(i)). **`<nonce>` is exactly eight lowercase hex characters and every reader matches the name ANCHORED, `^[0-9]+\.[0-9a-f]{8}$`** — the same directory holds `.pending` markers, and an all-decimal nonce (2.3 % of them) parses as a pid under any looser rule; measured in `C17`'s committed trace **[trials]**, §10.3 step 6. **The record's CONTENT is the player's own `<pid>.<starttime>`**, written before the rename that publishes it, so a signaller can tell a live player from a recycled pid — new in round five, §13 row 20(c). **One shared `speak/pid` must not be used**, and **the record must be unlinked by exact name only**: an older player's reap otherwise erases a newer player's registration, which is measured in [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md) §4b(i) (`C14a` against `C14b`) and is not re-derivable from `preemption-trials.tsv` alone. **The writer changed twice**: §10.6 was written for a design where the hook spawned the speech child, and the single worker-written `speak/pid` that replaced it is itself superseded. |
+| `$BUF_ROOT/<session_id>/speak/playerdir/<gen>.<nonce>.pending` | the **worker** writes it before the fork; the **player's wrapper** renames it away as its first act | §10.5 clause 7(iv). Bounds `killpg` to the window in which an unnamed player can exist. **The `<gen>` prefix is normative** — the sweep reads this directory as a boolean, so without it *"remove the markers this sweep swept"* names no determinable set. **Removed by exact name by the worker elected at `<gen>+1`, after both sweep halves and before its own first fork**; a marker whose player was killed before it could rename — which is what a working `killpg` does — is reachable only through that prefix. **Nothing removes one in any committed arm**: `C16a` creates 25 and removes none, and its count climbs 1 → 12 across twelve generations **[trials]**. §13 row 27. |
 
 `BUF_ROOT` is **not** redefined in `speak.sh` as a new constant with a new default — it is the same
 `"${TMPDIR:-/tmp}/claudish-to-english"` string as `rewrite.sh:69`, and the two must not be able to
@@ -1795,11 +1800,19 @@ care which, only that drift is impossible by inspection.
 
 Specified as an order because the cheap rejections must precede everything, for §11's reason.
 
-0a. **`CLAUDISH_ENABLED` is exactly `1`, else `exit 0`** — the plugin's **master** switch, tested the
-   way `rewrite.sh:100` tests it: `[ "$ENABLED" = "1" ] || pass_through` **[repo]**. **Before reading
-   stdin.**
-0b. **The global off-file `${CLAUDISH_OFF_FILE:-$HOME/.claude/claudish-off}` does not exist, else
-   `exit 0`** (`rewrite.sh:61`).
+0a. **DERIVE `ENABLED` first, exactly as `rewrite.sh:57` derives it:
+   `ENABLED="${CLAUDISH_ENABLED:-1}"` **[repo]**. **Unset means ENABLED** — which is the state
+   essentially every user of this plugin is in, since nobody sets a variable to the value it already
+   has. **Before reading stdin.**
+0b. **Then clear it exactly as `rewrite.sh:61` clears it** —
+   `[ -f "${CLAUDISH_OFF_FILE:-$HOME/.claude/claudish-off}" ] && ENABLED=0`, same override variable
+   and same default path — **and only then compare, exactly as `rewrite.sh:100` compares**:
+   `[ "$ENABLED" = "1" ] || exit 0` **[repo]**. **The comparison is against the DERIVED variable, never
+   against the raw environment.** Steps 0a and 0b together are `rewrite.sh:57`, `:61` and `:100`, in
+   that order — **three lines, and specifying only the last of them is a defect, not a shorthand.** The
+   whole point of naming the derivation as well as the test is that the two hooks **cannot disagree
+   about what "enabled" means**: whatever `CLAUDISH_ENABLED` is or is not set to, `speak.sh` reaches
+   the same verdict `rewrite.sh` reaches on the same turn.
 1. `CLAUDISH_SPEAK` is `1`, else `exit 0`. **Before reading stdin.**
 2. `CLAUDISH_SPEAK_OFF_FILE` does not exist, else `exit 0`. **This check does not carry the whole mute
    promise on its own** — the worker re-checks both off-files at the point of synthesis, because the
@@ -1816,17 +1829,45 @@ Specified as an order because the cheap rejections must precede everything, for 
 6. **Preemption — BEFORE any content-based exit, and this is the step that moved:** `readdir`
    `speak/playerdir/` and `kill` each record's pid (§10.6, §10.5 clause 7(i)). The hook does this; the
    worker's claim-time kill covers the case where the read saw no record yet. **Every record is
-   validated before it is signalled** — the name must match `<digits>.<nonce>` and the pid must parse
-   as a positive integer; a record whose name does not parse is **skipped in silence, never signalled
-   and never removed.** **The hook removes nothing at all**: unlinking is clause 7(v)'s, by exact name,
+   validated twice before it is signalled — once on its NAME and once on its CONTENT — and both tests
+   are normative:**
+   - **Name: the ANCHORED player-record shape `^[0-9]+\.[0-9a-f]{8}$`, and nothing else.** Not
+     *"`<digits>.<nonce>`"*, and not a split on the first dot. **An unconstrained nonce is not a
+     shape**, and the directory this step reads holds more than records. **Measured, not
+     hypothesised**: with a bare `<nonce>.pending` marker the name splits to something `int()`-able
+     whenever the 8-hex nonce happens to be **all decimal** — `(10/16)^8` ≈ **2.3 %** of nonces — and
+     `C17_setsid_player`'s committed trace caught it, with `02679968.pending` on disk while the live
+     player was **19823** (record `19823.02679968`) and the unanchored parser targeting **2679968**
+     twice, at two different kill sites, `ESRCH` both times **[trials]**. Harmless there because
+     nothing held that pid; not harmless once it names a live process. **Clause 7(iv)'s generation
+     prefix makes a loose rule strictly worse rather than safer** — `<gen>.<nonce>.pending` splits to
+     the *generation number* on **every** marker, and a generation counter produces exactly the low
+     integers a Unix system allocates to its own long-lived processes — which is why the shape rule is
+     anchored rather than merely tightened.
+     **`.pending` is excluded by construction rather than by a special case**, because `pending` is
+     not eight hex characters — and [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md)
+     specifies the same regex, so the two documents cannot drift on what a record is.
+   - **Content: the record's `<pid>.<starttime>`, tested against the process that currently holds that
+     pid** — clause 7(i) requires the wrapper to publish its own start time inside the record, for
+     exactly this reader. Three cases, the same three as clause 7(iv)'s owner test: start time
+     **matches** → signal; a process exists with that pid and a **different** start time → the player
+     is gone and its pid recycled, **skip in silence**; **no such process** → nothing to signal, skip.
+   A record that fails either test is **skipped in silence, never signalled and never removed.**
+   **The hook removes nothing at all**: unlinking is clause 7(v)'s, by exact name,
    after the worker reaps. A hook that tidied records it did not write would be the shared-`speak/pid`
    failure again, one level down.
-   **The residual is pid reuse and it is [inferred], not measured** — a record left behind by a
-   worker killed before it could reap names a pid the OS may have handed to something else, and this
-   hook would then signal a stranger. `speak/` is per-session and reclaimed after 30 minutes, which
-   bounds how long a record can outlive its player, but it does not bound the wrap-around.
-   **Not closed here; §13 row 20's closing condition carries it**, and it is the same blast-radius
-   question clause 7(iv)'s `.pending` bound answers on the worker's side.
+   **The residual after both tests is [inferred], and it is narrower than it was** — the start-time
+   comparison is what makes a stale record distinguishable from a live one, and it is specified here
+   and has never been run. What it cannot see is a start time that **collides**: a recycled pid whose
+   new holder started inside the resolution of `ps -o lstart=`, which is one second. `speak/` is
+   per-session and reclaimed after 30 minutes, which bounds how long a record can outlive its player,
+   but it does not bound the wrap-around.
+   **This case has its OWN closing condition — §13 row 20(c) — and it did NOT used to.** Until round
+   five it was carried as *"the same blast-radius question clause 7(iv)'s `.pending` bound answers on
+   the worker's side"*, sheltering under row 20(b). **That was wrong.** 20(b) is about the **owner**
+   record, and clause 2's `<pid>.<starttime>` narrows it; **this step signals a PLAYER pid taken from a
+   different record entirely**, and the owner's start time says nothing whatever about that process.
+   The two cases need two identities and two closing conditions, and now have them.
 7. **Not a `stop_hook_active` check** — see §5.1; that flag is read for no behaviour. Dedup happens at
    step 11 instead, on the text.
 8. `background_tasks` has no `status: "running"` entry, else `exit 0` (§8).
@@ -1908,14 +1949,33 @@ inside 0.063–0.219 s; nothing has re-run the hook against a long session's dir
 > they are `rewrite.sh`'s existing vars, and inventing `CLAUDISH_SPEAK_ENABLED` beside them is exactly
 > the drift §10.1 forbids.
 >
-> **The COMPARISON is normative and an earlier draft of step 0a got it wrong, which re-opened the hole
-> it was written to close.** That draft said *"`CLAUDISH_ENABLED` is not `0`"* and cited
-> `rewrite.sh:57`. **`:57` is not the gate** — it is `ENABLED="${CLAUDISH_ENABLED:-1}"`, the default
-> assignment, and `:61` is the off-file clearing it to `0`. **The gate is `:100`, and it tests for
-> exactly `1`** **[repo]**. Under the wrong comparison `CLAUDISH_ENABLED=false`, `=2` and `=yes` all
-> **disable the rewrite and permit the speech** — the same off-by-default hole one value wide, in the
-> hook whose whole purpose here is to close it. **Speech must be off wherever the rewrite is off, and
-> the only way to guarantee that is to run the same test.**
+> **THE DERIVATION IS AS NORMATIVE AS THE COMPARISON, and this one clause has now been wrong in three
+> successive drafts — each repair breaking it in the opposite direction to the last.** It is the
+> clearest instance in this document of a repair that was itself a defect, which is why the whole
+> history is kept rather than replaced by the answer.
+>
+> - **Draft 1 — too permissive.** *"`CLAUDISH_ENABLED` is not `0`"*, citing `rewrite.sh:57`. **`:57`
+>   is not the gate** — it is `ENABLED="${CLAUDISH_ENABLED:-1}"`, the default assignment, and `:61` is
+>   the off-file clearing it to `0`. **The gate is `:100`, and it tests for exactly `1`** **[repo]**.
+>   Under that comparison `CLAUDISH_ENABLED=false`, `=2` and `=yes` all **disable the rewrite and
+>   permit the speech** — an off-by-default hole one value wide, in the hook whose whole purpose here
+>   is to close it. Found in review round three.
+> - **Draft 2 — too strict, and worse.** The repair said *"`CLAUDISH_ENABLED` is exactly `1`, else
+>   `exit 0` … tested the way `rewrite.sh:100` tests it"*, and quoted `:100`'s line correctly — but it
+>   named the **raw environment variable** where `:100` names `$ENABLED`, a variable `:57` has already
+>   **defaulted to `1`**. So the two hooks disagreed on the single most common input there is: with
+>   `CLAUDISH_ENABLED` **unset**, `rewrite.sh` rewrites and `speak.sh` exits. **The feature would have
+>   been silent for every user who had not explicitly exported `CLAUDISH_ENABLED=1`**, which is
+>   essentially all of them, and it would have looked like a broken installation rather than a gate.
+>   Found in review round five. **Draft 1 let a disabled user hear audio; draft 2 stopped an enabled
+>   user hearing any.**
+> - **Draft 3 — the derivation and the test, in `rewrite.sh`'s own order.** Steps 0a–0b above.
+>
+> **The generalisable form: quoting a gate's comparison is not quoting the gate.** `:100` is one line
+> of a three-line construct, and two of this document's drafts read the line without the construct.
+> **Speech must be off wherever the rewrite is off and on wherever the rewrite is on, and the only way
+> to guarantee both directions is to build the same variable from the same sources and then run the
+> same test on it.**
 
 **Steps 0a–2 must all precede step 3, and the ordering is load-bearing rather than stylistic.** Putting
 an enable check after `jq` would make a speech-disabled user's turn depend on `jq` being installed and
@@ -2364,6 +2424,24 @@ specified here because they live in the worker, and §10.6 is where the rule the
   attribution rule scores `NOTHING-ran-to-end` 12/12 at a full **2.50 s** of audible stale speech).
   **This replaces the first revision's *"the worker writes the player's pid to `speak/pid`"*,** which
   named the wrong writer and the wrong cardinality.
+  - **The name is `<pid>.<nonce>` with `<nonce>` EXACTLY eight lowercase hex characters, and every
+    reader matches it anchored: `^[0-9]+\.[0-9a-f]{8}$`.** The shape is normative because the same
+    directory holds `<nonce>.pending` (clause 7(iv)), and an all-decimal nonce — 2.3 % of them —
+    makes that marker parse as a pid under any looser rule. Measured in `C17`'s committed trace;
+    §10.3 step 6 carries the numbers. [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md)
+    specifies the same regex.
+  - **The CONTENT is the player's own `<pid>.<starttime>`, and it is what makes the record a
+    verifiable identity rather than a number — NEW in review round five.** The wrapper writes it
+    before the rename that publishes the record, so publication stays one atomic act and the name
+    still matches the shape above; every signaller (this hook at §10.3 step 6, the claim-time kill of
+    (iii), the record sweep of (iv-a)) re-reads the pid's current start time and **skips in silence on
+    a mismatch**. **Without it a player record is a bare pid and the whole preemption path can signal a
+    stranger after pid reuse** — which is clause 2's argument for the owner record, applied to the
+    record that is actually signalled. **The cost is named rather than hidden**: the wrapper pays one
+    `ps -o lstart=` fork before it can publish, which widens the unnamed-player window that (iv)'s
+    `killpg` exists to cover. It is a fork in a path that already forks — the wrapper substitutes its
+    own pid into the record path before writing it — but it is not free, and (iv) is what pays for it.
+    **[inferred]**, §13 row 20(c).
 - **(ii) The pre-spawn re-`stat` of `speak/job` is an OPTIMISATION given (iv), and a correctness clause
   without it.** With the worker surviving, removing it changes nothing — `C5_norecheck` still kills
   before the player can `exec`, 12/12. With the worker dying after the spawn and no sweep, removing it
@@ -2403,11 +2481,42 @@ specified here because they live in the worker, and §10.6 is where the rule the
     (*"reason it away with a recorded start time per generation"*); it is now specified, and it is
     still unrun, so **row 20 stays ship-blocking** and its residue is this property rather than the
     absence of a mechanism.
-  - **Bound `killpg` with a `.pending` marker.** The worker creates `playerdir/<nonce>.pending` before
-    the fork; the wrapper renames it away as its first act; `killpg` is used only while such a marker
-    exists. That confines the blast radius to the window in which an unnamed player can exist —
+  - **Bound `killpg` with a `.pending` marker.** The worker creates `playerdir/<gen>.<nonce>.pending`
+    before the fork; the wrapper renames it away as its first act; `killpg` is used only while such a
+    marker exists. That confines the blast radius to the window in which an unnamed player can exist —
     `C16a` (sweep before publication) kills before `exec` 12/12, `C16b` (sweep after) never needs it
     and the record sweep does the work 12/12.
+    - **The marker names its OWNER GENERATION, and that is what makes the cleanup below a determinable
+      set — NEW in review round five, and the whole bound is false without it.** The bare
+      `<nonce>.pending` of the previous draft **binds to no generation and to no owner pid**, and the
+      sweep reads the directory as a **boolean** — it `listdir`s and, if the list is non-empty, signals
+      **every** superseded owner. So *"remove the entries this sweep just swept"* names nothing: when
+      `killpg` fires there is no mapping from a marker back to the owners it caused to be signalled.
+      Prefixing the generation supplies exactly that mapping.
+    - **Exact-name cleanup, and it is specified rather than implied.** A worker newly elected at
+      generation `g+1`, **after** completing both halves of the election sweep against generation `g`
+      and **before** forking any player of its own, unlinks by exact name every
+      `<g'>.<nonce>.pending` with `g' ≤ g`. Before its own fork, because a cleanup that ran later
+      would delete the marker for a fork that has not happened yet, the next election would see no
+      `.pending`, skip `killpg`, and the design would collapse into `C12c` — the record-sweep-only arm
+      that fails **12/12** at full length. **`g' ≤ g` rather than "the names this `listdir` returned",
+      because a marker outlives the `listdir` that saw it**, and only the generation tag says whose it
+      was: a player killed before its first act never renames its marker away, and no reap reaches a
+      process that was never named.
+    - **The leak is MEASURED, and it is not the rare path — it is the SUCCESS path.** The marker is
+      renamed away by the wrapper's first act, and a `killpg` that works kills the wrapper **before**
+      that act, **so every time this clause does its job it strands the marker that authorised it.**
+      `C16a`'s committed worker trace creates **25** markers and removes none: `pending_found` climbs
+      monotonically **1 → 12** across twelve generations, `33f62e9b.pending` is created at `gen1` and is
+      still on disk at `gen12r`, and **every** election in that arm therefore takes the `killpg` path
+      (`groups=1` at each) **[trials]**. **The same trace separates the two cases**: the leaked names
+      are exactly the players the sweep killed, while `6fad43e5.pending` — whose player published
+      normally and renamed — never reappears. **A stale marker is worse than untidy**: it makes the
+      bound this bullet claims degrade to *unbounded* after the clause's very first successful
+      preemption, so `killpg` fires at every election for the rest of the session — which is the hazard
+      §13 row 20(b) blocks shipping for, with its bound removed.
+      **The repair is [inferred]** — nothing removes a `.pending` in any committed arm — and it has its
+      own row: **§13 row 27**.
   - **Never detach the player.** `start_new_session=True`, or any `setsid()`, removes it from the
     group and defeats this clause completely: `C17_setsid_player` runs to completion 12/12 at 2.50 s.
     **Normative, not stylistic** — it is exactly the line an implementer adds for unrelated reasons.
@@ -2431,10 +2540,14 @@ process can do the killing, and its measured independent value is narrower and q
 reaches the player a median **134 ms** sooner than the worker's next claim would (range 123–143 ms,
 n = 12, `C2_hookside`) **[trials]**.
 
-**What is still [inferred] in this clause**: the ordering between the two sweep halves and clause 2's
-generation unlink (nothing has run an unlink), and pid reuse under `killpg` — the sweep addresses a
-recorded pid as a pgid, and if that pid has been recycled as a group leader it signals strangers. The
-`.pending` bound confines *when* `killpg` runs; it does not make the pid unambiguous. §13 row 20.
+**What is still [inferred] in this clause, and round five added two to the list rather than removing
+any**: the ordering between the two sweep halves and clause 2's generation unlink (nothing has run an
+unlink); pid reuse under `killpg` — the sweep addresses a recorded owner pid as a pgid, and if that pid
+has been recycled as a group leader it signals strangers; **(i)'s start-time content on the PLAYER
+record**, which is the same hazard one record down and was until round five not distinguished from the
+owner's at all; and **(iv)'s generation-tagged `.pending` and its exact-name cleanup**, without which
+the bound below degrades to unbounded after one pre-fork death. The `.pending` bound confines *when*
+`killpg` runs; it does not make either pid unambiguous. §13 rows 20(a), 20(b), 20(c) and 27.
 
 **The alternatives, and why each loses:**
 
@@ -2463,7 +2576,10 @@ reuse under `killpg`, clause 6's mtime inequality, and §3.1's content-addressed
 - **A newer message kills stale playback.** The owner record and the player records live in the same
   per-session scratch: `$BUF_ROOT/<session_id>/speak/worker.lock.<gen>` and
   `$BUF_ROOT/<session_id>/speak/playerdir/<pid>.<nonce>`, the latter read and `kill`ed by the next
-  invocation before it starts. Same directory, same sweep, no new lifecycle.
+  invocation before it starts. Same directory, same sweep, no new lifecycle. **"Read" is
+  shape-and-identity validated, not a `readdir` and a `kill`** — the anchored name
+  `^[0-9]+\.[0-9a-f]{8}$` and the record's own `<pid>.<starttime>`, §10.3 step 6 and §10.5 clause
+  7(i). The same directory holds `.pending` markers, and this rule signals a pid.
 
   > **Two qualifiers, both added 2026-08-25 because this rule was written for a design that no longer
   > exists, and both since MEASURED.** §10.6 assumed the hook spawned the speech child and could
@@ -2627,7 +2743,12 @@ Therefore:
 - the guarantee is enforced **inside** `speak.sh`: the plugin's **global** switches
   (`CLAUDISH_ENABLED`, `~/.claude/claudish-off`) and then `CLAUDISH_SPEAK` and its own runtime off-file
   are checked and `exit 0` taken **as the very first thing**, before `jq`, before reading stdin —
-  §10.3 steps 0a–2. **The two global checks were missing until review**; §10.3 carries what that cost;
+  §10.3 steps 0a–2. **The two global checks were missing until review**; §10.3 carries what that cost.
+  **"Checked" means `rewrite.sh:57`, `:61` and `:100` — the default, the off-file clearing and the
+  comparison, in that order — and not `:100` alone**: an **unset** `CLAUDISH_ENABLED` means *enabled*,
+  so a gate that tests the raw variable for `1` makes this section's guarantee run backwards and
+  silences the users who never touched the variable at all. §10.3 steps 0a–0b are normative on the
+  derivation for that reason, and the three drafts it took to get there are recorded there;
 - **the same gate applies to `rewrite.sh`'s two new additions, and this is normative rather than
   advisory.** §10.5 clause 4's ensure-worker step runs on **every** `MessageDisplay` invocation — five
   to seven times per turn on a long reply — so it must sit behind `CLAUDISH_SPEAK` too, checked
@@ -2693,22 +2814,26 @@ closed row keeps its number rather than being deleted and the numbering never sh
 | **17** | **§3.5.1's bounded wait is specified and has never been implemented, run, or watched.** The race it repairs is confirmed and reproducible (`Stop` dispatched a median 6.7 ms after the final `MessageDisplay` chunk, positive 32/32, gap independent of that hook's duration; buffer stale 29 of 30) **[obs2]** + **[obs]**. But `speak.sh` does not exist, so **"the wait fixes it" is [inferred]** from an ordering, a buffer read and a publication point that have never been joined — and **two rounds of review found the publication point itself broken twice**: first unordered writes, then a commit-marker-plus-re-read that still accepted a mixed generation (§3.1's table). It is now content-addressed | build `speak.sh` and the worker's wait, then watch: measure the match rate **through the wait** over ~20 real turns, and record how often the deadline is reached. It should be the mirror of the 29-of-30 stale figure. **Widened twice in review to cover the producer half**, because the wait cannot be verified without it: §3.1's publish is now **content-addressed** — the rewrite is rename-installed at `speak/rw.<source hash>` and there is no `speak/source` — and that is **[inferred]** too. The property to check in the build is narrow and mechanical: **that no consumer ever opens a path it did not compute from its own expected hash**, which is a code-reading assertion rather than a race to provoke, and is why draft 3 is easier to verify than the two ordering-based drafts it replaces | **YES** — as specified before this revision the feature was silent on the large majority of turns above `MIN_CHARS`; the repair is now specified but unverified |
 | **18** | **A slash-terminated path gets no rule at all, and it is audibly wrong.** Found by **ear**, in a shipped axis, by the listener: *"a pause is needed after the path if a `path/` ends with a slash. Now it sounds like `research/branches`"* **[heard]**. `_PATH_RE` requires `(?:SEG/)+SEG`, so `research/` and `~/research/` **never match at all**, and there is **no `rstrip("/")` or `endswith("/")` anywhere** in `bench/sanitizers.py` **[repo]**. The listener's own item escaped it only because axis 1 happened to set the backticked span off — outside backticks, `settled` leaves *"Saved to research/ branches"* untouched **[measured-here]** | **PARKED — the user's decision**, on the grounds that reopening axis 3 immediately after a 9–0 result costs more than it buys. To close: widen `_PATH_RE` to *see* a slash-terminated path, append a `BOUNDARY_CHARS` member after rule P, make `_tidy_commas` suppress the double where axis 1 already set the span off, then one listen | no — **parked deliberately, not overlooked.** Nothing is implemented and `COND_CUTOFF`-style constants are untouched |
 | **19** | **`flag-pause` is NOT regression-free inside the settled combination, contrary to §4.3 as written.** On `r11` (a **real** item) axis 1 strips backticks that axis 8 steps over, producing `, $, claudish_ollama,` and `, curl , -K,` — shapes neither rule makes alone. Symmetrically, `r14` becomes a **no-op** because axis 7 eats the fence before axis 8 sees it **[measured-here]**. **`r11` was heard blind and `settled` still won it, so that half is HEARD AND TOLERATED, not harmless** **[heard]** | **the `r14` half was never played**, which is why §4.3's claim stays false as written rather than merely hedged. One pair — `r14:settled` against `r14:base` — closes it | no — one half is heard and tolerated; the other is a wording defect in §4.3, now corrected there |
-| **20** | ~~§10.6's preemption rests on three worker-side hooks that are all [inferred]~~ **MEASURED and PARTLY FALSIFIED.** 312 trials over 26 switchable configurations **[trials]**, [`preemption-trials.tsv`](preemption-trials.tsv), re-derivable with `preemption-lock-probe/summarise.sh`. Confirmed: the claim-time kill is load-bearing (`C4` without it, stale audio runs to completion **12/12**, full 2.50 s). **Falsified: the two kills do not partition the timeline.** A worker dying between `Popen` and the record write orphans a player nothing reaches — `C8`, **12/12**, window median **1.41 ms**, range 0.43–5.61 ms, n = 72 (worker-published only; the pooled 96 include 24 synthetic `W` stamps — harness defect 4) — and neither a single player-written record (`C11b`) nor per-player records alone (`C12c`) closes it, both failing **12/12** at full length. The **process-group sweep** does: `C12b` kills before `exec`, **12/12**. §10.5 clause 7 is rewritten from three hooks to five, §10.6's partition sentence is replaced | **what is left**: (a) the ordering between clause 7's two sweep halves and clause 2's generation unlink — nothing has ever run an unlink, and `lockrace.py` never does one, so all 400 lock trials ran with every generation present; (b) **pid reuse under `killpg`** — the sweep addresses a recorded pid as a pgid, and a recycled pid names a stranger's group. The `.pending` marker bounds *when* `killpg` runs, not *what* it names. **The repair this cell named — *"a recorded start time per generation"* — WAS SPECIFIED in review round four** and is §10.5 clause 2's `<pid>.<starttime>` record, with clause 7(iv)'s three-way test built on it. So the residue is no longer the absence of a mechanism; it is the one kernel property that mechanism rests on: **that a pid is not reallocated while it is still in use as a process-group id**, which is what makes "recycled pid" and "our group still has members" mutually exclusive. To close (b): establish that property on Darwin — a read of the pid allocator, or a pid-wrap drive with a live orphan in the group — then one run of the sweep against a recycled record | **YES, still** — (b) can still signal an unrelated process group if that property does not hold, which is a worse failure than the one this clause fixed. The start time narrows it; it does not close it |
+| **20** | ~~§10.6's preemption rests on three worker-side hooks that are all [inferred]~~ **MEASURED and PARTLY FALSIFIED.** 312 trials over 26 switchable configurations **[trials]**, [`preemption-trials.tsv`](preemption-trials.tsv), re-derivable with `preemption-lock-probe/summarise.sh`. Confirmed: the claim-time kill is load-bearing (`C4` without it, stale audio runs to completion **12/12**, full 2.50 s). **Falsified: the two kills do not partition the timeline.** A worker dying between `Popen` and the record write orphans a player nothing reaches — `C8`, **12/12**, window median **1.41 ms**, range 0.43–5.61 ms, n = 72 (worker-published only; the pooled 96 include 24 synthetic `W` stamps — harness defect 4) — and neither a single player-written record (`C11b`) nor per-player records alone (`C12c`) closes it, both failing **12/12** at full length. The **process-group sweep** does: `C12b` kills before `exec`, **12/12**. §10.5 clause 7 is rewritten from three hooks to five, §10.6's partition sentence is replaced | **what is left, and round five SPLIT (b) into two because one identity was being credited against two different processes**: (a) the ordering between clause 7's two sweep halves and clause 2's generation unlink — nothing has ever run an unlink, and `lockrace.py` never does one, so all 400 lock trials ran with every generation present; (b) **OWNER pid reuse under `killpg`** — clause 7(iv)'s sweep addresses a recorded **owner** pid as a pgid, and a recycled pid names a stranger's group. The `.pending` marker bounds *when* `killpg` runs, not *what* it names. **The repair this cell named — *"a recorded start time per generation"* — WAS SPECIFIED in review round four** and is §10.5 clause 2's `<pid>.<starttime>` record, with clause 7(iv)'s three-way test built on it. So the residue is no longer the absence of a mechanism; it is the one kernel property that mechanism rests on: **that a pid is not reallocated while it is still in use as a process-group id**, which is what makes "recycled pid" and "our group still has members" mutually exclusive. To close (b): establish that property on Darwin — a read of the pid allocator, or a pid-wrap drive with a live orphan in the group — then one run of the sweep against a recycled record; (c) **PLAYER pid reuse at §10.3 step 6, clause 7(iii) and clause 7(iv-a) — a DIFFERENT case that this cell used to absorb, wrongly.** Those three sites take a pid from `playerdir/<pid>.<nonce>` and `kill` it directly; it is never used as a pgid, so (b)'s kernel property is not even the question, and **clause 2's owner start time says nothing about a player process**. Round four credited `<pid>.<starttime>` against this case and the credit was false. **The repair is round five's**: clause 7(i) now requires the player's wrapper to publish its own `<pid>.<starttime>` **inside** the record, and every signaller to re-read the pid's current start time and skip in silence on a mismatch. To close (c): pre-seed a `playerdir/` record naming a recycled pid held by an unrelated live process, drive one hook invocation and one worker claim, and confirm both skip — the same rig as (b), a different arm, and it needs no pid-wrap because the record can be written by hand. What would remain after that is a start-time **collision** inside `ps -o lstart=`'s one-second resolution | **YES, still** — (b) can still signal an unrelated process group if that kernel property does not hold, which is a worse failure than the one this clause fixed; (c) can still `kill` an unrelated process, and its repair is one round old and unrun. The start times narrow both; they close neither |
 | **21** | ~~The stale-lock protocol's two clauses are [inferred]~~ **MEASURED and FALSIFIED — both of them.** 1200 trials, three protocols, six scenarios **[trials]**, [`lock-owners.tsv`](lock-owners.tsv). The residency probe's own protocol: **121/400** trials did not end with exactly one owner. The two clauses §10.5 clause 2 used to specify: **61/400**. **Worst case for both was 3 owners, not 2** — the cell above predicted 2 and was wrong about that as well. The initializing-lock retry is clean to a 50 ms stall (180/180) and then **40/40 wrong** at 200 ms and 1000 ms; the quarantine rename is **20/20 wrong** on the ABA, with a committed trace of a reclaimer quarantining the other reclaimer's *live* lock. The replacement — a `symlink`ed generation record, superseded rather than removed — is **0/400 wrong** | **what is left**: the generation **unlink** and its ordering against clause 7's two sweep halves, which is `[inferred]` and unrun — `lockrace.py` never unlinks a generation, so every trial ran with the full generation history present. To close: add an unlink arm to `lockrace.py`, staged both before and after the sweep, and confirm that the pre-sweep ordering re-opens the orphan region while the post-sweep one does not. Same rig, one more scenario | **YES** — an unlink ordered before the sweep destroys the target list clause 7(iv) reads, which puts back the orphan the process-group sweep exists to kill |
 | 22 | The bench-to-hook TTFA gap (~0.37 s) is **decomposed by reasoning, not isolated by experiment** (§4). The control shares hardware but not load or cadence | **interleaved paired runs**: the same corpus item synthesized alternately through `bench/first-sentence.py` and through the hook, A/B/A/B in one session, so both arms see the same load and spacing | no — the gap is small, explained, and inside budget |
 | 23 | **B′'s reach on real text is unproven.** It is a measured no-op on all 14 real rewrites and on **53 of the 54** corpus items; the only item it changes, `s38`, is synthetic **[measured-here]**. The listen confirmed the rule's **direction**, not its reach | a real capture with a short list whose lines do not already end in punctuation. Same shape as row 6 | no — a no-op cannot regress anything |
 | **24** | **The worker's idle exit and `rewrite.sh:117`'s sweep are separated by arithmetic that nothing has run** (§10.5 clause 6). **Row 25 is the other half of this clause and is a different failure** — this row is about the directory being swept out from under a live worker; row 25 is about a job arriving while that worker is deciding to leave. The claim is that a live worker's speak directory always has an mtime newer than its 20-minute idle window — because every job arrival, claim-rename and `worker.lock.<gen>` `symlink` is a directory mutation — so `find -mmin +30` can never select it. Read off `find`'s semantics and `rewrite.sh:117` **[repo]**, **[inferred]**. Nothing in this project has been left idle for twenty minutes, let alone thirty | leave one session's worker resident and idle, sample `stat` on `$BUF_ROOT/<sid>/speak` and the worker's liveness once a minute across the 30-minute mark, and drive one `MessageDisplay` just past it to fire the sweep. Two things to record: that the directory survives while the worker is alive, and that the worker is gone by minute 21. **The same run also exercises the belt** — `rm -rf` the speak dir under a live worker and confirm it exits rather than blocking on a `kqueue` over a deleted directory | no — the failure needs twenty minutes of silence and costs a cold start or, at worst, a second worker that §10.5 clause 2 then has to survive. It is a **real** hole, but not one a first implementation is exposed to in a working session |
 | **25** | **The 20-minute idle exit has an enqueue/termination race, and the retirement protocol that closes it is [inferred]** (§10.5 clause 6). The naive exit loses a turn outright: the worker decides to leave, a hook then renames a job in and reads a still-live owner so starts nothing, and the worker exits without claiming it — **silent, not late**, which falsifies §10.7's *"the job file outlives the hook, so the utterance is late, not lost"* on this path. The repair is announce-then-re-check: a `worker.retiring.<gen>` symlink published **before** the worker stops accepting work, then one `stat` of `speak/job` **after** it and before exiting, starting a successor if a job is there. Nothing has run it — no worker has been idle for twenty minutes and `lockrace.py` has no retirement arm | add a retirement arm to `lockrace.py`: enqueue a job inside the announce-to-exit window at **both** orderings — hook's owner-read before the announce, and after it — and confirm the job is served in each. The property to check is the one clause 6(c) states: **each of the two files is written once by one party, and each side reads the other's after writing its own.** Same rig, one more scenario | no — the failure needs the twenty minutes of silence row 24 needs, and it costs one lost utterance rather than a wrong one. **Scheduled, not dismissed**, and it is the reason clause 6 is a protocol rather than a `return` |
 | **26** | **The bounded wait's ceiling now takes the `min` of the LLM budget and the publisher's declared hook timeout (§3.5.1 clause 3) — and that a declared hook timeout is ENFORCED is [inferred].** `hooks/hooks.json:9` declaring 60 s for `MessageDisplay` is **[repo]**; that the harness stops a hook that overruns it has never been watched here, and [`turn-finality-and-the-stop-hook.md`](turn-finality-and-the-stop-hook.md) is explicit that declared numbers are *"not evidence about a runtime ceiling in either direction"*. Row 15 is the adjacent but different question, about an **absolute** ceiling rather than about enforcement of the declared one | one probe, and it needs no `speak.sh`: declare a small `MessageDisplay` timeout, make the hook sleep past it, and record whether it is stopped and whether its writes land. Then the `min` is either derived or withdrawn | no — it bites only at a non-default `CLAUDISH_TIMEOUT` of 58 or more, and only on a rewrite that overran the publisher's own declared budget. At the default the `min` is 50 s either way, which is what the old formula gave |
+| **27** | **§10.5 clause 7(iv)'s `.pending` marker does not actually bound `killpg`, because nothing removes one — and the leak is MEASURED.** The marker is created before the fork and renamed away by the wrapper as its first act, so any player that never reaches its first act leaves a marker no wrapper will rename, no reap will reach, and no specified path removed until round five. **That includes the ordinary success path, which is the part round five did not expect**: a `killpg` that works kills the wrapper *before* it can rename, so the clause strands the very marker that authorised it. It also includes the worker that dies after creating a marker and before `Popen` completes. `sweep_pgid()` reads the directory as a **boolean** — non-empty means signal every superseded owner — so a single stale marker makes **every later election take the `killpg` path**, for the rest of the session, long after the unnamed-player window the marker was supposed to bound. **`C16a`'s committed worker trace creates 25 markers and removes none**: `pending_found` climbs monotonically **1 → 12** across twelve generations, `33f62e9b.pending` is created at `gen1` and is still on disk at `gen12r`, and every election in the arm reports `groups=1` **[trials]**. **The two halves are separable in that same trace**: the leaked names are exactly the players the sweep killed, while `6fad43e5.pending` — whose player published normally and renamed — does not appear in any later `pending_found`. **The earlier form of the cleanup was not implementable as written** — *"remove the entries it just swept"* is not a determinable set when the marker binds to no generation and no owner pid (that wording is #28's own second round, not this document's) | **the repair, specified in review round five and [inferred]**: name the marker `<gen>.<nonce>.pending`, and have the worker elected at `<gen>+1` unlink by exact name every `<g'>.<nonce>.pending` with `g' ≤ g`, **after** both halves of the election sweep against `g` and **before** forking any player of its own. Later than its own fork and the cleanup deletes a marker for a fork that has not happened, the next election skips `killpg`, and the design collapses into `C12c` — 12/12 at full length. The generation prefix is what makes the set determinable and is what reaches the pre-fork-death marker; nothing else in the name does. To close: implement the tag and the cleanup, then re-run `C12b`, `C16a` and `C16b` with a **pre-seeded stale `.pending`** and a pre-seeded dead record, and confirm `pending_found` returns to zero after each election rather than climbing. Same rig, one seeded file. **This is a deliberate DIVERGENCE from [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md) §5 and must be reconciled when that document lands**: #28 diagnoses the same defect and reaches the same cleanup, but names the set by *"the `.pending` names returned by the `listdir` that gated THIS sweep"* and protects it with an ordering rule (before the electing worker's own fork). That set is only well defined while no other worker is forking, which is the shape §13's own lesson calls a smell — a cleanup ordered around a mutable directory. **The generation prefix makes the set a name rather than an ordering**, and keeps the ordering rule as a belt rather than the guarantee. Whichever survives, the two documents must specify one marker name | **YES — but not independently, and the distinction matters.** It adds no hazard of its own; it **removes the bound on row 20(b)'s**. With a stale marker on disk, `killpg` fires at every election instead of only inside the unnamed-player window, so the case that can signal a stranger's process group goes from rare to constant. Marking it "no" while row 20 blocks for the unbounded form of the same hazard would be inconsistent |
 
-**Three of these still block shipping: 17, 20 and 21 — but rows 20 and 21 block for a different reason
-than they did.** The experiment they used to owe **has been run**, twice: 1200 lock trials and 312
-preemption trials, on an instrumented worker built for it. **It falsified four clauses this document
-had marked LOCKED**, and what remains open in both rows is the residue of the *replacements* — a
-generation unlink nothing has ordered, and `killpg` under pid reuse. **That is a smaller and better
-characterised hole than "nothing measured drove a second job", and it is still a hole.** **Row 17
-needs `speak.sh` to exist**, which makes it the first thing the implementation phase finishes rather
-than the last.
+**FOUR of these now block shipping: 17, 20, 21 and 27 — the count moved for the first time since this
+revision opened, and it moved UP.** Rows 20 and 21 block for a different reason than they did: the
+experiment they used to owe **has been run**, twice — 1200 lock trials and 312 preemption trials, on an
+instrumented worker built for it. **It falsified four clauses this document had marked LOCKED**, and
+what remains open in both rows is the residue of the *replacements* — a generation unlink nothing has
+ordered, and `killpg` under pid reuse, now split into an owner case and a player case that were being
+credited to one repair. **That is a smaller and better characterised hole than "nothing measured drove
+a second job", and it is still a hole.** **Row 27 is new in round five and is the reason the count
+moved**: it is not a fourth hazard but the missing **bound** on row 20(b)'s, and a bound nothing
+removes is not a bound. **Row 17 needs `speak.sh` to exist**, which makes it the first thing the
+implementation phase finishes rather than the last.
 
 **The rate is the finding, not any one falsification.** Rows 20 and 21 were written as *"these clauses
 are reasoned but unmeasured"*. Measuring them did not confirm them; it showed **four of them wrong**,
@@ -2727,6 +2852,18 @@ clause 2 is separately specified to survive, and 25's is one lost utterance. Row
 non-default `CLAUDISH_TIMEOUT`. **All three are real holes and all three are scheduled, not
 dismissed** — and rows 25 and 26 exist because a fourth review round read the clauses that produced
 them, not because anything failed.
+
+**Row 27 goes the other way, and the contrast with 24–26 is the point.** It also arrived from a read
+rather than a failure, and it also needs no new decision — but it needs **no bad luck at all**, and that
+is what puts it in the blocking column. Round five expected the leak to require a worker dying between
+its marker and `Popen`; **the trace says the ordinary success path leaks too.** A marker is renamed
+away by the player's wrapper, and a `killpg` that works kills that wrapper **before** it can rename —
+so **every time clause 7(iv) does its job it strands the marker that authorised it.** `C16a` shows both
+halves side by side: the markers of players the sweep killed (`33f62e9b`, `1e50da71`, `8d3ff308` …)
+are still on disk twelve generations later, while `6fad43e5` — whose player published normally — is
+gone **[trials]**. **A bound that is consumed by its own success, and never recovers for the rest of
+the session, is not in the same class as a row that needs twenty minutes of silence and costs a cold
+start.** That is the test the ship-blocking column is applying, and it is why the count is four.
 
 ### Can #11 lock?
 
@@ -2747,18 +2884,20 @@ on are made:**
 4. **§5's unit** — nine invocations, never nine utterances.
 
 **What #11 does NOT have, stated plainly so the lock is not read as more than it is.** Nothing in §13 is
-a decision the listener still owes; rows 17, 20 and 21 are **verification of specified mechanisms**, and
+a decision the listener still owes; rows 17, 20, 21 and 27 are **verification of specified mechanisms**, and
 row 18 is **parked by explicit decision** rather than unresolved. So #11 can lock and **#23 can start**
 — but #23 finishes at row 17, not at "the hook runs". **An implementer who builds `speak.sh` and does
 not measure the wait has not finished the ship blocker, they have moved it.**
 
-**RE-EXAMINED FOUR TIMES AND MEASURED ONCE, and the measurement is still the one that matters.** The
-answer above was written before anyone had read this revision back. Four independent review rounds have
-since read it and one experiment has since exercised it, and between them they found **sixteen
+**RE-EXAMINED FIVE TIMES AND MEASURED ONCE, and the measurement is still the one that matters.** The
+answer above was written before anyone had read this revision back. Five independent review rounds have
+since read it and one experiment has since exercised it, and between them they found **twenty
 correctness defects in text this revision marked LOCKED** — with the second round finding defects **in
 the first round's repairs**, the experiment finding that **two of the first round's repairs were
-themselves wrong**, and the fourth round finding **five more, in four different sections, none of them
-in a repair**.
+themselves wrong**, the fourth round finding **five more, in four different sections, none of them
+in a repair**, and the fifth round finding **four, of which two are defects in round three's and round
+four's own repairs** — the master switch broken in the opposite direction, and an identity credited
+against a process it says nothing about.
 
 | round | finding | section |
 | --- | --- | --- |
@@ -2778,24 +2917,34 @@ in a repair**.
 | **4** | **owner liveness by `kill(pid, 0)` alone misclassifies after pid reuse** — a dead worker whose pid was recycled reads as live, every hook then skips the election, and jobs sit unconsumed until the 30-minute sweep. The document already priced pid reuse for *player* records and not for the owner | §10.5 cl. 2 |
 | **4** | **the 20-minute idle exit had an enqueue/termination race** — the worker decides to leave, a hook enqueues and reads a live owner so starts nothing, and the worker exits without claiming. The clause priced the idle exit at a cold start and nothing else | §10.5 cl. 6 |
 | **4** | **`prompt_id` was given two incompatible jobs** — *"a cheap pre-filter"* here against *"diagnostic only, nothing keys on it"* in §3.1 and §10.2, leaving #23 to decide whether a stale `prompt_id` may suppress a valid content-addressed lookup | §3.2 |
+| **5** | **the master switch's repair over-corrected and inverted the hole** — step 0a tested the **raw** `CLAUDISH_ENABLED` for exactly `1` while quoting `rewrite.sh:100`'s line, which tests `$ENABLED`, a variable `:57` has already defaulted to `1`. So an **unset** variable — the state of essentially every user — failed the gate and speech never ran, while `rewrite.sh` on the same turn rewrote normally. **The round-3 repair, broken in the opposite direction; the third wrong draft of one clause** | §10.3 step 0a |
+| **5** | **the player-record rule was a description, not a shape** — *"the name must match `<digits>.<nonce>`"* with `<nonce>` unconstrained, so an all-decimal `.pending` marker (2.3 % of nonces) parses as a pid and is signalled. **Not hypothetical**: `C17`'s committed trace targets `2679968` twice from `02679968.pending` while the live player is `19823` **[trials]** | §10.3 step 6, §10.5 cl. 7(i) |
+| **5** | **the `.pending` marker bounded nothing, because no path removed one** — a worker dying between the marker and `Popen` leaves it forever, and the sweep reads the directory as a boolean, so `killpg` then fires at **every** election for the rest of the session. `C16a` creates 25 markers, removes none, and climbs 1 → 12 across twelve generations **[trials]**. Round 2's *"remove the entries it just swept"* named no determinable set | §10.5 cl. 7(iv), row 27 |
+| **5** | **the owner's start time was credited against a player's pid** — round 4 added `<pid>.<starttime>` to `worker.lock.<gen>` and scored it against row 20(b), but §10.3 step 6 signals a **player** pid read from a different record that carried no identity at all, so a stale player record could still `kill` a stranger with the owner check passing | §10.3 step 6, row 20(c) |
 
 **The lock still holds on its own test, and the test is worth restating rather than assumed:** *every
 section is either LOCKED with the evidence that decided it, or OPEN with a closing condition that does
-not require re-deciding anything.* **All sixteen defects were repairable without a new decision from
-the listener** — and the sixteen split two ways rather than one, which the old *"all six"* framing hid:
-**thirteen were repairable from evidence already in the document**, and **the three marked M were
+not require re-deciding anything.* **All twenty defects were repairable without a new decision from
+the listener** — and the twenty split two ways rather than one, which the old *"all six"* framing hid:
+**seventeen were repairable from evidence already in the document**, and **the three marked M were
 falsified by the run that found them and repaired from that same run's evidence**, which is a stronger
 position rather than a weaker one. The judgements between competing repairs are recorded with their
-costs — clause 6's separation, clause 5's required-versus-recommended, and now round four's choice to
-withdraw the `prompt_id` pre-filter rather than the diagnostic-only rule. So #11 can lock and #23 can
-start.
+costs — clause 6's separation, clause 5's required-versus-recommended, round four's choice to
+withdraw the `prompt_id` pre-filter rather than the diagnostic-only rule, and round five's choice to
+give the `.pending` marker a **generation prefix** rather than to order the cleanup around a fork.
+**Round five's four are the first that did not all land in text; one of them added an OPEN row (27) and
+moved the ship-blocking count**, which is why the "so #11 can lock" below is now stated with that
+qualification rather than without it. So #11 can lock and #23 can start — with one more blocker than
+it had this morning.
 
 > **This sentence read *"All six defects"* until review round four caught it**, sitting directly under
 > a table that by then listed **eleven**, and one paragraph under a sentence that says eleven in words.
 > **It is the same class of defect as the *"three rows closed, three opened"* line this document opens
 > with** — a count written once and then not re-derived from the table it counts — which is why it is
 > corrected here rather than quietly. The table is the authority: **four in round one, two in round
-> two, three in the measurement round, two in round three, five in round four.**
+> two, three in the measurement round, two in round three, five in round four, four in round five —
+> twenty.** Re-derived from the table on each revision rather than incremented, which is the only way
+> this note stays true of itself.
 
 **But the clean "yes" of the paragraph above is no longer the honest answer, and here is the precise
 reason.** This document's stated purpose, in its own opening words, is to be *"a specification an
@@ -2809,14 +2958,25 @@ calling it LOCKED without saying so would be the manufactured lock this document
 
 1. **§3.1 and §10.3 get one more review pass before #23 writes code** — **DISCHARGED, and the outcome
    splits.** Round four read both. **§10.3's repairs held and its ordering did not**: the global-disable
-   steps and their comparison survived, and preemption at step 8c was found to be placed where §10.6's
-   own guarantee could not reach it. **§3.1's content-addressed publish survived a third read with no
-   defect found in it** — what round four found was §3.2's `prompt_id` bullet contradicting it, which is
-   a defect in the text that *uses* §3.1 rather than in §3.1. The precondition is replaced by the
-   narrower one below.
+   steps and their comparison appeared to survive, and preemption at step 8c was found to be placed
+   where §10.6's own guarantee could not reach it. **§3.1's content-addressed publish survived a third
+   read with no defect found in it** — what round four found was §3.2's `prompt_id` bullet contradicting
+   it, which is a defect in the text that *uses* §3.1 rather than in §3.1. The precondition is replaced
+   by the narrower one below.
+   - **CORRECTED by round five: the comparison did NOT survive, round four simply did not catch it.**
+     Step 0a named the raw `CLAUDISH_ENABLED` where `rewrite.sh:100` names an already-defaulted
+     `$ENABLED`, so the gate excluded every user who had never set the variable. **A "held" recorded by
+     the round that read it is a weaker claim than it looks**, and this is the entry that shows why:
+     two consecutive reads of one three-line gate, and the second was still wrong. The clause's full
+     three-draft history is in §10.3.
    - **The replacement: §10.3's step order and §10.5 clauses 2 and 6 get one more read before #23 writes
      code**, because those are round four's repairs and nothing has read them. Rows 25 and 26 are their
      measured counterparts and neither is ship-blocking, so this is a read, not a run.
+     - **PARTLY DISCHARGED by round five, which read §10.3's step order and §10.5 clause 7 and left
+       clauses 2 and 6 unread.** §10.3's step **order** held — preemption at step 6 is still above every
+       content-based exit — but step 6's **content** did not: it validated a record shape that admits a
+       `.pending` marker and signalled a player pid carrying no identity. **§10.5 clauses 2 and 6 are
+       still owed a read**, and round five's own repairs to clause 7(i) and 7(iv) now join them.
 2. **If a third review of §3.1 finds a fourth defect, §3 should stop being marked LOCKED, and the
    publish should be settled by *building* it** — row 17 — rather than by a fifth draft. Two
    ordering-based drafts failed; content addressing is a different kind of answer, and if it fails too,
@@ -2824,6 +2984,8 @@ calling it LOCKED without saying so would be the manufactured lock this document
    third review and the trigger did NOT fire** — stated plainly because a precondition nobody checks
    against is decoration. Content addressing has now been read three times without an ordering defect
    being found in it, which is one read more than either of the drafts it replaced ever survived.
+   **Round five is NOT a fourth read of §3.1 and must not be counted as one**: all four of its findings
+   are in §10.3 and §10.5, and it did not take §3.1 as its subject. The trigger is still armed at three.
 3. **The generalisable lesson, worth more than any single repair, and it has since been
    VINDICATED by measurement:** both failed drafts tried to make a shared mutable path safe by
    **ordering access to it**, and the repair that held **removed the mutable path**. §10.5 clause 2
@@ -2835,9 +2997,17 @@ calling it LOCKED without saying so would be the manufactured lock this document
    is as close to a rule as this document has.**
 
 **Rows 24, 25 and 26 did not change the shipping count, and neither did the required warm-up**: rows
-17, 20 and 21 still block, and all three need building or measuring rather than deciding. **The open
-list has grown from 24 rows to 26 and the ship-blocking count has not moved**, which is the shape a
-review round should produce: more disclosed, none of it newly load-bearing.
+17, 20 and 21 still blocked, and all three needed building or measuring rather than deciding. Through
+round four the open list grew from 24 rows to 26 with the ship-blocking count unmoved, which is the
+shape a review round is supposed to produce: more disclosed, none of it newly load-bearing.
+
+**Round five broke that shape, and the sentence above is left standing rather than rewritten so the
+break is visible.** The list is **27 rows** and **four** of them block. Round five disclosed one new
+row and it is load-bearing — not because it found a new hazard, but because it found that a bound this
+document was already relying on **had no removal path and therefore was not a bound**. **"More
+disclosed, none of it newly load-bearing" is a claim a round has to earn, and round five did not earn
+it.** That is a worse result than rounds three and four produced, and it is stated here rather than
+absorbed into the table.
 
 **One thing a reviewer should attack rather than accept — and the argument against it is now dead.**
 Rows 20 and 21 are marked ship-blocking on judgement, not on a rule. The argument for it: both are
@@ -2848,8 +3018,11 @@ now measured false.** The windows were not microseconds — a 200 ms stall break
 the orphan window is milliseconds, not microseconds. The clauses were not obviously correct on
 inspection — four of them are wrong, and two were themselves review repairs. **A reviewer who still
 wants to move these rows to non-blocking must argue about the residue that survived the run** — the
-generation unlink's ordering and `killpg` under pid reuse — **and not about the clauses that have
-already failed.**
+generation unlink's ordering, `killpg` under **owner** pid reuse, `kill` under **player** pid reuse,
+and the `.pending` cleanup that has to exist for any of the `killpg` reasoning to be about a bounded
+window at all — **and not about the clauses that have already failed.** **Row 27 is the one to attack
+first if any of them is to move**, because it is the only one of the four whose repair is a few lines
+of naming rather than a kernel property or a rig.
 
 ---
 
@@ -3014,14 +3187,17 @@ Stated so a reviewer can attack the right parts.
   reasoning, not an observation. If it is wrong somewhere, the most likely place is the interaction
   between an abandoned wait and §10.6's kills, which is the same timeline §13 row 20 is about. §13 row
   17.
-- **EIGHT [inferred] correctness clauses now ship, and they are enumerated here so the number is
+- **TEN [inferred] correctness clauses now ship, and they are enumerated here so the number is
   checkable rather than asserted.** (1) **§10.5 clause 2's generation unlink and its ordering** — a
   worker may unlink generation `g` only after both halves of the election sweep against `g`'s owner
   have completed; `lockrace.py` never unlinks, so all 400 trials ran with the full generation history
-  present. (2) **§10.5 clause 7(iv)'s `killpg` under pid reuse**, and its hook-side twin at §10.3 step
-  6 — **narrowed, not closed, by (6)**: with a start time recorded per generation the sweep can tell a
-  recycled pid from a live owner, so what is left is the one kernel property that three-way test rests
-  on, *that a pid is not reallocated while it is still in use as a process-group id*. (3) **§10.5
+  present. (2) **§10.5 clause 7(iv)'s `killpg` under OWNER pid reuse** — **narrowed, not closed, by
+  (6)**: with a start time recorded per generation the sweep can tell a recycled pid from a live owner,
+  so what is left is the one kernel property that three-way test rests on, *that a pid is not
+  reallocated while it is still in use as a process-group id*. **This entry used to end *"and its
+  hook-side twin at §10.3 step 6"*, and that was wrong** — the hook signals a **player** pid from a
+  different record, which clause 2's owner start time does not describe; the twin is now (9), with its
+  own closing condition at §13 row 20(c). (3) **§10.5
   clause 6, the idle-exit/sweep separation.** (4) **§3.1's content-addressed publish.** (5) **§3.5.1
   clause 7, the worker's re-check of both off-files at the point of synthesis.** (6) **§10.5 clause 2's
   start-time-validated owner record** — `<pid>.<starttime>` rather than a bare pid, with `ps -o lstart=`
@@ -3030,8 +3206,17 @@ Stated so a reviewer can attack the right parts.
   before exiting; new in round four, and the clause without which §10.7's *"late, not lost"* is false
   on the idle path. (8) **§10.3's placement of preemption at step 6, above every content-based exit** —
   new in round four, and the clause without which §10.6's *"a newer message kills stale playback"* is
-  false on every silent turn.
-  **What the count deliberately EXCLUDES, so that a recount lands on eight rather than twelve.** Four
+  false on every silent turn. (9) **§10.5 clause 7(i)'s start-time-validated PLAYER record** — the
+  wrapper publishes its own `<pid>.<starttime>` inside `playerdir/<pid>.<nonce>`, and every signaller
+  re-reads the pid's current start time and skips in silence on a mismatch; new in round five, and the
+  clause without which §10.6's *"a newer message kills stale playback"* can `kill` an unrelated process
+  after pid reuse. It is (6) one record down, and it was **missing while (6) was being credited for
+  it**. (10) **§10.5 clause 7(iv)'s generation-tagged `.pending` marker and its exact-name cleanup** —
+  `<gen>.<nonce>.pending`, removed by the worker elected at `<gen>+1` after both sweep halves and
+  before its own first fork; new in round five, and the clause without which that bullet's own
+  *"confines the blast radius"* is false from the clause's first successful preemption onward — a
+  `killpg` that works kills the wrapper before it can rename its own marker away. §13 row 27.
+  **What the count deliberately EXCLUDES, so that a recount lands on ten rather than fourteen.** Four
   other things in this document carry an `[inferred]` tag and are **not** correctness clauses: §10.5
   clause 4's claim that the `readdir` stays negligible on a long session's directory, §10.3's claim
   that the hook's 0.063–0.219 s range survives the two `readdir`s and the `ps` fork that replaced two
@@ -3040,31 +3225,53 @@ Stated so a reviewer can attack the right parts.
   rule here is true, and whose worst outcome is silence a few seconds early on a non-default
   configuration. The first two are latency, the third is a disclosed failure path, the fourth is a
   bound. **A clause counts here only if a rule stated elsewhere in this document is FALSE without it.**
-  **The count went 3 → 6 → 5 → 8, and the composition has turned over almost completely twice.** It
-  said "three" before the integration pass and was undercounting even then; review took it to six; **the
-  measurement round then removed four of those six by running them** — clause 2(a) and 2(b) were not
-  confirmed but **falsified** (61/400 and 20/20), and clause 7(ii) and 7(iii) were confirmed by
+  **The count went 3 → 6 → 5 → 8 → 10, and the composition has turned over almost completely twice.**
+  It said "three" before the integration pass and was undercounting even then; review took it to six;
+  **the measurement round then removed four of those six by running them** — clause 2(a) and 2(b) were
+  not confirmed but **falsified** (61/400 and 20/20), and clause 7(ii) and 7(iii) were confirmed by
   experiment and are no longer `[inferred]` at all — and three new residues arrived with the
   replacements. **Round four then added three and removed none**, which is the honest direction: each
   of (6), (7) and (8) is a repair to a clause that was *wrong*, so the arithmetic is five clauses that
-  were unmeasured plus three that were unwritten, not five that got worse. **The entries are still the
+  were unmeasured plus three that were unwritten, not five that got worse. **Round five added two more,
+  (9) and (10), and again removed none.** Both are the same move as (6), (7) and (8) — a rule stated
+  elsewhere in this document that was false because nobody had written the clause it needed — but with
+  one difference worth naming: **(9) is not a newly discovered gap so much as a mis-credited one.**
+  Round four wrote (6) and scored it against §13 row 20(b) *and* against the hook-side case at §10.3
+  step 6; the owner's start time never described the player's process, so one clause was doing the work
+  of two on paper and of one in fact. **A count can be honest and still be wrong about what its entries
+  cover**, and that is the failure mode this recount found. **The entries are still the
   ones found by reading a mechanism rather than by a failure** — which is the good way to find them,
   and also the reason none has been provoked. **They are the clauses that make stated rules true**, so
-  "unmeasured" here is a different weight than it is on a latency figure. §13 rows 17, 20, 21, 24
-  and 25 — row 26 belongs to the exclusions below, not here.
-  - **What the falsifications say about the eight that remain, stated because the arithmetic invites
+  "unmeasured" here is a different weight than it is on a latency figure. §13 rows 17, 20, 21, 24, 25
+  and 27 — row 26 belongs to the exclusions below, not here.
+  - **What the falsifications say about the ten that remain, stated because the arithmetic invites
     the wrong reading.** Two `[inferred]` clauses left this list by being **measured wrong**, not by
     being confirmed. The base rate this document has for "a correctness clause reasoned out and
     written down" is therefore **worse than a coin flip on the only sample that exists**, and a
-    reader should price the remaining eight accordingly. **The count is not a score in either
+    reader should price the remaining ten accordingly. **The count is not a score in either
     direction**: it fell from six to five because a run destroyed four clauses, and it rose from five
-    to eight because a read found three more rules that were false without a clause nobody had
-    written. Neither move is progress and neither is regression — both are the document finding out
-    what it did not know.
-- **FOUR review rounds and one measurement round have now found SIXTEEN correctness defects in text
+    to eight and then to ten because two reads found five more rules that were false without a clause
+    nobody had written. Neither move is progress and neither is regression — both are the document
+    finding out what it did not know. **Ten is the number to be uncomfortable about only if the
+    alternative reading is that eight was ever the true one**; it was not, and the two entries round
+    five added were false before it wrote them down.
+- **FIVE review rounds and one measurement round have now found TWENTY correctness defects in text
   this revision itself marked LOCKED, and the rate — not any one defect — is the weakness.** Counted so
   the number is checkable: **four in round one, two in round two, three in the measurement round, two
-  in round three, and five in round four.** *Round four*: §3.5.1 clause 3's wait ceiling derived from
+  in round three, five in round four, and four in round five.** *Round five*: §10.3 step 0a testing the
+  **raw** `CLAUDISH_ENABLED` for exactly `1` where `rewrite.sh:100` tests an already-defaulted
+  `$ENABLED`, so an **unset** variable — essentially every user — failed the gate and speech never ran;
+  §10.3 step 6's record rule being a description (*"`<digits>.<nonce>`"*) rather than an anchored
+  shape, so an all-decimal `.pending` marker parses as a pid and is signalled, which `C17`'s committed
+  trace shows happening twice against `2679968` while the live player was `19823`; §10.5 clause
+  7(iv)'s `.pending` marker bounding nothing because no path removed one — and the leaking path turning
+  out to be the clause's own **success** path, since a `killpg` that works kills the wrapper before it
+  can rename its marker away, so `killpg` fires at every election for the rest of the session, with
+  `C16a` creating **25** markers, removing none, and climbing **1 → 12** across twelve generations; and round four's owner start time
+  being **credited against a player's pid** at §10.3 step 6, where the record signalled carries no
+  identity at all. **Two of round five's four are defects in earlier rounds' repairs** — the first
+  inverts round three's, the fourth mis-scores round four's — which is the pattern rounds two and M
+  established and which round four was the only round to escape. *Round four*: §3.5.1 clause 3's wait ceiling derived from
   `CLAUDISH_TIMEOUT` alone, so a raised value made the worker wait past the point the publisher's own
   declared 60 s made a publish impossible; §10.3's hook-side preemption placed after the content-based
   silent exits, where §10.6's unconditional rule could not reach it; §10.5 clause 2's owner liveness
@@ -3077,7 +3284,9 @@ Stated so a reviewer can attack the right parts.
   repairs**, falsified 61/400 and 20/20 — and §10.6's two-kill partition, falsified 12/12 (§13 rows 20,
   21). *Round three*: **§10.3 step 0a tested `CLAUDISH_ENABLED` for *not `0`* where `rewrite.sh:100`
   tests for exactly `1`** — an off-by-default hole one value wide, in the step written to close an
-  off-by-default hole, so `=false`, `=2` and `=yes` all disabled the rewrite and permitted the speech;
+  off-by-default hole, so `=false`, `=2` and `=yes` all disabled the rewrite and permitted the speech
+  (**and its repair was itself the round-five defect above**, which makes this the only clause in the
+  document to have been wrong three drafts running);
   and **§3.5.1 left the runtime mute unenforced for up to `CLAUDISH_TIMEOUT + 5` s**, because the hook
   `stat`s the off-files and the worker then waited 50 s without re-checking them. Round three also
   corrected four things that are misstatements rather than defects, and they are named where they live:
@@ -3100,15 +3309,20 @@ Stated so a reviewer can attack the right parts.
   shape appeared, §13 rows 20 and 21 were pointed at it, and the run confirmed the smell** — both of
   its ordering rules failed, and the repair that held is §3.1's repair again: a record that is created
   and never mutated, with ownership carried by a name.
-- **All sixteen are repaired in place, none needed a new decision from the listener, and that is why
-  §13 still answers *"can #11 lock?"* with yes.** But four independent reads and one experiment on the
-  same text found sixteen real defects; the second read found defects **in the first read's repairs**;
-  the experiment found that **two of the first read's repairs were themselves wrong**; and the fourth
-  read — the first to find nothing wrong in anybody's repair — still found **five**, in four sections,
-  every one of them in text that had been read at least twice already. **The rate is not falling.** So
+- **All twenty are repaired in place, none needed a new decision from the listener, and that is why
+  §13 still answers *"can #11 lock?"* with yes.** But five independent reads and one experiment on the
+  same text found twenty real defects; the second read found defects **in the first read's repairs**;
+  the experiment found that **two of the first read's repairs were themselves wrong**; the fourth
+  read — the only one to find nothing wrong in anybody's repair — still found **five**, in four
+  sections, every one of them in text that had been read at least twice already; and the fifth read
+  found **four**, of which **two are defects in earlier repairs** — round three's master-switch fix
+  inverted, and round four's owner identity credited against a process it does not describe.
+  **The rate is not falling, and round four's clean sheet on repairs did not hold as a trend.** So
   the honest posture is that §3 and §10.5 have not converged, and **§13 now says a verification pass
   over them is a precondition for #23 rather than a nice-to-have.** This is the same lesson as the §5 bullet below,
   arriving from a different direction and rather more forcefully.
+  **Round five is also the first round whose findings moved the ship-blocking count** (§13 row 27), so
+  the claim that these reads disclose without adding load-bearing work is now false as well.
 - **`launchd` was rejected on judgement, not on measurement**, and it is the alternative in §10.5 most
   worth pushing back on: it would be permanently resident and survive machine sleep, which is genuinely
   better on latency. The three reasons against it — a background daemon for an off-by-default feature,
