@@ -3,7 +3,9 @@
 **This is the lock for [#11](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/11)**
 — the destination artifact of the [Kokoro speech map (#1)](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/1).
 Written 2026-08-25 against Claude Code **2.1.245**, and **revised the same day by the integration pass
-that folded in four parallel measurements** — see *Then four measurements landed* below. It supersedes
+that folded in four parallel measurements** — see *Then four measurements landed* below. **Revised again
+2026-08-26** by a measurement nobody scheduled: the machine slept unattended, which falsified §10.5 clause 6's
+idle-exit/sweep separation and moved §13 row 24 to ship-blocking. It supersedes
 `speech-trigger-spec-update.draft.md`, which was the checklist this was written from.
 
 **What this document is.** A specification an implementer can build from in one session without
@@ -46,16 +48,21 @@ own decision doc. What they changed, in the order the sections appear:
 | [`worker-residency.md`](worker-residency.md) | §10.5 **closes** — a lazy, self-electing, per-session resident worker, with the first TTFA ever measured from a hook. §10.6 gains the two clauses that make its own rule true | ~~three measurements the mechanism's correctness clauses rest on are [inferred]~~ **two of the three have since been run and falsified four clauses** — [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md). What is left from this file is the bench-to-hook gap (§13 row 22) |
 | [`stop-hook-block-mechanics.md`](stop-hook-block-mechanics.md) | §5's cap is **nine invocations**, and nine is never an utterance count | `async: true`, `SubagentStop`, a raised cap, and two blocking hooks at once |
 | [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md) — **a fifth, later than the other four** | §13 rows 20 and 21 are **measured**: 1200 lock trials and 312 preemption trials ([`lock-owners.tsv`](lock-owners.tsv), [`preemption-trials.tsv`](preemption-trials.tsv)). §10.5 clause 2 is replaced, clause 7 goes from three hooks to five, §10.6's partition sentence is replaced | the generation unlink's ordering, and `killpg` under pid reuse — **neither is closed and both are new residues rather than survivals**. §13 rows 20 and 21 stay ship-blocking. **Round five split the pid-reuse residue into an owner case and a player case and added row 27**, the `.pending` marker that bounds `killpg` and that nothing removes — read alongside that document's §5, which carries the same two cleanups |
+| **the machine's own clocks, 2026-08-26** — **a sixth, and the only one with no document of its own** | §10.5 clause 6's idle-exit/sweep separation is **falsified**: `find -mmin` is wall clock, `time.monotonic()` on Darwin is not, and one unplanned forty-minute idle sleep put **38 min 44 s** of divergence against a **10-minute** margin. The clause now mandates a mtime-derived wall-clock idleness measure; **§13 row 24 moves to ship-blocking** | anything about a **worker**. `speak.sh` does not exist, nothing was resident across the sleep, and the replacement mandate, the belt and the retirement protocol are all still `[inferred]`. §13 rows 24 and 25 |
 
 **Read §13 for the lock's own status.** **Six rows closed — 1, 2, 3, 4, 7 and 16 — and eleven opened,
 17 through 27**, verified against the table rather than carried over from an earlier draft: `main`'s
 copy of this document has no row above 16 at all **[repo]**. The honest answer to *"can #11 lock?"* is
 stated there rather than implied here, and **the count going up is not a regression** — the closed rows
 were decisions nobody had made, the new ones are verifications of mechanisms that now exist on paper.
-**FOUR of them now block shipping (17, 20, 21, 27)**, and that number moved for the first time in
-review round five: row 27 is not a new hazard but the missing removal path for the `.pending` marker
-that row 20(b)'s reasoning treats as a bound. §13 says why a bound nothing removes does not count as
-one.
+**FIVE of them now block shipping (17, 20, 21, 24, 27)**, and that number has moved twice. It moved
+first in review round five: row 27 is not a new hazard but the missing removal path for the `.pending`
+marker that row 20(b)'s reasoning treats as a bound, and §13 says why a bound nothing removes does not
+count as one. **It moved again on 2026-08-26, when the machine slept** — row 24 was already on the list
+and scored *"no"*, and the measurement changed the score rather than adding a row: §10.5 clause 6
+compared a 20-minute idle window against a 30-minute `find -mmin` sweep without checking that the two
+are read off the same clock, and on Darwin they are not. **No row was added; a row that had twice been
+judged non-blocking turned out to be.**
 
 > **This sentence read *"three rows closed, three opened"* until review caught it**, and *"eight opened,
 > 17 through 24"* until a fourth round added rows 25 and 26, and *"ten opened, 17 through 26"* until a
@@ -79,7 +86,7 @@ one.
 | **[rig]** | read out of a throwaway probe's own source — `speakd.py`, `speak-probe.sh`, `warm-probe.sh`, none of them in this repository | what the thing that produced a **[hook]** number actually did. It is evidence about the measurement, never about a shipped file, and the probe is not the specification. |
 | **[heard]** | [`sanitizer-audition.md`](sanitizer-audition.md), [`sanitizer-audition-13.md`](sanitizer-audition-13.md), [`voice-and-pipelining.md`](voice-and-pipelining.md), [`min-length-audition.md`](min-length-audition.md) | blind A/B verdicts and stopwatch readings. Noise floor ~1 call in 12. |
 | **[repo]** | the working tree, read directly; line numbers citable | what this plugin does today |
-| **[measured-here]** | measurements taken while writing this document — existing scripts over existing files, plus exit codes read off `jq` and `bash` directly | stated inline with what produced them. No audio, no benchmark, no LLM. |
+| **[measured-here]** | measurements taken while writing this document — existing scripts over existing files, exit codes read off `jq` and `bash` directly, and **as of 2026-08-26 the platform's own clocks and power log**: `sysctl kern.boottime`, `time.monotonic()`, `pmset -g log`, and `rewrite.sh:117`'s `find` predicate run verbatim against a staged directory | stated inline with what produced them. No audio, no benchmark, no LLM. **The clock readings are about Darwin on this machine, not about a worker** — they can falsify an arithmetic claim about two windows, and they say nothing about anything `speak.sh` would do, because `speak.sh` does not exist. |
 | **[trials]** | the offline instrumented probe at [`preemption-lock-probe/`](preemption-lock-probe/) — 1200 lock trials over three protocols and six scenarios, and 312 preemption trials over 26 switchable configurations, committed as [`lock-owners.tsv`](lock-owners.tsv) and [`preemption-trials.tsv`](preemption-trials.tsv) and re-derivable with `preemption-lock-probe/summarise.sh` | what these protocols do under contention, on this machine. **Not the shipped hook and not the shipped worker** — it is a Python model of the election and the preemption sites, which is what let the adversarial interleavings be provoked at all. It can falsify a protocol; it cannot confirm an implementation. |
 | **[inferred]** | a reading, not a run — control flow followed through the binary, or a mechanism reasoned out and written down | the weakest tag in this document. Used where a thing could not be measured, and always with the measurement it is standing in for named. |
 
@@ -110,9 +117,11 @@ used throughout:
 The last two arrived after this spec had already locked its §5, and both are marked **CORRECTED** in
 place rather than rewritten away.
 
-**And five claims this spec made itself did not survive the four measurements of 2026-08-25.** These
-are listed separately from the ones above because they are not inherited mistakes — they are this
-document's own, and each is corrected at the section rather than deleted:
+**And SIX claims this spec made itself did not survive measurement** — five in the four measurements of
+2026-08-25, and **one on 2026-08-26, when the machine slept unplanned and settled a question this
+project had no way to arrange.** These are listed separately from the ones above because they are not
+inherited mistakes — they are this document's own, and each is corrected at the section rather than
+deleted:
 
 - **§3.2's *"if the probe shows `MessageDisplay` carries `prompt_id`, prefer it"* is REVERSED.** It does
   carry one, it is the same one, and it is **still the weaker key** — it identifies a turn and
@@ -127,6 +136,14 @@ document's own, and each is corrected at the section rather than deleted:
 - **§10.5 was the section this document called its own biggest gap, and it is now LOCKED** — which is
   the one item on this list where the change is in the reassuring direction, and it still cost §4 its
   headline number (0.86 s is the bench's; 1.22 s is a hook's).
+- **§10.5 clause 6's *"no live worker is ever swept"* is FALSE, and the clause mandated the clock that
+  makes it false.** The 20-minute idle window was to be timed on `time.monotonic()`; `rewrite.sh:117`
+  tests `-mmin`, which is wall clock; and on Darwin the first stops during sleep while the second does
+  not. **One unplanned sleep supplied 38 min 44 s of divergence against a 10-minute margin**, and
+  `:117`'s predicate selects a directory a monotonic timer still calls 12.51 minutes young
+  **[measured-here]**. **§13 row 24 moves from non-blocking to ship-blocking** — the only row in this
+  document that a measurement has moved *into* that column rather than out of it (§10.5 clause 6, §13
+  row 24).
 
 ---
 
@@ -2329,11 +2346,15 @@ from 0.80–1.30 s to **1.33–2.02 s**, and therefore **lengthens the streaming
   quote as an effect size. Marked **[hook]**; the paired A/B that would make it controlled is the same
   shape as §13 row 22 and is not owed for this decision.
 
-**6. Idle exit at 20 minutes — deliberately SHORTER than `rewrite.sh:117`'s 30-minute sweep, not equal
-to it, and reached through an announced retirement rather than a plain `return`.** **Not measured** —
-the runs were minutes long. It re-introduces a cold start after twenty minutes of silence, which is one
-of its two honest costs; the other is the enqueue/termination race the retirement protocol below
-exists to close.
+**6. Idle exit at 20 minutes, measured against the SAME wall clock `rewrite.sh:117` uses — ~~deliberately
+SHORTER than its 30-minute sweep~~, which is a shorter number and was not an ordering — and reached
+through an announced retirement rather than a plain `return`.** **The separation this clause was built
+on is MEASURED FALSE as of 2026-08-26** (blockquote below); the clock is now mandated rather than left
+to the implementer, and the sub-clause that mandated it chose wrong. The worker's runs were minutes
+long, so nothing here has been watched. It re-introduces a cold start after twenty minutes of silence
+— **and, until the clock repair ships, after every machine sleep longer than thirty minutes, which is
+the deterministic cost the measurement found** — which is one of its two honest costs; the other is
+the enqueue/termination race the retirement protocol below exists to close.
 
 > **CORRECTED in review. Matching the two windows at 30 minutes does not achieve what this clause
 > claimed.** The earlier text set the idle exit to 30 minutes "matching `rewrite.sh:117`'s existing
@@ -2348,19 +2369,103 @@ exists to close.
 > unambiguous, and a swept directory has no owner to supersede. That is the same failure mode §10.5
 > clause 2 exists to prevent, arriving by a different door.
 
-- **The separation is what makes it safe, and the argument is arithmetic rather than a new mechanism.**
+> **MEASURED 2026-08-26 and the separation is FALSIFIED. The clause compared two windows without
+> checking that they are read off the same clock, and on Darwin they are not.** The machine slept
+> unplanned, which is the one condition this project had never been able to arrange, and the
+> arithmetic below is the first evidence of any kind about this clause. **The two limbs of the argument
+> come apart:** the mtime limb survives intact, and the inequality it was used to derive does not.
+>
+> - **`find -mmin` is wall clock. `time.monotonic()` on Darwin is `mach_absolute_time`, which does not
+>   advance while the system sleeps.** Over this boot — `kern.boottime` 2026-08-10 01:20:30 — the wall
+>   clock has run **393.332 h** and the monotonic clock **123.637 h**, so **269.694 h (16181.7 min)**
+>   of this machine's uptime is time the monotonic clock did not count. That is **68.6 %** of its life
+>   **[measured-here]**. The figures drift by however long a re-derivation takes; the difference does
+>   not.
+> - **One ordinary idle sleep is already 3.87× the whole margin.** `pmset -g log`: **Sleep
+>   2026-08-26 09:55:50** (*'Idle Sleep'*, `TCPKeepAlive=active`, on AC, at the default 900 s of
+>   inactivity) → **Wake 2026-08-26 10:36:06** (`RTP.keyboard/UserActivity`). The wall span is
+>   **2416 s**, punctuated by two maintenance DarkWakes — 10:10:50→10:11:36 and 10:26:36→10:27:22,
+>   **46 s each**, each followed by another `Sleep` — so **2324 s (38 min 44 s)** of it is time the
+>   monotonic clock did not count **[measured-here]**. The margin this clause sizes at 10 minutes was
+>   exceeded **3.87×** by a single forty-minute idle sleep on an ordinary weekday morning.
+> - **The predicate was run, verbatim, and it selects.** A `<sid>/speak` directory stamped
+>   `2026-08-26 09:55:50` — the instant the machine slept — is selected by `rewrite.sh:117`'s exact
+>   predicate, `find … -mindepth 2 -maxdepth 2 -type d -mmin +30`, while a `time.monotonic()` idle
+>   timer started at that same instant reads **12.51 min**: inside the 20-minute window, so the worker
+>   is live, warm, and has not announced a retirement **[measured-here]**. **That is the hazard this
+>   clause says cannot occur, produced with no contention, no bad luck and no second process.**
+> - **Whether the monotonic clock advances during a DarkWake does not matter to the conclusion**, which
+>   is why it is not resolved here: a DarkWake is an awake state, so it presumably does **[inferred]**,
+>   and the 2324 s above is computed on that assumption. If it does not, the divergence is the full
+>   **2416 s** and the finding is worse. The bound is directional either way.
+
+- **The mtime limb of the argument SURVIVES, and it is worth separating from the limb that did not.**
   A live worker's last job arrived within its idle window, and **a job arriving is a `rename` into the
   speak directory**, which updates that directory's mtime; so is the claim-rename, the `job.taken`
   unlink, and the `symlink` of `worker.lock.<gen>` at startup — a symlink created *in* the directory
-  mutates the directory, exactly as the old `mkdir` did, so the inequality survives the change of
-  primitive unaltered. **Therefore a live worker's speak directory has
-  an mtime no older than its idle window**, and `find -mmin +30` cannot select it while the window is
-  20 minutes. **No live worker is ever swept**, with no change to `rewrite.sh:117` at all.
-- **The 10-minute margin is not decoration.** It absorbs `-mmin`'s minute granularity, the fact that
-  the sweep fires at an arbitrary moment after the threshold rather than on a schedule, and any
-  divergence between the worker's idle clock and the filesystem's mtime — **the worker's idle timer
-  must therefore be monotonic**, so that a backward wall-clock step cannot age the directory past 30
-  minutes while the worker still believes it is inside its window.
+  mutates the directory, exactly as the old `mkdir` did, so that much survives the change of
+  primitive unaltered. **What does not survive is the step that used it:** ~~therefore a live worker's
+  speak directory has an mtime no older than its idle window, and `find -mmin +30` cannot select it
+  while the window is 20 minutes; no live worker is ever swept~~. **The mtime is no older than the
+  worker's idle window measured in the worker's OWN units, and `find` measures it in different ones.**
+  Comparing 20 against 30 is only an ordering if both are the same kind of minute.
+- **Worked through, the ordering is not tight but INVERTED, and the failure is on the ordinary path.**
+  A worker idle for **92 seconds by its own monotonic clock** — which is what it read at 10:36:06 —
+  sat in a directory **40.27 minutes stale by wall clock**. So (i) `find -mmin +30` **can** select a
+  live worker's directory, which is exactly what this clause claimed was impossible; (ii) the
+  20-minute idle exit **does not fire during sleep**, so *"the worker is gone by minute 21, the sweep
+  runs at 30"* is not merely a thin ordering — the sweep's clock advances and the worker's does not;
+  and (iii) once the divergence exceeds **30 minutes**, as one night or one long meeting is enough to
+  make it, the hazard covers the worker's **entire** idle window rather than its tail: at the instant
+  of wake the directory is already sweep-eligible, before any new job has arrived. **The belt below
+  therefore moves from a theoretical case to the ordinary one**, and `rm -rf` of a live worker's speak
+  directory is what a closed lid produces.
+- **`rewrite.sh:117` runs BEFORE the hook does anything else, so the first turn after a long sleep is
+  the turn that sweeps.** The sweep is at `:117`; `mdir=` and its `mkdir -p` are at `:120-121`
+  **[repo]**. So the first `MessageDisplay` invocation after a >30-minute sleep destroys `speak/` —
+  and with it `worker.lock.<gen>` and every `playerdir/` record — before it creates anything.
+  **The deterministic cost is the residency this section exists to buy**: the swept worker's belt
+  fires within clause 3's 1 s poll and it exits, so the turn is served **cold**, which §10.5's own
+  table measures as failing the 3 s line at **4 of 7** turns **[hook]**. **The worst case is worse than
+  a cold start and is already measured elsewhere:** a worker swept while it holds a player loses the
+  `playerdir/` record that names it, so the successor's election sweep has no target list and cannot
+  reach that player — which is §13 row 20's `C8` orphan, **12/12 at full length** **[trials]**,
+  arriving through this door with no contention required. **[inferred]** for this route; the orphan
+  itself is not.
+- **THE CLOCK IS NOW MANDATED, and the clause has to mandate the opposite of what it used to.** The
+  old text read *"the worker's idle timer **must therefore be monotonic**, so that a backward
+  wall-clock step cannot age the directory past 30 minutes while the worker still believes it is
+  inside its window."* **That is the defect, and it is a sharper one than an ambiguity would have
+  been**: the clause did not leave the clock unspecified — it specified the unsafe one, and it is the
+  one an implementer would reach for anyway, because avoiding clock jumps is what `time.monotonic()`
+  is for. **The reason given was also wrong in its own terms:** `find -mmin` computes
+  `now_wall − mtime_wall`, so a *backward* step lowers that figure and makes the directory look
+  younger. A backward step cannot age a directory; only a forward one can.
+  - **What must ship instead: the worker measures its own idleness from the SAME quantity `find`
+    measures, which is the speak directory's own mtime read against the current wall clock.** Not a
+    timer at all — a `stat` of `$BUF_ROOT/<sid>/speak` on each wake, which clause 3's 1 s poll already
+    provides, compared against `time.time()`. Then the 20-against-30 inequality is an ordering **by
+    construction** rather than by argument, because both sides are one subtraction of one pair of
+    wall-clock stamps, and no divergence between two clocks can open up because there is only one.
+    That is also the form that needs no margin to absorb a quantity the margin cannot bound.
+  - **A plain wall-clock timer is the weaker version of the same fix and is acceptable**, because a
+    clock step moves `now_wall` on both sides of the comparison identically and the inequality
+    survives it. It is weaker only in that its stamp is the worker's own record of the last job rather
+    than the directory's, so the two can drift for reasons the mtime form cannot have.
+  - **The cost of the safe choice, stated rather than skipped.** A wall-clock reading is exposed to
+    exactly the clock changes monotonic exists to avoid — NTP steps, a timezone-independent manual
+    correction, a large forward jump. The exposure is bounded and asymmetric: a **backward** step
+    makes the directory look younger on both sides, which delays an idle exit and costs nothing but a
+    late cold start; a **forward** step larger than 30 minutes ages the directory past the sweep, and
+    the worker sees the same jump on its own next poll, so the residual window is the ≤1 s between the
+    two — against a sleep-driven divergence that is unbounded and, on this machine, 269.694 h.
+    **Trading an unbounded exposure for a one-second one is the trade, and it is not close.**
+- **The 10-minute margin is retained, and demoted.** It still absorbs `-mmin`'s minute granularity and
+  the fact that the sweep fires at an arbitrary moment after the threshold rather than on a schedule.
+  It is **no longer carrying** *"any divergence between the worker's idle clock and the filesystem's
+  mtime"* — the measurement above is what a margin cannot do, since 38 min 44 s of divergence came out
+  of one forty-minute idle sleep and nothing bounds the next one. **A margin sized against a quantity with no
+  bound is not a margin.**
 - **Why the sweep was NOT made worker-aware, which was the other available repair.** `:117` is a
   `find … -exec rm -rf` one-liner sitting above §11's speech gate: it serves the *rewriter's* own
   buffers and runs for every user with `CLAUDISH_ENABLED=1`, speech on or off. Teaching it to read
@@ -2369,9 +2474,19 @@ exists to close.
   on a hook that runs five to seven times per turn, to protect a case the inequality already excludes
   for free — and it would do that inside the fail-open display hook, which §5 makes inviolable. **The
   cheaper repair is also the one that keeps §11 true.**
-- **A belt, because the inequality only covers the sweep.** A speak directory can also vanish for
-  reasons this clause does not model — a manual `rm -rf`, an OS `TMPDIR` cleaner, a clock jump larger
-  than the margin. **The worker treats the disappearance of its own `speak/worker.lock.<gen>` — or of
+- **The belt is now LOAD-BEARING, not a belt, and that is a demotion of the whole clause.** It was
+  written for the cases the inequality did not model — a manual `rm -rf`, an OS `TMPDIR` cleaner, a
+  clock jump larger than the margin. **With the inequality falsified, the sweep it was supposed to
+  exclude is one of those cases**, and until the clock mandate above ships the belt is the *only*
+  thing standing between `:117` and a live worker. **It is `[inferred]` and unrun**, which is a bad
+  place for a sole guarantee to be. **One thing it does buy, and it corrects the cost stated in the
+  blockquote above:** because the swept worker exits on its next poll, *"two processes, each holding a
+  ~340 MB model"* overstates the resident-memory cost — the overlap is bounded by clause 3's 1 s poll,
+  not by a session. **The cost that replaces it is worse, not better**: an in-flight player whose
+  record the sweep destroyed, which nothing can then reach.
+- **What the belt covers, restated.** A speak directory can vanish for reasons other than the sweep —
+  a manual `rm -rf`, an OS `TMPDIR` cleaner. **The worker treats the disappearance of its own
+  `speak/worker.lock.<gen>` — or of
   the speak directory itself — as a terminal condition and exits**, rather than blocking forever on a
   `kqueue` over a deleted directory. **"Its own" is exact**: under clause 2 a worker owns one named
   generation, and a *higher* generation appearing means it has been superseded rather than swept,
@@ -2425,9 +2540,18 @@ exists to close.
     re-read for a change that had not been published. **Closing condition: §13 row 25** — add a
     retirement arm to `lockrace.py` that enqueues a job inside the announce-to-exit window, at both
     orderings, and confirm the job is served in each. Same rig, one more scenario.
-- **All of this is [inferred]** — the mtime reasoning is read off `find`'s semantics and `rewrite.sh:117`
-  **[repo]**, the retirement protocol is reasoned out and unrun, and nothing has been left idle for
-  twenty minutes to watch any of it happen. **§13 rows 24 and 25.**
+- **What is measured here and what is not, since this clause no longer has one tag.** **Measured
+  [measured-here]:** that the two clocks diverge on Darwin, by how much over this boot and over one
+  ordinary sleep, and that `rewrite.sh:117`'s verbatim predicate selects a directory a monotonic idle
+  timer still considers 12.51 minutes young. That is enough to **falsify** the separation, and a
+  falsification needs no worker. **Still [inferred]:** the mtime limb itself (read off `find`'s
+  semantics and `rewrite.sh:117` **[repo]**), the replacement clock mandate, the belt, the orphaned-player
+  route, and the whole retirement protocol — **and the thing this measurement conspicuously did not
+  measure is the worker, because `speak.sh` does not exist.** No worker has been resident across a
+  sleep, none has been left idle for twenty minutes, and nothing has watched a belt fire. **This is a
+  measurement of the platform's clock behaviour, not of a worker surviving sleep**, and the two must
+  not be conflated in either direction: it cannot confirm the repair, and the repair's absence is not
+  why it falsifies the old text. **§13 rows 24 and 25.**
 
 **7. §10.5 owes §10.6 FIVE hooks, and two of the first revision's three were wrong.** They are
 specified here because they live in the worker, and §10.6 is where the rule they serve is stated.
@@ -2837,7 +2961,7 @@ closed row keeps its number rather than being deleted and the numbering never sh
 | # | open question | what closes it | blocks shipping? |
 | --- | --- | --- | --- |
 | 1 | ~~The settled sanitizer combination has never been synthesized, and now contains a rule that does not exist~~ (§4.2) | **CLOSED 2026-08-25.** B′ implemented as `lb-auto`; the combination registered as `settled`; 24 wavs; the confirmation listen happened blind on `bf_emma` and **`settled` won 9–0**, five of the nine real — [`settled-set-audition.md`](settled-set-audition.md), [`audition-verdicts-11.tsv`](audition-verdicts-11.tsv) **[heard]**. It closes on the **composition**; rows 5, 19 and 23 are what it did not close | **closed** |
-| 2 | ~~The worker residency mechanism~~ (§10.5) | **CLOSED 2026-08-25.** Mechanism picked (lazy, self-electing, per-session, file-drop address, exclusive-create election — `mkdir` when this row closed, `symlink`ed generations since row 21 measured it, kqueue wake, every-invocation warm-up, startup warm-up synthesis, 20-minute idle exit — corrected from 30 in review, §10.5 clause 6) and TTFA measured **from a hook**: cold median **3.16 s** (fails, 4 of 7 over), warm median **1.22 s** (28/30), warmed-during-turn **1.71 s** (4/5) — [`worker-residency.md`](worker-residency.md), [`residency-timings.tsv`](residency-timings.tsv) **[hook]**. Rows 20, 21 and 22 are what it did not close | **closed** |
+| 2 | ~~The worker residency mechanism~~ (§10.5) | **CLOSED 2026-08-25.** Mechanism picked (lazy, self-electing, per-session, file-drop address, exclusive-create election — `mkdir` when this row closed, `symlink`ed generations since row 21 measured it, kqueue wake, every-invocation warm-up, startup warm-up synthesis, 20-minute idle exit — corrected from 30 in review, and **measured against the wall clock rather than a monotonic one since the sleep measurement of 2026-08-26**, §10.5 clause 6) and TTFA measured **from a hook**: cold median **3.16 s** (fails, 4 of 7 over), warm median **1.22 s** (28/30), warmed-during-turn **1.71 s** (4/5) — [`worker-residency.md`](worker-residency.md), [`residency-timings.tsv`](residency-timings.tsv) **[hook]**. Rows 20, 21 and 22 are what it did not close | **closed** |
 | 3 | ~~The §3.2 handoff match rate~~ | **CLOSED 2026-08-25. The rate is 35/35, byte-identical** — and re-derived at **15/15** by the committed kit, which is the reproducible half — [`handoff-match-rate.md`](handoff-match-rate.md) **[obs]** + **[obs2]**. **Closing it surfaced row 17, which is worse than the question this row asked** | **closed** |
 | 4 | ~~Whether `MessageDisplay` carries `prompt_id`~~ (§3.2) | **CLOSED 2026-08-25: yes**, on all 94 payloads, the same value `Stop` carries, 35/35, ten fields catalogued in §2 **[obs]**. It did **not** become the key — §3.2 says why, and that reverses this spec's stated preference | **closed** |
 | 5 | **Axis 2's cutoff position — STRENGTHENED 2026-08-25 from *unaudited* to CONTRADICTED at 4** (§4.1 qualification 1). One wav now exists at the seam and it went against the file: `s04`, 4 boundaries, `,` beat the shipped `.` blind **[heard]**. `COND_CUTOFF` stays at 4 deliberately — one wav cannot separate "the cutoff wants to be 5" from "the count should exclude a closing line", both predict `,` there. **The count that used to close this cell — *"would change `settled` on 17 of 54 items and invalidate the 9–0 sweep"* — was borrowed from a different measurement and is withdrawn.** 17 of 54 is `lb-comma`'s reach against `base`; the move from 4 to 5 changes `settled` on **2 of 54** (`s04`, `s05`) and on **none of the nine swept items** **[measured-here]**. The sweep is not at risk; the decision rests on the first reason alone | wavs at **5, 6 and 7** boundaries, **and** an `s04` variant with its closing line removed — that last pair is the only one that can separate the two repairs. Then one listen | no — the rule ships and the constant stays at 4 |
@@ -2847,7 +2971,7 @@ closed row keeps its number rather than being deleted and the numbering never sh
 | 9 | Whether the harness kills a hook's process group (§6) | one detached-sleep-and-check probe on a **non-detached** child. A `setsid()`-detached worker was observed surviving `/exit` **[obs]**, which is a different question | no, but it would explain truncated audio |
 | 10 | Whether `Stop` fires on user interrupt; what `StopFailure` does (§10.6) | inspection plus one probe | no |
 | 11 | Barge-in on a new prompt (§10.6) | decide whether a `UserPromptSubmit` entry is in scope | no |
-| 12 | Warm-up-on-wake vs a late first utterance (§10.5) | a listening call. **The decision is now cheap** — §10.5 clause 4 already has a warm-up trigger and a wake handler would reuse it. Nothing here has slept a machine; #5's ~4.9 s post-wake figure stands unchallenged | no |
+| 12 | Warm-up-on-wake vs a late first utterance (§10.5) | a listening call. **The decision is now cheap** — §10.5 clause 4 already has a warm-up trigger and a wake handler would reuse it. **CORRECTED 2026-08-26: this cell read *"nothing here has slept a machine"* and that is no longer true** — one sleep is now measured to the second (§10.5 clause 6, row 24). It changes nothing about *this* row, because **no worker was resident across it**: `speak.sh` does not exist, so #5's ~4.9 s post-wake figure still stands unchallenged and the listening call is still owed. What the sleep did settle belongs to row 24 | no |
 | 13 | Deeper leading-dot paths (`.github/workflows/ci.yml`) unauditioned | a corpus item | no |
 | 14 | `session_crons` has not been looked at (§8) | one look | no |
 | 15 | Whether any absolute hook-timeout ceiling exists (§6) | a wider read than the two call sites checked — **not** an argument from `hooks.json:21`, since config acceptance is not runtime enforcement | no |
@@ -2859,13 +2983,19 @@ closed row keeps its number rather than being deleted and the numbering never sh
 | **21** | ~~The stale-lock protocol's two clauses are [inferred]~~ **MEASURED and FALSIFIED — both of them.** 1200 trials, three protocols, six scenarios **[trials]**, [`lock-owners.tsv`](lock-owners.tsv). The residency probe's own protocol: **121/400** trials did not end with exactly one owner. The two clauses §10.5 clause 2 used to specify: **61/400**. **Worst case for both was 3 owners, not 2** — the cell above predicted 2 and was wrong about that as well. The initializing-lock retry is clean to a 50 ms stall (180/180) and then **40/40 wrong** at 200 ms and 1000 ms; the quarantine rename is **20/20 wrong** on the ABA, with a committed trace of a reclaimer quarantining the other reclaimer's *live* lock. The replacement — a `symlink`ed generation record, superseded rather than removed — is **0/400 wrong** | **what is left, and there are two arms, not one**: **(a)** the generation **unlink** and its ordering against clause 7's two sweep halves, `[inferred]` and unrun — `lockrace.py` never unlinks a generation, so every trial ran with the full generation history present. To close: add an unlink arm staged both before and after the sweep, and confirm the pre-sweep ordering re-opens the orphan region while the post-sweep one does not. **(b) the replacement protocol's own dead-owner reclamation is confirmed on a sample of ONE.** #28 reports that **all 100** of `proposed`'s reclamation trials — S3 (20), S4 (20), S6 (60) — staged their dead incumbent by a clock, and that the defect is asymmetric: a mis-staged trial yields exactly the `1 owner` a genuine pass yields, so a clean cell cannot by itself distinguish "survived a stale-observation reclamation" from "never saw one". **But one of the hundred has a committed per-trial trace, and it settles that trial:** `lock-S3_aba-proposed-r1.tsv` records both racers classifying the incumbent `pid_dead` and one publishing `gen=1 superseded=0` and taking ownership. So the count is **1 confirmed, 99 unconfirmed** — not zero, which is what an earlier revision of this row said and what #28's own text said until its round 25. Clock-staging leaves the *untraced* trials unconfirmed; it does not erase a trial whose trace shows the reclamation happening. The **0/400 wrong** to the left is therefore true, and is evidence for the mechanism on a sample of one rather than on none. Without (b) this row could close while the core path stayed undemonstrated. To close (b): re-run S3, S4 and S6 under #28's corrected barrier-staged driver and confirm the `VOID` count is zero. Same rig, one more scenario for (a) and a re-run for (b) | **YES** — an unlink ordered before the sweep destroys the target list clause 7(iv) reads, which puts back the orphan the process-group sweep exists to kill |
 | 22 | The bench-to-hook TTFA gap (~0.37 s) is **decomposed by reasoning, not isolated by experiment** (§4). The control shares hardware but not load or cadence | **interleaved paired runs**: the same corpus item synthesized alternately through `bench/first-sentence.py` and through the hook, A/B/A/B in one session, so both arms see the same load and spacing | no — the gap is small, explained, and inside budget |
 | 23 | **B′'s reach on real text is unproven.** It is a measured no-op on all 14 real rewrites and on **53 of the 54** corpus items; the only item it changes, `s38`, is synthetic **[measured-here]**. The listen confirmed the rule's **direction**, not its reach | a real capture with a short list whose lines do not already end in punctuation. Same shape as row 6 | no — a no-op cannot regress anything |
-| **24** | **The worker's idle exit and `rewrite.sh:117`'s sweep are separated by arithmetic that nothing has run** (§10.5 clause 6). **Row 25 is the other half of this clause and is a different failure** — this row is about the directory being swept out from under a live worker; row 25 is about a job arriving while that worker is deciding to leave. The claim is that a live worker's speak directory always has an mtime newer than its 20-minute idle window — because every job arrival, claim-rename and `worker.lock.<gen>` `symlink` is a directory mutation — so `find -mmin +30` can never select it. Read off `find`'s semantics and `rewrite.sh:117` **[repo]**, **[inferred]**. Nothing in this project has been left idle for twenty minutes, let alone thirty | leave one session's worker resident and idle, sample `stat` on `$BUF_ROOT/<sid>/speak` and the worker's liveness once a minute across the 30-minute mark, and drive one `MessageDisplay` just past it to fire the sweep. Two things to record: that the directory survives while the worker is alive, and that the worker is gone by minute 21. **The same run also exercises the belt** — `rm -rf` the speak dir under a live worker and confirm it exits rather than blocking on a `kqueue` over a deleted directory | no — the failure needs twenty minutes of silence and costs a cold start or, at worst, a second worker that §10.5 clause 2 then has to survive. It is a **real** hole, but not one a first implementation is exposed to in a working session |
+| **24** | ~~The worker's idle exit and `rewrite.sh:117`'s sweep are separated by arithmetic that nothing has run~~ **MEASURED 2026-08-26 and the separation is FALSIFIED — the two windows are not read off the same clock** (§10.5 clause 6). **Row 25 is the other half of this clause and is a different failure** — this row is about the directory being swept out from under a live worker; row 25 is about a job arriving while that worker is deciding to leave. The claim was that a live worker's speak directory always has an mtime newer than its 20-minute idle window — because every job arrival, claim-rename and `worker.lock.<gen>` `symlink` is a directory mutation — so `find -mmin +30` can never select it. **The mtime limb holds; the inequality drawn from it does not.** `find -mmin` is wall clock, and `time.monotonic()` on Darwin is `mach_absolute_time`, which does not advance while the system sleeps. Over this boot (`kern.boottime` 2026-08-10 01:20:30) the wall clock has run **393.332 h** against the monotonic clock's **123.637 h** — **269.694 h (16181.7 min)**, **68.6 %** of the machine's uptime, that the monotonic clock did not count. **One ordinary idle sleep is already 3.87× the clause's entire 10-minute margin**: `pmset -g log` records Sleep **2026-08-26 09:55:50** (*'Idle Sleep'*, `TCPKeepAlive=active`, on AC, at the default 900 s of inactivity) → Wake **10:36:06** (`RTP.keyboard/UserActivity`), a **2416 s** span less two 46 s maintenance DarkWakes (10:10:50→10:11:36, 10:26:36→10:27:22) = **2324 s (38 min 44 s)** uncounted. **And the predicate itself was run:** a `<sid>/speak` stamped 09:55:50 is selected by `find … -mindepth 2 -maxdepth 2 -type d -mmin +30` verbatim, while a `time.monotonic()` idle timer started at that same instant reads **12.51 min** — inside the 20-minute window, so the worker is live, warm and has not announced a retirement **[measured-here]**. **The clause did not leave the clock ambiguous; it specified the UNSAFE one**, and the reason it gave was wrong in its own terms — a *backward* wall-clock step lowers `now_wall − mtime_wall` and cannot age a directory. Clause 6 now mandates that the worker read its idleness off the speak directory's own mtime against `time.time()`, which is the same subtraction `find` performs, so the ordering holds by construction rather than by argument. **No worker was running — `speak.sh` does not exist — so this is a measurement of the platform's clock behaviour, not of a worker surviving sleep** | **the falsification needed no worker; the repair does, and nothing has run any of it.** The condition this row always carried still stands: leave one session's worker resident and idle, sample `stat` on `$BUF_ROOT/<sid>/speak` and the worker's liveness once a minute across the 30-minute mark, and drive one `MessageDisplay` just past it to fire the sweep — recording both that the directory survives while the worker is alive and that the worker is gone by minute 21. **New, and it is now the arm that matters: sleep the machine for more than thirty minutes in the middle of that run**, with the mtime-derived idle measure in place, and confirm the worker retires on its first poll after wake instead of being swept. **The same run exercises the belt**, which is the sole guarantee until the repair ships: `rm -rf` the speak dir under a live worker and confirm it exits rather than blocking on a `kqueue` over a deleted directory. **And one arm the old cell did not know it needed** — sweep a worker that is holding a player, and confirm the successor can reach that player at all; the swept `playerdir/` is why it cannot, which is row 20's `C8` orphan arriving by a different door | **YES — CHANGED from no, on the merits, and the old "no" rested on two claims that are now false.** (1) *"The failure needs twenty minutes of silence"* — it needs twenty minutes of **wall clock**, across which the machine may have been awake for **92 seconds**; and once the divergence passes thirty minutes, which one night or one long meeting supplies, the hazard covers the worker's **entire** idle window rather than its tail — the directory is sweep-eligible at the instant of wake, before any job has arrived. (2) *"At worst a second worker that §10.5 clause 2 then has to survive"* — **clause 6 itself disclaims that mitigation**: *"the generation protocol does not help here … a swept directory has no owner to supersede."* This row's stated reason for not blocking was a mitigation the clause it cites says does not exist, which is a miscount rather than a judgement. **And the cost is not a cold start.** The deterministic cost is that the first turn after any sleep over thirty minutes is served **cold** — `:117` runs at `:117`, above the `mkdir -p` at `:120-121` **[repo]** — and cold fails the 3 s line at **4 of 7** turns on §10.5's own table **[hook]**. The worst case is an in-flight player whose `playerdir/` record the sweep destroyed, which the successor's election sweep has no way to reach: row 20's `C8`, **12/12 at full length** **[trials]**. **It clears the exact bar row 27 set — "no bad luck at all":** a closed lid is not an exotic input, it is this machine's default after 900 s of inactivity, and and **68.6 %** of this machine's uptime was spent asleep — an upper bound on how much of it sat past the sweep's threshold rather than a count, and one that does not need to be tight |
 | **25** | **The 20-minute idle exit has an enqueue/termination race, and the retirement protocol that closes it is [inferred]** (§10.5 clause 6). The naive exit loses a turn outright: the worker decides to leave, a hook then renames a job in and reads a still-live owner so starts nothing, and the worker exits without claiming it — **silent, not late**, which falsifies §10.7's *"the job file outlives the hook, so the utterance is late, not lost"* on this path. The repair is announce-then-re-check: a `worker.retiring.<gen>` symlink published **before** the worker stops accepting work, then one `stat` of `speak/job` **after** it and before exiting, starting a successor if a job is there. Nothing has run it — no worker has been idle for twenty minutes and `lockrace.py` has no retirement arm | add a retirement arm to `lockrace.py`: enqueue a job inside the announce-to-exit window at **both** orderings — hook's owner-read before the announce, and after it — and confirm the job is served in each. The property to check is the one clause 6(c) states: **each of the two files is written once by one party, and each side reads the other's after writing its own.** Same rig, one more scenario | no — the failure needs the twenty minutes of silence row 24 needs, and it costs one lost utterance rather than a wrong one. **Scheduled, not dismissed**, and it is the reason clause 6 is a protocol rather than a `return` |
 | **26** | **The bounded wait's ceiling now takes the `min` of the LLM budget and the publisher's declared hook timeout (§3.5.1 clause 3) — and that a declared hook timeout is ENFORCED is [inferred].** `hooks/hooks.json:9` declaring 60 s for `MessageDisplay` is **[repo]**; that the harness stops a hook that overruns it has never been watched here, and [`turn-finality-and-the-stop-hook.md`](turn-finality-and-the-stop-hook.md) is explicit that declared numbers are *"not evidence about a runtime ceiling in either direction"*. Row 15 is the adjacent but different question, about an **absolute** ceiling rather than about enforcement of the declared one | one probe, and it needs no `speak.sh`: declare a small `MessageDisplay` timeout, make the hook sleep past it, and record whether it is stopped and whether its writes land. Then the `min` is either derived or withdrawn | no — it bites only at a non-default `CLAUDISH_TIMEOUT` of 58 or more, and only on a rewrite that overran the publisher's own declared budget. At the default the `min` is 50 s either way, which is what the old formula gave |
 | **27** | **§10.5 clause 7(iv)'s `.pending` marker does not actually bound `killpg`, because nothing removes one — and the leak is MEASURED.** The marker is created before the fork and removed by the wrapper once its record is published, so any player that never gets that far leaves a marker no wrapper will remove, no reap will reach, and no specified path removed until round five. (Round five's own draft said the wrapper removes it *as its first act*; **round six found that unsatisfiable** — clause 7(i) requires the wrapper to obtain its pid and start time, write them as the record's content and `rename(2)` it into place, so a marker removed before all three is removed *inside* the very window it bounds. The ordering is forced the other way, and the consequence below is unchanged by the correction: a player killed before it publishes still leaves a marker, which is exactly what should happen — the marker's presence is what tells the next election an unnamed player may exist.) **That includes the ordinary success path, which is the part round five did not expect**: a `killpg` that works kills the wrapper *before* it can rename, so the clause strands the very marker that authorised it. It also includes the worker that dies after creating a marker and before `Popen` completes. `sweep_pgid()` reads the directory as a **boolean** — non-empty means signal every superseded owner — so a single stale marker makes **every later election take the `killpg` path**, for the rest of the session, long after the unnamed-player window the marker was supposed to bound. **`C16a`'s committed worker trace creates 25 markers and removes none**: `pending_found` climbs monotonically **1 → 12** across twelve generations, `33f62e9b.pending` is created at `gen1` and is still on disk at `gen12r`, and every election in the arm reports `groups=1` **[trials]**. **The two halves are separable in that same trace**: the leaked names are exactly the players the sweep killed, while `6fad43e5.pending` — whose player published normally and renamed — does not appear in any later `pending_found`. **The earlier form of the cleanup was not implementable as written** — *"remove the entries it just swept"* is not a determinable set when the marker binds to no generation and no owner pid (that wording is #28's own second round, not this document's) | **the repair, specified in review round five and [inferred]**: name the marker `<gen>.<nonce>.pending`, and have the worker elected at `<gen>+1` unlink by exact name every `<g'>.<nonce>.pending` with `g' ≤ g`, **after** both halves of the election sweep against `g` and **before** forking any player of its own. Later than its own fork and the cleanup deletes a marker for a fork that has not happened, the next election skips `killpg`, and the design collapses into `C12c` — 12/12 at full length. The generation prefix is what makes the set determinable and is what reaches the pre-fork-death marker; nothing else in the name does. To close: implement the tag and the cleanup, then re-run `C12b`, `C16a` and `C16b` with a **pre-seeded stale `.pending`** and a pre-seeded dead record, and confirm `pending_found` returns to zero after each election rather than climbing. Same rig, one seeded file. **This is a deliberate DIVERGENCE from [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md) §5 and must be reconciled when that document lands**: #28 diagnoses the same defect and reaches the same cleanup, but names the set by *"the `.pending` names returned by the `listdir` that gated THIS sweep"* and protects it with an ordering rule (before the electing worker's own fork). That set is only well defined while no other worker is forking, which is the shape §13's own lesson calls a smell — a cleanup ordered around a mutable directory. **The generation prefix makes the set a name rather than an ordering**, and keeps the ordering rule as a belt rather than the guarantee. Whichever survives, the two documents must specify one marker name | **YES — but not independently, and the distinction matters.** It adds no hazard of its own; it **removes the bound on row 20(b)'s**. With a stale marker on disk, `killpg` fires at every election instead of only inside the unnamed-player window, so the case that can signal a stranger's process group goes from rare to constant. Marking it "no" while row 20 blocks for the unbounded form of the same hazard would be inconsistent |
 
-**FOUR of these now block shipping: 17, 20, 21 and 27 — the count moved for the first time since this
-revision opened, and it moved UP.** Rows 20 and 21 block for a different reason than they did: the
+**FIVE of these now block shipping: 17, 20, 21, 24 and 27 — the count has now moved twice in this
+revision, both times UP, and the second move came from a measurement rather than a read.** **Row 24 is
+the new one, and it is the only row in this table that a falsification moved INTO the blocking column
+rather than out of one**: the machine slept unplanned on 2026-08-26, `find -mmin` turned out to be
+wall clock where the worker's mandated idle timer was monotonic, and 38 min 44 s of divergence came out
+of a single forty-minute idle sleep against a margin sized at 10 minutes. §10.5 clause 6 carries the arithmetic
+and row 24 carries why the *"no"* it used to hold was resting on a mitigation clause 6 disclaims.
+Rows 20 and 21 block for a different reason than they did: the
 experiment they used to owe **has been run**, twice — 1200 lock trials and 312 preemption trials, on an
 instrumented worker built for it. **It falsified four clauses this document had marked LOCKED**, and
 what remains open in both rows is the residue of the *replacements* — a generation unlink nothing has
@@ -2886,15 +3016,26 @@ three closures produced a new blocker of their own (row 3 → row 17, row 2 → 
 what measurement usually does and is not a sign that the count is not moving: the new rows are about
 mechanisms that now exist on paper, where the old ones were about decisions nobody had made.
 
-**Rows 24, 25 and 26 are NOT ship-blocking**, and the reason is worth being explicit about rather than
-leaving to the table cells. Rows 24 and 25 are the two halves of the same clause and both need twenty
-minutes of silence in one session to bite at all: 24's worst outcome is a second worker that §10.5
-clause 2 is separately specified to survive, and 25's is one lost utterance. Row 26 bites only on a
-non-default `CLAUDISH_TIMEOUT`. **All three are real holes and all three are scheduled, not
-dismissed** — and rows 25 and 26 exist because a fourth review round read the clauses that produced
-them, not because anything failed.
+**Rows 25 and 26 are NOT ship-blocking**, and the reason is worth being explicit about rather than
+leaving to the table cells. Row 25 needs twenty minutes of silence in one session to bite at all, and
+its cost is one lost utterance. Row 26 bites only on a non-default `CLAUDISH_TIMEOUT`. **Both are real
+holes and both are scheduled, not dismissed** — and they exist because a fourth review round read the
+clauses that produced them, not because anything failed.
 
-**Row 27 goes the other way, and the contrast with 24–26 is the point.** It also arrived from a read
+> **This paragraph read *"Rows 24, 25 and 26 are NOT ship-blocking"* until the sleep measurement, and
+> the sentence it lost is the one to read.** It said 24 and 25 *"both need twenty minutes of silence in
+> one session to bite at all"* and that 24's worst outcome was *"a second worker that §10.5 clause 2 is
+> separately specified to survive."* **Both halves were wrong, and they were wrong from different
+> directions.** The twenty minutes are wall-clock minutes the worker's own clock does not see, so the
+> precondition is *easier* to meet than this paragraph assumed rather than harder — a sleeping machine
+> supplies it while the worker's timer sits at 92 seconds. And clause 2 is not specified to survive it:
+> clause 6's own blockquote says *"a swept directory has no owner to supersede."* **A non-blocking
+> verdict that cites a mitigation as separately specified should be checked against the clause that
+> specifies it** — that check is what this paragraph never did, and it is the same class of defect as
+> the two counts this document already keeps notes about. Row 24 is where the corrected verdict lives.
+
+**Row 27 goes the other way, and the contrast with 25 and 26 is the point** — it used to be stated
+against 24–26, and row 24 has since crossed the line by the very test this paragraph sets out. It also arrived from a read
 rather than a failure, and it also needs no new decision — but it needs **no bad luck at all**, and that
 is what puts it in the blocking column. Round five expected the leak to require a worker dying between
 its marker and `Popen`; **the trace says the ordinary success path leaks too.** A marker is renamed
@@ -2903,8 +3044,13 @@ so **every time clause 7(iv) does its job it strands the marker that authorised 
 halves side by side: the markers of players the sweep killed (`33f62e9b`, `1e50da71`, `8d3ff308` …)
 are still on disk twelve generations later, while `6fad43e5` — whose player published normally — is
 gone **[trials]**. **A bound that is consumed by its own success, and never recovers for the rest of
-the session, is not in the same class as a row that needs twenty minutes of silence and costs a cold
-start.** That is the test the ship-blocking column is applying, and it is why the count is four.
+the session, is not in the same class as a row that needs twenty minutes of silence and costs one lost
+utterance.** That is the test the ship-blocking column is applying, and it is why the count is five —
+**row 24 was moved by that same test, applied to it honestly for the first time.** The test asks
+whether the trigger needs bad luck. `Sleep … 'Idle Sleep' … 900 secs` on AC is not bad luck; it is the
+default. **68.6 %** of this machine's uptime was spent asleep by one route or another — an upper
+bound on the time spent in sleeps long enough to matter here rather than a count of them, and large
+enough that the bound is the point **[measured-here]**.
 
 ### Can #11 lock?
 
@@ -2925,20 +3071,25 @@ on are made:**
 4. **§5's unit** — nine invocations, never nine utterances.
 
 **What #11 does NOT have, stated plainly so the lock is not read as more than it is.** Nothing in §13 is
-a decision the listener still owes; rows 17, 20, 21 and 27 are **verification of specified mechanisms**, and
+a decision the listener still owes; rows 17, 20, 21, 24 and 27 are **verification of specified mechanisms**, and
 row 18 is **parked by explicit decision** rather than unresolved. So #11 can lock and **#23 can start**
 — but #23 finishes at row 17, not at "the hook runs". **An implementer who builds `speak.sh` and does
 not measure the wait has not finished the ship blocker, they have moved it.**
 
-**RE-EXAMINED FIVE TIMES AND MEASURED ONCE, and the measurement is still the one that matters.** The
+**RE-EXAMINED FIVE TIMES AND MEASURED TWICE, and the measurements are still the ones that matter.** The
 answer above was written before anyone had read this revision back. Five independent review rounds have
-since read it and one experiment has since exercised it, and between them they found **twenty
+since read it and two experiments have since exercised it, and between them they found **twenty-one
 correctness defects in text this revision marked LOCKED** — with the second round finding defects **in
-the first round's repairs**, the experiment finding that **two of the first round's repairs were
+the first round's repairs**, the first experiment finding that **two of the first round's repairs were
 themselves wrong**, the fourth round finding **five more, in four different sections, none of them
-in a repair**, and the fifth round finding **four, of which two are defects in round three's and round
+in a repair**, the fifth round finding **four, of which two are defects in round three's and round
 four's own repairs** — the master switch broken in the opposite direction, and an identity credited
-against a process it says nothing about.
+against a process it says nothing about — and **the second experiment finding one, which is the only
+one so far that the machine found rather than a person: it slept.** That one is different in kind and
+worth naming as such. It was not reached by reading the clause harder; it was reached by an ordinary
+platform behaviour arriving unbidden and contradicting an arithmetic argument the clause had marked
+safe. **Five rounds of increasingly careful reading did not find it, and clause 6 had been read at
+least twice.**
 
 | round | finding | section |
 | --- | --- | --- |
@@ -2962,30 +3113,37 @@ against a process it says nothing about.
 | **5** | **the player-record rule was a description, not a shape** — *"the name must match `<digits>.<nonce>`"* with `<nonce>` unconstrained, so an all-decimal `.pending` marker (2.3 % of nonces) parses as a pid and is signalled. **Not hypothetical**: `C17`'s committed trace targets `2679968` twice from `02679968.pending` while the live player is `19823` **[trials]** | §10.3 step 6, §10.5 cl. 7(i) |
 | **5** | **the `.pending` marker bounded nothing, because no path removed one** — a worker dying between the marker and `Popen` leaves it forever, and the sweep reads the directory as a boolean, so `killpg` then fires at **every** election for the rest of the session. `C16a` creates 25 markers, removes none, and climbs 1 → 12 across twelve generations **[trials]**. Round 2's *"remove the entries it just swept"* named no determinable set | §10.5 cl. 7(iv), row 27 |
 | **5** | **the owner's start time was credited against a player's pid** — round 4 added `<pid>.<starttime>` to `worker.lock.<gen>` and scored it against row 20(b), but §10.3 step 6 signals a **player** pid read from a different record that carried no identity at all, so a stale player record could still `kill` a stranger with the owner check passing | §10.3 step 6, row 20(c) |
+| **M2** | **the idle exit and the sweep were compared across two different clocks** — `find -mmin` is wall clock; the clause **mandated** `time.monotonic()`, which on Darwin does not advance while the system sleeps. One unplanned sleep put **38 min 44 s** of divergence against a **10-minute** margin, and the shipped predicate selects a `speak` dir a monotonic idle timer still calls **12.51 min** young. **The clause specified the unsafe clock rather than omitting the question**, and the reason it gave — a backward wall-clock step aging the directory — is arithmetically impossible. **Found by the platform, not by a reader** | §10.5 cl. 6, row 24 |
 
 **The lock still holds on its own test, and the test is worth restating rather than assumed:** *every
 section is either LOCKED with the evidence that decided it, or OPEN with a closing condition that does
-not require re-deciding anything.* **All twenty defects were repairable without a new decision from
-the listener** — and the twenty split two ways rather than one, which the old *"all six"* framing hid:
-**seventeen were repairable from evidence already in the document**, and **the three marked M were
+not require re-deciding anything.* **All twenty-one defects were repairable without a new decision from
+the listener** — and the twenty-one split two ways rather than one, which the old *"all six"* framing hid:
+**seventeen were repairable from evidence already in the document**, and **the four marked M and M2 were
 falsified by the run that found them and repaired from that same run's evidence**, which is a stronger
 position rather than a weaker one. The judgements between competing repairs are recorded with their
 costs — clause 6's separation, clause 5's required-versus-recommended, round four's choice to
-withdraw the `prompt_id` pre-filter rather than the diagnostic-only rule, and round five's choice to
-give the `.pending` marker a **generation prefix** rather than to order the cleanup around a fork.
+withdraw the `prompt_id` pre-filter rather than the diagnostic-only rule, round five's choice to
+give the `.pending` marker a **generation prefix** rather than to order the cleanup around a fork, and
+**M2's choice of a mtime-derived wall-clock idleness measure over a monotonic timer, which trades an
+unbounded exposure to machine sleep for a one-second exposure to a clock step**.
 **Round five's four are the first that did not all land in text; one of them added an OPEN row (27) and
 moved the ship-blocking count**, which is why the "so #11 can lock" below is now stated with that
-qualification rather than without it. So #11 can lock and #23 can start — with one more blocker than
-it had this morning.
+qualification rather than without it. **M2 moved the count a second time and added no row at all** —
+row 24 already existed, marked non-blocking, and the measurement changed the verdict inside it.
+**That is a shape neither a review round nor the first experiment produced, and it is the worse of
+the two**: a new row is a new thing to know about, whereas a re-scored row means this document's own
+risk judgement was wrong about something it had already written down and had twice declined to block
+on. So #11 can lock and #23 can start — with two more blockers than it had yesterday morning.
 
 > **This sentence read *"All six defects"* until review round four caught it**, sitting directly under
 > a table that by then listed **eleven**, and one paragraph under a sentence that says eleven in words.
 > **It is the same class of defect as the *"three rows closed, three opened"* line this document opens
 > with** — a count written once and then not re-derived from the table it counts — which is why it is
 > corrected here rather than quietly. The table is the authority: **four in round one, two in round
-> two, three in the measurement round, two in round three, five in round four, four in round five —
-> twenty.** Re-derived from the table on each revision rather than incremented, which is the only way
-> this note stays true of itself.
+> two, three in the first measurement round, two in round three, five in round four, four in round
+> five, one in the sleep measurement — twenty-one.** Re-derived from the table on each revision rather
+> than incremented, which is the only way this note stays true of itself.
 
 **But the clean "yes" of the paragraph above is no longer the honest answer, and here is the precise
 reason.** This document's stated purpose, in its own opening words, is to be *"a specification an
@@ -3018,6 +3176,17 @@ calling it LOCKED without saying so would be the manufactured lock this document
        content-based exit — but step 6's **content** did not: it validated a record shape that admits a
        `.pending` marker and signalled a player pid carrying no identity. **§10.5 clauses 2 and 6 are
        still owed a read**, and round five's own repairs to clause 7(i) and 7(iv) now join them.
+     - **FURTHER DISCHARGED for clause 6, but not by the read this precondition asked for — by the
+       machine.** Clause 6 has now been contradicted by a measurement rather than examined by a
+       reviewer, and the defect found (M2) is one no amount of reading the clause against itself would
+       have surfaced, because the clause was internally consistent: it named a clock and gave a reason.
+       **The reason was false about the platform, and the platform is not in the text.** So clause 6 is
+       repaired and **still owed the read**, on the narrow ground that a falsification is not a review
+       — nothing has examined the *replacement* mandate, the belt that is now load-bearing, or the
+       retirement protocol beside it. **Clause 2 remains entirely unread.** **What this entry adds to
+       the precondition is a kind of check, not another round of the same one**: where two durations
+       are compared anywhere in §3 or §10, the read must ask which clock each is measured on before it
+       asks whether the inequality holds.
 2. **If a third review of §3.1 finds a fourth defect, §3 should stop being marked LOCKED, and the
    publish should be settled by *building* it** — row 17 — rather than by a fifth draft. Two
    ordering-based drafts failed; content addressing is a different kind of answer, and if it fails too,
@@ -3043,12 +3212,24 @@ round four the open list grew from 24 rows to 26 with the ship-blocking count un
 shape a review round is supposed to produce: more disclosed, none of it newly load-bearing.
 
 **Round five broke that shape, and the sentence above is left standing rather than rewritten so the
-break is visible.** The list is **27 rows** and **four** of them block. Round five disclosed one new
+break is visible.** The list was **27 rows** and **four** of them blocked. Round five disclosed one new
 row and it is load-bearing — not because it found a new hazard, but because it found that a bound this
 document was already relying on **had no removal path and therefore was not a bound**. **"More
 disclosed, none of it newly load-bearing" is a claim a round has to earn, and round five did not earn
 it.** That is a worse result than rounds three and four produced, and it is stated here rather than
 absorbed into the table.
+
+**The sleep measurement broke it a second way, and the two breaks are not the same failure.** The list
+is still **27 rows** and **five** of them block. Nothing new was disclosed at all — **row 24 was
+already on the list, already described, and already scored "no"** — and the measurement changed only
+the score. **That is the one move this section had no precedent for.** Round five's break was a round
+adding load; this one is a round *discovering that load had been there the whole time and had been
+mis-priced twice*, once when row 24 was written and once when the paragraph explaining the 24–26 group
+declined to check its own reasoning against clause 6. **A count that goes up because something new was
+found is a working process. A count that goes up because an old entry was re-read correctly is a
+process that was not working**, and the honest reading is that this document's ship-blocking column is
+a set of judgements that have had five careful reads and one contradiction from outside, and the
+contradiction won.
 
 **One thing a reviewer should attack rather than accept — and the argument against it is now dead.**
 Rows 20 and 21 are marked ship-blocking on judgement, not on a rule. The argument for it: both are
@@ -3062,8 +3243,17 @@ wants to move these rows to non-blocking must argue about the residue that survi
 generation unlink's ordering, `killpg` under **owner** pid reuse, `kill` under **player** pid reuse,
 and the `.pending` cleanup that has to exist for any of the `killpg` reasoning to be about a bounded
 window at all — **and not about the clauses that have already failed.** **Row 27 is the one to attack
-first if any of them is to move**, because it is the only one of the four whose repair is a few lines
-of naming rather than a kernel property or a rig.
+first if any of them is to move**, because its repair is a few lines of naming rather than a kernel
+property or a rig.
+
+**Row 24 is the one to attack LAST, and the reason is the opposite of row 27's.** Its repair is
+cheaper than any of the others — one `stat` replacing one timer — but it is the only blocking row whose
+falsification came from the platform rather than from the protocol, and **a platform cannot be argued
+with by reading.** Rows 20, 21 and 27 could in principle be moved by a better argument about pids and
+markers. Row 24 cannot: the divergence is measured, it is unbounded, and the only thing that closes the
+row is leaving a worker resident across a real sleep and watching it retire instead of being swept.
+**A reviewer who wants to move it is arguing that a closed lid is rare**, which this machine's own
+uptime answers with **68.6 %** of itself spent asleep **[measured-here]**.
 
 ---
 
@@ -3239,7 +3429,15 @@ Stated so a reviewer can attack the right parts.
   hook-side twin at §10.3 step 6"*, and that was wrong** — the hook signals a **player** pid from a
   different record, which clause 2's owner start time does not describe; the twin is now (9), with its
   own closing condition at §13 row 20(c). (3) **§10.5
-  clause 6, the idle-exit/sweep separation.** (4) **§3.1's content-addressed publish.** (5) **§3.5.1
+  clause 6, the idle-exit/sweep separation — REWRITTEN rather than removed, and it is the only entry on
+  this list to have been measured FALSE and stayed.** The form that shipped until 2026-08-26 compared a
+  20-minute idle window against a 30-minute `find -mmin` sweep and mandated `time.monotonic()` for the
+  first; on Darwin the second is wall clock and the first stops during sleep, and **one unplanned sleep
+  put 38 min 44 s of divergence against a 10-minute margin** **[measured-here]**. The entry now covers
+  the **replacement**: that a worker measuring its idleness from the speak directory's own mtime
+  against `time.time()` — the same subtraction `find` performs — makes the ordering hold by
+  construction. **That replacement is itself `[inferred]` and unrun**, which is why the count below
+  does not fall. §13 row 24. (4) **§3.1's content-addressed publish.** (5) **§3.5.1
   clause 7, the worker's re-check of both off-files at the point of synthesis.** (6) **§10.5 clause 2's
   start-time-validated owner record** — `<pid>.<starttime>` rather than a bare pid, with `ps -o lstart=`
   as the reader; new in round four, and the clause without which clause 2's own one-live-owner rule is
@@ -3266,7 +3464,13 @@ Stated so a reviewer can attack the right parts.
   rule here is true, and whose worst outcome is silence a few seconds early on a non-default
   configuration. The first two are latency, the third is a disclosed failure path, the fourth is a
   bound. **A clause counts here only if a rule stated elsewhere in this document is FALSE without it.**
-  **The count went 3 → 6 → 5 → 8 → 10, and the composition has turned over almost completely twice.**
+  **The count went 3 → 6 → 5 → 8 → 10 → 10, and the composition has turned over almost completely
+  twice.** **The final step is the first that did not move it, and the reason is worth stating rather
+  than leaving as a coincidence**: the sleep measurement falsified entry (3) and its replacement is
+  `[inferred]` too, so one entry was rewritten in place and none was added or removed. **A flat count
+  is not a quiet round here.** It means a clause this document had reasoned out was wrong and the thing
+  standing in its place has exactly as little behind it — which is a worse state than the number
+  reports, and is why the number is not the thing to read.
   It said "three" before the integration pass and was undercounting even then; review took it to six;
   **the measurement round then removed four of those six by running them** — clause 2(a) and 2(b) were
   not confirmed but **falsified** (61/400 and 20/20), and clause 7(ii) and 7(iii) were confirmed by
@@ -3287,19 +3491,41 @@ Stated so a reviewer can attack the right parts.
   and 27 — row 26 belongs to the exclusions below, not here.
   - **What the falsifications say about the ten that remain, stated because the arithmetic invites
     the wrong reading.** Two `[inferred]` clauses left this list by being **measured wrong**, not by
-    being confirmed. The base rate this document has for "a correctness clause reasoned out and
-    written down" is therefore **worse than a coin flip on the only sample that exists**, and a
-    reader should price the remaining ten accordingly. **The count is not a score in either
+    being confirmed — **and a third has now been measured wrong without leaving it at all**, which is
+    the worse of the two outcomes and is new on 2026-08-26. A falsification that removes an entry at
+    least converts reasoning into evidence; entry (3)'s converts reasoning into **different
+    reasoning**, because the repair could be specified but not run. The base rate this document has for
+    "a correctness clause reasoned out and written down" is therefore **worse than a coin flip on the
+    only sample that exists**, and the newest datum moves it further in the same direction rather than
+    back. A reader should price the remaining ten accordingly. **And one thing entry (3) adds that the
+    other two could not:** both of those were falsified by a rig built to attack them, so a reader
+    could still hope that unattacked clauses are safer than attacked ones. **Entry (3) was falsified by
+    nobody attacking anything** — the machine slept — which removes that hope. **The count is not a score in either
     direction**: it fell from six to five because a run destroyed four clauses, and it rose from five
     to eight and then to ten because two reads found five more rules that were false without a clause
     nobody had written. Neither move is progress and neither is regression — both are the document
     finding out what it did not know. **Ten is the number to be uncomfortable about only if the
     alternative reading is that eight was ever the true one**; it was not, and the two entries round
     five added were false before it wrote them down.
-- **FIVE review rounds and one measurement round have now found TWENTY correctness defects in text
+- **FIVE review rounds and TWO measurement rounds have now found TWENTY-ONE correctness defects in text
   this revision itself marked LOCKED, and the rate — not any one defect — is the weakness.** Counted so
-  the number is checkable: **four in round one, two in round two, three in the measurement round, two
-  in round three, five in round four, and four in round five.** *Round five*: §10.3 step 0a testing the
+  the number is checkable: **four in round one, two in round two, three in the first measurement round,
+  two in round three, five in round four, four in round five, and one in the sleep measurement.**
+  *The sleep measurement*: §10.5 clause 6 comparing its 20-minute idle window against
+  `rewrite.sh:117`'s 30-minute `find -mmin` sweep **without checking that the two are read off the same
+  clock** — and then **mandating the unsafe one**, `time.monotonic()`, which on Darwin is
+  `mach_absolute_time` and does not advance while the system sleeps. The machine slept unplanned on
+  2026-08-26 and the divergence from that one event is **2324 s (38 min 44 s)** against a margin sized
+  at 10 minutes; over this boot it is **269.694 h**, **68.6 %** of uptime. `rewrite.sh:117`'s verbatim
+  predicate selects a `speak` directory a monotonic idle timer still calls **12.51 min** young
+  **[measured-here]**. **This one is different in kind from the other twenty and that is the part to
+  read**: it is the only defect in the list that was not found by anyone reading anything. The clause
+  was internally consistent — it named a clock and gave a reason for it — and the reason was false
+  about the platform rather than about the clause. **Five review rounds did not find it, and clause 6
+  had been read at least twice**; the reason given (*"a backward wall-clock step cannot age the
+  directory"*) is arithmetically impossible in the direction it claims, and nobody noticed, because
+  checking it required asking a question about `mach_absolute_time` that the text gives a reader no
+  reason to ask. §13 row 24, which moved to ship-blocking as a result. *Round five*: §10.3 step 0a testing the
   **raw** `CLAUDISH_ENABLED` for exactly `1` where `rewrite.sh:100` tests an already-defaulted
   `$ENABLED`, so an **unset** variable — essentially every user — failed the gate and speech never ran;
   §10.3 step 6's record rule being a description (*"`<digits>.<nonce>`"*) rather than an anchored
@@ -3350,9 +3576,9 @@ Stated so a reviewer can attack the right parts.
   shape appeared, §13 rows 20 and 21 were pointed at it, and the run confirmed the smell** — both of
   its ordering rules failed, and the repair that held is §3.1's repair again: a record that is created
   and never mutated, with ownership carried by a name.
-- **All twenty are repaired in place, none needed a new decision from the listener, and that is why
-  §13 still answers *"can #11 lock?"* with yes.** But five independent reads and one experiment on the
-  same text found twenty real defects; the second read found defects **in the first read's repairs**;
+- **All twenty-one are repaired in place, none needed a new decision from the listener, and that is why
+  §13 still answers *"can #11 lock?"* with yes.** But five independent reads and two experiments on the
+  same text found twenty-one real defects; the second read found defects **in the first read's repairs**;
   the experiment found that **two of the first read's repairs were themselves wrong**; the fourth
   read — the only one to find nothing wrong in anybody's repair — still found **five**, in four
   sections, every one of them in text that had been read at least twice already; and the fifth read
@@ -3364,10 +3590,42 @@ Stated so a reviewer can attack the right parts.
   arriving from a different direction and rather more forcefully.
   **Round five is also the first round whose findings moved the ship-blocking count** (§13 row 27), so
   the claim that these reads disclose without adding load-bearing work is now false as well.
+  **The sleep measurement moved it a second time, and it did so without disclosing anything new** — row
+  24 was already written, already described, and had been scored non-blocking twice. **A count that
+  rises because an existing row was finally read correctly is a worse signal than one that rises
+  because something new was found**, and it is the signal this document now has. It also breaks the
+  pattern of the other rounds in the way that matters most for what to trust next: every one of the
+  other twenty defects was found by someone deliberately looking, and **five careful looks at this
+  clause missed this one.** The generalisation is the bullet below.
+- **Two durations compared anywhere in this document are now suspect until someone names the clock each
+  one is read off, and this is the newest lesson here.** §10.5 clause 6 held a 20-against-30 comparison
+  for five review rounds, and the arithmetic was correct — the numbers simply were not the same kind of
+  minute. **The shape to look for is a specification that picks a clock for a stated reason**, because
+  that is what makes the question look already answered: clause 6 said *"the worker's idle timer must
+  therefore be monotonic"*, with a justification, and a reader who accepts the justification never asks
+  what the **other** side of the inequality measures. **The general rule this document can extract: a
+  timeout is not a quantity, it is a quantity plus a clock, and two timeouts only order each other if
+  the clocks are the same one.** The safest form is not to choose the right clock but to make both
+  sides read the *same* stamp — which is why clause 6's repair is a `stat` of the directory the sweep
+  tests rather than a better timer. **That is the same move as §3.1's**: not a rule for using two things
+  safely, but the removal of the second thing.
 - **`launchd` was rejected on judgement, not on measurement**, and it is the alternative in §10.5 most
   worth pushing back on: it would be permanently resident and survive machine sleep, which is genuinely
   better on latency. The three reasons against it — a background daemon for an off-by-default feature,
   no sweep reclaiming it, no per-session scoping — are all real and none is a number.
+  **The sleep measurement is the first evidence that touches this bullet, and it does not decide it
+  either way — but it does correct what the bullet claims.** *"Survive machine sleep"* was doing more
+  work than it can carry: the chosen mechanism's worker **also** survives sleep as a process, with the
+  model still resident. What does not survive is its **directory**, because `rewrite.sh:117` measures
+  that directory in wall-clock minutes the sleeping worker never spent. **A `launchd` worker would be
+  swept identically** — the sweep is a depth-2 `find` that knows nothing about who owns anything — so
+  residency is not the axis this failure lies on and `launchd` is not a repair for it. **What the
+  measurement does hand this bullet is a number where it had none**, on the second of its three
+  reasons: *"no sweep reclaiming it"* cuts both ways, and a mechanism the sweep **does** reach loses its
+  warm model on the first turn after every sleep over thirty minutes. **This boot spent 269.694 h
+  asleep, 68.6 % of its uptime** — which bounds how much of that sat past the sweep's threshold without
+  counting it, and the bound does not need to be tight to say the threshold is crossed routinely
+  **[measured-here]**.
 - **The hazard gate has never fired.** Zero of the sixteen measured sub-threshold items carry a
   disqualifying class (§3.4). Its cost is measured at zero and so is its benefit. It is reasoning
   about a future, not a fix for an observed defect.
