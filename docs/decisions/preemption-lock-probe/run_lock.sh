@@ -246,10 +246,35 @@ trial_init() {   # proto N stall rep scenario
 # ROUND 5 found the SECOND fixed sleep in the same function, which the previous repair
 # left in place: the 50 ms between launching the winner and launching B was staging the
 # incumbent's publication by the clock. Now gated on `pid_written`/`published`.
+#
+# ROUND 24 -- THE LAST CLOCK IN THIS FUNCTION, AND THE SIXTH STAGING REPAIR TO THIS FILE.
+# Waiting for B's `classified_stale` proves that B OBSERVED a dead generation. It does
+# not prove that A RECLAIMED before B's 120 ms classify stall expired. A is a fresh
+# Python interpreter; if it starts slowly or is descheduled past 120 ms then B reclaims
+# first and A merely loses -- owners=1, the SILENT FALSE PASS this repair exists to
+# eliminate, and for `proposed` indistinguishable from a genuine pass exactly as 2.6
+# already explains of every mis-staged S3 trial.
+#
+# So the clock is replaced by an explicit RELEASE BARRIER, the same two-phase file-token
+# shape the S1/S2 barrier ended up with rather than a seventh mechanism: B holds after
+# recording `classified_stale`; A drops the GO token only once its own election has
+# returned a successful reclaim; B is then released and commits the ABA act. Either side
+# failing records its own marker -- `classify_hold_timeout` on B's side,
+# `classify_hold_norelease` on A's -- and both VOID the trial, which summarise.sh
+# excludes from the numerator and the denominator alike.
+#
+# THIS DOES NOT MAKE THE COMMITTED NUMBERS RIGHT. lock-owners.tsv predates every staging
+# fix in this file, including this one, so row 21's S3 cell stays `[inferred]` and the
+# re-run stays the open item it has been since round 3. The document already says
+# inspection is not converging on this function; the change is kept minimal for that
+# reason.
 trial_aba() {    # proto rep
   local pr=$1 rep=$2 sc=S3_aba
   local dir; dir=$(newdir "$sc-$pr-r$rep")
   local log="$dir/log.tsv"; : > "$log"
+  # Per-trial, like --barrier-dir: a token left behind by one trial would release the
+  # next trial's B before its A had reclaimed, which is the failure being fixed.
+  local hold="$dir/holdbar"; mkdir -p "$hold"
   "$PY" "$RIG/lockrace.py" --dir "$dir" --log "$log" --role winner --protocol "$pr" \
       --dead-owner --hold-ms "$HOLD" --trial "$rep" --label "$sc" &
   if ! await_publication "$log" "$pr"; then
@@ -258,11 +283,11 @@ trial_aba() {    # proto rep
     emit "$sc" "$pr" 2 0 "$rep" "VOID"
     return
   fi
-  # B classifies now, then sits on the decision for 120 ms
+  # B classifies now, then PARKS on the barrier until A's reclaim is in the log.
   "$PY" "$RIG/lockrace.py" --dir "$dir" --log "$log" --role racer --protocol "$pr" \
-      --classify-stall-ms 120 --hold-ms "$HOLD" --trial "$rep" --label "$sc" &
-  # Wait for the OBSERVATION, not for the clock. B's classify stall is 120 ms, so
-  # there is ample room; 2 s is a deadlock guard, not a timing assumption.
+      --classify-hold-dir "$hold" --classify-hold-role hold \
+      --hold-ms "$HOLD" --trial "$rep" --label "$sc" &
+  # Wait for the OBSERVATION, not for the clock. 2 s is a deadlock guard.
   local waited=0
   until grep -q 'classified_stale' "$log" 2>/dev/null; do
     sleep 0.002
@@ -274,10 +299,32 @@ trial_aba() {    # proto rep
       return
     fi
   done
-  # A classifies and reclaims immediately, on top of an observation B has already made
+  # A classifies and reclaims on top of an observation B has already made, then releases B.
   "$PY" "$RIG/lockrace.py" --dir "$dir" --log "$log" --role racer --protocol "$pr" \
+      --classify-hold-dir "$hold" --classify-hold-role release \
       --hold-ms "$HOLD" --trial "$rep" --label "$sc" &
   wait
+  # THE BARRIER'S OWN FAILURES, checked before the trial is scored. Without this the
+  # barrier would be an annotation rather than a guard -- the shape summarise.sh's VOID
+  # check and verify_fires.sh both had to have closed for them. `classify_hold_timeout`
+  # is B waiting out the guard because A never reclaimed; `classify_hold_norelease` is
+  # A finishing without a reclaim to release. Either one means the ABA ordering was not
+  # staged, so the trial is not a protocol result.
+  if grep -qE 'classify_hold_timeout|classify_hold_norelease' "$log" 2>/dev/null; then
+    echo "S3 $pr r$rep: the release barrier never ordered A's reclaim before B's act -- trial VOID" >&2
+    emit "$sc" "$pr" 2 0 "$rep" "VOID"
+    return
+  fi
+  # And the POSITIVE requirement, which is not the same statement: the two markers above
+  # are absent when the barrier failed AND when it never ran at all (a racer whose
+  # interpreter died before `classified_stale`, say). The trial is only staged if A's
+  # release and B's release-observation are both in the log.
+  if ! grep -q 'classify_hold_release' "$log" 2>/dev/null \
+     || ! grep -q 'classify_hold_go_seen' "$log" 2>/dev/null; then
+    echo "S3 $pr r$rep: no release barrier in the log at all -- trial VOID" >&2
+    emit "$sc" "$pr" 2 0 "$rep" "VOID"
+    return
+  fi
   # A and B are the participants; the --dead-owner winner stages an incumbent and
   # records no terminal outcome of its own.
   emit "$sc" "$pr" 2 0 "$rep" "$(count_owners "$log" 2)"

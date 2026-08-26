@@ -74,6 +74,17 @@ measured on both sides of the ordering that matters.**
   observes being superseded, so superseding cannot serve as a drain. The election supersedes only
   a **vacant** pid and refuses a **held** one; mixed-mode operation is out of contract and the
   cost is a session that wedges on a recycled bare pid (§4a).
+  **The seventh is in the instrument itself, and it made the guard fail open on exactly the input
+  it exists to be careful about.** `ps -o lstart= -p <pid>` was read two-valued — a start time, or
+  nothing — so a **transient lookup failure** (fork pressure, a full process table, a diagnostic
+  on `stderr`) was indistinguishable from a **confirmed absence** and was classified `gone`.
+  `gone` signals, and `gone` lets the election supersede, so one failed `ps` did both things the
+  identity check was added to prevent: superseded a still-live owner, and signalled a pid that may
+  already belong to a stranger — and it did so most readily under the very load that makes pid
+  reuse fastest. A confirmed absence is now one specific observation and every other outcome is a
+  distinct `lookup_failed` verdict: every signaller refuses it, and the election **retries and
+  then loses** rather than falling back to `kill(pid, 0)`, because a bare record is unverifiable
+  *forever* while a failed lookup is unverifiable *at this instant* (§4a, §4b(i)).
   **And the PLAYER records had no identity at all, which is the same defect one record over** —
   the anchored `<pid>.<nonce>` name added in round 20 is a *parsing* fix, nothing removes a
   player record when its player dies (`C12b`'s warm-up record is in the sweep's target list on
@@ -178,14 +189,17 @@ the two arms are compared under the same predicate rather than across a changed 
 [`preemption-trials-replication.tsv`](preemption-trials-replication.tsv) the replication, and
 `preemption-lock-probe/compare_passes.sh` prints them side by side.
 
-**Eleven derivation defects have been found by review, and all eleven are fixed here. Five of
+**Twelve derivation defects have been found by review, and all twelve are fixed here. Five of
 them made the reproducibility claim false, which was the claim the whole document rested on.**
 The first three came from review of the first revision; the next two from round 5, the sixth from
 round 15, the seventh and eighth from round 16, the ninth and tenth from round 17, the eleventh
-from round 21, and all of them are of the same kind — a figure whose name and whose derivation
-are not the same quantity, or a derivation that does not reach the figure it is cited for.
-**Number 11 is a defect in the fix for number 9**, on the same figure, and that is worth saying
-plainly: `C14a`'s destruction count has now been through a withdrawal and two repairs.
+from round 21, the twelfth from round 24, and all of them are of the same kind — a figure whose
+name and whose derivation are not the same quantity, or a derivation that does not reach the
+figure it is cited for.
+**Numbers 11 and 12 are both defects in the fix for number 9**, on the same figure, and that is
+worth saying plainly: `C14a`'s destruction count has now been through a withdrawal and three
+repairs. It has not moved through any of them, and that is a fact about this data rather than
+about the arguments, each of which was wrong when it was made.
 
 1. **The medians were not medians.** `summarise.sh` took `v[int((NR+1)/2)]`, the **lower middle**
    observation. Every sample here is even-sized, so the script systematically did not re-derive
@@ -284,10 +298,11 @@ plainly: `C14a`'s destruction count has now been through a withdrawal and two re
    including a third file the block never opened: `record_unlinked` carries `job=jNa|jNb`, so
    **(trial, timestamp) is a unique event key**; `hook-kills.log` carries the trial in its `tNc`
    tag but **has no timestamp column**, so it cannot order a read against an unlink on its own;
-   and `markers.tsv` carries `tNc entry`, the instant hook C read — which `analyse_c14.sh`
+   and `markers.tsv` carries the hook's own markers — which `analyse_c14.sh`
    already used and this block did not. The hook-C witness is now bound to a **named** unlink by
    a window with two derived ends — round 17 put `W_pid_write[jNb]` below and the `tNc entry`
-   marker above; **that lower end was itself invalid and is replaced in defect 11 below**, which
+   marker above; **the lower end was itself invalid and is replaced in defect 11 below, and the
+   upper end was the wrong instant and is replaced in defect 12**, which
    is why this entry's fix is not the last word on the figure —
    and the script prints the **union of distinct events** with the intersection **computed**, the
    **distinct trial count**, and each event's **rank among its own trial's unlinks** in place of
@@ -336,9 +351,10 @@ plainly: `C14a`'s destruction count has now been through a withdrawal and two re
    destroyed before then; and in this arm the *only* thing that removes it is the reaper's
    `os.unlink`, which emits `record_unlinked` (`sweepmode=off`, and the probe's two other
    `os.unlink` sites remove `.pending` markers inside the pgid sweep, `[repo]`). So if
-   **exactly one** `record_unlinked` lies between the b-job's spawn and hook C, that one did
-   it — wherever inside the unobserved window publication actually fell. The interval is
-   `(S2_prespawn_stat[jNb], tNc entry)`: `S2` is emitted *before* the worker calls `Popen`, so
+   **exactly one** `record_unlinked` lies between the b-job's spawn and hook C's read, that one
+   did it — wherever inside the unobserved window publication actually fell. The interval was
+   `(S2_prespawn_stat[jNb], tNc entry)` and **defect 12 moves its upper end to `tNc R`**; `S2` is
+   emitted *before* the worker calls `Popen`, so
    it is strictly before the fork, directly observed, and deliberately the **loosest** valid
    lower bound, since widening can only add candidates and adding candidates can only make the
    check refuse. **Round 17's trial filter is also gone** — it discarded a delayed unlink from
@@ -354,6 +370,46 @@ plainly: `C14a`'s destruction count has now been through a withdrawal and two re
    second unlink injected into trial 1's interval drops the named events to **3** and reports
    the narrowing while the trial still counts, and removing that trial's `S2` row leaves it
    unjoinable at **7**.
+12. **The live-player witness was checked at the wrong instant — round 24, and this is the
+   FOURTH revision of the same figure.** Both `analyse_round2.sh` and `analyse_c14.sh` tested
+   whether the trial's b-player was live at the hook's **`entry`** marker. `entry` is stamped as
+   the hook's *first* act. The `nopid` observation happens **later** — after the `K` marker and
+   then the record scan — so a player that exited in between satisfied
+   `player_start ≤ entry < player_end` and was still counted as live at an observation it was not
+   alive for. On that input the block reports a destruction, or *"found NOTHING while playing"*,
+   with **no player live at the scan**: a false positive in the witness whose entire content is
+   an absence. The instant of the scan is not observed, so the repair does not move the test to a
+   better instant — it requires liveness **across the whole interval that contains the scan**,
+   using two markers that were in every committed `markers.tsv` all along: `K` is stamped
+   immediately before the scan and `R` after the `HOOK_GAP_S` sleep that follows it, so the scan
+   lies strictly inside `(K, R)` and the predicate is `player_start ≤ K` **and**
+   `player_end > R`. `R` over-requires by the ~90 ms hook sleep, and that is the safe direction.
+   **The uniqueness interval's upper end moves the same way, from `tNc entry` to `tNc R`** —
+   the destroying unlink must precede the *scan*, and widening can only add candidates and so can
+   only make the check refuse. **`reached`/`sent` rows take no across-the-scan check, and that is
+   not an exemption but the opposite finding**: the hook's kill is what *ends* the player, so a
+   reached player cannot outlive `R` (measured here, over all **20** reached hook-C rows in the
+   two arms: it exits **0.6–2.0 ms** after `K`, i.e.
+   **113.2–140.4 ms** before `R`), and requiring it to would have destroyed every `reached` count in
+   the document. For those rows the signal is the evidence, and `analyse_c14.sh` now checks it as
+   such instead of asserting it: the kill's target must **be** that trial's own b-player and that
+   player must have been live at `K`. **THE FIGURE SURVIVES UNCHANGED AT 8 ACROSS 4, AND SO DO
+   4 OF 12 AND 12 OF 12** — verified, not assumed: all four blind trials remain live
+   **1519.8–1562.6 ms past `R`**, every widened interval still holds exactly one unlink, and all
+   **20** reached rows join to their own trial's b-player, live at `K`. So the derivation is
+   strengthened and no number moves.
+   Both directions are demonstrated: moving one blind trial's `player_end` into `(K, R)` — a
+   player that the *old* predicate accepts and the new one rejects — drops `analyse_c14.sh` to
+   **3 of 12** and `analyse_round2.sh`'s witness (b) to **3 trials / 7 union events**, each
+   naming the trial and why; retargeting one `sent` row away from its b-player drops the reached
+   count to **7**; deleting one `tNc R` marker reports the trial as missing its interval rather
+   than as live; and injecting a second unlink into the *widened* part of trial 1's interval
+   (after `entry`, before `R`) makes that unlink unnameable, which also proves the interval
+   really did widen. **One further unproven claim was removed rather than repaired**: the hook-read
+   tally block printed *"hook C read NO record on 4 of 12 trials while a live player was there to
+   preempt"* while reading only `hook-kills.log`, which carries no timestamps and so cannot
+   support any liveness claim at all. It now says the count, says it cannot settle liveness, and
+   points at witness (b), which can.
 
 **Four HARNESS defects were also found and are disclosed here, because three of them changed
 results and one of them destroyed data.** They are listed rather than quietly fixed, since a
@@ -603,14 +659,18 @@ two per trial, **except `C14a` and `C14b`, which fire a third hook per trial to 
 TOCTOU's consequence and therefore want `1 + 3N = 37`; `verify_fires.sh` special-cases them and
 their committed `markers.tsv` files carry 37 entries each**.
 
-`analyse_c14.sh` is a third derivation, over the `C14` traces; **it was corrected in round 3** —
-it had tested
-only that a player's END record existed, which every completed player satisfies, instead of that
-the player was live at hook C. It now reads `tNc.entry` from `markers.tsv` and requires
-`start ≤ hook_c < end`. Under the real predicate the published figures are unchanged, **4 of 12
-and 0 of 12**, and all 12 trials of each arm did have a live player at hook C. Unlike the
-residency run's `[rig]`, **this probe is in the repository**, so its protocol can be read as
-well as its output.
+`analyse_c14.sh` is a third derivation, over the `C14` traces; **it has been corrected twice**.
+Round 3 found it had tested only that a player's END record existed, which every completed player
+satisfies, instead of that the player was live at hook C, and replaced that with
+`start ≤ tNc entry < end`. **Round 24 found that `entry` is the wrong instant** (§1 derivation
+defect 12): it is the hook's first act, while the `nopid` read happens after `K` and the record
+scan, so a player that exited in between still passed. The blind rows now require liveness
+**across** the interval that contains the scan — `start ≤ K` and `end > R` — and the reached rows
+are joined to their own trial's b-player by the kill itself, which is stronger evidence and the
+only kind available, since the hook's kill is what ends that player. Under both corrections the
+published figures are unchanged, **4 of 12 and 0 of 12**, with the blind trials live
+**1519.8–1562.6 ms past `R`** and all 20 reached rows joined to their own trial's b-player. Unlike the residency run's `[rig]`, **this probe is in the repository**, so its
+protocol can be read as well as its output.
 
 ---
 
@@ -831,17 +891,20 @@ the order is actually determined:
   trial-gap late; `unlink − player_start` is 1597.5–1649.7 ms, a *lower* bound on the lag and not
   the lag.)
 - **the hook side.** A third hook fires while the newer player is still playing. It **found no
-  record at all on 4 of 12 trials**, and on the corrected `analyse_c14.sh` predicate all 12
-  trials did have a live player at hook C. Nothing else in this arm unlinks, so on those 4 the
-  record was published and then destroyed.
+  record at all on 4 of 12 trials**, and on those 4 the b-player was live **across the whole
+  record scan** — `player_start ≤ tNc K` and `player_end > tNc R`, with 1519.8–1562.6 ms to spare
+  past `R`. (Round 3 checked `entry` instead, which is the instant the hook *started* rather than the
+  instant it *looked*; §1 derivation defect 12.) On the other 8 the kill reached that trial's own
+  b-player, which is what makes those reads reads of a live player rather than of nothing.
+  Nothing else in this arm unlinks, so on those 4 the record was published and then destroyed.
 
 Those two sets are **8 distinct unlinks falling in the same 4 trials** — the trial's first unlink
 caught by the hook, its second by the player log. **Until round 17 that sentence was an assertion
 and not a derivation** (§1 derivation defect 9): the script added two *global* counters that
 shared no key, so nothing established that the witnesses saw different unlinks or that they fell
 in the same trials. It is now a three-way join — the unlink's own `job=jNa|jNb` field gives its
-trial and `$1` its timestamp; `markers.tsv`'s `tNc entry` gives the instant hook C read, which is
-the column `hook-kills.log` lacks — and the hook-C witness is bound to **one** unlink.
+trial and `$1` its timestamp; `markers.tsv`'s `tNc K` and `tNc R` bracket the scan, which is the
+column `hook-kills.log` lacks — and the hook-C witness is bound to **one** unlink.
 **Round 17 bound it with the window `(W_pid_write[jNb], tNc entry)`, and round 21 found that
 lower end invalid** (§1 derivation defect 11): `W` is the *parent's* deferral stamp, taken after
 `Popen` returns while the wrapper is already running, so publication may precede it — harness
@@ -849,17 +912,19 @@ defect 4, reintroduced as a bound by the very block that had withdrawn a lag fig
 There is no observed publication instant in these traces to put there instead, so the binding no
 longer rests on one. It rests on **uniqueness**: the record was certainly published before the
 player's own `player_start` (the wrapper `exec`s only on a successful rename), hook C read
-nothing while that player was live, and the reaper's `os.unlink` is the only thing in this arm
-that removes a record — so if **exactly one** `record_unlinked` lies between the b-job's spawn
-and hook C, that one destroyed it, wherever in the unobserved window publication fell. The
-interval is `(S2_prespawn_stat[jNb], tNc entry)`, whose lower end is emitted *before* the worker
-calls `Popen` and is therefore strictly before the fork; the trial filter is gone, because an
+nothing while that player was live **across the whole scan**, and the reaper's `os.unlink` is the
+only thing in this arm that removes a record — so if **exactly one** `record_unlinked` lies
+between the b-job's spawn and the scan, that one destroyed it, wherever in the unobserved window
+publication fell. The interval is `(S2_prespawn_stat[jNb], tNc R)`, whose lower end is emitted
+*before* the worker calls `Popen` and is therefore strictly before the fork, and whose upper end
+**round 24 moved out from `tNc entry`** (§1 derivation defect 12) because the scan can have
+happened anywhere up to `R`; the trial filter is gone, because an
 unlink from another trial landing in the interval is a genuine candidate and excluding it could
 name one unlink while a second was equally able. On the committed traces every such interval
 holds **exactly one** unlink, the two witness sets **intersect in 0 events**, and the ranks come
 out **#1 for every hook-C event and #2 for every player-log event** within their own trial. **The
-figure is unchanged at 8 across 4 through both repairs; what changed is that the script now
-derives it, and derives it from something true.** Of the **16** remaining, **8 are positively
+figure is unchanged at 8 across 4 through all three repairs; what changed is that the script now
+derives it, and derives it from something true, at the right instant.** Of the **16** remaining, **8 are positively
 shown NOT to be destructions**: hook C read the *newer* player's pid, so that trial's first
 unlink removed the older player's **own** record and the newer one had not published yet. The
 last **8** are simply undetermined — the unlink falls inside the newer player's unobserved
@@ -869,7 +934,8 @@ published, found because the count and the lag shared one bad timestamp.
 
 **The design conclusion is unchanged, and it is the control that carries it.** With per-player
 records (`C14b`, identical timing) every one of **37** unlinks removed only its own name, **0 of
-another player's**, and the third hook reached the live player **12 of 12** — against `C14a`'s
+another player's**, and the third hook reached the live player **12 of 12** — each of those 12
+joined to that trial's own b-player, live at `K` and killed 0.6–2.0 ms later — against `C14a`'s
 4/12 blind. A defect that fires on a third of trials is still a defect that per-player records
 make structurally impossible.
 
@@ -981,7 +1047,7 @@ two orderings that review named:
 | --- | --- | --- |
 | **S1** | `init` | the winner is stalled between `mkdir` and its pid write by 0 / 5 / 50 ms. The window clause (a) exists for. N = 2, 4, 8. **At 0 ms the window is zero-width and the cell is a who-wins check instead — §3.3** |
 | **S2** | `longstall` | the same, stalled **200 ms and 1000 ms** — longer than clause (a)'s own backoff. **Review finding 1** |
-| **S3** | `aba` | a lock owned by an already-exited pid, so reclamation is legitimate. Reclaimer A acts at once; reclaimer B classified stale at the same instant but is held 120 ms before acting, so it acts on a stale observation. **Review finding 2** |
+| **S3** | `aba` | a lock owned by an already-exited pid, so reclamation is legitimate. Reclaimer A acts at once; reclaimer B classified stale at the same instant but is **held on a release barrier until A's reclaim is in the log** before acting, so it acts on a stale observation. Round 24 replaced the 120 ms hold that stood here, which proved only that B had observed — never that A had reclaimed (§3.3). **Review finding 2** |
 | **S4** | `dualreclaim` | two reclaimers, no asymmetry — to separate *simultaneous* reclamation from reclamation on a *stale* observation |
 | **S5** | `scratch` | no incumbent. The already-measured who-wins race (§3.0) |
 | **S6** | `deadN` | legitimate reclamation under contention: a dead incumbent and N = 2, 4, 8 racers |
@@ -1091,9 +1157,25 @@ argument is not available**, because a mis-staged trial and a correctly staged o
 1 owner: `elect_proposed` sees a live owner, records `lost`, and returns. So some unknown number
 of `proposed`'s 20 S3 trials may never have exercised a stale observation, and the run cannot
 say which. `run_lock.sh` now waits for B's own `classified_stale` record before launching A and
-fails the trial if it never appears — **that change is UNRUN**, and the committed
-`lock-owners.tsv` was produced under the 4 ms sleep. To close: re-run S3 under the corrected
-harness.
+fails the trial if it never appears — **and round 24 found that this was still not enough, which
+is the sixth staging repair to this one file.** Waiting for `classified_stale` proves that B
+**observed** a dead generation. It does not prove that A **reclaimed** before B's 120 ms classify
+stall expired: A is a fresh Python interpreter, and if it starts slowly or is descheduled past
+120 ms then B reclaims first and A merely loses — `owners=1`, the same silent false pass this
+whole paragraph is about, arrived at through the *other* clock in the same function. The clock is
+now replaced by an explicit **release barrier**, deliberately the same two-phase file-token shape
+the S1/S2 barrier ended up with rather than a seventh mechanism: B parks after recording
+`classified_stale`; A drops a `GO` token **only after its own election has returned a successful
+reclaim**; B is released and then commits the ABA act. Either side failing records its own marker
+— `classify_hold_timeout` when B waits out the guard, `classify_hold_norelease` when A's election
+ends with nothing to release — and both make the trial `VOID`, which `summarise.sh` excludes from
+the numerator and the denominator alike. A log carrying *neither* marker and *no* barrier records
+is also `VOID`, because "the barrier did not fail" and "the barrier ran" are different statements
+and only the second one stages anything. **All of that change is UNRUN**, and the committed
+`lock-owners.tsv` predates every staging fix in this file including this one. To close: re-run S3
+under the corrected harness. **Six rounds have each found a clock in the previous round's repair
+of this function**, so the honest reading is that inspection is not converging on it and only the
+re-run will settle it.
 
 **The previous round closed that sentence with "S4, S5 and S6 are untouched", and round 5 found
 that this was wrong for two of the three.** The repair replaced the 4 ms sleep between launching B and
@@ -1229,21 +1311,27 @@ in §13 row 21.
 harness — until round 15, always in the staging rather than in the design.** That qualifier is
 new and it matters: **round 15 found a defect in §4b itself**, not in the staging — the
 `.pending` marker validates no owner identity, so clause 7(iv)'s bound was still not the bound
-it claimed (§5, defect 4 of 5). §4a and §4b were stable for seven rounds and are not stable now
+it claimed (§5, defect 4 of 7). §4a and §4b were stable for seven rounds and are not stable now
 — **and round 16 found the fifth defect in that same bound, this time inside round 15's repair
 of it**: the identity check keyed on the record's shape as well as on the option, so a bare or
-legacy record switched it off under an option that said it was on (§5, defect 5 of 5).
+legacy record switched it off under an option that said it was on (§5, defect 5 of 7). Round 21
+found the sixth, in the election half of that same repair, and round 24 the seventh, in the `ps`
+reader both halves share.
 The S1/S2 staging has its own separate record: it has been wrong **five times, in five different
 ways** — a flat 4 ms sleep; then a one-way wait on the winner's own claim record; then an
 acknowledgement written *before* the protocol read; then an acknowledgement with no release, so
 the first racer could destroy the state the others were staged to observe; and now a release that
 stages the **observation** and leaves the **election read** unstaged. **Four of the five were
 introduced by the repair to the one before it.** The incumbent staging in S3, S4 and S6 has its
-own lineage — a 4 ms sleep, then a fixed `sleep 0.05` that three consecutive repairs walked past.
+own lineage — a 4 ms sleep, then a fixed `sleep 0.05` that three consecutive repairs walked past,
+and then, found in round 24, **the 120 ms classify stall that had been in `trial_aba` all along**:
+waiting for B's `classified_stale` proved B had observed a dead generation and never that A had
+reclaimed, so a slow A still produced the false `owners=1` (§3.3). It is now a release barrier
+gated on A's own reclaim record, reusing the S1/S2 barrier's shape rather than adding a seventh.
 **The honest conclusion is that inspection is not converging on this harness, and no further
-reading of it should be trusted to settle the lock evidence** — which is why this round's answer
-is a detector that VOIDs an unstaged trial, rather than a sixth mechanism asserting that staging
-can no longer go wrong.
+reading of it should be trusted to settle the lock evidence** — which is why the answer in these
+rounds is a detector that VOIDs an unstaged trial, rather than another mechanism asserting that
+staging can no longer go wrong.
 The committed lock data predates every staging fix listed above, and **the re-run is the only
 thing that closes it.** Until then the row-21 result should be read as: `current` and `spec` are
 falsified (their failures are self-proving and stand), and `proposed` is unfalsified but
@@ -1310,6 +1398,16 @@ annotate them.
 >   implements, is that **the degradation keys on the OPTION and never on the record's shape**:
 >   with the check on, a bare record yields a fourth verdict, and each consumer decides for
 >   its own site. 7(iv) refuses to signal and leaves the marker standing.
+>   **Round 24 adds a FIFTH verdict, `lookup_failed`, and it is a different fact from this one.**
+>   A bare record is unverifiable *forever*; a failed `ps` is unverifiable *at this instant*. Both
+>   are refused by every signaller, but the election must not treat them alike: for the bare record
+>   it decides terminally on `kill(pid, 0)` because no better evidence will ever exist, while for a
+>   failed lookup it **retries a bounded number of times and then loses**. Falling back to
+>   `kill(pid, 0)` there would re-admit pid existence as an election input under an option that
+>   says it is off — round 16's hole with a *transient failure* in place of a record shape as the
+>   thing that silently decides whether the check happened. **The cost of losing is a worker that
+>   does not start**, bounded by the retry budget, by the fact that a machine which cannot fork
+>   `ps` could not have forked a player either, and by the refusal being recorded per attempt.
 >   - **What the ELECTION does with it — replaced in round 21, because round 16's rule was
 >     unsafe and its stated reason was false.** Round 16 said: supersede freely, *"since the
 >     only destructive consequence of superseding is the pgid sweep, and the sweep refuses
@@ -1459,7 +1557,9 @@ annotate them.
 >     still there at `gen12r` **[trials]**. Harmless there, and not harmless the first time
 >     that number names something else.
 >   - **So every site that signals a pid taken from a player record must re-read that pid's
->     current start time and SKIP IN SILENCE on a mismatch. There are THREE such sites, not
+>     current start time and SKIP IN SILENCE on a mismatch — and, since round 24, on a
+>     **lookup that failed** as well, which is not a mismatch and is not an absence. There are
+>     THREE such sites, not
 >     two:** the hook (§10.3 step 6), the election-time record sweep ((iv-a) below), and
 >     **the worker's claim-time kill ((iii) below)** — which reads the same records through
 >     the same code and whose `kill` is the same act. Guarding two of three is how this
@@ -1552,9 +1652,14 @@ annotate them.
 >       **Skip it, and EXPIRE the marker**: the owner is provably gone, so that marker can never
 >       become actionable again, and leaving it standing is what keeps the gate open on every
 >       later election.
->     - **no such process** — the owner is dead and its pid has **not** been handed out again,
->       so the group id is still reserved to it and any orphan of ours is still inside it.
->       **Signal it: this is the case the clause exists for.**
+>     - **no such process, CONFIRMED** — the owner is dead and its pid has **not** been handed
+>       out again, so the group id is still reserved to it and any orphan of ours is still inside
+>       it. **Signal it: this is the case the clause exists for.** **Round 24: "confirmed" is
+>       normative and it is where the probe went wrong.** This verdict is the only negative one
+>       that *acts*, so it must rest on an observation that distinguishes absence from a failure
+>       to look. On Darwin that observation is `ps` exiting nonzero with **both streams silent**;
+>       a nonzero exit *with* a diagnostic, a `ps` that cannot be exec'd, a fork that fails, and
+>       an exit 0 with no row are all **failures to look** and belong to the fifth case below.
 >     - **the record carries no start time at all** — a bare `<pid>`, written before this
 >       clause existed or by an implementation with the check switched off. **Round 16: this
 >       is a FOURTH case and it must not collapse into the first.** There is nothing to compare
@@ -1569,11 +1674,27 @@ annotate them.
 >       re-reads and re-refuses it — a bounded, visible leak of one marker instead of an
 >       unbounded signal at a stranger, and loud in the trace on purpose. Demonstrated on the
 >       bench in §5, both directions.
->     **The three-way rests on one kernel property, named so it can be attacked:** that a pid is
+>     - **the LOOKUP ITSELF FAILED** — the record carries a start time and the live side could not
+>       be read. **Round 24: this is a FIFTH case, it is not the fourth, and it must not collapse
+>       into the third.** Both readers of the start time treated every `ps` failure as "no such
+>       process", so a transient failure took the *signalling* branch: fork pressure, EINTR or a
+>       full process table was enough to make this clause `killpg` a pid whose owner may already
+>       have been recycled — and the failure is likeliest under exactly the load that recycles
+>       pids fastest. It differs from the fourth case in that the record **can** be verified, just
+>       not now; the sweep's action is nevertheless the same — **REFUSE TO SIGNAL, and do NOT
+>       expire the marker**, because expiry asserts the owner is provably gone and here nothing at
+>       all is known. It is recorded under its own reason so an operator can tell "drain the
+>       bare-record generations" from "the machine could not answer, and this will clear by
+>       itself". The election's policy for this case is **not** the fourth case's `kill(pid, 0)`
+>       split — see clause 2's migration paragraph and §5.
+>     **The verdict test rests on one kernel property, named so it can be attacked:** that a pid is
 >     not reallocated while it is still in use as a process-group id, which is what makes
 >     "recycled pid" and "our group still has members" mutually exclusive. **[inferred]** — read
->     off BSD allocator behaviour, not off this machine. It is the same instrument and the same
->     three-way test as PR #27's §10.5 clause 7(iv); the two documents agree.
+>     off BSD allocator behaviour, not off this machine. It is the same instrument as PR #27's
+>     §10.5 clause 7(iv), and it **diverges from it as of round 24**: this clause now separates a
+>     confirmed absence from a failed lookup and PR #27's wording does not. That is a gap in the
+>     other document, not a disagreement about intent — the two must be reconciled before either
+>     ships, and the reconciliation belongs to whoever owns PR #27.
 >   - **Bound it with a generation-tagged `.pending` marker.** The worker creates
 >     `playerdir/<gen>.<nonce>.pending` *before* the fork; the wrapper renames it away as its
 >     first act. `killpg` is sent **only to a superseded owner whose own generation has a
@@ -1585,11 +1706,13 @@ annotate them.
 >     (`C16a`) — but that same trace shows the bound decaying as markers leak, so the 23/25 is
 >     the defect, not the design. The tagged, per-generation form, its cleanup ordering and the
 >     identity test above are **[inferred]**; §5 states them, states plainly that these are the
->     fourth and fifth defects found in this one mechanism, and gives the re-run that closes them.
+>     fourth and fifth of **seven** defects found in this one mechanism — the sixth in the
+>     election half (round 21), the seventh in the `ps` reader both halves share (round 24) — and
+>     gives the re-run that closes them.
 >   - **Requires row 21's generation protocol, and now requires its RECORD SHAPE too.** (iv)
 >     reads the *superseded* owner's pid. A lock protocol that deletes the record of the worker
 >     it replaced cannot supply it, and one that publishes a **bare pid** cannot supply the
->     identity the three-way test needs — so §10.5 clause 2 and clause 7(iv) must ship together,
+>     identity the verdict test needs — so §10.5 clause 2 and clause 7(iv) must ship together,
 >     with clause 2 publishing `<pid>.<starttime>`.
 > - **(iv-a) The same newly elected worker ALSO sweeps the published player records, in the same
 >   election and also before the model load. REQUIRED. NOT an alternative to (iv).** One
@@ -1686,12 +1809,18 @@ annotate them.
 > defect in it** — it tags a *generation* and validates no *process identity*, only the highest
 > generation's owner is ever liveness-tested, and a marker never expires, so a superseded owner's
 > pid recycled as an unrelated group leader is `killpg`'d by a stale marker. The repair is clause
-> 2's `<pid>.<starttime>` and 7(iv)'s three-way test (signal on *match* and on *no such process*,
-> skip and expire on *different start time*), **[inferred]**, unrun. **Round 16 found the fifth:
+> 2's `<pid>.<starttime>` and 7(iv)'s verdict test (signal on *match* and on *confirmed no such
+> process*, skip and expire on *different start time*, skip and keep the marker on *no identity in
+> the record* and on *the lookup failed*), **[inferred]**, unrun. **Round 16 found the fifth:
 > in the repair itself.** The identity check keyed on `option == "off" OR the record has no
 > start time`, so under the option a **bare or legacy record** turned the check off and
 > `killpg`'d the stranger anyway. It now keys on the option alone and a bare record is
-> `unverifiable`: the sweep refuses and keeps the marker. **Round 21 found the sixth, in the
+> `unverifiable`: the sweep refuses and keeps the marker. **Round 24 found the seventh, in the
+> instrument both halves share:** `ps -o lstart=` was read two-valued, so a transient lookup
+> failure was indistinguishable from a confirmed absence and took the verdict that signals and
+> supersedes. A confirmed absence is now one specific `ps` shape and every other outcome is a
+> fifth verdict, `lookup_failed`, refused by every signaller and retried-then-lost by the
+> election. **Round 21 found the sixth, in the
 > ELECTION half of that same repair:** round 16 had the election supersede an `unverifiable`
 > owner unconditionally, on the ground that superseding is harmless because the sweep refuses
 > separately — but superseding is the licence to **consume jobs**, so a bare record belonging to
@@ -1760,8 +1889,10 @@ Each of these is named with the experiment that closes it, not softened.
   does need one to verify. **Round 15 stopped naming it as a mitigation and specified it:**
   clause 2's owner record is now `<pid>.<starttime>`, read with `ps -o lstart= -p <pid>`,
   which is the existence test and the identity test in one call **[measured-here]** — and
-  §4b(iv)'s sweep takes the three-way verdict off it. **The mechanism is no longer the open
-  item; its resolution is.** `ps -o lstart=` has no sub-second form, so two processes that
+  §4b(iv)'s sweep takes its verdict off it. **The mechanism is no longer the open
+  item; its resolution is.** Round 24 added the other half of "in one call": the call has to be
+  able to say that it *failed*, or a failure reads as a confirmed absence and the sweep signals on
+  it. `ps -o lstart=` has no sub-second form, so two processes that
   occupy the same pid inside one second are indistinguishable to it, and the size of the pid
   space is not established here (`sysctl kern.pid_max` is *"unknown oid"* on this machine;
   `kern.maxproc` is **4000**, a live-process ceiling and not the pid space
@@ -1810,14 +1941,14 @@ Each of these is named with the experiment that closes it, not softened.
     `killpg` is used to the narrow window where an unnamed player can exist — measured, skipped
     25/25 when unneeded (`C16b`) and used 23/25 when needed (`C16a`).
     **THAT IS A BOUND ON *WHEN*, AND THE HAZARD IS ABOUT *WHAT*.** Round 15's review made the
-    gap explicit and it is the fourth of five defects in this mechanism (see below): the marker says
+    gap explicit and it is the fourth of seven defects in this mechanism (see below): the marker says
     *"generation `g` may have an unnamed player"*; it says nothing about whether the pid
     recorded for generation `g` still **is** generation `g`'s owner. Only the **highest**
     generation is liveness-tested, by the election; every lower generation's pid reaches
     `killpg` untested, and a marker has no expiry, so the interval between the owner's death
     and the election that acts on its marker is unbounded. What closes it is not a better
     marker but a **verifiable owner identity** — clause 2's `<pid>.<starttime>` and 4b(iv)'s
-    three-way test, which skips a recycled pid and expires its marker. **[inferred]**; nothing
+    verdict test, which skips a recycled pid and expires its marker. **[inferred]**; nothing
     here has run it.
   - **Pid reuse in the record sweep, clause 7(iv-a), which nothing bounds at all.** It is
     `os.kill` over **every name in `playerdir/`**, on **every** election, gated by no marker and
@@ -1837,7 +1968,7 @@ Each of these is named with the experiment that closes it, not softened.
     specified as normative *because* it was the only bound on the blast radius; it is not the
     bound, it never validated the identity of its own generation's owner, and §5's
     garbage-collection bullet below now argues it should be demoted to an optimisation. The
-    bound is clause 2's `<pid>.<starttime>` and 4b(iv)'s three-way test — **[inferred]**, and
+    bound is clause 2's `<pid>.<starttime>` and 4b(iv)'s verdict test — **[inferred]**, and
     the same wrap drive closes it. **The record sweep still has no equivalent**: PR #27's
     clause 7(i) puts `<pid>.<starttime>` inside the player record so 7(iv-a) can make the same
     check, and that is one round old and unrun on either branch.
@@ -1914,7 +2045,7 @@ Each of these is named with the experiment that closes it, not softened.
       *highest* generation's pid is ever liveness-tested, by the election itself, so every lower
       generation goes from `readlink` straight to `killpg`. The clause therefore still could not
       claim the bound it claimed. **The repair is the instrument PR #27's §10.5 clause 2 already
-      built: `<pid>.<starttime>` as the owner record, and the three-way test of 4b(iv) before
+      built: `<pid>.<starttime>` as the owner record, and the verdict test of 4b(iv) before
       signalling** — signal on *matches* and on *no such process*, **skip and EXPIRE the marker**
       on *exists with a different start time*. Expiry is half the repair, not a tidy-up: without
       it the skip fixes the blast radius and leaves the accumulation, and an election that skips
@@ -2012,6 +2143,82 @@ Each of these is named with the experiment that closes it, not softened.
     no published figure derives from either, and `ps -o lstart=`'s one-second resolution still
     leaves a same-second collision open. The closing conditions are in §4a and §4b(i).
 
+    **ROUND 24, the SEVENTH defect in this area, and it is in the INSTRUMENT rather than in
+    either consumer — so it reached every site at once.** Both readers of the start time
+    (`speakd_probe.py:proc_starttime`, `hook_probe.sh:now_starttime`) collapsed **every** failure
+    into "the pid is absent": a `subprocess` `OSError`, a nonzero `ps` status of any kind, an
+    empty answer. Callers then read that as `gone`, and `gone` is the one negative verdict that
+    still **acts** — the sweeps signal on it and the election supersedes on it. So a *transient*
+    `ps` failure made the identity guard do the two things it was added to prevent: **the election
+    supersedes a still-live owner (two owners), and the sweeps signal a possibly-recycled pid (a
+    stranger, or at clause 7(iv) a stranger's whole process group).** The shell reader had the
+    failure twice over: `s=$(ps … | tr …) || return 1` takes its status from `tr`, which always
+    succeeds, so the `ps` status was not merely conflated with absence — it was **discarded**, the
+    same pipeline-status trap this document warns about for `head`.
+
+    **A confirmed absence is now one specific observation, measured on this machine** (Darwin
+    25.6, `/bin/ps`): a nonzero exit with **nothing on `stdout` and nothing on `stderr`**. Every
+    other shape is a **`lookup_failed`** verdict — `ps: process id too large` (rc 1 *with* a
+    diagnostic), a missing `/bin/ps` (rc 127), a fork that fails, and rc 0 with no row, since `ps`
+    cannot both succeed and decline to answer. `stderr` is therefore captured rather than
+    discarded; discarding it is what made the diagnostic shapes look like the silent one.
+
+    **What `lookup_failed` means differs by site, and the split is the substance of the repair.**
+    Every signaller refuses it — the hook, the record sweep, the claim-time kill, and the pgid
+    sweep, which also does **not** expire the marker, because expiry asserts the owner is provably
+    gone and here nothing at all is known. **The election retries a bounded number of times and
+    then loses.** It does *not* reuse the bare-record rule (`vacant → supersede`, `held →
+    refuse`), and the reason is the difference between the two facts: a **bare record is
+    unverifiable forever**, so the election must decide terminally on the weakest evidence that
+    exists, whereas a **failed lookup is unverifiable only at this instant** and the response the
+    bare-record case cannot have — ask again — is available. Falling back to `kill(pid, 0)` would
+    also be actively wrong on three counts: it re-admits pid existence as an election input under
+    `--owner-identity on`, which is the round-14 behaviour the option abolishes, through a path
+    nothing exercises and where a *transient failure* rather than a record shape decides whether
+    the check happened; its trigger correlates with its hazard, since `ps` fails under the fork
+    pressure that recycles pids fastest; and its failure mode is silent, because
+    `vacant → supersede` looks identical in the trace whether the owner was verified dead or
+    never asked about. **The cost of refusing is stated:** the worker does not start. That is a
+    liveness failure of one invocation, bounded by the retry budget for the transient case, by the
+    fact that a machine which cannot fork `ps` could not have forked a player either, and by
+    `owner_lookup_failed` being recorded per attempt so the refusal is attributable.
+    **Bench-demonstrated in both directions at every site, driven through the real
+    `speakd_probe.py` and the real `hook_probe.sh`:**
+
+      | site | input | option | outcome |
+      | --- | --- | --- | --- |
+      | election | owner record whose pid cannot be looked up | `on` | **4 retries, then loses.** `owner_lookup_failed … action=retry` ×4, then `action=refused_lookup_unavailable` and `election_lost … reason=owner_lookup_failed`; **no `gen+1` is created and the worker exits 0** |
+      | election | owner **confirmed** dead | `on` | **wins**, `election_won gen=1` — unchanged |
+      | election | owner live, identity matches | `on` | **loses**, `election_lost held_by=…` — unchanged |
+      | election | owner live, identity differs | `on` | **wins**, `owner_pid_recycled` — unchanged |
+      | election | the same unlookupable record | `off` | `kill(pid, 0)` decides and it **supersedes** — falsification arm, **`ps` never consulted**, no `owner_lookup_failed` row |
+      | pgid sweep 7(iv) | superseded owner unlookupable | `on` | `kill_skipped … reason=owner_lookup_failed`, **no `killpg` attempted**, marker **neither reaped nor expired**, `expired=0` |
+      | pgid sweep 7(iv) | superseded owner **confirmed** dead | `on` | `killpg` attempted (`ESRCH`), marker **reaped** — the case the clause exists for, unchanged |
+      | pgid sweep 7(iv) | superseded owner **recycled** | `on` | skipped **and marker expired** — the contrast that shows the two skips are not one branch |
+      | pgid sweep 7(iv) | superseded owner **bare** | `on` | skipped, `reason=owner_record_has_no_identity`, marker kept — same action as a lookup failure, **different reason in the trace** |
+      | pgid sweep 7(iv) | superseded owner unlookupable | `off` | `killpg` attempted — falsification arm, `ps` never consulted |
+      | record sweep 7(iv-a) | player record unlookupable | `on` | `record_skipped … verdict=lookup_failed`, `swept=0 rows=1 skipped=1` |
+      | record sweep 7(iv-a) | matching / same record under `off` | `on` / `off` | **signalled** / **signalled (ESRCH)** — good input accepted, falsification arm unchanged |
+      | claim-time kill 7(iii) | player record unlookupable | `on` | `record_skipped by=worker-claim … verdict=lookup_failed`, **no kill reached that record** |
+      | claim-time kill 7(iii) | matching / same record under `off` | `on` / `off` | **signalled** / **signalled (ESRCH)** |
+      | hook, per-player **and** shared | player record unlookupable | `on` | **spared**, `record_skipped … verdict=lookup_failed` — and `result=nopid` keeps its meaning, so the `C14a` derivation cannot read a refusal as a destruction |
+      | hook, per-player **and** shared | matching / recycled / bare / **confirmed absent** | `on` | **killed / spared / spared / kill attempted (ESRCH)** — every good input still accepted, and the hook still stamps `K`, `R`, `Rdone` and publishes its job in every case |
+      | hook, per-player **and** shared | any of the above | `off` | round-14 behaviour, byte for byte — `ps` never consulted |
+
+    A third bench check, **`[inferred]`** like the other two, and every row above is an execution
+    of the shipped `speakd_probe.py` or `hook_probe.sh` rather than a reading of it. **The lookup
+    failure is staged with a real reachable input, not a stub** — an out-of-range pid, which
+    Darwin's `ps` refuses with a diagnostic and which `safe_pid` admits because it is decimal
+    digits above 1 — plus a forced `OSError` for the fork-failure branch, which no input can
+    reach. **One note on the bench itself, because it is the failure this document keeps finding
+    in miniature:** the first draft of the `pgid` arms put the unlookupable record at the *highest*
+    generation, so the election correctly refused, no sweep ran, and the arm "passed" by never
+    executing the branch under test. It now stages a second generation whose owner is confirmed
+    dead so the election wins, and asserts `election_won` before asserting anything about the
+    sweep. The `off` arms are the load-bearing ones for the option: the falsification arm decides
+    on `kill(pid, 0)` *before* the start time is read at all, so no outcome split in the instrument
+    can reach it — verified at every site rather than argued.
+
     **Why an un-reaped marker is not merely untidy — measured, in `C16a`.** The wrapper renames
     its own marker away as its **first act**, so a `killpg` that *works* kills the wrapper
     **before** that act and strands the marker that authorised it. Every successful sweep leaked
@@ -2061,7 +2268,7 @@ Each of these is named with the experiment that closes it, not softened.
     **AND A JUDGEMENT, ASKED FOR AND GIVEN: after the identity test, `.pending` is no longer
     carrying its weight, and it should be demoted from a safety bound to an optimisation.**
     The reasoning, not the assertion:
-    - **The safety property now comes from somewhere else.** The three-way test skips a recycled
+    - **The safety property now comes from somewhere else.** The verdict test skips a recycled
       owner pid **whether or not a marker names its generation**. Once that is in, the marker
       adds no safety: everything it forbids, the identity test already forbids.
     - **What the marker still buys is narrowing — and the one arm that measured it shows the
@@ -2194,14 +2401,16 @@ non-blocking:
   obvious way, signals the hook's own group. A reviewer should decide whether that trade is
   acceptable, because I cannot settle it by measurement here (§5).
 - **The evidence-side items are open, and one of them is now the largest gap in the document.**
-  `run_lock.sh` no longer stages anything by a clock — B's classification in S3, and the dead
+  `run_lock.sh` no longer stages anything by a clock — B's classification in S3, **B's hold on
+  A's reclaim in S3**, and the dead
   incumbent's record in S3, S4 and S6 — but **the committed `lock-owners.tsv` predates every one
   of those fixes**, so on the committed data `proposed` has **no confirmed reclamation trial at
   all** (§3.3): 100 of its 400 are the reclamation scenarios and all 100 were clock-staged, 220
   are structurally vacuous, and the remaining 80 answer the who-wins race. Nothing here suggests
   `proposed` fails — mis-staging can only hide failures — but the mechanism it exists to provide
-  has not been shown to have run. **Five rounds have each found a staging defect in the previous
-  round's repair of this one script**, so this is not a gap further reading will close; it is a
+  has not been shown to have run. **Six rounds have each found a staging defect in the previous
+  round's repair of this one script** — round 24's is the second clock in `trial_aba`, the one the
+  round-3 repair left standing — so this is not a gap further reading will close; it is a
   re-run. Separately, clause (v)'s unlink has never run in combination with either sweep (§4b).
 - **Row 21's replacement changes the lock's on-disk shape**, and row 20 now *depends* on that
   change: the process-group sweep has to read the superseded owner's pid, which a protocol that

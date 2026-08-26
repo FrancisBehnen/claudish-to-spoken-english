@@ -222,14 +222,49 @@ def alive(pid):
         return False
 
 
-def proc_starttime(pid):
-    """Existence AND identity in one call: `ps -o lstart= -p <pid>`.
+PS_PRESENT = "present"     # a process with that pid exists; its start time is returned
+PS_ABSENT = "absent"       # CONFIRMED: no process has that pid
+PS_ERROR = "error"         # the LOOKUP failed; nothing at all is known about the pid
 
-    Darwin's `ps` prints the process's start time and exits 1 with no output when there
-    is no such process, so one fork answers both questions that `kill(pid, 0)` conflates.
-    Returns the start time with spaces squeezed to `_` -- the value has to live in a
-    symlink target beside the pid, and a reader splits on the FIRST dot -- or None when
-    the pid names nothing.
+
+def ps_starttime(pid):
+    """(outcome, starttime) from `ps -o lstart= -p <pid>`. THREE outcomes, not two.
+
+    ROUND 24 -- THIS FUNCTION COLLAPSED "THE PID IS ABSENT" INTO "THE LOOKUP FAILED",
+    AND THAT MADE THE IDENTITY GUARD FAIL OPEN ON EXACTLY THE INPUT IT EXISTS FOR.
+    Every failure returned None, and every caller read None as `gone`. `gone` is the
+    verdict that SIGNALS (the sweeps) and that lets the election SUPERSEDE. So one
+    transient `ps` failure -- fork pressure, EINTR, a full process table -- made the
+    guard do the two things it was added to prevent: the election supersedes a
+    still-live owner (two owners), and the sweeps signal a pid that may already have
+    been recycled (a stranger's process, or a stranger's whole process group at
+    clause 7(iv)). The guard was least trustworthy precisely when the machine was
+    under the pressure that makes pid reuse fastest.
+
+    THE DISCRIMINATOR, measured on this machine (Darwin 25.6, /bin/ps), round 24:
+      * present -- rc 0 with a row on stdout.
+      * absent  -- rc NONZERO with NOTHING on stdout and NOTHING on stderr. That is
+                   the one shape Darwin's `ps` produces for "no process matched":
+                   `ps -o lstart= -p 99999` gives rc=1, both streams empty.
+      * error   -- everything else. `ps -o lstart= -p 999999999` gives rc=1 with
+                   `ps: process id too large` on STDERR; a missing or unexecutable
+                   /bin/ps gives rc 127 with a diagnostic; `subprocess.run` itself
+                   raises OSError when the fork or the exec fails. rc 0 with an empty
+                   stdout is also an error, not an absence: `ps` cannot both succeed
+                   and decline to answer, so the reading is that something else did.
+    stderr is therefore CAPTURED and not sent to /dev/null. Discarding it is what made
+    the diagnostic shapes indistinguishable from the silent one.
+
+    "pid too large" is classified `error` rather than `absent` although such a pid
+    certainly names nothing (`kern.maxproc` is 4000 here). That is the fail-closed
+    direction and it costs nothing: `safe_pid()` is the domain gate, and a caller that
+    treats an out-of-range pid as unverifiable merely refuses to act on a record that
+    was corrupt anyway.
+
+    The start time has spaces squeezed to `_` -- the value has to live in a symlink
+    target beside the pid, and a reader splits on the FIRST dot. `"_".join(s.split())`
+    is byte-identical to the `tr -s " " "_"` the player wrapper and `hook_probe.sh` use,
+    and the three are compared as strings, so any disagreement fails closed.
 
     This is the SAME instrument the spec's §10.5 clause 2 specifies for the owner record
     (`<pid>.<starttime>`), used here for the same reason: a pid is a number, not an
@@ -239,13 +274,31 @@ def proc_starttime(pid):
     """
     try:
         out = subprocess.run(["/bin/ps", "-o", "lstart=", "-p", str(pid)],
-                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except OSError:
-        return None
-    if out.returncode != 0:
-        return None
-    s = out.stdout.decode("utf-8", "replace").strip()
-    return "_".join(s.split()) if s else None
+        return PS_ERROR, None
+    so = out.stdout.decode("utf-8", "replace").strip()
+    se = out.stderr.decode("utf-8", "replace").strip()
+    if out.returncode == 0:
+        s = "_".join(so.split())
+        return (PS_PRESENT, s) if s else (PS_ERROR, None)
+    if not so and not se:
+        return PS_ABSENT, None
+    return PS_ERROR, None
+
+
+def proc_starttime(pid):
+    """The start time, or None when this process cannot state one.
+
+    For the two callers that want an identity FOR A RECORD THEY ARE ABOUT TO WRITE, an
+    absent pid and a failed lookup mean the same thing -- no identity can be published --
+    and both already fail closed (the worker refuses to start, or writes a bare record
+    that every reader refuses to signal). They keep the two-valued view. Every caller
+    that DECIDES SOMETHING ABOUT A RECORDED PID must use `ps_starttime()` instead, because
+    for those the difference between the two is the whole guard.
+    """
+    outcome, st = ps_starttime(pid)
+    return st if outcome == PS_PRESENT else None
 
 
 # ------------------------------------------------------------------ election
@@ -302,6 +355,10 @@ if A.owner_identity == "on" and MY_STARTTIME is None:
     # `on` converts a recoverable death into a possibly permanent silence, which is a worse
     # trade than declining to start at all -- and declining is immediate, attributable, and
     # leaves the session exactly as it was.
+    # For our OWN pid `PS_ABSENT` is unreachable -- this process is running -- so a None
+    # here is always round 24's `PS_ERROR`: the lookup itself failed. The message says
+    # `unreadable` and not `gone` for that reason, and the two-valued `proc_starttime()`
+    # is the right view at this one site because both outcomes forbid the same act.
     sys.stderr.write("speakd_probe: --owner-identity=on but this process's own start "
                      "time is unreadable; refusing to publish a bare-pid record.\n")
     sys.exit(4)
@@ -353,7 +410,7 @@ def read_owner(g):
 
 
 def owner_identity(pid, st):
-    """Four-way, not three: SAME / RECYCLED / GONE / UNVERIFIABLE.
+    """Five-way: SAME / RECYCLED / GONE / UNVERIFIABLE / LOOKUP_FAILED.
 
     `kill(pid, 0)` answers 'does some process have this pid', which is the wrong
     question everywhere a pid was READ FROM A RECORD. The cases and what each means for
@@ -366,10 +423,12 @@ def owner_identity(pid, st):
                     is stale; it authorises nothing. This is the case a bare pid cannot
                     see, and the case in which acting on the record damages a third
                     party -- at clause 7(iv) the damage is a whole process group.
-      "gone"     -- no process has that pid. The owner is dead and its pid has not been
-                    handed out again, so a pgid derived from it is still reserved to it
-                    and any orphan of ours is still inside it. THIS is the case clause
-                    7(iv) exists for, and it is the one that must still signal.
+      "gone"     -- no process has that pid, CONFIRMED (see `ps_starttime`: rc nonzero
+                    with both streams silent, which is Darwin's one no-match shape).
+                    The owner is dead and its pid has not been handed out again, so a
+                    pgid derived from it is still reserved to it and any orphan of ours
+                    is still inside it. THIS is the case clause 7(iv) exists for, and it
+                    is the one that must still signal.
       "unverifiable"
                  -- the option is ON but the RECORD carries no start time (a bare
                     `<pid>` written by an `--owner-identity off` worker, or by a worker
@@ -378,6 +437,16 @@ def owner_identity(pid, st):
                     particular it does NOT mean "dead": a bare record may belong to a
                     live legacy worker, and the election treats it accordingly -- see
                     `elect()`, which refuses to supersede one whose pid is still held.
+      "lookup_failed"
+                 -- ROUND 24. The record carries a start time and the LIVE side could
+                    not be read: `ps` failed, or answered in a shape that is not the
+                    confirmed-absence shape. Nothing whatever is known about the pid.
+                    This used to be `gone` -- see `ps_starttime` for what that cost --
+                    and it is a DIFFERENT FACT from `unverifiable`: a bare record can
+                    never be verified, while this one can be, on the next attempt. The
+                    two therefore get different policies at the election and the SAME
+                    policy at every signaller. Every consumer must handle it explicitly;
+                    none may fall through to a signal.
 
     ROUND 16 -- THE HOLE THE OPTION LEFT IN ITSELF. Round 15 wrote the guard as
     `if A.owner_identity == "off" or st is None`, which made a bare record degrade to
@@ -398,20 +467,34 @@ def owner_identity(pid, st):
     """
     if A.owner_identity == "off":
         # The falsification arm, unchanged: a pid is treated as an identity, which is
-        # the defect being demonstrated.
+        # the defect being demonstrated. `ps` is never consulted on this path, so the
+        # round-24 outcome split cannot reach it and `off` stays bit-for-bit round 14.
         return ("same" if alive(pid) else "gone"), None
     if st is None:
         return "unverifiable", None
-    cur = proc_starttime(pid)
-    if cur is None:
+    outcome, cur = ps_starttime(pid)
+    if outcome == PS_ERROR:
+        return "lookup_failed", None
+    if outcome == PS_ABSENT:
         return "gone", None
     if cur != st:
         return "recycled", cur
     return "same", cur
 
 
+# ROUND 24. How many times the election re-asks `ps` about an owner whose lookup failed
+# before it gives up and loses. A transient failure clears inside one scheduling quantum,
+# so a handful of attempts with a short pause between them is the whole of the repair;
+# the cap exists so a machine that has stopped being able to fork cannot hold the
+# election open indefinitely. The retries share the 60-iteration budget of the loop below
+# and so cannot extend it.
+LOOKUP_RETRIES = 5
+LOOKUP_BACKOFF_S = 0.02
+
+
 def elect():
     global MYGEN
+    lookup_failures = 0
     for _ in range(60):
         g = highest_gen()
         if g is None:
@@ -427,6 +510,57 @@ def elect():
             continue
         owner, owner_st = own
         verdict, live_st = owner_identity(owner, owner_st)
+        if verdict == "lookup_failed":
+            # ROUND 24. THE RECORD IS VERIFIABLE AND THE LOOKUP FAILED. That is a
+            # different fact from `unverifiable` below, and it gets a different policy,
+            # deliberately rather than by reusing the bare-record rule.
+            #
+            # WHY NOT REUSE `kill(pid, 0)` HERE. The bare-record rule is vacant ->
+            # supersede, held -> refuse, and it is the right rule THERE because a bare
+            # record can never be verified: no retry will ever produce better evidence,
+            # so the election has to make a terminal decision on the weakest evidence
+            # that exists. None of that is true of a failed lookup. The record carries a
+            # start time; the comparison is available in principle and was merely
+            # unavailable at this instant. So the response the bare-record case cannot
+            # have is the correct one here: ASK AGAIN, then refuse.
+            #
+            # And falling back to `kill(pid, 0)` would be actively wrong, not merely
+            # unnecessary, for three reasons:
+            #   (1) it re-admits pid existence as an election input under
+            #       `--owner-identity on`. That is the round-14 behaviour the option
+            #       exists to abolish, re-entering through a path nothing exercises --
+            #       structurally the same hole round 16 found, where the RECORD's shape
+            #       decided whether the check happened. Here a TRANSIENT FAILURE would
+            #       decide it, which is worse: it is not even visible in the record.
+            #   (2) the trigger correlates with the hazard. `ps` fails under fork
+            #       pressure and a full process table, which is exactly when pids are
+            #       being allocated and recycled fastest -- the worst moment to decide
+            #       an identity by pid existence.
+            #   (3) its failure mode is silent. `vacant -> supersede` on a failed lookup
+            #       is indistinguishable in the trace from `vacant -> supersede` on a
+            #       confirmed-dead owner, so a machine that had started failing `ps`
+            #       would quietly revert to round-14 semantics with nothing to see.
+            #
+            # WHAT REFUSING COSTS, STATED. `elect()` returning False exits this worker
+            # (sys.exit(0)), so a persistent failure means the worker does not start.
+            # That is a LIVENESS failure of one worker invocation, and it is bounded:
+            # the retry budget absorbs the transient case in tens of ms; a machine that
+            # genuinely cannot fork `ps` could not have forked a player either, so the
+            # worker had nothing to offer; and every attempt is recorded, so the refusal
+            # is attributable rather than a worker that silently declined to run. It is
+            # the same trade this document takes everywhere else: silence over two
+            # owners.
+            lookup_failures += 1
+            if lookup_failures < LOOKUP_RETRIES:
+                rec("owner_lookup_failed", site="election", gen=g, pid=owner,
+                    attempt=lookup_failures, action="retry")
+                time.sleep(LOOKUP_BACKOFF_S)
+                continue
+            rec("owner_lookup_failed", site="election", gen=g, pid=owner,
+                attempt=lookup_failures, action="refused_lookup_unavailable")
+            rec("election_lost", held_by=owner, gen=g,
+                reason="owner_lookup_failed")
+            return False
         if verdict == "recycled":
             # A dead owner whose pid a stranger now holds used to read as LIVE here, so
             # every candidate lost the election to a process that was never the owner and
@@ -590,11 +724,12 @@ def sweep_pgid():
     # which is worse than the failure clause 7(iv) exists to fix.
     #
     # So the marker is a NECESSARY condition and never a sufficient one. Before signalling
-    # a marked generation, re-read the recorded owner's start time and take the three-way
-    # verdict: signal on "same" and on "gone", SKIP on "recycled". The recycled case also
-    # EXPIRES the marker -- the owner is provably gone, so the marker can never become
-    # actionable again, and leaving it standing is exactly what keeps the gate open on
-    # every later election.
+    # a marked generation, re-read the recorded owner's start time and take the verdict:
+    # signal on "same" and on CONFIRMED "gone", SKIP on "recycled", on "unverifiable" and
+    # (round 24) on "lookup_failed". The recycled case also EXPIRES the marker -- the owner
+    # is provably gone, so the marker can never become actionable again, and leaving it
+    # standing is exactly what keeps the gate open on every later election. The other two
+    # skips prove nothing about the owner and so must NOT expire anything.
     n = 0
     swept = set()
     expired = set()
@@ -611,12 +746,34 @@ def sweep_pgid():
                 reason="owner_pid_recycled", recorded=st, live=live_st)
             expired.add(str(g))
             continue
+        if verdict == "lookup_failed":
+            # ROUND 24. The record HAS an identity and `ps` could not be asked. The sweep
+            # takes the same action as for `unverifiable` and for the same reason -- the
+            # target is unverified and the blast radius is a whole process group -- but it
+            # is recorded under its own reason, because the two facts differ in what an
+            # operator should do about them. `owner_record_has_no_identity` means drain
+            # the bare-record generations; this means the machine could not answer, and it
+            # is expected to clear on the next election with no intervention at all.
+            #
+            # NOT EXPIRED, for the same reason `unverifiable` is not: expiry asserts the
+            # owner is PROVABLY gone, and here nothing whatever is known. Expiring on a
+            # failed lookup would discard the only record that an unswept generation
+            # exists, on the strength of a `ps` that did not run.
+            #
+            # No retry loop here, unlike the election. The sweep has no decision to hold
+            # open: refusing costs one deferred `killpg` against a generation whose marker
+            # survives, and the next election re-reads it. The election refuses to START,
+            # which is why it is worth spending a few attempts there and not here.
+            rec("kill_skipped", by="election-sweep", site="pgid", target=p, gen=g,
+                reason="owner_lookup_failed", recorded=(st or "-"))
+            continue
         if verdict == "unverifiable":
             # A record with no start time under --owner-identity on. `killpg` here would
             # be the whole hazard the option was added to close, decided by a coin: the
             # pid is either still the owner's or already a stranger's group leader, and
-            # a bare record cannot tell those apart. REFUSE TO SIGNAL. This is the only
-            # verdict of the four that neither signals nor expires:
+            # a bare record cannot tell those apart. REFUSE TO SIGNAL. This is one of the
+            # two verdicts that neither signal nor expire (round 24 added the other,
+            # `lookup_failed`, just above):
             #   * not signalled, because the target is unverified and the blast radius
             #     is a whole process group that may not be ours;
             #   * NOT EXPIRED, because expiry means "the owner is PROVABLY gone, so this
@@ -689,7 +846,7 @@ def sweep_pgid():
     # keep climbing exactly as C16a measured it climbing, and the cheap
     # `no_pending_marker` early return would never be taken again.
     #
-    # THE SAFETY ARGUMENT IS THE ONE KERNEL PROPERTY THE THREE-WAY RESTS ON: a pid is not
+    # THE SAFETY ARGUMENT IS THE ONE KERNEL PROPERTY EXPIRY RESTS ON: a pid is not
     # reallocated while it is still in use as a process-group id. If it holds, "the pid
     # was recycled" and "our group still has members" are mutually exclusive, so an
     # expired marker cannot be hiding a live orphan. [inferred] -- read off BSD allocator
@@ -800,9 +957,9 @@ def read_player_records():
 
 
 def player_identity(pid, st):
-    """SAME / RECYCLED / GONE / UNVERIFIABLE for a pid read from a PLAYER record.
+    """SAME / RECYCLED / GONE / UNVERIFIABLE / LOOKUP_FAILED for a pid from a PLAYER record.
 
-    The same four-way as `owner_identity()`, over a different record, and it is a
+    The same five-way as `owner_identity()`, over a different record, and it is a
     SEPARATE function on purpose: round 20's review found that the owner's start time had
     been credited against a player's pid, and one function serving both records is how
     that gets done again. The owner record says nothing whatever about a player process.
@@ -815,8 +972,17 @@ def player_identity(pid, st):
 
     Unlike the owner's, ALL THREE of this verdict's consumers are `kill(pid, sig)` at a
     single process -- never `killpg` -- so there is no site here that fails safe in the
-    other direction. All three refuse `recycled` and `unverifiable` and all three signal
-    `same`.
+    other direction. All three refuse `recycled`, `unverifiable` and `lookup_failed`, and
+    all three signal `same`.
+
+    ROUND 24 ADDED `lookup_failed`, AND IT IS NOT A REFINEMENT OF `gone`. Before it, every
+    `ps` failure returned None and every caller read None as `gone` -- the one verdict here
+    that still signals. So a transient `ps` failure, which is likeliest exactly when the
+    machine is churning pids, turned each of the three signallers into a bare-pid
+    signaller: the very behaviour `--player-identity on` exists to abolish, reached without
+    the option being off. There is no site on the player side that needs the permissive
+    reading, so all three refuse, and `gone` keeps its meaning -- CONFIRMED absence, and
+    nothing else.
 
     `GONE` STILL ATTEMPTS THE KILL, and that is a deliberate match to PR #27 rather than
     an oversight. Clause 7(i) says every signaller "skips in silence on a MISMATCH"; a
@@ -829,11 +995,15 @@ def player_identity(pid, st):
     papered over with a skip that would change what four committed arms measured.
     """
     if A.player_identity == "off":
+        # The falsification arm, unchanged. `ps` is not consulted, so round 24's outcome
+        # split cannot reach this path either.
         return ("same" if alive(pid) else "gone"), None
     if st is None:
         return "unverifiable", None
-    cur = proc_starttime(pid)
-    if cur is None:
+    outcome, cur = ps_starttime(pid)
+    if outcome == PS_ERROR:
+        return "lookup_failed", None
+    if outcome == PS_ABSENT:
         return "gone", None
     if cur != st:
         return "recycled", cur
@@ -855,7 +1025,7 @@ def sweep_record():
         # record is in this list on 24 of 25 elections -- and the first pid reuse turns
         # this line into a signal at a stranger.
         verdict, live_st = player_identity(p, st)
-        if verdict in ("recycled", "unverifiable"):
+        if verdict in ("recycled", "unverifiable", "lookup_failed"):
             rec("record_skipped", by="election-sweep", site="record", target=p,
                 verdict=verdict, recorded=(st or "-"), live=(live_st or "-"))
             skipped += 1
@@ -959,7 +1129,7 @@ def kill_player(site, sig, jid):
         # PR #27's clause 7(iii); the sweep is 7(iv-a) and the hook is 10.3 step 6.
         for p, _s, st in read_player_records():
             verdict, live_st = player_identity(p, st)
-            if verdict in ("recycled", "unverifiable"):
+            if verdict in ("recycled", "unverifiable", "lookup_failed"):
                 rec("record_skipped", by="worker-claim", site=site, target=p,
                     verdict=verdict, recorded=(st or "-"), live=(live_st or "-"),
                     job=jid)
@@ -1136,17 +1306,26 @@ while True:
     if A.pid_mode == "worker":
         if A.pid_write == "on":
             # The worker publishes this one, so the worker obtains the identity -- of the
-            # CHILD, not of itself. `proc_starttime(player.pid)` can legitimately come
-            # back None here, and only in one case: the child is already gone. Writing a
-            # bare record then is fail-safe rather than a degradation, because every
-            # reader treats it as `unverifiable` and refuses to signal it, and there is
-            # nothing left to signal. It is recorded so it is visible rather than assumed.
-            st = proc_starttime(player.pid) if A.player_identity == "on" else None
+            # CHILD, not of itself. It can legitimately fail to get one, and ROUND 24
+            # CORRECTED WHAT THIS COMMENT USED TO SAY ABOUT WHY: it said "only in one
+            # case: the child is already gone", which was exactly the conflation the
+            # round-24 finding is about. There are TWO cases and the trace now names
+            # which one occurred:
+            #   PS_ABSENT -- the child is already gone. Nothing is left to signal.
+            #   PS_ERROR  -- the lookup failed and the child's state is unknown.
+            # Writing a bare record is fail-safe in BOTH, and for the same reason, so the
+            # action does not split: every reader treats a bare record as `unverifiable`
+            # and refuses to signal it. But an operator reading `identity=lookup_failed`
+            # is looking at a live-and-unreachable player, and one reading
+            # `identity=absent` is not, so the two must not print the same word.
+            outcome, st = (ps_starttime(player.pid) if A.player_identity == "on"
+                           else (None, None))
             with open(PIDF, "w") as fh:
                 fh.write(f"{player.pid}.{st}\n" if st else f"{player.pid}\n")
             rec("W_pid_write", job=jid, player_pid=player.pid, by="worker",
-                identity=(st or ("off" if A.player_identity == "off"
-                                 else "unavailable")))
+                identity=(st if st else
+                          "off" if A.player_identity == "off" else
+                          "lookup_failed" if outcome == PS_ERROR else "absent"))
         else:
             rec("W_pid_write", job=jid, player_pid=player.pid, result="disabled")
     else:

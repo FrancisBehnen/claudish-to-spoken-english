@@ -48,8 +48,9 @@ FILENAME ~ /kills\.log$/ {
   # tag  hook  pid  kill_attempt  by=.. target=.. sig=.. result=..
   #
   # ROUND 21: THE EVENT COLUMN IS NOW CHECKED. The hook emits a second kind of row --
-  # `record_skipped … verdict=recycled|unverifiable`, when the identity of the player record
-  # does not verify -- and that row has a `target=` but NO `result=`. Folding it into the
+  # `record_skipped … verdict=recycled|unverifiable|lookup_failed` (round 24 added the last),
+  # when the identity of the player record does not verify -- and that row has a `target=` but
+  # NO `result=`. Folding it into the
   # same flat `K[tag.field]` map let a skipped target from one hook invocation overwrite the
   # target it actually killed, since a per-player hook can do both in one call. The
   # columns below mean "what the hook DID", so only `kill_attempt` may write them.

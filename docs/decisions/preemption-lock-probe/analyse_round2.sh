@@ -173,8 +173,10 @@ need "$T/C14a_shared_unlink.hook-kills.log" && { awk -F'\t' '
         printf "  hook A (before the trial spawns):   nopid=%d sent=%d\n", A["nopid"]+0, A["sent"]+0
         printf "  hook B (kills the a-player):        nopid=%d sent=%d\n", B["nopid"]+0, B["sent"]+0
         printf "  hook C (the b-player is playing):   nopid=%d sent=%d\n", C["nopid"]+0, C["sent"]+0
-        printf "  --> hook C read NO record on %d of %d trials while a live player was\n", C["nopid"]+0, C["nopid"]+C["sent"]+0
-        printf "      there to preempt: those are destructions of a published record.\n"
+        printf "  --> hook C read NO record on %d of %d trials. THIS BLOCK CANNOT SAY whether\n", C["nopid"]+0, C["nopid"]+C["sent"]+0
+        printf "      a player was live when it looked -- it reads only hook-kills.log, which\n"
+        printf "      carries no timestamps -- and round 24 stopped it saying so. Witness (b)\n"
+        printf "      below joins these trials to the K/R markers and settles it there.\n"
         printf "      On the other %d it read the b-player, which means that trial%s first\n", C["sent"]+0, "'"'"'s"
         printf "      unlink removed the a-player%s OWN record -- the b-player had not\n", "'"'"'s"
         printf "      published yet. The count of destroyed records is therefore NOT the\n"
@@ -200,9 +202,11 @@ need "$T/C14a_shared_unlink.hook-kills.log" && { awk -F'\t' '
 #   hook-kills.log   hook-C rows carry TAG `tNc`, so the trial is in the row -- but
 #                    there is NO timestamp column, so this file alone cannot order a
 #                    hook-C read against any unlink.
-#   markers.tsv      carries `tNc entry`, the instant hook C started. analyse_c14.sh
-#                    already reads it for exactly this reason. It is what turns the
-#                    hook-C witness from a per-trial count into a NAMED event.
+#   markers.tsv      carries `tNc K` and `tNc R`, which BRACKET the record scan. Round
+#                    17 used `tNc entry` and round 24 found that to be the wrong instant
+#                    (see the liveness test below); analyse_c14.sh reads the same pair for
+#                    the same reason. It is what turns the hook-C witness from a per-trial
+#                    count into a NAMED event.
 #
 # ROUND 21 REPLACED THE ARGUMENT THAT BINDS THE HOOK-C WITNESS TO ONE UNLINK. Round 17
 # used a window whose LOWER end was `W_pid_write[jNb]`, on the stated ground that "the
@@ -224,18 +228,29 @@ need "$T/C14a_shared_unlink.hook-kills.log" && { awk -F'\t' '
 #   (1) the b-player's record was certainly published before its own `player_start` -- the
 #       wrapper is `write; mv || exit 97; exec`, so the player only exists if the rename
 #       returned 0. [repo]
-#   (2) hook C read NO record at `tNc entry`, at a moment when that player was live
-#       (player_start <= tNc entry < player_end). So the record was published and then
-#       destroyed, strictly before `tNc entry`. [measured]
+#   (2) hook C read NO record during its RECORD SCAN, at a moment when that player was
+#       live. The scan is bracketed by `tNc K` (stamped immediately before it) and `tNc R`
+#       (stamped after the HOOK_GAP_S sleep that follows it), and its exact instant is
+#       unobserved -- so liveness is required ACROSS the interval:
+#       `player_start <= tNc K` AND `player_end > tNc R`. So the record was published and
+#       then destroyed, strictly before `tNc R`. [measured]
+#       ROUND 24 CORRECTED THIS FROM `player_start <= tNc entry < player_end`, which
+#       tested the instant the hook STARTED rather than the instant it LOOKED, and so
+#       admitted a trial whose player had exited in between. On the committed traces all
+#       four blind trials pass the stronger test with 1.52-1.56 s of margin past R, so the
+#       derivation is strengthened and the figure does not move -- verified, not assumed.
 #   (3) in this arm the ONLY thing that removes the record is the reaper's `os.unlink`,
 #       which emits `record_unlinked`: `sweepmode=off`, and the two other `os.unlink` sites
 #       in the probe remove `.pending` markers inside the pgid sweep. [repo]
 # So the destroying unlink is one of the `record_unlinked` events lying between the b-job's
-# SPAWN and `tNc entry`. If EXACTLY ONE lies there it is that one, wherever inside the
+# SPAWN and the scan. If EXACTLY ONE lies there it is that one, wherever inside the
 # unobserved window the publication actually fell -- which is what makes the naming sound
 # without a publication instant.
 #
-# The interval is `(S2_prespawn_stat[jNb], tNc entry)`. `S2_prespawn_stat` is emitted by the
+# The interval is `(S2_prespawn_stat[jNb], tNc R)` -- round 24 moved the upper end from
+# `tNc entry` for the same reason as the liveness test, and in the same safe direction: a
+# wider interval can only add candidates and so can only make this refuse. It still holds
+# exactly one on every one of the four trials. `S2_prespawn_stat` is emitted by the
 # worker BEFORE it calls `Popen`, so it is strictly before the fork and therefore strictly
 # before any publication: a valid lower bound, directly observed, and deliberately the
 # LOOSEST one available -- widening it can only add candidates, and adding candidates can
@@ -263,7 +278,15 @@ need "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.hook-kills.log" \
       else if ($4=="player_end")   PEN[$3]=$1+0
       next }
   FILENAME ~ /markers\.tsv$/ {
-      if ($2=="entry" && $1 ~ /^t[0-9]+c$/) { t=$1; sub(/^t/,"",t); sub(/c$/,"",t); HCT[t+0]=$3+0 }
+      # ROUND 24. `entry` was the wrong instant. The hook stamps it as its FIRST act;
+      # the record scan happens after `K` and before `R` (which follows the HOOK_GAP_S
+      # sleep), so `entry` proves nothing about the scan. Both ends of the enclosing
+      # interval are read instead, and the block below uses K as its lower bound and R
+      # as its upper one throughout.
+      if ($1 !~ /^t[0-9]+c$/) next
+      t=$1; sub(/^t/,"",t); sub(/c$/,"",t); t=t+0
+      if ($2=="K")      HCK[t]=$3+0
+      else if ($2=="R") HCR[t]=$3+0
       next }
   FILENAME ~ /hook-kills\.log$/ {
       if ($1 !~ /^t[0-9]+c$/) next
@@ -274,7 +297,10 @@ need "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.hook-kills.log" \
       # verdict -- which is neither "nopid" nor "sent", so the trial fell out of witness (b)
       # in total silence. A skipped record also MEANS the opposite of `nopid`: the hook
       # FOUND a record and refused it, so the record was not destroyed. Recorded separately
-      # and reported, never folded into either bucket.
+      # and reported, never folded into either bucket. This keys on the ROW KIND and not on
+      # the verdict value, so the `lookup_failed` verdict round 24 added needed no change
+      # here -- which is the reason to key on the kind. (And no apostrophes in here: this
+      # comment lives inside a single-quoted awk program, so one would end the quote.)
       if ($4 == "record_skipped") { HSK[t]++; next }
       if ($4 != "kill_attempt") next
       r=$0; sub(/^.*result=/,"",r); sub(/[ \t].*$/,"",r)
@@ -327,12 +353,21 @@ need "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.hook-kills.log" \
         continue }
       if (!(i in HC) || HC[i] != "nopid") continue
       jb = "j" i "b"
-      if (!(i in HCT) || !(jb in PST) || !(jb in PEN) || !(jb in SPAWN)) {
+      if (!(i in HCK) || !(i in HCR) || !(jb in PST) || !(jb in PEN) || !(jb in SPAWN)) {
         printf "  trial %-2d hook C read nothing, but its own timing is not in the traces --\n", i
         printf "           no live-player check and no interval: NOT counted either way\n"
         unjoinable++; continue }
-      if (!(PST[jb] <= HCT[i] && HCT[i] < PEN[jb])) {
-        printf "  trial %-2d hook C read nothing, but no player was live at it -- NOT a destruction\n", i
+      # ROUND 24. THIS TEST WAS AT THE WRONG INSTANT. `PST <= entry < PEN` says the
+      # b-player was live when the hook STARTED. The `nopid` observation is later -- after
+      # K, after the record scan -- so a player that exited in between satisfied the old
+      # predicate and made this block count a destruction with no player live at the scan.
+      # The scan lies strictly inside (K, R), and its exact instant is unobserved, so the
+      # only sound test is liveness ACROSS the whole interval. R is a loose upper bound
+      # (it trails the scan by the ~90 ms hook sleep) and loose is the safe direction for
+      # a witness whose content is an absence.
+      if (!(PST[jb] <= HCK[i] && PEN[jb] > HCR[i])) {
+        printf "  trial %-2d hook C read nothing, but its b-player was not live ACROSS the\n", i
+        printf "           scan interval (K..R) -- NOT a destruction\n"
         continue }
       hc_trials++; HCTR[i]=1
       cnt=0; pick=0
@@ -343,10 +378,15 @@ need "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.hook-kills.log" \
       # an unlink could equally have done the destroying, so discarding it could name one
       # unlink while a second was just as able. Counting every candidate can only make this
       # refuse, never make it name more.
-      for (u=1; u<=nu; u++) if (UN[u] > SPAWN[jb] && UN[u] < HCT[i]) { cnt++; pick=u }
+      # The UPPER END IS `R`, not `entry`, for the same reason the liveness test moved:
+      # the destroying unlink must precede the SCAN, and the latest the scan can have
+      # happened is R. Widening the interval can only ADD candidates and so can only make
+      # this refuse -- never make it name more -- which is the direction a naming argument
+      # has to err in.
+      for (u=1; u<=nu; u++) if (UN[u] > SPAWN[jb] && UN[u] < HCR[i]) { cnt++; pick=u }
       if (cnt == 1) { HOOKC[pick]=1; HVICT[pick]=PPID[jb]; nhookc++ }
       else { printf "  trial %-2d hook C witnessed a destruction, but %d unlinks fall in\n", i, cnt
-             printf "           (S2_prespawn_stat[%s], tNc entry) -- the destroying unlink is NOT nameable\n", jb
+             printf "           (S2_prespawn_stat[%s], tNc R) -- the destroying unlink is NOT nameable\n", jb
              ambig++ } }
 
     # ---- the union, over the (trial, timestamp) event key.
@@ -373,7 +413,7 @@ need "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.hook-kills.log" \
     for (i=1; i<=maxtr; i++) if (TR[i]) { ntr++; list = list " " i }
 
     printf "  --> witness (a), player-log order:  %d distinct unlink event(s)\n", nplog+0
-    printf "  --> witness (b), hook C read nothing with a live player: %d trial(s),\n", hc_trials+0
+    printf "  --> witness (b), hook C read nothing with a player live ACROSS the scan: %d trial(s),\n", hc_trials+0
     printf "      of which %d had exactly one unlink candidate in the interval and are NAMED as events\n", nhookc+0
     printf "  --> the two witness sets intersect in %d event(s) (derived over the (trial,\n", both+0
     printf "      timestamp) key, not assumed disjoint)\n"

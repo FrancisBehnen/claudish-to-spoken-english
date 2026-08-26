@@ -58,7 +58,31 @@ ap.add_argument("--dead-owner", action="store_true",
                      "so reclamation is LEGITIMATE. Stages A2.")
 ap.add_argument("--classify-stall-ms", type=float, default=0.0,
                 help="racer: pause after classifying the lock stale and before acting "
-                     "on it. This is what stages A2's ABA ordering.")
+                     "on it. ROUND 24: this is a CLOCK, and it is no longer what stages "
+                     "S3. Waiting a fixed 120 ms proves that B observed a dead "
+                     "generation; it does not prove that A RECLAIMED before the sleep "
+                     "expired, and if A starts slowly or is descheduled past 120 ms then "
+                     "B reclaims first and A merely loses -- owners=1, which for "
+                     "`proposed` is indistinguishable from a genuine pass (see the "
+                     "document's 2.6). Kept as the fallback for a hand-run trial with no "
+                     "--classify-hold-dir; the driver uses the barrier below.")
+ap.add_argument("--classify-hold-dir", default="",
+                help="two-phase RELEASE BARRIER for S3, replacing the classify clock. "
+                     "The same file-token shape the S1/S2 barrier ended up with, in the "
+                     "other direction: the racer that must act on a STALE observation "
+                     "(--classify-hold-role hold) parks after recording "
+                     "`classified_stale` until the racer that must reclaim FIRST "
+                     "(--classify-hold-role release) has recorded a successful reclaim "
+                     "and dropped the GO token. Either side timing out records its own "
+                     "marker and run_lock.sh VOIDs the trial, which summarise.sh "
+                     "excludes from both the numerator and the denominator.")
+ap.add_argument("--classify-hold-role", choices=["none", "hold", "release"],
+                default="none",
+                help="which side of --classify-hold-dir this racer is.")
+ap.add_argument("--classify-hold-timeout-s", type=float, default=5.0,
+                help="deadlock guard on the hold, NOT a timing assumption: the whole "
+                     "point of the barrier is that no interval is assumed. A trial that "
+                     "reaches it is VOID.")
 ap.add_argument("--reclaim-gap-ms", type=float, default=0.0,
                 help="current only: pause between rmdir and mkdir, staging the third "
                      "failure named in 10.5 (a reclaimer removing a lock a third "
@@ -212,8 +236,7 @@ def elect_current():
                 rec("classified_stale", reason="pid_dead", pid=pid)
             else:
                 rec("classified_stale", reason="no_pid")
-            if A.classify_stall_ms:
-                time.sleep(A.classify_stall_ms / 1000.0)
+            after_classification()
             try:
                 os.unlink(LOCK_PID)
             except OSError:
@@ -275,8 +298,7 @@ def elect_spec():
             else:
                 rec("classified_stale", reason="no_pid_after_backoff",
                     waited_ms=A.backoff_attempts * A.backoff_ms)
-            if A.classify_stall_ms:
-                time.sleep(A.classify_stall_ms / 1000.0)
+            after_classification()
             # clause (b): serialize reclamation with an atomic rename
             q = f"{LOCK}.dead.{os.getpid()}.{uuid.uuid4().hex[:8]}"
             try:
@@ -362,8 +384,7 @@ def elect_proposed():
             rec("lost", held_by=owner, gen=g)
             return False
         rec("classified_stale", reason="pid_dead", pid=owner, gen=g)
-        if A.classify_stall_ms:
-            time.sleep(A.classify_stall_ms / 1000.0)
+        after_classification()
         if publish(g + 1):
             rec("published", gen=g + 1, superseded=g)
             return True
@@ -404,6 +425,91 @@ def await_barrier():
     except OSError:
         pass
     rec("barrier_released", n=A.barrier_n)
+
+
+def after_classification():
+    """Racer B: hold a STALE observation until the reclaim it must follow has HAPPENED.
+
+    ROUND 24 -- S3's STAGING WAS STILL A CLOCK, AND THIS IS THE SIXTH REPAIR TO IT.
+    run_lock.sh waited for B's own `classified_stale` record before launching A, which
+    is a real improvement over the 4 ms sleep it replaced: it proves B OBSERVED a dead
+    generation. It does not prove A RECLAIMED. B then sat on the observation for a fixed
+    120 ms, and if A started slowly or was descheduled past that -- a fresh Python
+    interpreter against a 120 ms budget -- B reclaimed first and A merely lost. The
+    trial yields owners=1, and for `proposed` that is the SILENT FALSE PASS this whole
+    scenario exists to expose: identical to a genuine pass, exactly as the document's
+    2.6 already says of every mis-staged S3 trial.
+
+    The repair is a release barrier and NOT a longer sleep, because no sleep can carry
+    the ordering. B parks here; A drops the GO token only after its own election has
+    returned a successful reclaim; B is released and then commits the ABA act. A timeout
+    on either side is recorded and the trial is VOID rather than scored.
+
+    THIS IS DELIBERATELY THE SAME MECHANISM AS THE S1/S2 BARRIER, not a third one:
+    a directory of file tokens, a wait loop with a deadline, and a `rec()` on expiry
+    that run_lock.sh greps. Inventing another primitive here is how this file came to
+    have five staging schemes.
+
+    Called at all three `classified_stale` sites -- one function rather than three
+    copies of the sleep, because a repair that reaches two of three signalling sites is
+    the failure mode this branch has shipped more than once.
+    """
+    if A.classify_hold_dir and A.classify_hold_role == "hold":
+        try:
+            os.makedirs(A.classify_hold_dir, exist_ok=True)
+            open(os.path.join(A.classify_hold_dir, f"held{os.getpid()}"), "w").close()
+        except OSError:
+            pass
+        rec("classify_hold_wait", timeout_s=A.classify_hold_timeout_s)
+        go = os.path.join(A.classify_hold_dir, "GO")
+        deadline = time.time() + A.classify_hold_timeout_s
+        while not os.path.exists(go):
+            if time.time() > deadline:
+                # A never reclaimed within the guard. The window was never staged, so
+                # this trial must not be scored either way.
+                rec("classify_hold_timeout", waited_s=A.classify_hold_timeout_s)
+                return
+            time.sleep(0.0005)
+        rec("classify_hold_go_seen")
+        return
+    # No barrier: the old clock, kept for a hand-run trial. It stages nothing and says so.
+    if A.classify_stall_ms:
+        time.sleep(A.classify_stall_ms / 1000.0)
+
+
+def release_classify_hold(won):
+    """Racer A: release a parked stale-observer, but ONLY on a successful reclaim.
+
+    `won` is what `elect_*()` returned, so by the time this runs the reclaim is already
+    in the log (`mkdir_ok` for current/spec, `published gen=g+1` for proposed). That is
+    what makes the barrier an ordering fact rather than another hope.
+
+    A refusal to release is NOT silent. If A's election ended without a reclaim there is
+    nothing to release and the staging has failed on A's side, so it is recorded here
+    under its own name -- and B, still parked, will reach its own timeout. run_lock.sh
+    VOIDs on either marker, which is what "a timeout on either side" means in practice:
+    the two markers name which side failed instead of leaving one silent.
+    """
+    if not (A.classify_hold_dir and A.classify_hold_role == "release"):
+        return
+    if not won:
+        rec("classify_hold_norelease", why="election_ended_without_reclaim")
+        return
+    try:
+        os.makedirs(A.classify_hold_dir, exist_ok=True)
+        open(os.path.join(A.classify_hold_dir, "GO"), "w").close()
+    except OSError as e:
+        rec("classify_hold_norelease", why="cannot_write_GO", err=type(e).__name__)
+        return
+    # THE TOKEN IS WRITTEN BEFORE THIS RECORD, AND THAT ORDER IS DELIBERATE. Recording
+    # first would put a release in the log that had not happened yet, and this rig's whole
+    # discipline is that a marker means the act occurred. The consequence is that B's
+    # `classify_hold_go_seen` can carry an EARLIER timestamp than this row -- measured a
+    # few microseconds earlier on this machine -- because B is polling the token and does
+    # not wait for A to finish writing about it. The ordering the barrier guarantees is
+    # `A's reclaim record < the GO write <= B's go_seen`; this row is a note about the GO
+    # write, not the write itself, so do not "fix" the timestamps by moving it above.
+    rec("classify_hold_release")
 
 
 def ack_barrier():
@@ -500,7 +606,11 @@ if A.role == "winner":
 else:
     fn = {"current": elect_current, "spec": elect_spec, "proposed": elect_proposed}
     ack_barrier()
-    if fn[A.protocol]():
+    won = fn[A.protocol]()
+    # Before `rec("owner", ...)` and before the hold, so a parked stale-observer is
+    # released the instant the reclaim is in the log and not one hold-time later.
+    release_classify_hold(won)
+    if won:
         rec("owner", via="election")
         time.sleep(A.hold_ms / 1000.0)
 sys.exit(0)
