@@ -3396,14 +3396,36 @@ on. So #11 can lock and #23 can start — with two more blockers than it had yes
 > single-chunk narration of a turn its own data records at three; and three `rewrite.sh` line citations
 > — two off by one, one off by two — against the same lines this document cites correctly.
 > **The count stays at thirty-three for
-> the reason the notes above give**, and the reason is worth restating now that the class has six
-> entries: the table counts defects in this document's LOCKED text, and an
+> the reason the notes above give**, and the reason is worth restating now that the class has **seven**
+> entries, counting the one recorded below: the table counts defects in this document's LOCKED text, and an
 > evidence document's re-qualification is a defect in a *record of what was measured*, not in a
-> specification. **What the six entries do say, and it is why they are tracked here rather than
+> specification. **What the seven entries do say, and it is why they are tracked here rather than
 > discarded, is that the rate at which this class recurs has not fallen** — every round that has looked
 > has found more, and the shapes repeat: a ratio quoted without the caveat its source attaches, an
 > *"all"* or *"every"* over a set the data does not cover, and a repair applied to one of two parallel
 > sites.
+>
+> **A SEVENTH of that class landed on 2026-08-26, and it is the first that tried to stop the class
+> instead of clearing its sites.** The site was §10.5 clause 4:
+> [`worker-residency.md`](worker-residency.md)'s routing note read *"Clauses 1, 3 and 4 are the spec's"*
+> while the clause below it required the ensure step *"before any parsing"* and priced it at one
+> `[[ -d ]]` and one `kill -0` — so the summary sent an implementer to a placement **this document calls
+> impossible** (the worker is per-session, `rewrite.sh` has one source for `session_id`, the payload at
+> `:108`, and the requirement is independence from the payload's **chunk role**, not from parsing) and to
+> a liveness check clause 2 replaced with a `readdir`, a `readlink` and a `ps`. **The trigger itself
+> survives and was not weakened.** The structural half is the part worth recording: the round before this
+> one forecast that §1, §2/§3 and §4/§4a–c would each come back, because a `SUPERSEDED` block that names
+> sites cannot cover a section it does not name, and recommended widening the block instead of running
+> another site-by-site pass. That was done — the block now disclaims **every** design sentence in that
+> document as a class and by name, keeps every measurement, and isolates the one category a rule cannot
+> reach: **a measurement whose number survives while its evidential scope does not**, which is the shape
+> that produced the FOURTH note's 0.079 s and 0.086 s. **Three of that document's eight design sections
+> are in that category and one of them survives on a coincidence of primitive** — its 8-hooks-to-1-owner
+> result is about exclusive create, and `symlink(2)` happens to share the property `mkdir` had, which
+> this round states at the site rather than leaving for a reader to reconstruct. **Not a row, for the
+> reason the six notes above give, and the total is unchanged at thirty-three.** What is new is that the
+> class now has a **stated residual** rather than only a rate: a future change to §10.5 or §10.6 needs no
+> edit to that document's design sections, and does need its scope column re-checked.
 >
 > **The same pass re-derived the total and found §15's tally still reading NINE
 > reads and THIRTY-ONE over a twelve-item list** while this note and the rest of §15 had moved to

@@ -46,10 +46,11 @@ made about thirty two-word Haiku turns, whose only purpose was to make a hook fi
 
 ---
 
-## SUPERSEDED — the two protocols this document *proposes* have since been run, and four of their clauses are falsified
+## SUPERSEDED — this document's DESIGN is proposal, not specification; its MEASUREMENTS stand on their own
 
-**Read this before §1b, §2a, and the two routing subsections *§10.5 — the OPEN heading comes off* and
-*§10.6 — two qualifiers*.** Everything in this document was written on 2026-08-25 as **proposed** content
+**Read this before every design section in this document — §1, §1b, §2, §2a, §3, §4 and §4a–c, §5, §6,
+and the two routing subsections *§10.5 — the OPEN heading comes off* and *§10.6 — two qualifiers*.**
+Everything in this document was written on 2026-08-25 as **proposed** content
 for [`speech-integration-spec.md`](speech-integration-spec.md). They were folded in, and the two
 protocols this document proposes have **since been run** — 1200 lock trials over three protocols and six
 scenarios, and 312 preemption trials over 26 switchable configurations, the spec's **[trials]** arm, §13
@@ -57,6 +58,38 @@ rows 20 and 21 — and **four of the clauses proposed below were falsified.** Th
 so this document is **qualified rather than rewritten**: the sections below are the design that was
 measured, not the design that is specified. **The distinction is stated once, here, and referenced from
 each site rather than re-argued.**
+
+### The rule, stated once — and it is a STANDING rule, not a list of sites
+
+**Every round that has read this document against the spec has found more sites, and the count is kept
+where it is checkable rather than restated here** — spec §13's note under the defect table, whose FOURTH,
+FIFTH, SIXTH and SEVENTH entries all name this document. Those are not four unrelated errors; they are
+one structural fact about what this document is, discovered four times site by site. The fact, stated as
+a rule instead:
+
+1. **No design sentence in this document is normative, and none of them ever was.**
+   [`speech-integration-spec.md`](speech-integration-spec.md) §10.5 and §10.6 are the specification;
+   every *"the mechanism is…"*, *"the step must…"*, *"the corrected protocol…"* and *"this is what
+   §10.5 should say"* below is a **proposal made on 2026-08-25**, and the spec has since re-derived
+   several of them from evidence this document does not carry. **Where the two agree, this document's
+   version is redundant. Where they differ, the spec wins and this document is the record of what was
+   measured against the older shape.** A reader who needs to know what to build reads the spec; a reader
+   who needs to know what was observed reads this. That rule holds for a spec change nobody has made
+   yet, which is the point of stating it as a rule.
+2. **Every measurement in this document stands on its own**, because a measurement is a record of what
+   a machine did on a date and no later decision can reach back and change it. The latency tables, the
+   `bind()` failure, the eight-hook contention result, the handoff and spawn intervals, the lead times,
+   the warm-up costs: none of these is superseded by anything, and **over-qualifying them would make
+   this document useless as the evidence it exists to be.** Nothing below is hedged for the sake of
+   symmetry.
+3. **The trap is the THIRD category, and it is the only one a rule cannot pre-empt: a measurement whose
+   NUMBER survives while its EVIDENTIAL SCOPE does not.** *What* was measured is fixed; *what it is
+   evidence about* is a claim about the mechanism, and it goes stale exactly when the mechanism does.
+   Item 3 below is the worked example — 0.079 s and 0.086 s are both still measured and neither bounds
+   how long stale audio can last, because the region they bound is not the region the orphan runs in.
+   **These are the sites that need re-qualifying, and there is no rule that finds them in advance**;
+   they have to be checked against the spec each time a mechanism moves. The per-section verdicts below
+   are that check, performed on 2026-08-26.
 
 **What this document's own arm measured, and what therefore survives untouched.** Two things, and
 neither is in question:
@@ -120,6 +153,34 @@ full 2.50 s. And the **hook-side kill of §1b (c) is a real latency win**, reach
 **134 ms** sooner than the worker's next claim would (123–143 ms, n = 12, `C2_hookside`). So (d) is
 confirmed necessary and (c) confirmed valuable; what is falsified is the claim that the *pair* is
 **sufficient**, and the file they were told to use.
+
+### Every design section, checked against the spec — a snapshot dated 2026-08-26
+
+Rule 1 above covers all of these without needing a row each; the rows exist because rule 3 does not, and
+a reader deciding whether to trust a particular sentence needs to know which of the three categories it
+falls in. **The verdict column is the snapshot and will go stale; the rule column will not.**
+
+| section | its design, against the spec | its measurement |
+| --- | --- | --- |
+| **§1** — the address is a file | **RE-DERIVED UNCHANGED.** Spec §10.5 clause 1 and §10.2 specify the same temp-name-plus-`rename` onto `speak/job`, the same coalescing account, and the same consumer claim by `rename(job, job.taken.<pid>)` unlinked only by its private name | **stands on its own.** 116 bytes against a 104-byte `sun_path`, `bind()` fails **[obs]**. Nothing in the replacement shortens that path — the generation records and `playerdir/` go *deeper* than the flat `speak/` this was measured in (spec §10.2) — so the figure is a floor |
+| **§1b** — coalescing and claiming | **(a) re-derived; (c) and (d) FALSIFIED**, items 1–3 above and the block already at that section | the eight-hook coalescing result stands; the two intervals do **not** bound stale audio (rule 3, item 3) |
+| **§2** — the election | **SUPERSEDED in its primitive.** `mkdir` with a pid written inside and checked by `kill -0` became a `symlink`ed `worker.lock.<gen>` carrying `<pid>.<starttime>`, superseded rather than removed (spec §10.5 clause 2). The two sentences that survive are which of the pre-check and the exclusive create is load-bearing, and that the pre-check is worth keeping anyway | **survives CONTINGENTLY, and the contingency is worth seeing rather than rediscovering: 8 hooks → 1 owner is a result about exclusive create under contention, and it survives only because the replacement also elects by exclusive create.** Had the spec elected by anything else the result would have been about a primitive nobody uses. It is also **no longer the only evidence for that property** — spec §10.5 clause 2 re-measured it on `symlink(2)` at N = 2, 4, 8 and 16, **1 owner on 80 of 80** **[trials]** |
+| **§2a** — stale-lock recovery | **BOTH CLAUSES FALSIFIED**, item 4 above and the block already at that section | the *diagnosis* stands — the probe's own protocol ends without exactly one owner in 121/400 — and the *repair* does not, at 61/400 |
+| **§3** — the `kqueue` wake | **RE-DERIVED UNCHANGED, and its role WIDENED.** Spec §10.5 clause 3 specifies the same `EVFILT_VNODE`/`NOTE_WRITE` over the speak directory with the same 1 s poll as a belt, and adds two jobs this document did not know it was doing: it is the primitive §3.5.1's bounded wait runs on, and the 1 s poll is the belt that fires when `rewrite.sh:117` sweeps a live worker's directory (spec §10.5 clause 6, §13 row 24). **A widened role owes no qualification** — nothing here is withdrawn | median 0.079 s, range 0.059–0.198 s **[hook]**, stands as a latency figure. Rule 3 applies to it and only there: it does **not** bound how long stale audio can last (item 3) |
+| **§4, §4a–c** — the warm-up trigger | **THE TRIGGER SURVIVES; ITS PLACEMENT AND ITS LIVENESS CHECK DO NOT.** Detail in the clause-4 note under *§10.5 — the OPEN heading comes off*, and in §4b | **stands on its own, and it is the largest surviving block in the document**: the 5.16–6.23 s first-invocation lead, the 0.006–0.012 s final-invocation lead and its −0.066/+0.086 s spread over sixteen turns, the 3.05–4.62 s ready lead, the five first-turn TTFAs, turn 31 and the 4.489 s cold short turn. §4c's stated limit is the spec's STATED LIMIT, in the same terms and with the same n = 8 startup range |
+| **§5** — the startup warm-up | **STRENGTHENED, not superseded**: *recommended* → **REQUIRED** (spec §10.5 clause 5). Its closing verdict is withdrawn by this document's own `cold7` pair | the 0.78–1.12 s cost and the 2.13-against-1.41 s first-synthesis pair stand |
+| **§6** — the idle exit | **INTERVAL, REASON AND CLOCK all superseded**, and the reason measured false (spec §10.5 clause 6, §13 row 24) | *"not measured"* was true of this arm and stays true; the measurement that falsified it is not this document's |
+
+**Where this leaves the file, stated rather than implied.** Rules 1 and 2 are closed: a future spec
+change to the job file, the election, the wake, the trigger, the warm-up or the idle exit needs **no edit
+here**, because rule 1 already disclaims every design sentence in the document as a class and by name,
+and rule 2 already protects every measurement. **The residual is rule 3, and it is not closable by any
+structure**: when a mechanism moves, some measurement in this document may turn out to have been evidence
+about that mechanism rather than about latency, and only a read of the spec against the site can tell.
+Three of the eight rows above carry a rule-3 note — §1b's two intervals, §2's contention result, and §3's
+handoff, which is one of §1b's two seen from the other side — and §2's survives on a coincidence of
+primitive rather than on anything anyone chose. **That is the honest residual: the
+verdict table needs re-checking whenever §10.5 or §10.6 changes; the rest of this document does not.**
 
 **Nothing below is deleted.** A measurement taken against a superseded mechanism is still evidence about
 latency; it is simply not evidence about preemption coverage. The spec's §13 rows 20, 21 and 27 are where
@@ -241,6 +302,12 @@ footnote.
 Every part of that sentence is doing work. Taken in order:
 
 ### 1. The address is a file, not a socket and not a port
+
+> **NOTHING IN THIS SUBSECTION IS SUPERSEDED, and saying so is worth a line** because §1b, §2, §2a, §4,
+> §5 and §6 all are (*SUPERSEDED* at the top). Spec §10.5 clause 1 and §10.2 re-derive the same job file,
+> the same producer rename, the same coalescing account and the same consumer claim-rename. The 116-byte
+> `bind()` failure is a measurement and stands regardless; the replacement mechanisms put records
+> **deeper** than the flat `speak/` measured here, never shallower, so it is a floor.
 
 **Measured, and it decides the question by itself.** The obvious shape for "a resident worker a hook
 talks to" is a Unix domain socket at `$BUF_ROOT/<session_id>/speak/sock`. On this machine that path is
@@ -469,6 +536,12 @@ preemption rule already puts there. **Both of those paths are gone from the spec
 `symlink`ed `worker.lock.<gen>` carrying `<pid>.<starttime>` and the preemption record is a
 `playerdir/` entry per player (*SUPERSEDED* at the top) — **but the measurement in this subsection is
 about exclusive create under contention, and the replacement still elects by exclusive create.**
+**That is a contingency and not a guarantee, which is worth naming rather than leaving to be
+rediscovered:** the 8/8 result survives *because* `symlink(2)` shares `mkdir`'s exclusive-create
+property, and had the spec elected by anything else it would be a result about a primitive nobody uses.
+It is also **no longer the only evidence for that property** — spec §10.5 clause 2 re-measured it on the
+replacement at N = 2, 4, 8 and 16, **1 owner on 80 of 80** **[trials]**, so this subsection's n = 1
+adversarial run is corroborated rather than load-bearing on its own.
 
 **Measured against the adversarial case.** Eight hook processes fired simultaneously against an empty
 speak dir:
@@ -577,6 +650,15 @@ pre-check stays a best-effort optimisation. The measured 8/8 result is untouched
 
 ### 3. The wake is `kqueue`, and it costs nothing worth naming
 
+> **NOT SUPERSEDED — re-derived unchanged, and its role WIDENED** (*SUPERSEDED* at the top). Spec §10.5
+> clause 3 specifies the same primitive over the same directory with the same 1 s poll, and gives it two
+> jobs this subsection did not know it was doing: it is the primitive §3.5.1's bounded wait runs on, and
+> **the 1 s poll is the belt that fires when `rewrite.sh:117` sweeps a live worker's directory** (spec
+> §10.5 clause 6, §13 row 24) — which is why that belt is the sole guarantee on the sleep path until
+> clause 6's repair ships. **One thing the handoff figure below does NOT bound**, and it is the one place
+> rule 3 at the top reaches this subsection: how long a stale utterance can last. The 0.079 s bounds the
+> region in which something still holds a reference to the player, and `C8`'s orphan is outside it.
+
 The worker blocks on `kqueue(EVFILT_VNODE, NOTE_WRITE)` over the speak directory's fd, with a 1 s
 timeout as a belt. A rename into the directory wakes it.
 
@@ -585,6 +667,14 @@ interval contains the whole hook — `jq` three times, `shasum`, the job write, 
 kqueue wake. It is not the bottleneck and no cleverness is owed here.
 
 ### 4. The warm-up trigger is *every* `MessageDisplay` invocation — **not** §3.1's publish point
+
+> **THE TRIGGER IN THIS HEADING IS THE SPEC'S; TWO OF ITS IMPLEMENTATION PROPERTIES ARE NOT**
+> (*SUPERSEDED* at the top; spec §10.5 clause 4). Every measurement in §4, §4a, §4b and §4c stands, and
+> so does §4c's stated limit — the spec restates it in the same terms. What is superseded sits in §4b's
+> inference and in clause 4 of the routing section below: the step's placement is **after `session_id` is
+> parsed**, because *"before any parsing"* is not implementable, and its liveness check is a
+> `readdir`/`readlink`/`ps` under clause 2's generation record rather than one `[[ -d ]]` and one
+> `kill -0`. Each is qualified where it appears.
 
 **A worker started by `Stop` is warm for turns 2..n and cold for turn 1.** That is the whole of the
 residency problem, and started-by-`Stop` does not solve it: measured cold median **3.16 s**, over the
@@ -662,6 +752,18 @@ invocations logged `started=yes` and every later one logged `started=no`. **[hoo
 **The mechanism therefore has to be placed before `rewrite.sh:127`'s early return**, not at the publish.
 It is cheap enough to belong there: one `[[ -d ]]` test and one `kill -0` in the common case, on a hook
 that already runs `jq` several times.
+
+> **Two words in that account do not transfer, and the spec's clause 4 is where each is corrected — the
+> LEAD is untouched either way** (*SUPERSEDED* at the top, rule 3; spec §10.5 clause 4). **(1)
+> *"payload-independent"* is a property of the RIG, not of the trigger.** `warm-probe.sh` parses nothing
+> because the harness that launched it handed it `$SPEAK_DIR` **[rig]**; `rewrite.sh` has no such source
+> and must read `session_id` out of the payload at `:108` to know which session's worker to ensure. So
+> the specified step parses `session_id` **first** and the requirement is restated as independence from
+> the payload's **chunk role** — not from parsing. **(2) *"one `[[ -d ]]` test and one `kill -0`"* is no
+> longer the step's cost: clause 2's generation record made it a `readdir`, a `readlink` and a `ps`
+> fork, offset by reusing the `$sid` `:108` already parsed. **The code block above is left exactly as
+> the rig ran it** — it is the record of what produced the numbers, and editing it would break the only
+> thing it is for.
 
 **Measured, on a fresh session with no worker running, driving a 400-word streaming reply:**
 
@@ -939,7 +1041,11 @@ other blockers; a single integration pass folds this in. This is the proposed co
 **proposal as it stood on 2026-08-25** and is kept as the record of what was proposed off what was
 measured. **Clause 2's stale-lock recovery and clause 7's three preemption hooks are the two that did not
 survive** — see *SUPERSEDED* at the top for what replaced each and what the measurements behind them
-still establish. Clauses 1, 3 and 4 are the spec's. **Clause 5 is the spec's only after a
+still establish. **Clauses 1 and 3 are the spec's; clause 4 is NOT, and this sentence used to say it
+was.** What survives of clause 4 is its **every-invocation trigger** and nothing else about the step:
+both of the implementation properties the clause states — its placement *before any parsing* and its
+liveness check of one `[[ -d ]]` plus one `kill -0` — are superseded, the first as **impossible** rather
+than merely superseded. The clause's own note below carries the detail. **Clause 5 is the spec's only after a
 STRENGTHENING and a withdrawal**: *recommended* became **REQUIRED**, and the *"a win when there is lead
 time, a wash when there is not"* it closed with is contradicted by this document's own `cold7` pair and
 withdrawn (§5 above, spec §10.5 clause 5). **Clause 6 is the spec's only after TWO
@@ -985,6 +1091,40 @@ measured above; clause 7 is reasoned from §1b:
    only when the message streams in more than one chunk and the first chunk leads the end of the turn by
    more than the worker's 1.33–2.02 s startup; on a very short first turn there is a single chunk, it is
    the final one, and the first utterance is cold.
+   - **SUPERSEDED IN PART: the every-invocation trigger is the spec's; the two implementation properties
+     stated above are not.** What carries over unchanged is the trigger itself and the reasoning that
+     picked it — an ensure-worker step on **every** `MessageDisplay` invocation, above `rewrite.sh:127`'s
+     non-final early return, and *not* on §3.1's publish point, for the three reasons given (the final
+     invocation's concurrency with `Stop`, the publish's position after `llm_complete`, and the
+     `MIN_CHARS` gate) — together with the **Stated limit**, which the spec restates as its own STATED
+     LIMIT in the same terms (spec §10.5 clause 4). Two things do not carry over:
+     - **"Before any parsing" is not implementable, and the spec says so in those words.** The step's
+       address is `$BUF_ROOT/<session_id>/speak/`, and `rewrite.sh` has exactly one source for
+       `session_id` — the payload, parsed at `:108`; no environment variable, no session file, no
+       argument. The specified placement is therefore **after `session_id` is parsed** and before
+       `:127`'s early return, and the requirement this document meant is restated as the property rather
+       than as an ordering: **the ensure decision must be independent of the payload's *chunk role*** —
+       it must not read or branch on `final` or `delta` and must not sit inside or after `:127`'s test.
+       **Parsing `session_id` is not a violation of that; parsing `final` is.** *"No parsing"* was a
+       proxy for *"not gated on the chunk role"*, and the proxy is what failed. Why this document could
+       not see it: the probe parsed nothing because its `$SPEAK_DIR` was handed to it by the harness that
+       launched it **[rig]**, so payload-independence was a property of the *rig's environment* and not
+       of the trigger. The spec also records the consequence of the placement — `:100`'s enabled-check
+       sits above `:108`, so a disabled rewriter starts no worker — and the guard for an absent
+       `session_id`, neither of which is in this document (spec §10.5 clause 4).
+     - **"One `[[ -d ]]` and one `kill -0`" is superseded by clause 2's replacement, not by anything
+       about clause 4.** Two syscalls at a fixed path became **one `readdir` of `speak/`, one `readlink`
+       and one identity-validated liveness test** — a `ps` fork, because the generation record carries
+       `<pid>.<starttime>` and a bare pid is no longer trusted (spec §10.5 clause 2 and clause 4). The
+       spec prices the difference rather than leaving it to be found: the `readdir` runs five to seven
+       times a turn against a directory that grows for the whole session, and that it stays negligible
+       is **[inferred]**, nothing having timed it. **The `jq` count is the other half of the price and
+       it moves the other way** — the step reuses `:108`'s already-parsed `$sid`, so it costs **zero**
+       extra `jq` calls and is *cheaper* than the probe's shape on that axis while being dearer on this
+       one.
+     - **Neither correction touches a number in §4.** The leads, the ready lead, the five first-turn
+       TTFAs and turn 31 are all measurements of *when invocations fire and when a worker becomes
+       ready*, and no change to what the step does inside an invocation reaches them.
 5. **Startup warm-up synthesis**, per `bench/bench.py:471-475`. Costs 0.78–1.12 s of startup, saves
    ~0.7 s on the first real utterance.
 6. **Idle exit** at 30 minutes, matching `rewrite.sh:117`'s sweep. Re-introduces a cold start after
