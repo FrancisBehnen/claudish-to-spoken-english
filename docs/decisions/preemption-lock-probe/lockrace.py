@@ -65,6 +65,16 @@ ap.add_argument("--reclaim-gap-ms", type=float, default=0.0,
                      "process has legitimately re-created).")
 ap.add_argument("--backoff-attempts", type=int, default=20)
 ap.add_argument("--backoff-ms", type=float, default=2.0)
+ap.add_argument("--barrier-dir", default="",
+                help="two-way staging barrier. Racers write one file here the instant "
+                     "before their protocol read; the winner waits for --barrier-n of "
+                     "them before writing its pid. This is what actually puts a racer "
+                     "inside the claimed-but-unpublished window: waiting only for the "
+                     "winner's claim does not, because a racer still has to start a "
+                     "fresh interpreter afterwards, which is tens of ms against a 0-5 ms "
+                     "window.")
+ap.add_argument("--barrier-n", type=int, default=0,
+                help="winner: how many racer acknowledgements to wait for.")
 ap.add_argument("--trial", default="0")
 ap.add_argument("--label", default="")
 A = ap.parse_args()
@@ -254,6 +264,41 @@ def elect_proposed():
     return False
 
 
+def await_barrier():
+    """Winner: block until --barrier-n racers say they are at their protocol read.
+
+    Without this the staging is a hope, not a fact. run_lock.sh used to sleep 4 ms
+    and later waited for the winner's own claim record -- neither puts a racer inside
+    the window, because after either signal the racer still has to start a fresh
+    Python interpreter (tens of ms) while the window being tested is 0-5 ms. The
+    result was that S1's CLEAN cells could be clean because they had degenerated into
+    an ordinary live-owner check.
+    """
+    if not (A.barrier_dir and A.barrier_n):
+        return
+    os.makedirs(A.barrier_dir, exist_ok=True)
+    deadline = time.time() + 5.0
+    while len(os.listdir(A.barrier_dir)) < A.barrier_n:
+        if time.time() > deadline:
+            rec("barrier_timeout", seen=len(os.listdir(A.barrier_dir)),
+                wanted=A.barrier_n)
+            return
+        time.sleep(0.001)
+    rec("barrier_released", n=A.barrier_n)
+
+
+def ack_barrier():
+    """Racer: announce arrival at the protocol read, then read immediately."""
+    if not A.barrier_dir:
+        return
+    os.makedirs(A.barrier_dir, exist_ok=True)
+    try:
+        open(os.path.join(A.barrier_dir, f"r{os.getpid()}"), "w").close()
+        rec("barrier_ack")
+    except OSError:
+        pass
+
+
 # ===================================================================== main
 if A.role == "winner":
     if A.protocol == "proposed":
@@ -269,6 +314,7 @@ if A.role == "winner":
     else:
         os.mkdir(LOCK)
         rec("mkdir_ok")
+        await_barrier()
         if A.stall_ms:
             time.sleep(A.stall_ms / 1000.0)   # THE WINDOW
         who = dead_pid() if A.dead_owner else os.getpid()
@@ -280,6 +326,7 @@ if A.role == "winner":
     time.sleep(A.hold_ms / 1000.0)
 else:
     fn = {"current": elect_current, "spec": elect_spec, "proposed": elect_proposed}
+    ack_barrier()
     if fn[A.protocol]():
         rec("owner", via="election")
         time.sleep(A.hold_ms / 1000.0)

@@ -647,10 +647,20 @@ arrive at an *empty* directory and the trial silently degenerates into S5's who-
 so a **clean** S1/S2 cell could be clean because nothing was staged, not because the protocol
 held. That is the mirror image of the S3 problem: there the risk was a false pass for `proposed`,
 here it is a false *clean* for `current` and `spec`, whose S1/S2 cells at stall 0 and 5 ms are
-the ones reported clean. `trial_init` now waits for the winner's own `mkdir_ok` (`current`,
-`spec`) or `published` (`proposed`) record — both emitted immediately after the claim and
-**before** the stall, so the racers land inside the window by construction — and voids the trial
-if it never appears. **That change is UNRUN too**, on the same committed `lock-owners.tsv`. It
+the ones reported clean. **The first attempt at fixing it was itself too weak, and that is worth recording.**
+Waiting for the winner's own `mkdir_ok` / `published` record is still a one-way wait: after
+that record appears, each racer has to start a **fresh Python interpreter**, tens of
+milliseconds, while the window under test at stall 0 and 5 ms is *smaller than that*. The
+winner would write its pid first and the cell would degenerate exactly as before — so
+"the racers land inside the window by construction" was wrong when this document first
+claimed it. The staging is now a **two-way barrier**: each racer writes one file the
+instant before its protocol read, the winner blocks after claiming until `N` of those
+appear, and only then applies the stall and writes its pid. The window is therefore
+established by *ordering* rather than by out-running an interpreter start.
+A trial whose staging still fails emits `VOID` — and `summarise.sh` excludes `VOID` from
+both the numerator and the denominator and reports it on its own line, because a staging
+failure coerced to `owners=0` would otherwise read as a *protocol* failure and quietly
+inflate the very rate this table is about. **That change is UNRUN too**, on the same committed `lock-owners.tsv`. It
 does not put any *failure* in doubt: a mis-staged trial degenerates into the empty-directory
 control, which yields **1** owner, so any cell that produced 2 or 3 owners demonstrably staged
 correctly. That covers every wrong result reported here — `current` 121/400 (S1 at 50 ms, 60;

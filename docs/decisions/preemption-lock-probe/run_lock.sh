@@ -47,14 +47,17 @@ trial_init() {   # proto N stall rep scenario
   local pr=$1 n=$2 stall=$3 rep=$4 sc=$5
   local dir; dir=$(newdir "$sc-$pr-N$n-s$stall-r$rep")
   local log="$dir/log.tsv"; : > "$log"
+  local bar="$dir/barrier"; mkdir -p "$bar"
   "$PY" "$RIG/lockrace.py" --dir "$dir" --log "$log" --role winner --protocol "$pr" \
-      --stall-ms "$stall" --hold-ms "$HOLD" --trial "$rep" --label "$sc" &
-  # Wait for the winner's CLAIM, not for the clock. `mkdir_ok` (current/spec) and
-  # `published` (proposed) are both recorded immediately after the claim and BEFORE
-  # the stall, so this places the racers inside the window rather than hoping 4 ms
-  # was enough. A fixed sleep let a passing `spec` cell degenerate into S5's
-  # empty-directory who-wins control -- the same staging defect documented for S3
-  # below. 2 s is a deadlock guard, not a timing assumption.
+      --stall-ms "$stall" --hold-ms "$HOLD" --trial "$rep" --label "$sc" \
+      --barrier-dir "$bar" --barrier-n "$n" &
+  # TWO-WAY barrier, not a one-way wait. Waiting for the winner's own claim record
+  # is still not enough: after that grep succeeds each racer has to start a fresh
+  # Python interpreter, tens of ms, while the window under test is 0-5 ms -- so the
+  # winner would write its pid first and the CLEAN cells would quietly degenerate
+  # into an ordinary live-owner check. The winner now blocks after claiming until
+  # `barrier-n` racers have each announced they are at their protocol read, and only
+  # then applies the stall and writes the pid. `--barrier-dir` is per-trial.
   local waited=0
   until grep -qE 'mkdir_ok|published' "$log" 2>/dev/null; do
     sleep 0.002
@@ -69,7 +72,7 @@ trial_init() {   # proto N stall rep scenario
   local i
   for i in $(seq 1 "$n"); do
     "$PY" "$RIG/lockrace.py" --dir "$dir" --log "$log" --role racer --protocol "$pr" \
-        --hold-ms "$HOLD" --trial "$rep" --label "$sc" &
+        --hold-ms "$HOLD" --trial "$rep" --label "$sc" --barrier-dir "$bar" &
   done
   wait
   emit "$sc" "$pr" "$n" "$stall" "$rep" "$(count_owners "$log")"

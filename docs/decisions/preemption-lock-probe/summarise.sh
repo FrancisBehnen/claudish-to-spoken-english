@@ -121,13 +121,21 @@ awk -F'\t' 'NR==1{next}{printf "%s\t%s\t%s\t%s\towners=%s\n", $1,$2,$3,$4,$6}' "
 
 echo
 echo "== ROW 21 / B: per-protocol worst case and duplicate-owner rate =="
+# VOID means the STAGING failed, not the protocol. awk would coerce it to 0 and
+# score it as a duplicate-owner failure while keeping it in the denominator, so a
+# synchronisation problem would read as a protocol problem. Excluded from both, and
+# reported on its own line -- a run with any VOID is not a complete run.
 awk -F'\t' 'NR==1{next}
+$6=="VOID" { void[$2]++; next }
 { n[$2]++; if ($6+0>mx[$2]) mx[$2]=$6+0; if ($6+0!=1) bad[$2]++ }
-END{ for (p in n) printf "%s\ttrials=%d\tmax_owners=%d\ttrials_not_exactly_1=%d\trate=%.1f%%\n",
-       p, n[p], mx[p], bad[p]+0, 100*(bad[p]+0)/n[p] }' "$L" | sort
+END{ for (p in n) printf "%s\ttrials=%d\tmax_owners=%d\ttrials_not_exactly_1=%d\trate=%.1f%%%s\n",
+       p, n[p], mx[p], bad[p]+0, 100*(bad[p]+0)/n[p],
+       (void[p] ? "\tVOID=" void[p] " (staging failed; run is INCOMPLETE)" : "") }' "$L" | sort
 
 echo
 echo "== ROW 21 / C: duplicate-owner rate per protocol x scenario =="
 awk -F'\t' 'NR==1{next}
+$6=="VOID" { k=$2"/"$1; void[k]++; next }
 { k=$2"/"$1; n[k]++; if ($6+0!=1) bad[k]++ }
-END{ for (p in n) printf "%s\ttrials=%d\tnot_exactly_1=%d\trate=%.0f%%\n", p, n[p], bad[p]+0, 100*(bad[p]+0)/n[p] }' "$L" | sort
+END{ for (p in n) printf "%s\ttrials=%d\tnot_exactly_1=%d\trate=%.0f%%%s\n", p, n[p], bad[p]+0, 100*(bad[p]+0)/n[p],
+       (void[p] ? "\tVOID=" void[p] : "") }' "$L" | sort
