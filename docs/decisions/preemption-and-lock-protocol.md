@@ -848,8 +848,12 @@ run, and the warm-up player `94309` is in **24 of the 25** sweeps).
 1. **`killpg` on every election has a worse blast radius than one pid kill.** If a superseded
    owner's pid has been recycled as a group leader, the sweep signals strangers — a whole
    group, not one process. So the worker creates `playerdir/<nonce>.pending` **before** the
-   fork and the wrapper renames it away as its first act, making *"an unnamed player may
-   exist"* observable and confining `killpg` to that window. Measured: `C16a` (sweep before
+   fork and the wrapper removes it once its record is published — **not as its first act,
+   which PR #27's clause 7(i) shows is unsatisfiable**: the wrapper must obtain its pid and
+   start time, write them as the record's content and `rename(2)` it into place, so a marker
+   removed before all three is removed *inside* the window it bounds. Removing it after
+   publication is what makes *"an unnamed player may exist"* observable and confines `killpg`
+   to that window. Measured: `C16a` (sweep before
    publication) found a `.pending` at 23 of 25 sweeps and used `killpg` 23 times, killing the
    player before `exec` 12/12; `C16b` (sweep after publication) found **none**, **skipped
    `killpg` 25 times out of 25**, and the record sweep did the work 12/12.
@@ -1696,8 +1700,10 @@ annotate them.
 >     other document, not a disagreement about intent — the two must be reconciled before either
 >     ships, and the reconciliation belongs to whoever owns PR #27.
 >   - **Bound it with a generation-tagged `.pending` marker.** The worker creates
->     `playerdir/<gen>.<nonce>.pending` *before* the fork; the wrapper renames it away as its
->     first act. `killpg` is sent **only to a superseded owner whose own generation has a
+>     `playerdir/<gen>.<nonce>.pending` *before* the fork; the wrapper removes it by exact name
+>     **after** its record is published, not as its first act — PR #27 clause 7(i) makes the
+>     first-act form unsatisfiable, since publication is three operations and a marker dropped
+>     before they finish is dropped inside the very window it bounds. `killpg` is sent **only to a superseded owner whose own generation has a
 >     marker** — not merely while some marker exists anywhere — which confines its blast radius
 >     to the generations in which an unnamed player can exist. **The tag is not decoration:
 >     without the per-generation test a single marker authorises `killpg` on every historical
@@ -2219,9 +2225,15 @@ Each of these is named with the experiment that closes it, not softened.
     on `kill(pid, 0)` *before* the start time is read at all, so no outcome split in the instrument
     can reach it — verified at every site rather than argued.
 
-    **Why an un-reaped marker is not merely untidy — measured, in `C16a`.** The wrapper renames
-    its own marker away as its **first act**, so a `killpg` that *works* kills the wrapper
-    **before** that act and strands the marker that authorised it. Every successful sweep leaked
+    **Why an un-reaped marker is not merely untidy — measured, in `C16a`.** In the arm **as
+    measured** the wrapper removed its own marker early in startup — that is what the committed
+    probe did, and the specified ordering has since moved the removal after publication — so a
+    `killpg` that *works* kills the wrapper **before** it gets there and strands the marker that
+    authorised it. **The corrected ordering does not remove that property and is not meant to:**
+    a player killed before it publishes *should* leave its marker standing, because the marker's
+    presence is exactly the signal that an unnamed player may exist. What the correction changes
+    is that the marker now provably outlives the whole publish sequence instead of being dropped
+    inside it, so the leak is state the next election must reclaim rather than a hole. Every successful sweep leaked
     exactly one. The committed trace: **25 markers created, 0 removed**, `pending_found` climbing
     **1 → 12** across twelve generations, and `33f62e9b.pending` surviving from `gen1` to
     `gen12r`. The consequence is the opposite of the bound the marker was introduced to provide —
