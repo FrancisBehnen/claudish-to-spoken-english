@@ -332,8 +332,15 @@ after `$rewrite` has been obtained — that is, **after the LLM call**. `CLAUDIS
 [**52.50 s**](provider-switch-traps.md) for ~1,300 words. Whatever the provider, the publish is
 **seconds** after the final flush, and `Stop` is **milliseconds** after it.
 
-§10.3 has `speak.sh` read the buffer at step 10 and exit at step 12 without waiting. So on a turn whose
-final message is long enough to be rewritten:
+§10.3 had `speak.sh` read the buffer at **step 8** and exit at **step 9** without waiting. **Both the
+step numbers and the mechanism below are quoted as they stood when this was measured, and neither is
+the locked protocol any more** — §10.3 renumbered when preemption moved above the content-based exits
+(read is now step 10, enqueue step 12), and §3.1 replaced the mutable `speak/source` this scenario
+walks with a content-addressed `speak/rw.<H>`. Renumbering the sentence alone would make superseded
+evidence read as a description of the current design. **What the measurement establishes is the
+timing** — that `Stop` reads milliseconds after the display hook is entered and the publish lands
+seconds later — and that survives both changes untouched, because it is a fact about dispatch order,
+not about which path is read. So on a turn whose final message is long enough to be rewritten:
 
 1. final chunk arrives; `rewrite.sh` starts its LLM call;
 2. ~7 ms later `Stop` fires, and ~24 ms after the display hook was entered `speak.sh` reads
