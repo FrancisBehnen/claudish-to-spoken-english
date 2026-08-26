@@ -112,8 +112,17 @@ was run.** 1200 trials, three protocols, six scenarios **[measured-here]**:
 | `spec` — §10.5 clause 2 (a) + (b) | 400 | **3 owners** | 61 | **15.2 %** |
 | **`proposed`** — atomic `symlink` owner record, superseded by generation | 400 † | **1** | **0** | **0.0 %** |
 
-† **`proposed` produced 1 owner on 400 of 400 and NONE of those trials is confirmed to have
-exercised reclamation.** Round 3 said 20 were unconfirmed (its S3 cell, staged by a fixed 4 ms
+† **`proposed` produced 1 owner on 400 of 400, and exactly ONE of those trials is confirmed by a
+committed trace to have exercised reclamation — not none, as an earlier revision of this footnote
+said.** `traces/lock-S3_aba-proposed-r1.tsv` records the whole mechanism directly: the winner
+publishes `gen=0 owner=79728` with a dead pid, **both** racers record
+`classified_stale reason=pid_dead pid=79728 gen=0`, and racer `79731` then publishes
+`gen=1 superseded=0` and takes ownership `via=election` while the other records
+`publish_lost` and `lost`. Fixed-sleep staging makes the **untraced** trials unconfirmed; it does
+not erase a trial whose trace shows the reclamation happening. Seven per-trial lock traces are
+committed, three of them S3 — and only `proposed`'s carries a `superseded=` publish, because
+`current` and `spec` reclaim by `rmdir`/`rename` rather than by superseding. So the confirmed
+sample is **1 of 100**, and the remaining **99** are unconfirmed aggregate rows. Round 3 said 20 were unconfirmed (its S3 cell, staged by a fixed 4 ms
 sleep); round 5 found the same defect in S4 and S6, which stage the dead incumbent's record by a
 fixed `sleep 0.05`. All three reclamation scenarios — **100 trials** — are therefore staged by a
 clock, and the defect is asymmetric: under `current`/`spec` a mis-staged trial degenerates into
@@ -1303,10 +1312,15 @@ stage their incumbent by `sleep 0.05`, so the same argument applies to them verb
 count is not 160.
 
 **Read the headline as: `proposed` produced 1 owner on 400 of 400, of which 80 (S5) exercise the
-who-wins race and 0 are confirmed to have exercised reclamation of a dead owner.** That is not
+who-wins race and exactly 1 of the 100 reclamation trials is confirmed by a committed per-trial
+trace to have exercised reclamation of a dead owner** — `lock-S3_aba-proposed-r1.tsv`, where both
+racers classify the incumbent `pid_dead` and one supersedes it. The other 99 are unconfirmed
+because their staging was a clock and no per-trial trace was kept, which is not the same claim as
+never having happened. That is not
 evidence `proposed` fails — no trial produced a wrong number, and no *failure* anywhere in the
 table is in doubt, since mis-staging can only hide failures, never invent them. It is a statement
-that **the mechanism `proposed` exists to provide has not yet been shown to have run.** The
+that **the mechanism `proposed` exists to provide has been shown to run once, in the one trial
+whose trace was kept, and is unconfirmed on the other 99.** The
 harness is now correct on all three scenarios; the committed `lock-owners.tsv` predates every one
 of those fixes. Re-running S3, S4 and S6 under the synchronised driver is an open item, carried
 in §13 row 21.
@@ -2416,11 +2430,13 @@ non-blocking:
   `run_lock.sh` no longer stages anything by a clock — B's classification in S3, **B's hold on
   A's reclaim in S3**, and the dead
   incumbent's record in S3, S4 and S6 — but **the committed `lock-owners.tsv` predates every one
-  of those fixes**, so on the committed data `proposed` has **no confirmed reclamation trial at
-  all** (§3.3): 100 of its 400 are the reclamation scenarios and all 100 were clock-staged, 220
-  are structurally vacuous, and the remaining 80 answer the who-wins race. Nothing here suggests
-  `proposed` fails — mis-staging can only hide failures — but the mechanism it exists to provide
-  has not been shown to have run. **Six rounds have each found a staging defect in the previous
+  of those fixes**, so on the committed data `proposed` has **exactly one confirmed reclamation
+  trial** (§3.3): 100 of its 400 are the reclamation scenarios and all 100 were clock-staged, but
+  `lock-S3_aba-proposed-r1.tsv` is a committed per-trial trace in which both racers classify the
+  incumbent `pid_dead` and one supersedes it, so that trial did exercise the mechanism; 220 are
+  structurally vacuous, and the remaining 80 answer the who-wins race. Nothing here suggests
+  `proposed` fails — mis-staging can only hide failures — and the mechanism it exists to provide
+  has been shown to run once, on a sample of one. **Six rounds have each found a staging defect in the previous
   round's repair of this one script** — round 24's is the second clock in `trial_aba`, the one the
   round-3 repair left standing — so this is not a gap further reading will close; it is a
   re-run. Separately, clause (v)'s unlink has never run in combination with either sweep (§4b).

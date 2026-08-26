@@ -93,8 +93,17 @@ for c in $CFGS; do
         if (!(i in HC)) { nohook++
           printf "  trial %-2d has NO hook-C row -- NOT counted either way\n", i
           continue }
-        if (HC[i] != "nopid" && HC[i] != "norecord") {
-          # REACHED. The kill returned 0, so a process with that pid existed at the
+        if (HC[i] == "sent") {
+          # REACHED, and ONLY `sent` may enter here. The premise of this branch is that
+          # the kill RETURNED 0, so testing `!= nopid && != norecord` was the wrong
+          # predicate: `esrch` is a hook result too, and `record_skipped` rows carry no
+          # `result=` at all -- either could satisfy the target and live-at-K checks below
+          # and be counted as a successful reach while nothing was signalled. On the
+          # committed traces only `nopid` and `sent` occur, so no published figure moves
+          # (C14a 8 reached, C14b 12, all genuinely `sent`); it is latent, and
+          # `record_skipped` exists only because round 21 added the identity test, so a
+          # re-run is exactly when it would have bitten.
+          # The kill returned 0, so a process with that pid existed at the
           # scan. Checked, not assumed: the target must BE the b-player of this very
           # trial, and that player must have been live at K. No across-the-scan check --
           # the kill is what ends it, so it cannot outlive R.
