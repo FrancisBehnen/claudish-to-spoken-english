@@ -401,9 +401,10 @@ mechanism survives residency intact: the pid file at `$BUF_ROOT/<session_id>/spe
 next hook invocation before it drops its job. What changes is **who writes it.** §10.6 says "the speech
 child"; under residency there is no per-turn speech child, so **the worker writes the player's pid
 there** after spawning it. With that, playback already in progress dies within the hook's own wall cost
-— **median 0.086 s, max 0.219 s** measured, and now a **lower** bound rather than the measured figure
-(see the as-of note under *What the hook itself costs*) — which is still a *tighter* bound than the worker-side kill the
-probe used, because the hook runs before the worker has noticed anything at all. **But it is not a
+— **median 0.086 s, max 0.219 s** measured, which is a **historical baseline** and not a figure for the
+specified hook, whose cost is **unmeasured** (see the as-of note under *What the hook itself costs*) —
+and the *tighter* claim against the worker-side kill the probe used never rested on either number: it
+rests on **order**, because the hook runs before the worker has noticed anything at all. **But it is not a
 replacement for the worker-side kill, and an earlier draft of this document treated it as one.** That
 error is corrected in (d).
 
@@ -465,7 +466,7 @@ With that, the timeline has no gap, because the two kills partition it at the `s
 | J2 published… | who kills the stale player |
 | --- | --- |
 | before the worker writes `speak/pid` | the **worker**, on claiming J2 — one kqueue wake after publication (handoff median **0.079 s**) |
-| after the worker writes `speak/pid` | the **hook**, directly — within its own wall cost, median **0.086 s** measured, a lower bound as specified (as-of note under *What the hook itself costs*) |
+| after the worker writes `speak/pid` | the **hook**, directly — within its own wall cost, median **0.086 s** measured on the hook the probe ran; the specified hook's cost is unmeasured and this cell has no number for it (as-of note under *What the hook itself costs*) |
 
 > **FALSIFIED, 12/12, and this table is the sentence the trials were pointed at** (*SUPERSEDED* at the
 > top; spec §13 row 20). There is a **third row** it does not have: **the worker dies between `Popen` and
@@ -501,8 +502,8 @@ corrected statement, and it is **[inferred]** throughout — none of (b), (c) or
 
 - With (a)–(d), **no stale utterance survives longer than one kqueue wake or one hook wall cost after
   the newer job is published** — bounded by the measured **0.079 s** and **0.086 s** respectively, the
-  second of them a **lower** bound on the specified hook rather than a current measurement (as-of note
-  under *What the hook itself costs*), plus
+  second of them a **historical baseline** rather than any bound on the specified hook, whose cost is
+  **unmeasured** (as-of note under *What the hook itself costs*), plus
   a residual **6–38 ms** window between the pre-spawn stat and the spawn in which a player starts at all.
   On that reading §10.6's semantics hold.
 - **Only then** is synthesis cancellation reduced to a latency question — the *newer* utterance waiting
@@ -995,11 +996,21 @@ measurement — it is what a hook process did on this machine on this build. But
 probe ran, and [`speech-integration-spec.md`](speech-integration-spec.md) has since put **two
 `readdir`s and a `ps` fork** into the hook body where there were two `stat`s: §10.3 step 6 and step 12
 now scan `speak/playerdir/` and `speak/`, and step 12's liveness test validates identity with
-`ps -o lstart=` rather than a builtin `kill -0`. So wherever this document uses the range or the median
-as a **bound on how fast the specified hook does something**, that bound is the **historical measurement
-plus unmeasured overhead** — a **lower bound**, not a re-measured figure. Nothing has re-run the hook;
-the spec carries the same caveat at §10.3 and says explicitly that staying inside the old range is
-**[inferred]**.
+`ps -o lstart=` rather than a builtin `kill -0`. So this range is a **HISTORICAL BASELINE** — what that
+hook body cost — and **the cost of the hook as specified is UNMEASURED**. Wherever this document uses
+the range or the median as a **bound on how fast the specified hook does something, there is no such
+bound**, and the sentence's claim has to survive on something other than the number.
+
+> **This note was introduced to stop the figure being read as current, and it overshot in the opposite
+> direction.** It arrived saying *"a **lower bound**, not a re-measured figure"* — and a lower bound is
+> not available either: *adding operations increases work* holds only **under otherwise identical
+> conditions**, and two wall-time samples taken on two different hook bodies under different scheduling,
+> load and cache state are not that comparison. **An old observed range cannot mathematically bound a
+> future one in either direction** — 0.063 s is a fact about forty-seven processes that ran, not a floor
+> under processes that have not. What survives is the **direction and not the magnitude**: the specified
+> hook does more work than the measured one did, all else equal, so expect it to cost more.
+> **[inferred]**, and only a re-run settles the size. The spec carries the same reasoning at §10.3 and
+> counts the *lower bound* framing as a defect in its own LOCKED text at §13 row 9.
 
 ### The cold start that outruns the timeout
 
@@ -1153,20 +1164,50 @@ measured above; clause 7 is reasoned from §1b:
      of the two additions both invents a fifth mechanism and hides the one that was really added.
    - **"None measured" is no longer true of this clause. "All of it was measured" is not true either,
      and on an evidence document the difference is the whole point.** What the 312 trials over 26
-     switchable configurations reached is the **existence and necessity of the five hooks**: (i)'s
-     per-player record against the shared file and against a ledger (`C14a` vs `C14b`, `C13a`); (ii)'s
-     reclassification (`C5_norecheck`, `C15a`–`C15c`); (iii) and the need for *both* its targets
-     (`C4_noclaimkill`, `C10a`, `C10b`); (iv) on both sides of publication (`C12a`, `C12b`, against
-     `C11b` and `C12c`); (iv-a)'s record half (`C11a`, `C15c`, `C16b`); (v)'s reap (`C7_noreap` against
-     `C2`); and the `.pending` leak itself (`C16a` — 25 markers created, none removed). What **no**
-     committed arm ran is the identity-and-cleanup layer built on those hooks, all of it still
+     switchable configurations reached is the **ROLE of each of the five hooks, which is NOT the
+     necessity of all five** — and claiming necessity contradicted both the bullet directly above (*"(ii)
+     survives as an optimisation-given-the-sweep"*) and the spec, where (ii) is an **optimisation given
+     (iv) and a correctness clause only without it**. **Necessity was measured for two of the five; the
+     third had its shape measured and its independent necessity withdrawn; and the remaining two were
+     each measured into something other than necessity.** **Per hook, as the arms scored
+     them** (spec §10.5 clause 7):
+     - **(iii) the claim-time kill — MEASURED LOAD-BEARING.** `C4_noclaimkill` runs to completion
+       **12/12** at 2.50 s, and it needs *both* targets: `C10a` (published record only, no child handle)
+       kills **nothing**, 12/12 at 2.50 s; `C10b` (handle only, no record) kills 12/12 at 0.56–0.71 s.
+     - **(iv) the election-time process-group sweep — MEASURED LOAD-BEARING, and the only hook that
+       reaches the spawn-to-record region.** `C12a` kills 12/12 (audible 0.738–0.841 s) and `C12b` kills
+       **before `exec`**, 12/12; the two repairs that omit it fail 12/12 at full length (`C11b`, `C12c`).
+       Its record half **(iv-a)** covers the player that published before the sweep arrived — `C11a`,
+       `C15c`, `C16b`, all 12/12.
+     - **(i) the per-player record — the SHAPE is measured; the hook's independent necessity is not.**
+       Both alternatives were run and both fail: one shared `speak/pid` (`C14a` against `C14b`) and an
+       append-only ledger (`C13a`, scored `NOTHING-ran-to-end` 12/12 at a full 2.50 s). But the spec
+       withdrew the first revision's *"both are required"* about (i) and (iii) — (iii) with both targets
+       covers every case in which the worker survives the spawn — so what the trials put a number on is
+       (i)'s **latency** value: the hook reaches the player a median **134 ms** sooner than the worker's
+       next claim would, 123–143 ms, n = 12, `C2_hookside`.
+     - **(ii) the pre-spawn re-`stat` — MEASURED TO BE AN OPTIMISATION, not a requirement.** With the
+       worker surviving, removing it changes nothing: `C5_norecheck` still kills before the player can
+       `exec`, 12/12. With the worker dying after the spawn and **no** sweep it *is* a correctness clause
+       — `C15b` runs to completion 12/12 at 2.50 s where `C15a` (re-check present) spawns no player at
+       all — but with (iv) present the orphan is caught anyway: `C15c`, killed by the election sweep
+       12/12, audible 0.386–0.471 s. **Keep it and state the condition; do not call it necessary.**
+     - **(v) the `wait()` of its own player — what the trials establish here is about EVIDENCE, not
+       audio.** `C7_noreap` produced no surviving utterance; what it produced is a kill that cannot fail
+       — the hook's kill lands at 0.549–0.577 s and every later kill site then reports success, on all 12
+       trials, against a process already dead, where `C2` (the same arm with the worker reaping) reports
+       `ESRCH` instead. So (v) is measured necessary for the other four to be **checkable**, which is a
+       different claim from stopping stale audio and is the one the arms support.
+     - and **the `.pending` leak itself** (`C16a` — 25 markers created, none removed).
+
+     What **no** committed arm ran is the identity-and-cleanup layer built on those hooks, all of it still
      `[inferred]`: (i)'s `<pid>.<starttime>` record content and its *signal only on a positive match*
      rule (spec §13 row 20(c)); (iv)'s four-case owner test and the kernel property its middle two
      cases rest on (row 20(b)); the required **order** of (iv) before (iv-a) — every measured arm
      happened to run that order and none ran the reverse, so the 12/12 results are evidence *for* the
      order while the *requirement* is unrun (row 20(a)); and the generation-tagged `.pending` cleanup,
-     **implemented in no committed trial and ship-blocking** (row 27). So: the hooks are measured, the
-     identities and the cleanup are not.
+     **implemented in no committed trial and ship-blocking** (row 27). **So: every hook's ROLE is
+     measured and two of them as necessity; the identities and the cleanup are not measured at all.**
 
 And the closing condition §10.5 set for itself is now met, with this result:
 **cold from a hook is 2.66–5.50 s (median 3.16 s) and fails the 3 s line; warm from a hook is
@@ -1191,8 +1232,10 @@ therefore kill the previous one itself.
    pid is "written by the speech child". Under §10.5's mechanism there is no per-turn speech child, so
    **the resident worker writes the player's pid there** after spawning it, and the next hook invocation
    kills it exactly as §10.6 already says. Playback in progress therefore dies within the hook's own
-   wall cost, median **0.086 s** measured — a lower bound as the hook is now specified, per the as-of
-   note under *What the hook itself costs*. Without this sentence an implementer reads §10.6 and finds nothing
+   wall cost, median **0.086 s** measured — a **historical baseline**, with the specified hook's cost
+   **unmeasured**, per the as-of note under *What the hook itself costs*. **A *lower* bound is what that
+   note used to offer here and it was the wrong direction for this sentence anyway**: *"dies within"*
+   wants a ceiling, and a floor licenses none. Without this sentence an implementer reads §10.6 and finds nothing
    left in the design that writes the file.
    - **The WRITER changed twice and the MECHANISM was not "still the right one".** *"Written by the
      speech child"* → *"written by the resident worker"* → **published by the player's own wrapper, at a

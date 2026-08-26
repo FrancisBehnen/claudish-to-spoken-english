@@ -798,10 +798,12 @@ one. Not adopted.
 > and exits 0 without waiting (§10.3 step 12), so §6's non-blocking guarantee is **untouched** — the
 > hook wall cost measured at **0.063–0.219 s, median 0.086 s** **[hook]** is **untouched by the wait**,
 > which is a different claim from *"stays"*: that range predates the two `readdir`s and the `ps` fork
-> §10.3 and §10.5 clause 2 have since added to the hook body, so against the hook as now specified it is
-> a **lower bound** and this sentence used to read it as current. **[inferred]** that it still lands
-> inside the range; §10.3's *"which steps carry which guarantee"* paragraph states the same caveat and is
-> the authority for it. **What is unconditional is the shape, not the number** — the hook renames and
+> §10.3 and §10.5 clause 2 have since added to the hook body, so it is a **historical baseline** and the
+> cost of the hook as now specified is **unmeasured**. **This sentence has now been wrong twice in the
+> same place**: it first read the range as current, and its repair read it as a **lower bound** on the
+> specified hook, which is no more available than an upper one — §10.3's *"which steps carry which
+> guarantee"* paragraph carries the reasoning and is the authority for it. **What is unconditional is the
+> shape, not the number** — the hook renames and
 > exits, so no wait time is added to it whatever it costs. This is the whole reason
 > the wait is affordable: §6 spends its length insisting the prompt is never held, and a wait in the
 > hook would have spent that back. §10.5's worker already blocks on `kqueue(EVFILT_VNODE, NOTE_WRITE)`
@@ -1612,13 +1614,22 @@ rests on.
 >
 > **What that measurement is now, stated here because this is the section that leans on it hardest.**
 > It measured the hook the probe ran, and §10.3's step 6 and step 12 have since become two `readdir`s
-> and a `ps` fork where they were two `stat`s. So the range above is the **historical measurement plus
-> unmeasured overhead** — a **lower bound** on the hook as specified, not a re-measured figure, and the
-> 45× headroom shrinks by whatever that overhead is. **[inferred]** that it stays inside the range;
-> §10.3's *"which steps carry which guarantee"* paragraph is the authority. §15 deliberately excludes
+> and a `ps` fork where they were two `stat`s. So the range above is a **HISTORICAL BASELINE** — what
+> that hook body cost on this machine on this build, and it stands as exactly that — while **the cost of
+> the hook as specified is UNMEASURED**. The **45× headroom is a property of the baseline**, not of the
+> specified hook, whose margin against §10.4's `"timeout": 10` is unquantified.
+> **It is not a lower bound on the specified hook either, and calling it one was this section's own
+> error for one round.** *More operations cost more* holds only **under otherwise identical
+> conditions**, and a range observed on one hook body — under that moment's scheduling, load and cache
+> state — cannot bound the distribution of a different body in either direction. What is **[inferred]**
+> is the **direction**: the specified hook costs more than the measured one would have, all else equal.
+> The **magnitude is owed to a re-run**, not to an argument. §10.3's *"which steps carry which
+> guarantee"* paragraph is the authority. §15 deliberately excludes
 > this from its ten `[inferred]` **correctness** clauses because it is a latency claim rather than a
-> rule; what §13 counts as a defect is a different thing — that this document went on quoting the figure
-> as **current** at two sites after §10.3 had withdrawn it to a lower bound (round eight, below).
+> rule; what §13 counts as a defect is a different thing, and it has now counted this figure **twice**:
+> that this document went on quoting it as **current** at two sites after §10.3 had withdrawn it (round
+> eight, below), and that the withdrawal itself overclaimed in the opposite direction, restating it as a
+> **bound** at four LOCKED sites (round nine, below).
 > **What is NOT inferred is the shape**: the
 > hook renames a job and exits, so nothing below waits for anything, which is what §6 actually
 > guarantees.
@@ -1983,13 +1994,29 @@ audible; **step 6 is the whole of the hook's half of §10.6's preemption guarant
 on every row rather than only on the speaking ones is the half that was missing; and **step 12 is the
 whole of the non-blocking guarantee (§6)**. **Measured at
 0.063–0.219 s, median 0.086 s, for the whole sequence** **[hook]** — a figure taken before steps 0a–0b
-existed, and two more env-and-`stat` tests do not move it out of that range. **It also predates two
+existed, so it does not measure two of the twelve steps. **It also predates two
 `readdir`s.** Step 6 and step 12 were a `stat` and a `[[ -d ]]` at fixed paths when that range was
 measured; under §10.5 clause 2 and clause 7(i) they scan `speak/playerdir/` and `speak/` instead, and
 step 12's liveness test is a `ps` fork rather than a builtin `kill -0` since clause 2 started validating
-identity. **The range is therefore a lower bound rather than a re-measured figure**, and §10.5 clause 4
-states the same caveat where the same scan runs five to seven times a turn. **[inferred]** that it stays
-inside 0.063–0.219 s; nothing has re-run the hook against a long session's directory.
+identity. **The range is therefore a HISTORICAL BASELINE — what that hook body cost — and the cost of
+the hook as now specified is UNMEASURED.**
+
+> **This paragraph has now been wrong twice in a row, in opposite directions, and the reasoning is the
+> part worth keeping.** Draft 1 read the figure as still current for the changed hook — here as *"two
+> more env-and-`stat` tests do not move it out of that range"*, and at §3.5.1 as the cost *"stays"* that
+> range. Draft 2 withdrew it to a **lower bound** — and a lower bound is not available either. *Adding operations increases work* holds only **under otherwise
+> identical conditions**; two wall-time samples taken on two different hook bodies, under different
+> scheduling, load and cache state, are not that comparison, so **an old observed range cannot
+> mathematically bound a future one in either direction**. A 0.063 s floor is a fact about forty-seven
+> processes that ran, not a law about processes that have not. **What survives is the direction and not
+> the magnitude**: the specified hook does more work than the measured one did, all else equal, so it
+> should be expected to cost more — **[inferred]**, and the magnitude is owed to a re-run rather than to
+> an argument. **The generalisable form, because this document keeps re-learning it**: re-qualifying a
+> stale measurement is not the same as replacing it, and a qualifier that reads as a *bound* smuggles
+> back the currency the withdrawal was supposed to remove. §13 row 9.
+
+§10.5 clause 4 carries the same caveat where the same scan runs five to seven times a turn; nothing has
+re-run the hook against a long session's directory, and no figure here bounds the hook as specified.
 
 > **Steps 0a and 0b were MISSING and that was a real hole, found in review.** `speak.sh` checked only
 > the two speech-specific gates, so **a user who had switched the whole plugin off with
@@ -2190,8 +2217,10 @@ pre-check is not the guarantee.** `symlink(f"{os.getpid()}.{start_time}", speak/
     invocation, five to seven times a turn. The comparison that makes it proportionate: `rewrite.sh`
     already pays **six `jq` forks per invocation** on that same path — five at `:107-111` and one at
     `:124` **[repo]** — so this is a seventh fork behind §11's `CLAUDISH_SPEAK` gate, not a new class
-    of cost. It is folded into the same **[inferred]** that §10.3 and clause 4 already carry about the
-    hook's 0.063–0.219 s range.
+    of cost. **It is not folded into a bound.** §10.3 states that the hook's 0.063–0.219 s range is a
+    **historical baseline** and that the specified hook's cost is **unmeasured**, so this fork is one
+    more unpriced addition on that path rather than overhead absorbed inside a known range —
+    **[inferred]** in direction only, and settled by the same re-run.
 - **A dead owner is SUPERSEDED by creating generation `gen+1`, never by removing generation `gen`.**
   Nothing is unlinked from a contested path, so there is no path for an ABA to land on. **This
   replaces clause (b), which is also measured FALSE, 20/20:** `rename(2)` is atomic but it is
@@ -2900,9 +2929,15 @@ prevent. **See §15 for the ten, and §13 for the rows.**
   > the record is **per-player, at a unique path, published by the player's own wrapper before it can
   > make a sound** (§10.5 clause 7(i)). The next hook invocation then kills it exactly as this bullet
   > already says, and playback in progress dies within the hook's own wall cost — measured at median
-  > **0.086 s** **[hook]** **before** §10.3's two `readdir`s and clause 2's `ps` fork, so as a bound on
-  > the hook as now specified it is a **lower bound**, **[inferred]** to still land inside the old range
-  > (§10.3). The measured value of the hook doing the killing at all is now quantified: it reaches
+  > **0.086 s** **[hook]** **before** §10.3's two `readdir`s and clause 2's `ps` fork, so that median is
+  > a **historical baseline** and **this sentence carries no measured number for the hook as specified**.
+  > **The previous qualifier called it a lower bound, and that was wrong twice over**: an old range
+  > cannot bound a changed body's cost in either direction (§10.3), and a *lower* bound is the wrong
+  > **direction** for a *"dies within"* claim — it would license no ceiling at all on how long the stale
+  > player keeps playing, which is the only thing this bullet wants from the number. So *"dies within
+  > the hook's own wall cost"* stands as a claim about **which process does the killing and when in its
+  > sequence**, not as a latency figure; the latency is **unmeasured**.
+  > The measured value of the hook doing the killing at all is now quantified: it reaches
   > the player a median **134 ms** sooner than the worker's next claim would (123–143 ms, n = 12,
   > `C2_hookside`) **[trials]**.
   >
@@ -3216,10 +3251,10 @@ row 18 is **parked by explicit decision** rather than unresolved. So #11 can loc
 — but #23 finishes at row 17, not at "the hook runs". **An implementer who builds `speak.sh` and does
 not measure the wait has not finished the ship blocker, they have moved it.**
 
-**RE-EXAMINED TWELVE TIMES AND MEASURED TWICE — fourteen occasions across the thirteen round labels in the table below, `#28` standing for two of them — and the measurements are still the ones that matter.** The
-answer above was written before anyone had read this revision back. **Ten reads of this document, two review
+**RE-EXAMINED THIRTEEN TIMES AND MEASURED TWICE — fifteen occasions across the fourteen round labels in the table below, `#28` standing for two of them — and the measurements are still the ones that matter.** The
+answer above was written before anyone had read this revision back. **Eleven reads of this document, two review
 rounds of its sibling carried across, and two experiments** have since gone over it, and between them they
-found **thirty-three correctness defects in text this revision marked LOCKED** — with the second round finding
+found **thirty-four correctness defects in text this revision marked LOCKED** — with the second round finding
 defects **in the first round's repairs**, the first experiment finding that **two of the first round's repairs were
 themselves wrong**, the fourth round finding **five more, in four different sections, none of them
 in a repair**, the fifth round finding **four, of which two are defects in round three's and round
@@ -3252,7 +3287,16 @@ restatement of §15's `[inferred]` list omitting five of the ten, round seven's 
 an ordering clause 6 had withdrawn, the recount's §15 entry (3) carrying that same withdrawn claim to a
 third site, and round eight's two. **It is worth separating from the miscount class it resembles**: a
 miscount is one number stale in one place, whereas this is a *repair* stale in one place — and where the
-repair is a branch in a case list rather than a sentence, the stale copy changes behaviour. **Two of the fourteen occasions are not reads of this document at all** — they are review rounds
+repair is a branch in a case list rather than a sentence, the stale copy changes behaviour.
+**The ninth round found one, and it is a SECOND instance of the class `M2′` opened rather than a sixth of
+that one** — a defect in a repair, breaking the opposite way to the defect it fixed. Round eight withdrew
+the hook's 0.063–0.219 s range from *"stays"* to the **lower bound** §10.3 had already adopted, and no bound
+is available: an observed range on one hook body cannot bound a different body's cost in **either**
+direction, because *adding operations increases work* holds only under otherwise identical conditions and
+two wall-time samples from two implementations are not that. **At §10.6 the qualifier was also the wrong
+direction for its own sentence** — a *"dies within"* claim needs a ceiling and was handed a floor. **The
+class now has two members and both are the same lesson**: the round that repairs a claim is the round least
+able to audit its own repair. **Two of the fifteen occasions are not reads of this document at all** — they are review rounds
 24 and 25 of [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md), whose findings landed here
 because the two documents specify one mechanism and this one had the defect.
 
@@ -3290,13 +3334,14 @@ because the two documents specify one mechanism and this one had the defect.
 | **7** | **§13 row 24 claimed an ordering §10.5 clause 6 had already withdrawn** — the round that priced the forward-jump residual corrected clause 6 (*"It does NOT make the 20-against-30 inequality an ordering by construction"*) and left row 24's own left cell still saying *"the ordering holds by construction rather than by argument"*, one cell away from the right-hand cell pricing the race that survives it. **A repair applied to the clause and not to the row that summarises it** — the same shape as the counts this section keeps re-deriving, on a ship-blocking row | §13 row 24, §10.5 cl. 6 |
 | **R** | **§15's `[inferred]` entry (3) still carried the withdrawn *“ordering by construction”* claim** — the withdrawal that round `M2′` applied to §10.5 clause 6 and round seven applied to §13 row 24 never reached entry (3), which went on describing the mtime replacement as one that *“makes the ordering hold by construction”*. **A repair applied to the clause, then to the row that summarises it, and not to the list that enumerates it** — one withdrawal, three sites, and the third found only by re-deriving the totals below | §15 entry (3), §10.5 cl. 6 |
 | **8** | **the process-group sweep's case list was missing its fourth case — and so was the ONE rule that governs every other signalling site.** Clause 2 and §10.3 step 6 grew an `unverifiable` branch for a failed `ps` lookup, and the two sites that inherit from them did not: **clause 7(iv)'s owner test stayed on three cases and clause 7(i)'s *“skips in silence on a mismatch”* stayed on one**, and that sentence is the only rule clause 7(iii) and 7(iv-a) have — neither enumerates cases of its own. A failed lookup therefore fell through into *“no such process”*, which is the one outcome on that list that **signals**: `killpg` could address a recycled pid's unrelated process group — the catastrophic blast radius §13 row 20(b) blocks shipping for — and (iii) and (iv-a) could `kill` a stranger, both reached through a **transient `ps` failure** rather than through pid reuse being likely, and the trigger correlates with the hazard exactly as #28 argued for clause 2. **Step 6's own text asserting *“the same four as clause 7(iv)'s owner test”* while 7(iv) had three is what made it findable.** The rule is restated as **signal only on a positive match**, so the branch cannot be dropped again by enumeration; the skip's cost — an orphan surviving one election, `C12a`'s 2.50 s — is priced in the clause, and the marker-retention question it raises is left to rows 20(a)/21(a) rather than half-imported | §10.5 cl. 7(i), cl. 7(iv), §10.3 step 6 |
-| **8** | **a measurement this document had already withdrawn was still quoted as current at two sites.** §10.3 restated the hook's **0.063–0.219 s, median 0.086 s** as a **lower bound** — the figure predates the two `readdir`s and the `ps` fork clause 2 added — while **§3.5.1 went on saying the cost *“stays”* that range** and **§10.6's review block went on bounding playback death by *“median 0.086 s”***. Tag honesty: a figure tagged **[hook]** as measured is a lower bound plus unmeasured overhead, and the inference that it still lands inside the old range is not the measurement. **Same shape as row R** — one number corrected in one place — and the same shape as the three as-of commits this table deliberately does not count, except that these two sites are in **this** document's LOCKED text, which is what makes them rows. §6 now carries the as-of note so the caveat has one home rather than none | §3.5.1, §10.6, §6 |
+| **8** | **a measurement this document had already withdrawn was still quoted as current at two sites.** §10.3 restated the hook's **0.063–0.219 s, median 0.086 s** as a **lower bound** — the figure predates the two `readdir`s and the `ps` fork clause 2 added — while **§3.5.1 went on saying the cost *“stays”* that range** and **§10.6's review block went on bounding playback death by *“median 0.086 s”***. Tag honesty: a figure tagged **[hook]** measures the body that was measured, and quoting it as current for a changed body is not that measurement. **Same shape as row R** — one number corrected in one place — and the same shape as the three as-of commits this table deliberately does not count, except that these two sites are in **this** document's LOCKED text, which is what makes them rows. §6 now carries the as-of note so the caveat has one home rather than none. **The repair this round applied was itself wrong and is row 9 below**: *lower bound* is a bound, and the withdrawal's whole point was that no bound is available | §3.5.1, §10.6, §6 |
+| **9** | **the repair that withdrew that measurement OVERCLAIMED IN THE OPPOSITE DIRECTION, and the overclaim reached four LOCKED sites.** §10.3 introduced *“the range is a **lower bound** on the hook as now specified”* when clause 2's `ps` fork landed, and **round eight propagated that framing to §3.5.1, §6 and §10.6 rather than questioning it** — and **an old observed range bounds a changed hook body in neither direction**. *Adding operations increases work* holds only **under otherwise identical conditions**; two wall-time samples taken on two implementations under different scheduling, load and cache state are not that comparison, so a 0.063 s floor is a fact about forty-seven processes that ran rather than a law about processes that have not. **The correct statement is a HISTORICAL BASELINE plus an UNMEASURED current cost**, with only the *direction* of the change **[inferred]**. **At §10.6 the qualifier was also the wrong direction for its own sentence**: that bullet needs a **ceiling** on how long a stale player keeps playing (*“dies within the hook's own wall cost”*) and the caveat attached to it was a **floor**, which licenses no ceiling at all — a qualifier that reads as a bound smuggled back exactly the currency the withdrawal removed. **Not a new shape but the SECOND instance of `M2′`'s** — a defect in a repair one round old, breaking the opposite way to the defect it fixed — and it is counted for row 8's own reason: §3.5.1, §6, §10.3 and §10.6 are **this** document's LOCKED text. The two evidence documents carried it too and that half is **not** a row, per the EIGHTH note below | §10.3, §6, §3.5.1, §10.6, §10.5 cl. 4, §15 |
 
 **The lock still holds on its own test, and the test is worth restating rather than assumed:** *every
 section is either LOCKED with the evidence that decided it, or OPEN with a closing condition that does
-not require re-deciding anything.* **All thirty-three defects were repairable without a new decision from
-the listener** — and the thirty-three split two ways rather than one, which the old *"all six"* framing hid:
-**twenty-nine were repairable from evidence already in the document or in the committed rig**, and **the four marked M and M2 were
+not require re-deciding anything.* **All thirty-four defects were repairable without a new decision from
+the listener** — and the thirty-four split two ways rather than one, which the old *"all six"* framing hid:
+**thirty were repairable from evidence already in the document or in the committed rig**, and **the four marked M and M2 were
 falsified by the run that found them and repaired from that same run's evidence**, which is a stronger
 position rather than a weaker one. The judgements between competing repairs are recorded with their
 costs — clause 6's separation, clause 5's required-versus-recommended, round four's choice to
@@ -3324,11 +3369,12 @@ on. So #11 can lock and #23 can start — with two more blockers than it had yes
 > two, three in the first measurement round, two in round three, five in round four, four in round
 > five, four in round six, two carried across from #28, one in the sleep measurement, one in the
 > review of that measurement's own repair, two in round seven, one in the recount of 2026-08-26, two in
-> round eight — thirty-three.**
+> round eight, one in round nine — thirty-four.**
 > Re-derived from the table on each revision rather than incremented, which is the only way this note
 > stays true of itself. **Round eight's total was derived by counting the table's own rows with `awk`
-> and grouping them by label**, not by adding two to thirty-one: `4+2+3+2+5+4+4+2+1+1+2+1+2 = 33` over
-> thirteen labels, `#28` standing for two occasions.
+> and grouping them by label**, not by adding two to thirty-one: at round eight that produced
+> `4+2+3+2+5+4+4+2+1+1+2+1+2 = 33` over thirteen labels, and the same script at round nine produces
+> `4+2+3+2+5+4+4+2+1+1+2+1+2+1 = 34` over **fourteen**, `#28` standing for two occasions.
 >
 > **This total was carried as a FLOOR of twenty-three until 2026-08-26, and the floor is now SETTLED
 > rather than restated.** The table had no row for round six, none for the two rounds of #28 whose
@@ -3370,7 +3416,9 @@ on. So #11 can lock and #23 can start — with two more blockers than it had yes
 > survived in clause 6, which credited the clock correction while omitting the 30 → 20-minute interval.
 > **A `[trials]` coverage claim over a mechanism no trial ran is a tag-honesty defect**, and it is the
 > fifth in the same class rather than a new one: the defect was in an evidence document, and this table
-> counts defects in **this** document's LOCKED text. **The total is unchanged at thirty-three.**
+> counts defects in **this** document's LOCKED text. **The total is unchanged by it** — stated without a
+> numeral on purpose, because a total written in a second place is the miscount this note keeps finding;
+> the table's own re-derivation above is the authority.
 >
 > **A SIXTH of that class landed on 2026-08-26 and is likewise not a row — and the fact that there is a
 > sixth is the finding, not any one of its sites.** Three rounds have now re-qualified
@@ -3395,11 +3443,11 @@ on. So #11 can lock and #23 can start — with two more blockers than it had yes
 > into an n = 38 sentence; *"negative on every cold turn"* over a column empty on 2 of the 7; a
 > single-chunk narration of a turn its own data records at three; and three `rewrite.sh` line citations
 > — two off by one, one off by two — against the same lines this document cites correctly.
-> **The count stays at thirty-three for
-> the reason the notes above give**, and the reason is worth restating now that the class has **seven**
-> entries, counting the one recorded below: the table counts defects in this document's LOCKED text, and an
+> **The count is unchanged by it, for
+> the reason the notes above give**, and the reason is worth restating now that the class has **eight**
+> entries, counting the two recorded below: the table counts defects in this document's LOCKED text, and an
 > evidence document's re-qualification is a defect in a *record of what was measured*, not in a
-> specification. **What the seven entries do say, and it is why they are tracked here rather than
+> specification. **What the eight entries do say, and it is why they are tracked here rather than
 > discarded, is that the rate at which this class recurs has not fallen** — every round that has looked
 > has found more, and the shapes repeat: a ratio quoted without the caveat its source attaches, an
 > *"all"* or *"every"* over a set the data does not cover, and a repair applied to one of two parallel
@@ -3423,9 +3471,24 @@ on. So #11 can lock and #23 can start — with two more blockers than it had yes
 > are in that category and one of them survives on a coincidence of primitive** — its 8-hooks-to-1-owner
 > result is about exclusive create, and `symlink(2)` happens to share the property `mkdir` had, which
 > this round states at the site rather than leaving for a reader to reconstruct. **Not a row, for the
-> reason the six notes above give, and the total is unchanged at thirty-three.** What is new is that the
+> reason the six notes above give, and the total is unchanged by it.** What is new is that the
 > class now has a **stated residual** rather than only a rate: a future change to §10.5 or §10.6 needs no
 > edit to that document's design sections, and does need its scope column re-checked.
+>
+> **An EIGHTH of that class landed on 2026-08-26 and is likewise not a row — and it is the residual the
+> SEVENTH note predicted, arriving exactly where that note said a rule could not reach.** The category it
+> named was *"a measurement whose number survives while its evidential scope does not"*, and this is that
+> category again: the hook's **0.063–0.219 s, median 0.086 s** carried a **lower bound**
+> re-qualification at five sites in [`worker-residency.md`](worker-residency.md) — its own as-of note, the
+> `(c)` sub-argument, the two-row partition table, the (a)–(d) bullet and the §10.6 qualifier — and at one
+> in [`handoff-match-rate.md`](handoff-match-rate.md)'s repair table. **The same wrong framing was in this
+> document's LOCKED text at four sites, and that half IS a row — row 9** — which is the cleanest
+> demonstration yet of why the two halves are counted differently: one repair, one wrong idea, **ten**
+> sites, and the table counts the four that are specification rather than the six that are record. **Not a row,
+> and the total is unchanged by it.** The residual the SEVENTH note stated is now **narrower by one
+> instance and not closed**: the scope column it asks a future change to re-check is exactly what failed
+> here, and it failed by being re-qualified rather than by being left stale — so the check has to read what
+> the new qualifier *claims*, not only whether one is present.
 >
 > **The same pass re-derived the total and found §15's tally still reading NINE
 > reads and THIRTY-ONE over a twelve-item list** while this note and the rest of §15 had moved to
@@ -3782,8 +3845,9 @@ Stated so a reviewer can attack the right parts.
   **What the count deliberately EXCLUDES, so that a recount lands on ten rather than fourteen.** Four
   other things in this document carry an `[inferred]` tag and are **not** correctness clauses: §10.5
   clause 4's claim that the `readdir` stays negligible on a long session's directory, §10.3's claim
-  that the hook's 0.063–0.219 s range survives the two `readdir`s and the `ps` fork that replaced two
-  `stat`s, §10.7's row for a worker that can never start, and **§3.5.1 clause 3's assumption that a
+  that the two `readdir`s and the `ps` fork which replaced two `stat`s raise the hook's cost **above**
+  the 0.063–0.219 s baseline — a claim about **direction only**, since §10.3 states the specified hook's
+  cost is unmeasured and neither bounds it, §10.7's row for a worker that can never start, and **§3.5.1 clause 3's assumption that a
   declared hook timeout is enforced** (§13 row 26) — which sets how long the wait runs, not whether any
   rule here is true, and whose worst outcome is silence a few seconds early on a non-default
   configuration. The first two are latency, the third is a disclosed failure path, the fourth is a
@@ -3846,18 +3910,18 @@ Stated so a reviewer can attack the right parts.
     finding out what it did not know. **Ten is the number to be uncomfortable about only if the
     alternative reading is that eight was ever the true one**; it was not, and the two entries round
     five added were false before it wrote them down.
-- **TEN reads of this document, TWO review rounds of its sibling carried across, and TWO measurement
-  rounds have now found THIRTY-THREE
+- **ELEVEN reads of this document, TWO review rounds of its sibling carried across, and TWO measurement
+  rounds have now found THIRTY-FOUR
   correctness defects in text this revision itself marked LOCKED, and the rate — not any one defect — is
   the weakness.** Counted so the number is checkable, off §13's table rather than off this sentence:
   **four in round one, two in round two, three in the first measurement round,
   two in round three, five in round four, four in round five, four in round six, two carried across
   from #28's rounds 24 and 25, one in the sleep measurement, one in the review of that measurement's
   own repair, two in round seven, one in the recount that settled these numbers, and two in round
-  eight** — thirteen labels, `4+2+3+2+5+4+4+2+1+1+2+1+2 = 33`, derived by counting the table's own rows
+  eight and one in round nine** — fourteen labels, `4+2+3+2+5+4+4+2+1+1+2+1+2+1 = 34`, derived by counting the table's own rows
   and grouping them by label rather than by adding to the previous total. **This bullet said NINE reads
   and THIRTY-ONE, over a twelve-item tally, until 2026-08-26**, when round eight's two rows had been
-  added to §13 and its note re-derived to thirty-three and this sentence had not: a miscount rather than
+  added to §13 and its note re-derived and this sentence had not: a miscount rather than
   a defect, in the shape §13's note describes and for the reason it gives — a count written twice will
   disagree with itself — and corrected here where it lives rather than counted as a fourteenth occasion.
   **Both numbers were FLOORS — *at least seven* rounds and *at least twenty-three* defects — until
@@ -3875,6 +3939,9 @@ Stated so a reviewer can attack the right parts.
   fell through into the one outcome on those lists that **signals**; and the hook's 0.063–0.219 s range,
   already withdrawn to a lower bound in §10.3, still quoted as measured in §3.5.1 and §10.6. **Both are
   one repair landing at one of two parallel sites**, which is now this table's most frequent shape.
+  *Round nine*: that withdrawal was itself wrong — **no** bound on the specified hook is available in
+  either direction, and at §10.6 the *lower* bound was also the wrong direction for a *"dies within"*
+  sentence, which needs a ceiling. §13 row 9, and the second member of class `M2′`.
   *The recount*: the `[inferred]` entry (3) above still carrying the
   *"ordering by construction"* claim that `M2′` had withdrawn from §10.5 clause 6 and round seven had
   withdrawn from §13 row 24 — one withdrawal, three sites, the third reached only by re-deriving these
@@ -3979,10 +4046,10 @@ Stated so a reviewer can attack the right parts.
   shape appeared, §13 rows 20 and 21 were pointed at it, and the run confirmed the smell** — both of
   its ordering rules failed, and the repair that held is §3.1's repair again: a record that is created
   and never mutated, with ownership carried by a name.
-- **All thirty-three are repaired in place, none needed a new decision from the listener, and that is why
-  §13 still answers *"can #11 lock?"* with yes.** But ten reads of this document, two reads of its
+- **All thirty-four are repaired in place, none needed a new decision from the listener, and that is why
+  §13 still answers *"can #11 lock?"* with yes.** But eleven reads of this document, two reads of its
   sibling and two experiments on the
-  same text found thirty-three real defects; the second read found defects **in the first read's repairs**;
+  same text found thirty-four real defects; the second read found defects **in the first read's repairs**;
   the experiment found that **two of the first read's repairs were themselves wrong**; the fourth
   read — the only one to find nothing wrong in anybody's repair — still found **five**, in four
   sections, every one of them in text that had been read at least twice already; the fifth read
@@ -3996,8 +4063,10 @@ Stated so a reviewer can attack the right parts.
   list; **and the eighth read found two, both of them a repair that landed at one of two parallel sites**
   — the `unverifiable` branch added to clause 2 and §10.3 step 6 and to neither of the two sites that
   inherit from them, which is
-  the only one of the eight rounds' findings whose stale copy still **signals a process**, and the
-  hook's withdrawn 0.063–0.219 s range still quoted as measured two sections away.
+  the only one of the nine rounds' findings whose stale copy still **signals a process**, and the
+  hook's withdrawn 0.063–0.219 s range still quoted as measured two sections away; **and the ninth read
+  found one — that round eight's own withdrawal had overclaimed the other way**, restating an unusable
+  measurement as a *lower bound* at four LOCKED sites.
   **The rate is not falling, and round four's clean sheet on repairs did not hold as a trend.**
   **Round six is the sharpest datum on that**: two of its four are defects in round five's repairs and
   the other two are LOCKED bookkeeping that had drifted from the tables it summarised, so not one of the
