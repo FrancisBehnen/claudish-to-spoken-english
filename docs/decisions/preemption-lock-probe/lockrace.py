@@ -353,6 +353,11 @@ if A.role == "winner":
         who = dead_pid() if A.dead_owner else os.getpid()
         os.symlink(str(who), gen_path(g))
         rec("published", gen=g, owner=who, window="none")
+        # The barrier runs for `proposed` TOO. It has no pid-less window -- the
+        # symlink's target is created with it -- but the racers still block on the GO
+        # token, so a winner that never releases them leaves every racer in
+        # release_timeout and the whole cell VOID. Omitting this call did exactly that.
+        await_barrier()
         if A.stall_ms:
             time.sleep(A.stall_ms / 1000.0)   # after publication: no window exists
         if not A.dead_owner:

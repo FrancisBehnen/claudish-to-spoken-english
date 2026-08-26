@@ -77,7 +77,13 @@ if [[ -f $EXPECTED ]]; then
     exit 2
   fi
 else
-  echo "WARNING: no manifest at $EXPECTED, so completeness was NOT checked" >&2
+  # A warning is not a guard. The whole point of the manifest is that a partial
+  # evidence set must not read as a pass, and "the manifest was missing" is the most
+  # likely way for it to go partial. Refuse, and make the override explicit.
+  echo "NO MANIFEST at $EXPECTED -- completeness cannot be checked, so this is NOT a pass." >&2
+  echo "Set ALLOW_NO_MANIFEST=1 to accept an unchecked run deliberately." >&2
+  [[ ${ALLOW_NO_MANIFEST:-0} = 1 ]] || exit 2
+  echo "WARNING: proceeding without a completeness check because ALLOW_NO_MANIFEST=1" >&2
 fi
 
 [[ $fail -eq 0 ]] && echo "all hooks fired ($seen configurations)" \
