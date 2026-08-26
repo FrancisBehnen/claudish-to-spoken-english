@@ -338,7 +338,10 @@ need "$T/C14b_perplayer_unlink.hook-kills.log" && { awk '{ if ($0 ~ /result=nore
   "$T/C14b_perplayer_unlink.hook-kills.log" || derive_failed C14b-hook; }
 
 hdr "C15c/C16: was killpg USED or SKIPPED, and did the player still die?"
-echo "   (the pending marker bounds pgid-reuse blast radius to the narrow window)"
+echo "   (the pending marker did NOT bound the blast radius in THIS arm: the committed"
+echo "    marker is a boolean, it leaked -- 25 created, 0 removed -- and the gate was"
+echo "    open on 23 of 25 elections against 12 staged windows. The generation tag and"
+echo "    the owner-identity check that would bound it are specified and UNRUN.)"
 echo "   C15c is included because round 2 credited its 12/12 to the pgid sweep. It is"
 echo "   not: killpg is skipped on every election and the RECORD sweep does the work,"
 echo "   which is why clause 7(iv-a) exists."

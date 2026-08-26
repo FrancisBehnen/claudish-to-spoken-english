@@ -76,10 +76,20 @@ if [[ -f $P_MANIFEST ]]; then
   p_missing=$(awk -F'\t' -v man="$P_MANIFEST" -v want="$P_TRIALS" '
     BEGIN { while ((getline L < man) > 0) { sub(/[ \t]*#.*/, "", L); gsub(/[ \t]/, "", L)
                                             if (L != "") EXP[L]=1 } }
-    NR>1 { seen[$1]=1; k=$1 SUBSEP $2; if (!(k in T)) { T[k]=1; n[$1]++ } }
+    # Counting DISTINCT (config, trial) keys is not the same as validating the shape:
+    # a duplicated row collapses to the same key, so n[c] still reaches 12 while every
+    # summary below counts the row twice. And "12 distinct ids" accepts 1..11 plus 13.
+    # So: count rows, reject repeats, and require each id to be an integer in 1..want.
+    NR>1 { seen[$1]=1; rows[$1]++
+           k=$1 SUBSEP $2
+           if (k in T) DUP[$1] = DUP[$1] " " $2; else { T[k]=1; n[$1]++ }
+           if ($2 !~ /^[0-9]+$/ || $2+0 < 1 || $2+0 > want) BADID[$1] = BADID[$1] " " $2 }
     END { bad=0
-          for (c in EXP) { if (!(c in seen)) { printf "  MISSING configuration: %s\n", c > "/dev/stderr"; bad++ }
-                           else if (n[c] != want) { printf "  SHORT %s: %d distinct trials, expected %d\n", c, n[c], want > "/dev/stderr"; bad++ } }
+          for (c in EXP) { if (!(c in seen)) { printf "  MISSING configuration: %s\n", c > "/dev/stderr"; bad++ ; continue }
+                           if (n[c] != want) { printf "  SHORT %s: %d distinct trials, expected %d\n", c, n[c], want > "/dev/stderr"; bad++ }
+                           if (rows[c] != want) { printf "  ROW COUNT %s: %d rows for %d trials\n", c, rows[c], want > "/dev/stderr"; bad++ }
+                           if (c in DUP) { printf "  DUPLICATE trial rows in %s:%s\n", c, DUP[c] > "/dev/stderr"; bad++ }
+                           if (c in BADID) { printf "  TRIAL ID out of 1..%d in %s:%s\n", want, c, BADID[c] > "/dev/stderr"; bad++ } }
           for (c in seen) if (!(c in EXP)) { printf "  UNEXPECTED configuration: %s\n", c > "/dev/stderr"; bad++ }
           print bad+0 }' "$P")
   if [[ ${p_missing:-1} -ne 0 ]]; then
@@ -89,7 +99,16 @@ if [[ -f $P_MANIFEST ]]; then
     exit 2
   fi
 else
-  echo "summarise.sh: no manifest at $P_MANIFEST -- the row-20 denominator was NOT checked." >&2
+  # A warning is not a guard, and this script fixed exactly that shape in verify_fires.sh
+  # two revisions ago before reintroducing it here. The manifest is the ONLY independent
+  # definition of the expected 26 configurations, so without it a truncated
+  # preemption-trials.tsv produces summaries and exits 0 -- defeating the check above by
+  # removing one file. Fail closed, with a named override, as verify_fires.sh does.
+  echo "summarise.sh: no manifest at $P_MANIFEST -- the row-20 denominator CANNOT be" >&2
+  echo "checked, so this is NOT a re-derivation. Set ALLOW_NO_MANIFEST=1 to accept an" >&2
+  echo "unchecked run deliberately." >&2
+  [[ ${ALLOW_NO_MANIFEST:-0} = 1 ]] || exit 2
+  echo "WARNING: proceeding with an UNCHECKED row-20 denominator (ALLOW_NO_MANIFEST=1)" >&2
 fi
 
 # ROUND 17. THE ROW-21 DENOMINATOR WAS NEVER VALIDATED, ONLY CHECKED FOR EMPTINESS.
@@ -342,6 +361,23 @@ if [[ -f "$R" ]]; then
   if [[ -z $arms ]]; then
     echo "   EMPTY: $R has no trials -- section E cannot be re-derived" >&2
     MISSING_E=1
+  else
+    # collect_real.sh enforces the 3+3 shape when it GENERATES the file; that does not
+    # protect this consumer from a truncated committed input. Section E's whole content
+    # is a comparison of two arms, so one arm, or a short one, is not a re-derivation.
+    e_bad=$(awk -F'\t' -v want="${REAL_TRIALS:-3}" '
+      NR>1 { c[$1]++ }
+      END { bad=0
+            for (a in c) if (a != "REAL-off" && a != "REAL-pidfile") {
+              printf "   UNEXPECTED real-audio arm: %s\n", a > "/dev/stderr"; bad++ }
+            split("REAL-off REAL-pidfile", W, " ")
+            for (i=1; i<=2; i++) if (c[W[i]]+0 != want) {
+              printf "   %s has %d trials, expected %d\n", W[i], c[W[i]]+0, want > "/dev/stderr"; bad++ }
+            print bad+0 }' "$R")
+    if [[ ${e_bad:-1} -ne 0 ]]; then
+      echo "   INCOMPLETE: section E needs both arms at ${REAL_TRIALS:-3} trials each" >&2
+      MISSING_E=1
+    fi
   fi
   for a in $arms; do
     awk -F'\t' -v a="$a" 'NR>1 && $1==a {print $5}' "$R" | stats "$a timerstart_to_exit_s"
