@@ -118,9 +118,10 @@ owner's pid, which only row 21's generation protocol supplies — a protocol tha
 record of the worker it replaced cannot. They can no longer be signed off independently.
 
 **Both rows stay ship-blocking**, and the reason has changed: they are no longer unverified.
-**Eight consecutive rounds of review have each found a real defect in the previous round's
+**Nine consecutive rounds of review have each found a real defect in the previous round's
 confident answer**, including in the repair this document proposed, in the *text* of the repair
-that replaced it, and — round 16 — in the identity check round 15 added to repair the repair. See §6.
+that replaced it, round 16's defect in the identity check round 15 added to repair the repair,
+and — round 17 — in the *derivations* of two published figures rather than in any mechanism. See §6.
 
 ---
 
@@ -165,12 +166,12 @@ the two arms are compared under the same predicate rather than across a changed 
 [`preemption-trials-replication.tsv`](preemption-trials-replication.tsv) the replication, and
 `preemption-lock-probe/compare_passes.sh` prints them side by side.
 
-**Eight derivation defects have been found by review, and all eight are fixed here. Five of them
+**Ten derivation defects have been found by review, and all ten are fixed here. Five of them
 made the reproducibility claim false, which was the claim the whole document rested on.** The
 first three came from review of the first revision; the next two from round 5, the sixth from
-round 15, the last two from round 16, and all of them are of the same kind — a figure whose name
-and whose derivation are not the same quantity, or a derivation that does not reach the figure it
-is cited for.
+round 15, the seventh and eighth from round 16, the last two from round 17, and all of them are
+of the same kind — a figure whose name and whose derivation are not the same quantity, or a
+derivation that does not reach the figure it is cited for.
 
 1. **The medians were not medians.** `summarise.sh` took `v[int((NR+1)/2)]`, the **lower middle**
    observation. Every sample here is even-sized, so the script systematically did not re-derive
@@ -255,6 +256,49 @@ is cited for.
    paragraph below; the script did not, and a script that overstates its own coverage is the
    quietest way for *"every figure re-derives"* to stop being true. The header now states what
    the script covers — sections A–F, from the TSVs — and names `analyse_round2.sh` for the rest.
+9. **`C14a`'s headline figure was an addition of two counters that shared no key — round 17.**
+   `analyse_round2.sh` counted `plog` (unlinks ordered after a newer player's own `player_start`)
+   and `hookc` (hook-C reads that found nothing) as independent **global** totals, printed their
+   **sum** as *"PROVEN destructions of a published record"*, and then stated as fact that *"they
+   fall in the SAME k trials, and they are distinct unlinks"*. **Neither half was derived.**
+   There was no join on trial and none on unlink identity, so the same unlink satisfying both
+   witnesses, or the two counts coming from disjoint trials, would have produced identical
+   arithmetic. This mattered more than the usual: the figure — **8 destructions across 4 trials** —
+   is *itself* the correction that replaced a withdrawn one (24 across 12/12, lost with harness
+   defect 4), so a correction was resting on an assertion, in the one spot this document has
+   already published two wrong numbers. The keys were in the committed traces the whole time,
+   including a third file the block never opened: `record_unlinked` carries `job=jNa|jNb`, so
+   **(trial, timestamp) is a unique event key**; `hook-kills.log` carries the trial in its `tNc`
+   tag but **has no timestamp column**, so it cannot order a read against an unlink on its own;
+   and `markers.tsv` carries `tNc entry`, the instant hook C read — which `analyse_c14.sh`
+   already used and this block did not. The hook-C witness is now bound to a **named** unlink by
+   a window with two derived ends, `W_pid_write[jNb]` below and the `tNc entry` marker above,
+   and the script prints the **union of distinct events** with the intersection **computed**, the
+   **distinct trial count**, and each event's **rank among its own trial's unlinks** in place of
+   the "first / second" claim. Over the committed traces every window holds exactly one unlink,
+   the intersection is **0**, and **the figure is unchanged at 8 across 4 trials** — it is now
+   derived rather than asserted. Where a window is ambiguous or a marker is missing the script
+   **narrows**: the trial still counts, the event does not, and the shortfall is named. Both
+   directions are exercised — see the demonstration in §1's validator list below.
+10. **Row 21's denominator was never validated, only checked for emptiness — round 17.**
+   `summarise.sh` rejected a `lock-owners.tsv` with no data rows and accepted **every other
+   shape**, and `assemble.sh` copies the file into place without reading it either. So an
+   interrupted run, or one that lost an entire protocol or scenario cell, would re-derive the
+   advertised **1200-trial / 400-per-protocol** result over a **smaller or differently-weighted
+   denominator** and still print a clean summary under the same headings — the same
+   annotate-but-do-not-enforce shape round 15 closed for `VOID` rows, one level up at the shape
+   of the matrix rather than the outcome of a cell. The expected matrix is now checked before
+   **any** section prints, and it is **not derived from the file being validated** (which would
+   make the check vacuous — a truncated file would derive a truncated expectation and pass
+   itself). It is transcribed from `run_lock.sh`'s driver loop and each trial function's `emit`:
+   3 protocols × (`S1` 3 `N` × 3 stalls, `S2` 1 `N` × 2 stalls, `S3` 1, `S4` 1, `S5` 4, `S6` 3)
+   = **60 cells × 20 reps = 1200 rows, 400 per protocol**. Rep numbers are checked too, so two
+   runs merged or one resumed over itself is caught even when the row count is right. `REPS` is
+   deliberately a constant and not read from the data: a uniformly half-length run would
+   otherwise derive `REPS=10` from itself and pass over 600 rows, which is precisely the failure
+   this check exists to catch. `VOID` rows still count toward the matrix — a `VOID` trial was
+   attempted and occupies its slot — so this and the `VOID` check stay orthogonal and neither is
+   loosened. **The denominator is now printed above row 21/A rather than assumed.**
 
 **Four HARNESS defects were also found and are disclosed here, because three of them changed
 results and one of them destroyed data.** They are listed rather than quietly fixed, since a
@@ -402,6 +446,27 @@ refusing the bad input, and still accepting the committed one.
   runs of one configuration is an ambiguity the script must not resolve by picking. The
   historical timestamp survives as an explicit override (`PASS1_C3_adversarial=…`) rather than
   as a hidden default.
+
+**And one more in round 17, in the script that publishes row 21's denominator.** Same rule: it is
+demonstrated refusing bad input *and* accepting the committed evidence unchanged.
+
+- **`summarise.sh` validated that `lock-owners.tsv` was non-empty and nothing else.** See §1
+  derivation defect 10 for what the check now is. Executed against the committed file it exits
+  **0** and prints `row-21 matrix: 3 protocols x 6 scenarios = 60 cells x 20 reps = 1200 trials
+  (found 1200 rows)` above row 21/A, with `current` **400 / 30.2%**, `spec` **400 / 15.2%** and
+  `proposed` **400 / 0.0%** byte-identical to before. Against five bad shapes it exits **2**
+  before printing a single line of stdout, naming the cells: a run **truncated** at 1063 rows
+  (six missing cells and one short one, all named); a whole **protocol × scenario cell** removed
+  (`spec`/`S5_scratch`, 1120 rows); a **re-run appended** (1220 rows — caught both as a long cell
+  and as twenty repeated rep numbers); a file with **exactly 1200 rows** where one cell was
+  robbed to pay another, which a row count alone can never see; and a **stall value the design
+  never emits**, caught as three missing cells *and* three not-in-design cells. The sixth case is
+  the check failing **closed**: the first draft of it put a literal newline in an `awk -v`
+  assignment, which BWK awk — `/usr/bin/awk` on the platform every trace here was taken on —
+  rejects with *"newline in string"* and **no output at all**, and an empty report reads as *"no
+  defects found"*. It passed the committed evidence **by failing to run**. The `=`-line the
+  reporter emits unconditionally is now mandatory, so a check that cannot run refuses instead of
+  agreeing.
 
 **And one defect in the rig itself, which is not a measurement error but which voided the claim
 every other figure rests on.** Every driver in `preemption-lock-probe/` resolved its helpers from
@@ -690,7 +755,17 @@ the order is actually determined:
   record was published and then destroyed.
 
 Those two sets are **8 distinct unlinks falling in the same 4 trials** — the trial's first unlink
-caught by the hook, its second by the player log. Of the **16** remaining, **8 are positively
+caught by the hook, its second by the player log. **Until round 17 that sentence was an assertion
+and not a derivation** (§1 derivation defect 9): the script added two *global* counters that
+shared no key, so nothing established that the witnesses saw different unlinks or that they fell
+in the same trials. It is now a three-way join — the unlink's own `job=jNa|jNb` field gives its
+trial and `$1` its timestamp; `markers.tsv`'s `tNc entry` gives the instant hook C read, which is
+the column `hook-kills.log` lacks — and the hook-C witness is bound to **one** unlink by the
+window between `W_pid_write[jNb]` (the record cannot predate the parent's deferral stamp) and
+that marker (the record was gone when hook C read). On the committed traces every such window
+holds **exactly one** unlink, the two witness sets **intersect in 0 events**, and the ranks come
+out **#1 for every hook-C event and #2 for every player-log event** within their own trial. **The
+figure is unchanged; what changed is that the script now derives it.** Of the **16** remaining, **8 are positively
 shown NOT to be destructions**: hook C read the *newer* player's pid, so that trial's first
 unlink removed the older player's **own** record and the newer one had not published yet. The
 last **8** are simply undetermined — the unlink falls inside the newer player's unobserved
@@ -1787,9 +1862,10 @@ argument about labels — it is an induction over eight rounds of review.**
 | **PR #28 rev 4** | **the probe tooling and the staging, the two things rev 3 did not re-examine** | **The committed harness could not be run from a checkout at all** — every driver resolved its helpers from a private bench directory and two invoked one user's absolute interpreter, so on the author's machine they could execute stale external copies of the very probes this PR commits. **`run_lock.sh` still staged three scenarios by a fixed sleep** — S3's incumbent (`:114`), S4 (`:145`) and S6 (`:181`) — which the previous round's barrier repair walked past, and that costs `proposed` **every one of its 100 reclamation trials** (§3.3). **Harness defect 4 had a second consumer nobody had looked for:** `C14a`'s publication→destruction lag, and with it the *count* — the TOCTOU is 4/12 trials and 8 unlinks, not 12/12 and 24 (§2.5). **§2.6's stale-player lifetime was published as an interval it is not** — timer-start→exit, not `Popen`→exit, differing 7× on the same row |
 | **PR #28 rev 5** | **the repairs rev 4 made to the staging and the marker** | **Four of rev 4's own repairs were defective, and the staging was wrong for the fifth time.** The barrier staged the *observation* and not the **election read** — a racer acknowledged, waited for `GO`, and then performed a fresh read the winner could have already invalidated. The generation-tagged marker cleanup **unlinked before the `killpg`**, so a worker dying in between left an unnamed player unreachable — the `C12c` failure the marker exists to prevent. A single marker still authorised `killpg` on **every** historical generation, defeating the blast-radius bound the tag was added to provide. `await_barrier()` was called on one winner path and not the other, which would have made every fresh `proposed` S1/S2 trial `VOID`. And the completeness manifest was only *warned* about, not required, so publishing without it silently disarmed the guard. **The response is a change of kind, not a sixth mechanism**: the election read now self-reports whether it saw the window, matched by the lock directory's **inode**, and an S1/S2 trial where no racer's deciding read saw it is `VOID`. The inode match earned itself immediately — a smoke run produced three `saw_window=yes` reads of which **two were on a lock a racer had re-created**, not the winner's. The **0 ms cell is reclassified**: its window is zero-width, so no staging can place a read inside it, and `spec`'s *"clean to a 50 ms stall, 180/180"* is now stated as **120/180** of window evidence |
 | **PR #28 rev 6** | **§4b's `killpg` bound itself, and the four scripts that decide what counts as a completed run** | **The `.pending` marker still does not bound `killpg`, and this is the FOURTH distinct defect in that one mechanism** — each found only after the previous one was repaired (§5 tabulates all four). The generation tag stopped one marker authorising *other* generations; it validates no identity for its **own**, only the highest generation's owner is ever liveness-tested, and a marker has no expiry — so a superseded owner's pid recycled as an unrelated group leader is `killpg`'d by a stale marker. **Shown on a bench rig, not measured as an arm:** with the round-14 code a seeded stale marker's `killpg` killed an unrelated live process group; with clause 2's `<pid>.<starttime>` and the three-way test it is skipped, the marker expired, and the group left alive — no committed trace, and the repair stays `[inferred]`. **This is the first round whose principal finding is in the DESIGN rather than the staging.** Alongside it, four validators each accepted a partial or stale run as a pass: `run_lock.sh` proved only that *one* racer finished, `collect.sh` accepted any non-zero number of reconstructed trials, `summarise.sh` annotated `VOID` and exited 0, `publish.sh` merged a new rig over a stale one, and one `analyse_round2.sh` block put its exit status on `head` — which was also silently dropping **30 of 50** output rows, 8 of the 12 erasures among them, so the 12/25 figure the document quotes from that block was not derivable from it |
-| **PR #28 rev 7 (this)** | **rev 6's own repair of the `killpg` bound, and the four scripts that decide what may be published** | **The identity test rev 6 added had a hole in the shape of the thing it was added to close — the FIFTH distinct defect in this one bound, and the first that is in the fix rather than the mechanism.** `owner_identity()` guarded on `option == "off" OR the record has no start time`, putting the deliberate falsification arm and a **record shape** behind one `or` — so under `--owner-identity on` a **bare or legacy record** degraded silently to `kill(pid, 0)`, called a recycled pid `same`, and let a `.pending` marker authorise `killpg` on a stranger's whole group. The option closed the hazard for records it had written and left it open for every record it had not, which is the entire population during a migration. The degradation now keys on the **option** and never on the record; a bare record is a fourth verdict, `unverifiable`, and the two sites fail safe in **opposite** directions — the sweep refuses to signal and keeps the marker, the election supersedes without signalling. Bench-demonstrated in five arms, both directions, stranger alive where it must be and dead where it must be; still `[inferred]`. Alongside it, four validators: **`publish.sh`'s rollback destroyed the evidence it existed to protect** — `mv`ing `traces/` out of the live destination before the swap, so a failed swap restored a gutted directory and the `EXIT` trap deleted the only copy (**all 114 committed trace files, measured on the round-15 script**); **its required-file set omitted the producers of four of the committed TSVs**, `collect_real.sh` among them; **`verify_fires.sh` was a subset check, not an exact-set check**, so a re-run appended to `RUNS.txt` gave a duplicate configuration that passed and would have made the 312-trial denominator **324**; and **`assemble_pass1.sh` pinned `C3` to one historical timestamp**, so any other valid pass silently published **10 of 11** configurations while the aggregate guard succeeded. Plus two derivation defects: the attribution chain let the player's own log outrank the kernel's wait status (latent — **no published figure moves**, verified over every row), and `summarise.sh`'s header claimed to re-derive *every* published figure when the event counts come only from `analyse_round2.sh` |
+| **PR #28 rev 7** | **rev 6's own repair of the `killpg` bound, and the four scripts that decide what may be published** | **The identity test rev 6 added had a hole in the shape of the thing it was added to close — the FIFTH distinct defect in this one bound, and the first that is in the fix rather than the mechanism.** `owner_identity()` guarded on `option == "off" OR the record has no start time`, putting the deliberate falsification arm and a **record shape** behind one `or` — so under `--owner-identity on` a **bare or legacy record** degraded silently to `kill(pid, 0)`, called a recycled pid `same`, and let a `.pending` marker authorise `killpg` on a stranger's whole group. The option closed the hazard for records it had written and left it open for every record it had not, which is the entire population during a migration. The degradation now keys on the **option** and never on the record; a bare record is a fourth verdict, `unverifiable`, and the two sites fail safe in **opposite** directions — the sweep refuses to signal and keeps the marker, the election supersedes without signalling. Bench-demonstrated in five arms, both directions, stranger alive where it must be and dead where it must be; still `[inferred]`. Alongside it, four validators: **`publish.sh`'s rollback destroyed the evidence it existed to protect** — `mv`ing `traces/` out of the live destination before the swap, so a failed swap restored a gutted directory and the `EXIT` trap deleted the only copy (**all 114 committed trace files, measured on the round-15 script**); **its required-file set omitted the producers of four of the committed TSVs**, `collect_real.sh` among them; **`verify_fires.sh` was a subset check, not an exact-set check**, so a re-run appended to `RUNS.txt` gave a duplicate configuration that passed and would have made the 312-trial denominator **324**; and **`assemble_pass1.sh` pinned `C3` to one historical timestamp**, so any other valid pass silently published **10 of 11** configurations while the aggregate guard succeeded. Plus two derivation defects: the attribution chain let the player's own log outrank the kernel's wait status (latent — **no published figure moves**, verified over every row), and `summarise.sh`'s header claimed to re-derive *every* published figure when the event counts come only from `analyse_round2.sh` |
+| **PR #28 rev 8 (this)** | **the two derivations that carry `C14a`'s destruction count and row 21's denominator** | **Two findings, and both are the same shape: a published number whose own script does not establish it.** `analyse_round2.sh` printed *"PROVEN destructions of a published record: N + M"* by adding two **global** counters that share no key — not the trial, not the unlink — and then **asserted** that the two witnesses fell in the same trials and saw distinct unlinks. Neither half was derived, and the figure resting on it, **8 across 4 trials**, is itself the correction that replaced a withdrawn 24-across-12/12. The join keys were in the traces all along, including a **third file the block never opened**: `markers.tsv`'s `tNc entry` is the timestamp `hook-kills.log` does not carry. It is now a three-way join on `(trial, unlink timestamp)` that binds each hook-C witness to **one** unlink and prints the **union** with the intersection computed and each event's **rank** in its trial; the committed traces give intersection **0**, ranks **#1 and #2**, and the **same 8 across 4** — unchanged, now derived, and narrowing rather than asserting where a window is ambiguous. And `summarise.sh` checked only that `lock-owners.tsv` was **non-empty**, so an interrupted run or one missing a whole protocol × scenario cell re-derived the **1200-trial / 400-per-protocol** result over a smaller denominator and still exited 0. The matrix — **60 cells × 20 reps**, transcribed from `run_lock.sh` and deliberately *not* derived from the file under test — is now checked, rep numbers included, before any section prints. Its own first draft passed everything by **failing to run** (a literal newline in an `awk -v` assignment, which BWK awk rejects with no output); it now refuses when it cannot run |
 
-**Eight consecutive rounds, and every round found a real defect in the previous round's
+**Nine consecutive rounds, and every round found a real defect in the previous round's
 confident answer.** Rev 5 was the sharpest form of the pattern in the staging: **four of its five
 findings were defects in rev 4's repairs**, not in anything older. Rev 6 and rev 7 are the
 sharpest form of it in the design: the `.pending` bound has now failed review **five** times,
@@ -1799,7 +1875,7 @@ in the design. **Rev 7 also repeats rev 5's lesson exactly: three of its four va
 are defects in code rev 6 had just written**, and one of those, `publish.sh`'s rollback, would
 have destroyed all 114 committed trace files on the first failed swap. The staging alone has been wrong five
 times in five different ways, four of them introduced by the fix to the one before — which is why
-rev 5 stopped trying to stage the read correctly and started **detecting** an unstaged one instead.
+rev 5 stopped trying to stage the read correctly and started **detecting** an unstaged one instead. **Rev 8 moves the pattern one place further out.** Its two findings are not in the mechanism, nor in a repair to the mechanism, but in the **derivations** — the scripts that decide what the mechanism is allowed to have shown. `C14a`'s destruction count had been corrected once already and the correction was an assertion; row 21's denominator had never been checked at all. Neither figure moved when they were fixed, which is the point: the numbers were right and the reasons for believing them were not, and nothing in nine rounds of reviewing the protocol would have found that.
 An unverifiable mechanism was replaced by a falsifiable check; that is the only move that has not
 yet been undone by the next round. Rev 1's own headline — *"a repair was built and measured: 12 of 12 orphans
 killed"* — was wrong in the way that matters most: the repair specified was a single replaceable

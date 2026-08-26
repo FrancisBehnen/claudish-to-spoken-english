@@ -63,6 +63,132 @@ for f in "$P" "$L"; do
   fi
 done
 
+# ROUND 17. THE ROW-21 DENOMINATOR WAS NEVER VALIDATED, ONLY CHECKED FOR EMPTINESS.
+# The loop above rejects a lock-owners.tsv with no data rows and accepts every other
+# shape, and assemble.sh (:63) copies the file into place without looking at it either.
+# So a run that was interrupted, or that lost an entire protocol or scenario cell,
+# re-derives the advertised "1200 trials / 400 per protocol" result over a SMALLER
+# denominator and still prints a clean summary under the same headings. That is the
+# same null-as-pass shape the VOID check further down closed for staging failures,
+# one level up: at the shape of the matrix rather than at the outcome of a cell.
+#
+# THE EXPECTED MATRIX IS NOT DERIVED FROM THE FILE BEING VALIDATED. Deriving it there
+# would make the check vacuous -- a truncated file would derive a truncated expectation
+# and pass itself. It is transcribed from run_lock.sh's driver loop (:352-368) and the
+# `emit` call in each trial function, which together ARE the committed definition of
+# the run:
+#
+#   for pr in current spec proposed                          3 protocols  (:352)
+#     S1_init         N in 2 4 8   x stall in 0 5 50         9 cells      (:353-356)
+#     S2_longstall    N = 4        x stall in 200 1000       2 cells      (:358-359)
+#     S3_aba          N = 2, stall = 0  -- trial_aba  emits `2 0` (:273)  1 cell
+#     S4_dualreclaim  N = 2, stall = 0  -- trial_dual emits `2 0` (:302)  1 cell
+#     S5_scratch      N in 2 4 8 16, stall = 0              (:320)        4 cells
+#     S6_deadN        N in 2 4 8,    stall = 0              (:349)        3 cells
+#     x REPS reps each, REPS = 20                           (:44 default)
+#
+# 20 cells x 20 reps = 400 trials per protocol, x3 protocols = 1200 rows. Those are the
+# numbers the document quotes, and they are now a PRECONDITION for printing them rather
+# than a claim about a file nobody read.
+#
+# REPS is a constant here and is deliberately NOT read from the data. A uniformly
+# half-length run would otherwise derive REPS=10 from itself and pass with a 600-row
+# denominator, which is exactly the failure this check exists to catch. A run at a
+# different rep count is a different result and must not print under these headings
+# without editing this line and saying so in the document.
+#
+# VOID rows COUNT toward the matrix: a VOID trial was attempted and occupies its rep
+# slot, so it is a cell that was measured and failed, not a cell that is missing. The
+# VOID check below is what refuses those, and the two checks stay orthogonal.
+#
+# The design is one line per scenario, `scenario:N,...:stall,...`, separated by `;`.
+# NOT by newlines: BWK awk (which is /usr/bin/awk on Darwin, the platform every trace
+# here was taken on) rejects a literal newline inside a `-v` assignment with "newline
+# in string" and produces NO OUTPUT AT ALL. An empty report reads as "no defects
+# found", so the first draft of this very check passed the committed evidence by
+# failing to run. That is why the `=`-line is mandatory below.
+LOCK_REPS=20
+LOCK_PROTOCOLS='current spec proposed'
+LOCK_DESIGN='S1_init:2,4,8:0,5,50;S2_longstall:4:200,1000;S3_aba:2:0;S4_dualreclaim:2:0;S5_scratch:2,4,8,16:0;S6_deadN:2,4,8:0'
+
+# awk emits one `!`-prefixed line per defect and one `=`-prefixed line describing the
+# matrix it validated. The leading digit is a sort key only, so the report is stable.
+lock_matrix=$(awk -F'\t' -v reps="$LOCK_REPS" -v protos="$LOCK_PROTOCOLS" -v design="$LOCK_DESIGN" '
+  BEGIN {
+    np = split(protos, P, /[ \t]+/)
+    nd = split(design, D, ";")
+    for (d = 1; d <= nd; d++) {
+      if (D[d] == "") continue
+      split(D[d], F, ":")
+      nn = split(F[2], NN, ",")
+      ns = split(F[3], SS, ",")
+      for (p = 1; p <= np; p++)
+        for (a = 1; a <= nn; a++)
+          for (b = 1; b <= ns; b++) {
+            EXP[P[p] SUBSEP F[1] SUBSEP NN[a] SUBSEP SS[b]] = reps
+            cells++; want += reps
+          }
+    }
+    scen = nd
+  }
+  NR == 1 { next }
+  {
+    k = $2 SUBSEP $1 SUBSEP $3 SUBSEP $4
+    SEEN[k]++; rows++
+    if (!(k in EXP)) { UNEXP[k]++; next }
+    # A rep outside 1..REPS, or a repeated one, means two runs were merged or a run was
+    # resumed over itself. Either way the cell is not REPS independent trials even when
+    # it has REPS rows, so counting rows alone would not catch it.
+    if ($5 !~ /^[0-9]+$/ || $5 + 0 < 1 || $5 + 0 > reps) BADREP[k] = BADREP[k] " " $5
+    else if (++R[k SUBSEP ($5 + 0)] > 1)                 DUPREP[k] = DUPREP[k] " " $5
+  }
+  END {
+    for (k in EXP) {
+      split(k, A, SUBSEP)
+      n = SEEN[k] + 0
+      if (n == 0)
+        printf "!1 MISSING CELL   %-9s %-15s N=%-3s stall=%-5s -- expected %d trial(s), found none\n", A[1], A[2], A[3], A[4], EXP[k]
+      else if (n != EXP[k])
+        printf "!2 SHORT/LONG     %-9s %-15s N=%-3s stall=%-5s -- expected %d trial(s), found %d\n", A[1], A[2], A[3], A[4], EXP[k], n
+      if (k in BADREP)
+        printf "!3 REP OUT OF 1-%d %-9s %-15s N=%-3s stall=%-5s --%s\n", reps, A[1], A[2], A[3], A[4], BADREP[k]
+      if (k in DUPREP)
+        printf "!4 REPEATED REP   %-9s %-15s N=%-3s stall=%-5s --%s\n", A[1], A[2], A[3], A[4], DUPREP[k]
+    }
+    for (k in UNEXP) {
+      split(k, A, SUBSEP)
+      printf "!5 NOT IN DESIGN  %-9s %-15s N=%-3s stall=%-5s -- %d row(s) the run never emits\n", A[1], A[2], A[3], A[4], UNEXP[k]
+    }
+    printf "=0 row-21 matrix: %d protocols x %d scenarios = %d cells x %d reps = %d trials (found %d rows)\n",
+           np, scen, cells, reps, want, rows + 0
+  }' "$L" | sort)
+
+lock_defects=$(printf '%s\n' "$lock_matrix" | sed -n 's/^!. //p')
+lock_shape=$(printf '%s\n' "$lock_matrix"   | sed -n 's/^=. //p')
+
+# FAIL CLOSED. The `=`-line is unconditional in the END block above, so its ABSENCE
+# means the awk did not reach END: it aborted, or it never started. An empty report is
+# then indistinguishable from a clean one, and "clean" is the reading that lets a bad
+# denominator through -- which is what this whole check exists to prevent. A check that
+# passes when it cannot run is not a check.
+if [[ -z $lock_shape ]]; then
+  echo "summarise.sh: the row-21 matrix check produced no result over $L." >&2
+  echo "Its awk did not reach END, so NOTHING was validated. An empty report is not a" >&2
+  echo "clean one. Refusing to print figures whose denominator was never checked." >&2
+  exit 2
+fi
+
+if [[ -n $lock_defects ]]; then
+  echo "summarise.sh: $L does not match the experimental design run_lock.sh implements." >&2
+  printf '%s\n' "$lock_defects" >&2
+  echo "$lock_shape" >&2
+  echo "Row 21's published figures are per-protocol rates over a 400-trial denominator." >&2
+  echo "With a cell missing or short, the rates below would be computed over a smaller" >&2
+  echo "or a differently-weighted denominator and would still print as a clean summary." >&2
+  echo "That is NOT a re-derivation of the published result. Re-run the named cells." >&2
+  exit 2
+fi
+
 # One definition of median, reused by every block below. Reads numbers on stdin.
 MED='function med(v, n) { if (n % 2) return v[(n + 1) / 2]; return (v[n / 2] + v[n / 2 + 1]) / 2 }'
 
@@ -213,6 +339,9 @@ awk -F'\t' '$1=="config"{next} $26=="R<S2<R_b<P<W (adversarial)" && $6!="-" && $
 
 echo
 echo "== ROW 21 / A: owner counts per scenario x protocol x N x stall =="
+# The denominator every row-21 rate is taken over, printed rather than assumed. It was
+# validated against run_lock.sh's design before any section above ran.
+echo "   $lock_shape"
 awk -F'\t' 'NR==1{next}{printf "%s\t%s\t%s\t%s\towners=%s\n", $1,$2,$3,$4,$6}' "$L" \
   | sort | uniq -c \
   | awk '{printf "%-5s %-16s %-9s N=%-3s stall=%-6s %s\n", $1"x", $2, $3, $4, $5, $6}'

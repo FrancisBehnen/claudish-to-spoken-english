@@ -163,22 +163,154 @@ need "$T/C14a_shared_unlink.hook-kills.log" && { awk -F'\t' '
         printf "      published yet. The count of destroyed records is therefore NOT the\n"
         printf "      cross-unlink count above.\n" }' \
   "$T/C14a_shared_unlink.hook-kills.log" || derive_failed C14a-hook; }
-echo "   the two sides added up -- this is the figure the document quotes:"
+# ROUND 17. THIS BLOCK USED TO ADD TWO GLOBAL COUNTERS AND THEN ASSERT THE JOIN.
+# It counted `plog` (unlinks ordered after a newer player's own player_start) and
+# `hookc` (hook-C reads that found nothing) as two independent totals with NO key in
+# common -- not the trial, not the unlink -- printed their SUM as "PROVEN destructions
+# of a published record", and then stated as fact that "they fall in the SAME k trials,
+# and they are distinct unlinks". Nothing in the code established either half. The two
+# witnesses could have seen the same unlink twice, or come from disjoint trials, and the
+# arithmetic would have been identical. The figure it produced -- 8 destructions across
+# 4 trials -- is quoted in the decision document AND is itself the correction that
+# replaced a withdrawn one (24 across 12/12, lost with harness defect 4's bad `W`
+# stamp), so a correction was resting on an assertion.
+#
+# The join keys were in the committed traces the whole time, and the third input is the
+# one this block never opened:
+#   worker.trace     `record_unlinked` carries `job=jNa|jNb`, so the TRIAL is in the
+#                    row, and $1 is the timestamp. (trial, timestamp) is a unique key
+#                    for the unlink EVENT.
+#   hook-kills.log   hook-C rows carry TAG `tNc`, so the trial is in the row -- but
+#                    there is NO timestamp column, so this file alone cannot order a
+#                    hook-C read against any unlink.
+#   markers.tsv      carries `tNc entry`, the instant hook C started. analyse_c14.sh
+#                    already reads it for exactly this reason. It is what turns the
+#                    hook-C witness from a per-trial count into a NAMED event.
+#
+# The hook-C witness is joined to a specific unlink by a window whose two ends are both
+# derived, not assumed:
+#   lower  W_pid_write[jNb]. In this arm the record is published by the player's own
+#          wrapper AFTER the parent stamps W (`result=deferred_to_player`), so the
+#          b-player's record cannot have existed before this instant, and the unlink
+#          that destroyed it cannot precede it either.
+#   upper  the `tNc entry` marker. The record was absent when hook C read, so the
+#          destroying unlink is strictly earlier.
+# If exactly ONE `record_unlinked` falls in that window, the destroying unlink is
+# NAMED and can be compared against the player-log set as an event. If zero or several
+# fall in it, the destruction is still witnessed but the unlink is NOT nameable, and
+# that trial contributes a TRIAL to the union and no EVENT -- printed as a narrowing
+# rather than folded into a total. That branch is exercised by the negative test in
+# the commit message; on the committed traces every window holds exactly one.
+#
+# What is printed is now the UNION of distinct events and the count of distinct trials,
+# with the intersection derived rather than assumed to be empty, and the "first unlink
+# / second unlink" ordering derived from each event's rank among its own trial's
+# unlinks rather than stated.
+echo "   the two witnesses JOINED per trial and per unlink -- the figure the document quotes:"
 need "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.hook-kills.log" \
-     "$T/C14a_shared_unlink.worker.trace" && { awk -F'\t' '
-  FILENAME ~ /player\.log$/   { if ($4=="player_start") START[$2]=$1; next }
-  FILENAME ~ /hook-kills\.log$/ { if ($1 ~ /c$/) { if ($0 ~ /result=nopid/) hookc++ } ; next }
+     "$T/C14a_shared_unlink.markers.tsv" "$T/C14a_shared_unlink.worker.trace" && { awk -F'\t' '
+  FILENAME ~ /player\.log$/ {
+      if ($4=="player_start")    { PST[$3]=$1+0; PPID[$3]=$2 }
+      else if ($4=="player_end")   PEN[$3]=$1+0
+      next }
+  FILENAME ~ /markers\.tsv$/ {
+      if ($2=="entry" && $1 ~ /^t[0-9]+c$/) { t=$1; sub(/^t/,"",t); sub(/c$/,"",t); HCT[t+0]=$3+0 }
+      next }
+  FILENAME ~ /hook-kills\.log$/ {
+      if ($1 !~ /^t[0-9]+c$/) next
+      r=$0; sub(/^.*result=/,"",r); sub(/[ \t].*$/,"",r)
+      t=$1; sub(/^t/,"",t); sub(/c$/,"",t); t+=0
+      HC[t]=r; if (t>maxtr) maxtr=t
+      next }
+  # worker.trace
   { n=split($6,f," "); delete V; for(i=1;i<=n;i++){split(f[i],kv,"="); V[kv[1]]=kv[2]} }
-  $5=="W_pid_write" { last=$6; sub(/^.*player_pid=/,"",last); sub(/[ \t].*$/,"",last); last_t=$1 }
+  $5=="W_pid_write" { nw++; WTS[nw]=$1+0; WPID[nw]=V["player_pid"]; WJOB[nw]=V["job"]
+                      WOF[V["job"]]=$1+0 }
   $5=="record_unlinked" {
-      if (last != "" && V["player_pid"] != last && $1 > last_t &&
-          (last in START) && $1 > START[last]) plog++ }
-  END { printf "  PROVEN destructions of a published record: %d (player-log order) + %d (hook C read nothing) = %d\n",
-               plog+0, hookc+0, plog+hookc+0
-        printf "  They fall in the SAME %d trials, and they are distinct unlinks: the first\n", hookc+0
-        printf "  unlink of such a trial is caught by hook C, the second by the player log.\n" }
+      nu++; UTS[nu]=$1; UN[nu]=$1+0; UPID[nu]=V["player_pid"]
+      tr=V["job"]; sub(/^j/,"",tr); sub(/[abc]$/,"",tr)
+      UTR[nu] = (tr ~ /^[0-9]+$/) ? tr+0 : -1        # w0 and any non-trial job -> -1
+      if (UTR[nu] > maxtr) maxtr = UTR[nu] }
+  END {
+    # rank of each unlink among its own trial'"'"'s unlinks, by timestamp. Derived here so
+    # the "first unlink / second unlink" statement below is a reading and not a claim.
+    for (u=1; u<=nu; u++) {
+      NPER[UTR[u]]++
+      r=1; for (v=1; v<=nu; v++) if (UTR[v]==UTR[u] && UN[v] < UN[u]) r++
+      RK[u]=r }
+
+    # ---- witness (a): the player log. An unlink that landed after a DIFFERENT, newer
+    #      player'"'"'s own player_start destroyed a record that was certainly on disk.
+    for (u=1; u<=nu; u++) {
+      lastp=""; lastj=""
+      for (w=1; w<=nw; w++) if (WTS[w] < UN[u]) { lastp=WPID[w]; lastj=WJOB[w] }
+      if (lastp=="" || lastp==UPID[u]) continue
+      if (!(lastj in PST) || UN[u] <= PST[lastj]) continue
+      PLOG[u]=1; VICT[u]=lastp; nplog++ }
+
+    # ---- witness (b): hook C read nothing while the trial'"'"'s b-player was demonstrably
+    #      live, joined to the one unlink that can have done it.
+    for (i=1; i<=maxtr; i++) {
+      if (!(i in HC) || HC[i] != "nopid") continue
+      jb = "j" i "b"
+      if (!(i in HCT) || !(jb in PST) || !(jb in PEN) || !(jb in WOF)) {
+        printf "  trial %-2d hook C read nothing, but its own timing is not in the traces --\n", i
+        printf "           no live-player check and no window: NOT counted either way\n"
+        unjoinable++; continue }
+      if (!(PST[jb] <= HCT[i] && HCT[i] < PEN[jb])) {
+        printf "  trial %-2d hook C read nothing, but no player was live at it -- NOT a destruction\n", i
+        continue }
+      hc_trials++; HCTR[i]=1
+      cnt=0; pick=0
+      for (u=1; u<=nu; u++) if (UN[u] > WOF[jb] && UN[u] < HCT[i]) { cnt++; pick=u }
+      if (cnt == 1) { HOOKC[pick]=1; HVICT[pick]=PPID[jb]; nhookc++ }
+      else { printf "  trial %-2d hook C witnessed a destruction, but %d unlinks fall in\n", i, cnt
+             printf "           (W_pid_write[%s], tNc entry) -- the destroying unlink is NOT nameable\n", jb
+             ambig++ } }
+
+    # ---- the union, over the (trial, timestamp) event key.
+    for (u=1; u<=nu; u++) {
+      if (!PLOG[u] && !HOOKC[u]) continue
+      nunion++
+      # UTR is -1 for a job with no trial number (`w0`, the warm-up). Such an event
+      # would be counted in the union and then dropped from the 1..maxtr trial walk
+      # below, so the two totals would disagree with nothing saying why. Name it.
+      if (UTR[u] < 1) notrial++; else TR[UTR[u]]=1
+      if (PLOG[u] && HOOKC[u]) { both++; w="BOTH  " ; d=VICT[u] }
+      else if (HOOKC[u])       { w="hook C"; d=HVICT[u] }
+      else                     { w="p-log " ; d=VICT[u] }
+      if (RK[u] > hcmax && HOOKC[u] && !PLOG[u]) hcmax=RK[u]
+      if (HOOKC[u] && !PLOG[u] && (hcmin==0 || RK[u] < hcmin)) hcmin=RK[u]
+      if (RK[u] > plmax && PLOG[u] && !HOOKC[u]) plmax=RK[u]
+      if (PLOG[u] && !HOOKC[u] && (plmin==0 || RK[u] < plmin)) plmin=RK[u]
+      printf "  trial %-2d unlink %d of %-2d  t=%s  reap of %-6s destroyed %-6s  witness: %s\n",
+             UTR[u], RK[u], NPER[UTR[u]], UTS[u], UPID[u], d, w }
+    # A hook-C trial whose unlink could NOT be named still witnessed a destruction in
+    # that trial, so it belongs to the trial union even though it names no event.
+    for (i=1; i<=maxtr; i++) if (HCTR[i]) TR[i]=1
+    ntr=0; list=""
+    for (i=1; i<=maxtr; i++) if (TR[i]) { ntr++; list = list " " i }
+
+    printf "  --> witness (a), player-log order:  %d distinct unlink event(s)\n", nplog+0
+    printf "  --> witness (b), hook C read nothing with a live player: %d trial(s),\n", hc_trials+0
+    printf "      of which %d had exactly one unlink in the window and are NAMED as events\n", nhookc+0
+    printf "  --> the two witness sets intersect in %d event(s) (derived over the (trial,\n", both+0
+    printf "      timestamp) key, not assumed disjoint)\n"
+    printf "  --> UNION of DISTINCT destroying unlinks: %d, across %d DISTINCT trial(s):%s\n",
+           nunion+0, ntr+0, list
+    if (notrial)
+      printf "  --> %d of those %d event(s) carry a job with NO trial number (the warm-up) and\n      are counted in the union but in none of the trials above\n", notrial, nunion+0
+    if (nhookc && nplog) {
+      if (hcmin==hcmax && plmin==plmax)
+        printf "  --> within its own trial every hook-C event is unlink #%d and every player-log\n      event is unlink #%d -- derived from the ranks above, not assumed\n", hcmin, plmin
+      else
+        printf "  --> hook-C events rank #%d-#%d within their trial, player-log events #%d-#%d\n", hcmin, hcmax, plmin, plmax
+    }
+    if (ambig || unjoinable)
+      printf "  NARROWED: %d hook-C trial(s) witness a destruction whose unlink could not be\n            named, and %d could not be checked at all. They add TRIALS to the union\n            above and NO events. The event total counts only named events.\n", ambig+0, unjoinable+0
+  }
 ' "$T/C14a_shared_unlink.player.log" "$T/C14a_shared_unlink.hook-kills.log" \
-  "$T/C14a_shared_unlink.worker.trace" || derive_failed C14a-total; }
+  "$T/C14a_shared_unlink.markers.tsv" "$T/C14a_shared_unlink.worker.trace" || derive_failed C14a-total; }
 
 hdr "C14b: per-player records -- an unlink can only remove its own name"
 need "$T/C14b_perplayer_unlink.worker.trace" && { awk -F'\t' '
