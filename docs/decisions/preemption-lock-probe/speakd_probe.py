@@ -242,6 +242,10 @@ def sweep_pgid():
     published nothing and may not even have been scheduled yet. No record, no
     handshake, and no assumption about when the child gets to run.
     """
+    # `marked_gens is None` means the marker discipline is off altogether: that arm is
+    # unbounded by design and every superseded generation is signalled.
+    marked_gens = None
+    pend_by_gen = {}
     if A.pending_marker == "on":
         pend = []
         try:
@@ -254,44 +258,80 @@ def sweep_pgid():
             rec("election_sweep_pgid", skipped="no_pending_marker", groups=0)
             return
         rec("pending_found", n=len(pend), names=",".join(sorted(pend)))
-        # CLEAN UP EXACTLY WHAT AUTHORISED THIS SWEEP, and do it before this worker
-        # forks any player of its own -- otherwise the unlink can remove a marker for
-        # a fork that has not happened yet, which converts the bounded design into the
-        # C12c failure. Only markers whose generation tag is among the superseded
-        # generations are removed; a marker belonging to a live generation is left.
-        #
-        # WHY THIS IS REQUIRED, from the committed C16a trace: the wrapper renames its
-        # marker away as its FIRST act, so a killpg that WORKS kills the wrapper before
-        # that act and strands the marker that authorised it. Every successful sweep
-        # leaked one. 25 markers created, 0 removed, pending_found climbing 1 -> 12
-        # across twelve generations, and 33f62e9b.pending surviving from gen1 to
-        # gen12r. So 23 of 25 elections ran killpg although only 12 orphan windows
-        # were ever staged: the marker did not bound the window, it accumulated.
-        supersededgens = {str(g) for g, _ in superseded}
+        # A marker left over in the pre-round-10 UNTAGGED shape (`<nonce>.pending`) keys
+        # to its nonce, which matches no generation, so it authorises nothing and is
+        # never retired here. That is the right reading -- an untagged marker cannot say
+        # whose it is -- but it is also visible in the trace as a `pending_found` that
+        # never shrinks, rather than as a silent behaviour change.
         for name in pend:
-            head = name.split(".")[0]
-            if head in supersededgens:
-                try:
-                    os.unlink(os.path.join(PLAYERDIR, name))
-                    rec("pending_reaped", name=name, gen=head)
-                except OSError as e:
-                    rec("pending_reap_failed", name=name, err=type(e).__name__)
+            pend_by_gen.setdefault(name.split(".")[0], []).append(name)
+        marked_gens = set(pend_by_gen)
+
+    # ONE MARKER MUST NOT AUTHORISE EVERY HISTORICAL GENERATION. Round 10 tagged the
+    # marker with its generation, which made ownership readable, but the loop below
+    # still walked the whole `superseded` list the moment ANY `.pending` existed. One
+    # marker left by gen12 therefore licensed `killpg` against gen1..gen11 as well --
+    # process-group ids the kernel is free to have recycled by then, belonging to
+    # generations that may never have had an unnamed player at all. That is precisely
+    # the blast-radius bound the marker exists to provide, spent. A player that
+    # published is reachable through the record sweep already (clause 7(iv-a)), so
+    # narrowing the group sweep to marked generations removes no coverage.
     n = 0
+    swept = set()
     for g, p in superseded:
         if p == os.getpid():
+            continue
+        if marked_gens is not None and str(g) not in marked_gens:
+            rec("kill_skipped", by="election-sweep", site="pgid", target=p, gen=g,
+                reason="no_pending_marker_for_this_gen")
             continue
         try:
             os.killpg(p, SIG_SWEEP_PGID)
             rec("kill_attempt", by="election-sweep", site="pgid", target=p,
                 sig=int(SIG_SWEEP_PGID), gen=g, result="sent")
+            swept.add(str(g))
             n += 1
         except ProcessLookupError:
+            # No such group. A player lives in that group from fork(2) onward, so if
+            # the group is gone the thing the marker guarded is gone: count the
+            # generation swept and let its marker be retired below.
             rec("kill_attempt", by="election-sweep", site="pgid", target=p,
                 sig=int(SIG_SWEEP_PGID), gen=g, result="ESRCH")
+            swept.add(str(g))
         except OSError as e:
+            # Anything else (EPERM) means the group was NOT reached. Leave the marker
+            # standing so the next election tries again.
             rec("kill_attempt", by="election-sweep", site="pgid", target=p,
                 gen=g, result=type(e).__name__)
     rec("election_sweep_pgid", groups=n, superseded=len(superseded))
+
+    # SIGNAL FIRST, THEN RETIRE THE MARKER: each marker goes only after its OWN
+    # generation's group has been swept, and still before this worker forks any player
+    # of its own (the sweep runs before the model load, well ahead of the first fork).
+    #
+    # Round 10 unlinked before the killpg loop, which re-opened the region the marker
+    # exists to close. A worker that dies after the unlink and before signalling leaves
+    # the unnamed player alive; the NEXT election finds no marker, takes the
+    # `no_pending_marker` early return above, and cannot reach that player by record
+    # either, because it never published one -- C12c reconstructed out of the cleanup.
+    # Unlinking after the signal makes that crash window fail safe: the marker survives,
+    # the next election sweeps the group again, and a redundant killpg on a group that
+    # is already gone is an ESRCH.
+    #
+    # WHY THE CLEANUP IS NEEDED AT ALL, from the committed C16a trace: the wrapper
+    # renames its marker away as its FIRST act, so a killpg that WORKS kills the wrapper
+    # before that act and strands the marker that authorised it. Every successful sweep
+    # leaked one. 25 markers created, 0 removed, pending_found climbing 1 -> 12 across
+    # twelve generations, and 33f62e9b.pending surviving from gen1 to gen12r. So 23 of
+    # 25 elections ran killpg although only 12 orphan windows were ever staged: the
+    # marker did not bound the window, it accumulated.
+    for g in sorted(swept):
+        for name in pend_by_gen.get(g, []):
+            try:
+                os.unlink(os.path.join(PLAYERDIR, name))
+                rec("pending_reaped", name=name, gen=g)
+            except OSError as e:
+                rec("pending_reap_failed", name=name, err=type(e).__name__)
 
 
 # A per-player record is EXACTLY `<pid>.<8-hex-nonce>`. Matching the shape rather than

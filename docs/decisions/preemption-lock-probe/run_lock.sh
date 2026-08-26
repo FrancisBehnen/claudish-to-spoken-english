@@ -6,6 +6,9 @@
 # Scenarios
 #  S1 init       winner stalled between mkdir and its pid write by --stall-ms.
 #                This is the window clause (a) exists for. Swept over N and stall.
+#                stall=0 is NOT a window test: the window is zero-width there, so the
+#                cell is a live-owner/who-wins check. It is kept because the VOID rule
+#                in trial_init now demonstrates that rather than assuming it.
 #  S2 longstall  the same, stall set LONGER than clause (a)'s own bounded backoff
 #                (20 attempts x 2 ms = 40 ms). Review attack 1: a fixed backoff
 #                cannot tell a descheduled winner from a dead one.
@@ -110,6 +113,40 @@ trial_init() {   # proto N stall rep scenario
     echo "$sc $pr N$n s$stall r$rep: staging never established the window -- trial VOID" >&2
     emit "$sc" "$pr" "$n" "$stall" "$rep" "VOID"
     return
+  fi
+  # ROUND 11. The barrier above stages the OBSERVATION; it does not stage the ELECTION
+  # READ. After GO the winner applies its stall and writes its pid while each racer,
+  # released by the same token, performs its own fresh read -- and that second read is
+  # what decides the trial. So a clean cell could still be an ordinary live-owner check.
+  #
+  # The answer is detection, not a sixth staging mechanism. Every deciding read now
+  # reports itself (`election_read ... saw_window=`), and it carries the inode of the
+  # lock it read, so "inside the WINNER's window" is distinguishable from "saw some
+  # pid-less lock another racer had just created". A trial in which no racer's deciding
+  # read landed in the winner's window did not test the window, and is VOID.
+  #
+  # EXPECT THIS TO VOID MOST OF THE stall=0 CELL, and read that as the rule working
+  # rather than failing. At --stall-ms 0 the winner writes its pid immediately after
+  # releasing the barrier, so the interval a racer must land in is zero-width: no
+  # staging can place a read inside it, and a read that lands there did so by luck.
+  # The cell is therefore a live-owner/who-wins check with a chance of being a window
+  # test, and its surviving trials are a self-selected sample, not a swept one. The doc
+  # now says that instead of counting the cell as window evidence.
+  #
+  # `proposed` is exempt because it has no pid-less state to enter -- not because its
+  # staging is trusted. S1/S2 are structurally vacuous for it either way.
+  if [[ $pr != proposed ]]; then
+    local wino staged
+    wino=$(awk -F'\t' '$5=="winner" && $7=="mkdir_ok" {print $8}' "$log" 2>/dev/null \
+           | sed -n 's/.*ino=\([0-9-]*\).*/\1/p' | head -1)
+    staged=$(awk -F'\t' -v i="${wino:-none}" \
+      '$5=="racer" && $7=="election_read" && $8 ~ /(^| )saw_window=yes( |$)/ \
+       && $8 ~ ("(^| )ino=" i "( |$)")' "$log" 2>/dev/null | wc -l | tr -d ' ')
+    if [[ ${staged:-0} -eq 0 ]]; then
+      echo "$sc $pr N$n s$stall r$rep: no racer's election read entered the winner's window -- trial VOID" >&2
+      emit "$sc" "$pr" "$n" "$stall" "$rep" "VOID"
+      return
+    fi
   fi
   emit "$sc" "$pr" "$n" "$stall" "$rep" "$(count_owners "$log")"
 }

@@ -58,7 +58,10 @@ measured on both sides of the ordering that matters.**
   sweeps, not one; the first revision of §4b specified only the `killpg` (§4b clause 7(iv-a)).
 - **Three measured qualifications on that repair.** A `.pending` marker created before the fork
   confines `killpg` to the window where an unnamed player can exist (`C16b` skipped it **25/25**
-  when it was not needed; `C16a` used it 23/25 when it was). One keyword — spawning the player
+  when it was not needed; `C16a` used it 23/25 when it was) — **but only if the sweep reads the
+  marker's generation tag and retires the marker *after* signalling, and neither was true until
+  this round; `C16a`'s 23/25 is the marker leaking, not the marker working** (§5). One
+  keyword — spawning the player
   with `start_new_session=True` — **defeats the clause entirely** (`C17`, orphan plays to
   completion 12/12). And a sweep signal that anything ignores makes the sweep a silent no-op:
   `nohup` sets `SIGHUP` to `SIG_IGN`, inherited across `fork` and `exec`, which produced a
@@ -98,8 +101,10 @@ an open item, and §3.3 states plainly why no further inspection of this harness
 to close it.
 
 `spec` is a genuine improvement and still fails: clean to a 50 ms stall (180/180, where
-`current` fails 60 of the same 180), then **40/40 wrong at 200 ms and 1000 ms** — a bounded
-backoff cannot distinguish a descheduled winner from a dead one — and **20/20 wrong on the
+`current` fails 60 of the same 180 — **but 60 of those 180 are the stall-0 cell, which is a
+zero-width window and therefore not a test of clause (a) at all**, §3.3), then **40/40 wrong at
+200 ms and 1000 ms** — a bounded backoff cannot distinguish a descheduled winner from a dead
+one — and **20/20 wrong on the
 quarantine ABA**, where `rename(2)` is atomic on a *path* and a reclaimer acting on a stale
 observation renames the fresh owner's live lock and gets success rather than `ENOENT`.
 
@@ -277,19 +282,34 @@ from committed files with `awk` and `sort` only — `summarise.sh <dir>` over th
 TSVs, and `analyse_round2.sh preemption-lock-probe/traces` over the committed traces, are the
 derivations. (Round 3 wrote "from the committed TSVs" for both; `analyse_round2.sh` takes the
 trace directory, and pointing it at the TSVs prints `(trace missing)` for every block.)
-`verify_fires.sh` confirms every hook fired — **and until round 5 it could not do so from the
-repository, while reporting that it had.** It read a `RUNS.txt` that exists only in a live run
-tree; pointed at the committed `traces/`, it iterated over nothing and printed *"all hooks
-fired"*. **A null reported as a pass, by the one script whose entire purpose is to stop a null
-being read as a pass** — the same shape as harness defect 1, in the guard against it. It now also
+`verify_fires.sh` is the check that every hook fired, and over the committed `traces/` it
+**fails** — see below; that is a real gap in the evidence set, not a formality. **And until
+round 5 it could not run from the repository at all, while reporting that it had.** It read a
+`RUNS.txt` that exists only in a live run tree; pointed at the committed `traces/`, it iterated
+over nothing and printed *"all hooks fired"*. **A null reported as a pass, by the one script
+whose entire purpose is to stop a null being read as a pass** — the same shape as harness
+defect 1, in the guard against it. It now also
 reads the committed `<cfg>.markers.tsv` files and exits 2 rather than succeeding over zero inputs.
-Run against `traces/` it reports **21 configurations OK**, which is where the counts below stop
-being an assertion (25 entry markers per
-configuration: one warm-up plus two per trial — **except `C14a` and `C14b`, which fire a third
-hook per trial to observe the TOCTOU's consequence and therefore want `1 + 3N = 37`;
-`verify_fires.sh` special-cases them and their committed `markers.tsv` files carry 37 entries
-each**) so that a null result can be distinguished from a hook that never ran. `analyse_c14.sh`
-is a third derivation, over the `C14` traces; **it was corrected in round 3** — it had tested
+**Run against `traces/` it does not pass, and this document said it did.** Round 10 added a
+completeness manifest, `expected-configs.txt`, so that a *partial* evidence set could not read as
+confirmation either; the manifest lists the **26** configurations reported here and `traces/` holds
+**21** marker files. So `verify_fires.sh traces 12` prints 21 `OK` lines, then five `MISSING`
+diagnostics — **`C1_prespawn`, `C2_hookside`, `C5_norecheck`, `C6_handle`, `C7_noreap`** — and
+exits **2**. The guard is doing its job; the sentence that read *"reports 21 configurations OK"*
+predates the manifest and was never updated, which left this document asserting a pass its own
+tool refuses to give. **The committed evidence set does not pass its own completeness check.**
+What is absent for those five is the **hook-fired marker evidence**, not the measurements: their
+twelve trial rows each are in `preemption-trials.tsv`, and every figure derived from them
+re-derives exactly as before. What it puts in doubt is narrow and specific — for those five, and
+only those five, a hook that never fired cannot be distinguished from one that fired and measured
+nothing, so any **zero** they contribute is unconfirmed. It puts nothing in doubt about the other
+21, whose counts stop being an assertion at 25 entry markers per configuration — one warm-up plus
+two per trial, **except `C14a` and `C14b`, which fire a third hook per trial to observe the
+TOCTOU's consequence and therefore want `1 + 3N = 37`; `verify_fires.sh` special-cases them and
+their committed `markers.tsv` files carry 37 entries each**.
+
+`analyse_c14.sh` is a third derivation, over the `C14` traces; **it was corrected in round 3** —
+it had tested
 only that a player's END record existed, which every completed player satisfies, instead of that
 the player was live at hook C. It now reads `tNc.entry` from `markers.tsv` and requires
 `start ≤ hook_c < end`. Under the real predicate the published figures are unchanged, **4 of 12
@@ -641,7 +661,7 @@ two orderings that review named:
 
 | | scenario | what it stages |
 | --- | --- | --- |
-| **S1** | `init` | the winner is stalled between `mkdir` and its pid write by 0 / 5 / 50 ms. The window clause (a) exists for. N = 2, 4, 8 |
+| **S1** | `init` | the winner is stalled between `mkdir` and its pid write by 0 / 5 / 50 ms. The window clause (a) exists for. N = 2, 4, 8. **At 0 ms the window is zero-width and the cell is a who-wins check instead — §3.3** |
 | **S2** | `longstall` | the same, stalled **200 ms and 1000 ms** — longer than clause (a)'s own backoff. **Review finding 1** |
 | **S3** | `aba` | a lock owned by an already-exited pid, so reclamation is legitimate. Reclaimer A acts at once; reclaimer B classified stale at the same instant but is held 120 ms before acting, so it acts on a stale observation. **Review finding 2** |
 | **S4** | `dualreclaim` | two reclaimers, no asymmetry — to separate *simultaneous* reclamation from reclamation on a *stale* observation |
@@ -658,7 +678,7 @@ Owner counts, 20 trials per cell **[measured-here]**:
 
 | scenario | `current` | `spec` | `proposed` |
 | --- | --- | --- | --- |
-| S1, stall 0 ms | 1 (60/60) | 1 (60/60) | **1 (60/60)** |
+| S1, stall 0 ms ‡ | 1 (60/60) | 1 (60/60) | **1 (60/60)** |
 | S1, stall 5 ms | 1 (60/60) | 1 (60/60) | **1 (60/60)** |
 | S1, stall 50 ms | **2 (58/60), 3 (2/60)** | 1 (60/60) | **1 (60/60)** |
 | S2, stall 200 ms | **2 (20/20)** | **2 (18/20), 3 (2/20)** | **1 (20/20)** |
@@ -667,6 +687,12 @@ Owner counts, 20 trials per cell **[measured-here]**:
 | S4, dual reclaim | 1 (20/20) | 1 (20/20) | **1 (20/20)** |
 | S5, who-wins | 1 (80/80) | 1 (80/80) | **1 (80/80)** |
 | S6, dead + N racers | 1 (59/60), **2 (1/60)** | 1 (59/60), **2 (1/60)** | **1 (60/60)** |
+
+‡ **The stall-0 row is not a window test.** At `--stall-ms 0` the window a racer's election read
+would have to fall inside is zero-width, so the row is a live-owner / who-wins check whichever
+protocol runs it. Its 180 trials are counted in the totals below because they are real trials
+with real outcomes; they are **not** evidence about clause (a). §3.3 sets out why, and why the
+row is kept rather than dropped.
 
 Totals:
 
@@ -692,8 +718,10 @@ direction and one short on the magnitude.
 
 **`spec` clause (a) works exactly as far as its timeout and no further.** At stalls of 0, 5
 and 50 ms it is clean, 180/180 — that is the clause doing its job, and it is a real
-improvement over `current`, which fails 60 of those same 180. At **200 ms and 1000 ms it fails
-40 out of 40.** This is **review finding 1, measured**: the clause replaces "a lock with no
+improvement over `current`, which fails 60 of those same 180. **Read 120/180, not 180/180:** the
+stall-0 sixty are a zero-width window and test nothing about clause (a), for the reason set out
+below. At **200 ms and 1000 ms it fails 40 out of 40.** This is **review finding 1, measured**:
+the clause replaces "a lock with no
 pid is abandoned" with "a lock with no pid for more than ~40 ms is abandoned", and a live
 winner that is descheduled, paged in, or `SIGSTOP`ped for longer than that is misclassified
 just the same. **A bounded backoff narrows this window; it cannot close it, because there is
@@ -811,6 +839,43 @@ places the document credits the spec's own fix with working — and, after round
 **S4 in all three protocols and the 59-of-60 clean part of S6 as well**, since those staged their
 incumbent by the same kind of sleep.
 
+**And the barrier stages the *observation*, not the *election read*.** `ack_barrier()` proves
+that a racer once saw the pid-less lock, and then holds it on the `GO` token — but `GO` releases
+the **winner** too. The winner applies its stall and writes its pid while each racer, released by
+the same token, starts its protocol and performs a **second, independent read**, and it is that
+second read which decides the trial. Nothing orders the two. So a clean 0 ms or 5 ms cell can
+still be an ordinary live-owner check — the same false-clean, one level further down, that each
+of the four previous repairs believed it had closed.
+
+**The repair this time is detection, not a sixth staging mechanism.** Every election read now
+reports what it saw — `election_read … saw_window=yes|no` — together with the **inode** of the
+lock directory it read, and the winner records the inode it created. A racer's read counts as
+having entered the staged window only if it saw no pid **and** read the winner's own inode: under
+`current` a racer that reclaims first leaves *its own* lock pid-less for an instant, and a bare
+"I saw no pid" would score that as staging. `run_lock.sh` emits `VOID` for any S1/S2 trial in
+which no racer's deciding read entered the winner's window, and `summarise.sh` already keeps
+`VOID` out of both numerator and denominator. That turns *"we hope it was staged"* into *"we can
+tell, and we discard it when it was not"* — which is the shape this harness should have had four
+repairs ago. **[inferred]**, on the same committed `lock-owners.tsv`, which predates it exactly as
+it predates every staging change above; the closing condition is the same re-run. `proposed` is
+exempt from the rule because it has no pid-less state for a read to enter, not because its staging
+is trusted — S1/S2 are structurally vacuous for it either way, and its election read records
+`saw_window=n/a` and says why.
+
+**The 0 ms cell is not a window test at all, and this document counted it as one.** At
+`--stall-ms 0` the winner writes its pid *immediately* after releasing the barrier, so the
+interval a racer's election read would have to fall inside is **zero-width**. No staging can place
+a read inside a zero-width interval; a read that lands there does so by chance, not by
+construction. So S1 at stall 0 — 60 trials per protocol, 180 of the trials in the table above —
+is a **live-owner / who-wins check**. All three protocols being clean there says only that none
+of them misclassifies a winner whose pid is already on disk, which was never in dispute and is
+not what clause (a) is about. **`spec`'s "clean to a 50 ms stall, 180/180" is therefore 120 trials
+of window evidence and 60 trials of something else**, and `current`'s 120 clean trials in the same
+band become 60 on the same subtraction. The cell is kept rather than deleted, because the `VOID`
+rule now *demonstrates* that instead of the document asserting it: on the re-run, expect the
+stall-0 rows to be largely `VOID`, and read whatever survives as a self-selected sample rather
+than a swept one.
+
 **S6's single failures (1 in 60, both protocols) are the same defect at its natural window
 width.** No stall was injected; the ABA simply happened on its own once per 60 trials under
 contention. That is the honest answer to *"the failure windows are microseconds wide"* — at
@@ -842,12 +907,19 @@ harness is now correct on all three scenarios; the committed `lock-owners.tsv` p
 of those fixes. Re-running S3, S4 and S6 under the synchronised driver is an open item, carried
 in §13 row 21.
 
-**And this is the fifth consecutive round in which review found a defect in the previous round's
-repair of this harness, always in the staging rather than in the design.** §4a and §4b have been
-stable for several rounds. `run_lock.sh` has not: a 4 ms sleep, then a one-way wait, then a
-one-phase barrier, then a two-phase barrier — and now a fixed sleep in three functions the
-previous three repairs walked past. **The honest conclusion is that inspection is not converging
-on this harness, and no further reading of it should be trusted to settle the lock evidence.**
+**And every round of review since has found a defect in the previous round's repair of this
+harness, always in the staging rather than in the design.** §4a and §4b have been stable for
+seven rounds. The S1/S2 staging has not: it has now been wrong **five times, in five different
+ways** — a flat 4 ms sleep; then a one-way wait on the winner's own claim record; then an
+acknowledgement written *before* the protocol read; then an acknowledgement with no release, so
+the first racer could destroy the state the others were staged to observe; and now a release that
+stages the **observation** and leaves the **election read** unstaged. **Four of the five were
+introduced by the repair to the one before it.** The incumbent staging in S3, S4 and S6 has its
+own lineage — a 4 ms sleep, then a fixed `sleep 0.05` that three consecutive repairs walked past.
+**The honest conclusion is that inspection is not converging on this harness, and no further
+reading of it should be trusted to settle the lock evidence** — which is why this round's answer
+is a detector that VOIDs an unstaged trial, rather than a sixth mechanism asserting that staging
+can no longer go wrong.
 The committed lock data predates every staging fix listed above, and **the re-run is the only
 thing that closes it.** Until then the row-21 result should be read as: `current` and `spec` are
 falsified (their failures are self-proving and stand), and `proposed` is unfalsified but
@@ -1008,11 +1080,17 @@ annotate them.
 >       removes it from the group and defeats (iv) completely — measured, orphan plays to
 >       completion 12/12 (`C17`). Round 2's only sentence on detachment was "Never detach the
 >       player", which reads as *nothing detaches*, and that reading breaks the clause.
->   - **Bound it with a `.pending` marker.** The worker creates `playerdir/<nonce>.pending`
->     *before* the fork; the wrapper renames it away as its first act. `killpg` is used only
->     while such a marker exists, which confines its blast radius to the window where an
->     unnamed player can exist. Measured: skipped 25/25 when not needed (`C16b`), used 23/25
->     and effective when needed (`C16a`).
+>   - **Bound it with a generation-tagged `.pending` marker.** The worker creates
+>     `playerdir/<gen>.<nonce>.pending` *before* the fork; the wrapper renames it away as its
+>     first act. `killpg` is sent **only to a superseded owner whose own generation has a
+>     marker** — not merely while some marker exists anywhere — which confines its blast radius
+>     to the generations in which an unnamed player can exist. **The tag is not decoration:
+>     without the per-generation test a single marker authorises `killpg` on every historical
+>     generation, including group ids the kernel may have recycled.** Measured under the
+>     *untagged, boolean* form: skipped 25/25 when not needed (`C16b`), used 23/25 when needed
+>     (`C16a`) — but that same trace shows the bound decaying as markers leak, so the 23/25 is
+>     the defect, not the design. The tagged, per-generation form and its cleanup ordering are
+>     **[inferred]**; §5 states them and the re-run that closes them.
 >   - **Requires row 21's generation protocol.** (iv) reads the *superseded* owner's pid. A
 >     lock protocol that deletes the record of the worker it replaced cannot supply it, so
 >     §10.5 clause 2 and clause 7(iv) must ship together.
@@ -1243,12 +1321,31 @@ Each of these is named with the experiment that closes it, not softened.
       marker a live generation is about to use. The generation tag is what makes ownership
       readable, and it is the same shape §10.5 of the spec now specifies, so the two documents
       agree rather than describing two schemes.
-    - **Remove exactly the markers whose generation is among the ones this election superseded**,
-      and leave every other marker alone.
-    - **Do it BEFORE the electing worker forks any player of its own.** Otherwise the GC
+    - **`killpg` only the generations that actually have a marker.** Tagging the marker made
+      ownership *readable* without making the sweep **use** it: the sweep still read `.pending`
+      as a boolean, so one marker left by `gen12` authorised `killpg` against `gen1 … gen11` as
+      well — process-group ids the kernel is free to have recycled by then, belonging to
+      generations that may never have had an unnamed player at all. That is the blast-radius
+      bound the marker exists to provide, spent, one revision after the tag was added to provide
+      it. Derive the marked set from the markers present and signal only the
+      `(generation, owner_pid)` pairs in it; record a `kill_skipped` for every superseded owner
+      the narrowing excludes, so the bound is visible in the trace rather than assumed.
+      **Narrowing loses no coverage:** a player that published is reachable through clause
+      7(iv-a)'s record sweep, which is exactly why (iv) and (iv-a) are both required.
+    - **Signal FIRST, and remove each marker only once its own generation's group has been
+      swept.** Removing before the `killpg` re-opens the region the marker exists to close: a
+      worker that dies after the unlink and before signalling leaves the unnamed player alive,
+      and the *next* election finds no marker, skips `killpg` by its own bound, and cannot reach
+      that player by record either, because it never published one — `C12c` reconstructed out of
+      the cleanup. Signalling first makes that crash window fail safe: the marker survives, the
+      next election sweeps the group again, and a redundant `killpg` on a group that is already
+      gone is an `ESRCH`. A generation whose `killpg` failed with anything *other* than `ESRCH`
+      keeps its marker and is retried.
+    - **All of it BEFORE the electing worker forks any player of its own.** Otherwise the GC
       deletes the marker for a fork that has not happened yet, the next election sees no
       `.pending`, skips `killpg`, and the design collapses into `C12c` — the record-sweep-only
-      arm that fails 12/12.
+      arm that fails 12/12. The two orderings compose: sweep, then reap, then fork. In the probe
+      the whole election sweep precedes the 0.80–2.02 s model load, so the margin is large.
 
     **Why an un-reaped marker is not merely untidy — measured, in `C16a`.** The wrapper renames
     its own marker away as its **first act**, so a `killpg` that *works* kills the wrapper
@@ -1262,11 +1359,17 @@ Each of these is named with the experiment that closes it, not softened.
     the killed players, while `6fad43e5.pending`, whose player published normally, never
     reappears.
 
-    The reaping is implemented in `speakd_probe.py` (`pending_reaped` / `pending_reap_failed`),
-    but it is **[inferred]** as a *result*: the committed traces predate it and were produced
-    under the un-tagged name, so no arm here exercises it. To close: re-run `C12b`, `C16a` and
-    `C16b` under the tagged marker with a pre-seeded stale `.pending` and a pre-seeded dead
-    record, and confirm `pending_found` does not grow across generations.
+    **Each of these three was found by review of the revision that introduced the one before
+    it** — the tag was added to make the un-determinable set determinable, then the sweep went on
+    ignoring the tag, then the cleanup that used the tag ran on the wrong side of the signal. The
+    reaping and the narrowing are implemented in `speakd_probe.py` (`pending_reaped` /
+    `pending_reap_failed` / `kill_skipped`), but all of it is **[inferred]** as a *result*: the
+    committed traces predate every one of them and were produced under the un-tagged name and the
+    boolean gate, so no arm here exercises any of it. To close: re-run `C12b`, `C16a` and `C16b`
+    under the tagged marker with a pre-seeded stale `.pending` and a pre-seeded dead record, and
+    confirm three things — `pending_found` does not grow across generations; every `killpg`
+    carries a generation that had a marker, with `kill_skipped` accounting for the rest; and no
+    `pending_reaped` precedes the `kill_attempt` for its own generation.
 
 ### One thing this run deliberately did not re-open
 

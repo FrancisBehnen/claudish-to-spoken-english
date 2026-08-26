@@ -110,6 +110,21 @@ def dead_pid():
 
 
 # =========================================================== current / spec
+def lock_ino():
+    """Identity of the lock directory this read is looking at.
+
+    The barrier can only prove a racer once saw A pid-less lock. Under `current` a
+    racer that reclaims first leaves its OWN lock pid-less for an instant, so a bare
+    "I saw no pid" is not proof the WINNER's window was entered. The inode is: the
+    winner records the inode it created, and only a racer read carrying that same
+    inode counts as having been inside the staged window.
+    """
+    try:
+        return os.stat(LOCK).st_ino
+    except OSError:
+        return -1
+
+
 def read_lock_pid():
     try:
         return int(open(LOCK_PID).read().strip())
@@ -122,7 +137,19 @@ def elect_current():
         try:
             os.mkdir(LOCK)
         except FileExistsError:
+            # THE READ THAT DECIDES THE TRIAL, and it reports on itself.
+            #
+            # ack_barrier() stages the OBSERVATION and then blocks on GO. But after GO
+            # the winner writes its pid, and this racer -- released by the same token --
+            # performs its own FRESH read here. Nothing orders the two. So the read
+            # below could just as easily be an ordinary live-owner check, and a clean
+            # cell would look identical either way. Rather than add a sixth staging
+            # mechanism, say what this read actually saw; run_lock.sh VOIDs an S1/S2
+            # trial in which no racer's deciding read carried the winner's window.
+            ino = lock_ino()
             pid = read_lock_pid()
+            rec("election_read", protocol="current", ino=ino, pid=pid,
+                saw_window=("yes" if pid <= 0 else "no"))
             if pid > 0:
                 if alive(pid):
                     rec("lost", held_by=pid)
@@ -159,9 +186,20 @@ def elect_spec():
             os.mkdir(LOCK)
         except FileExistsError:
             # clause (a): a lock with no pid is INITIALIZING -> bounded backoff
+            #
+            # The FIRST pass of this loop is spec's counterpart to `current`'s deciding
+            # read -- the same instant, the same state -- and it is the one that has to
+            # report whether the winner's window was actually open when this racer
+            # looked. The later passes cannot: clause (a) exists precisely to keep
+            # waiting, so `no_pid_after_backoff` conflates "the window was open and
+            # stayed open" with "the window was never entered at all".
             pid = -1
             for _i in range(A.backoff_attempts):
+                ino = lock_ino()
                 pid = read_lock_pid()
+                if _i == 0:
+                    rec("election_read", protocol="spec", ino=ino, pid=pid,
+                        saw_window=("yes" if pid <= 0 else "no"))
                 if pid > 0:
                     break
                 time.sleep(A.backoff_ms / 1000.0)
@@ -249,6 +287,13 @@ def elect_proposed():
             owner = int(os.readlink(gen_path(g)))
         except (OSError, ValueError):
             continue
+        # `saw_window=n/a`, and it is not a dodge: there is no pid-less state to enter.
+        # readlink() returns the owner or ENOENT, never a half-written record, so S1/S2
+        # have nothing to stage for this protocol and run_lock.sh does not VOID it on
+        # that ground. The doc says the same thing in words: S1/S2 are structurally
+        # vacuous for `proposed`, and its result rests on S3/S4/S6.
+        rec("election_read", protocol="proposed", gen=g, owner=owner,
+            saw_window="n/a", why="no_pidless_state_by_construction")
         if alive(owner):
             rec("lost", held_by=owner, gen=g)
             return False
@@ -311,6 +356,16 @@ def ack_barrier():
     `pid` does not. For `proposed` there is no pid-less state by construction -- the
     symlink's target is created with it -- so the observation is simply that a
     generation record exists.
+
+    AND THAT IS ALL IT DOES. Round 11: this stages the OBSERVATION, not the ELECTION
+    READ. After GO the winner applies its stall and writes its pid while each racer
+    starts its protocol and performs a second, independent read -- and it is the second
+    read that decides the trial. Nothing here orders those two, and at --stall-ms 0
+    nothing can: the winner writes the pid immediately after GO, so the interval a
+    racer would have to land in is zero-width. The fix is not a sixth staging
+    mechanism. Each election read now reports what it saw (`election_read
+    saw_window=`), and run_lock.sh VOIDs an S1/S2 trial whose deciding reads all
+    missed the window.
     """
     if not A.barrier_dir:
         return
@@ -364,7 +419,10 @@ if A.role == "winner":
             rec("owner", via="election")
     else:
         os.mkdir(LOCK)
-        rec("mkdir_ok")
+        # The inode is what lets run_lock.sh tell "a racer's deciding read was inside
+        # MY window" from "a racer saw some pid-less lock, possibly one another racer
+        # had just created".
+        rec("mkdir_ok", ino=lock_ino())
         await_barrier()
         if A.stall_ms:
             time.sleep(A.stall_ms / 1000.0)   # THE WINDOW
