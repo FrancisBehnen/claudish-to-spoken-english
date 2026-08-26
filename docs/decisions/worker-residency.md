@@ -19,6 +19,15 @@ Every row is derivable from `residency-timings.tsv` — see *Reproducing the lea
 rows assume the model file is already warm in the page cache** and are optimistic by an unmeasured
 margin; the reason that is a closed limitation rather than an open one is at the end of this document.
 
+**The second and third rows are NOT disjoint populations, and this table reads as though they were.**
+The 30 warm rows are the 25 labelled `warm30` **plus** the five labelled `warm30+mdwarm5`: the
+warmed-during-the-turn rows are a **subset** of the warm rows, not a third arm beside them. So the
+**3.829 s** failure is counted twice — it is one of warm's two misses and the warmed set's single one —
+and 30 and 5 must not be added. On the 25 rows that are warm and *not* warmed-during-the-turn the
+median is **1.085 s** and the line holds **24 times in 25** — re-derived here by filtering
+`residency-timings.tsv` on `set == "warm30"`, and stated as the same caveat against the same three rows
+in spec §10.5. Nothing in the table is arithmetically wrong; each ratio is correct over its own rows.
+
 **§4's headline number survives, but it has to be re-stated.** "Median 0.86 s" is not what a hook
 delivers; **1.22 s** is, and the gap is real and explained below. What does *not* survive is any
 reading of §4 that leaves the cold case implicit: **cold from a hook is a failure against the 3 s
@@ -53,7 +62,7 @@ each site rather than re-argued.**
 neither is in question:
 
 - **synthesis and playback latency from a seeded buffer** — the cold / warm / warmed-during-turn TTFA
-  tables, `create()` at 0.49–4.23 s, the player spawn at 6–38 ms (median 8.9 ms, n = 38), the
+  tables, `create()` at 0.49–4.23 s, the player spawn at 6–38 ms (median 9.15 ms, n = 38), the
   hook-to-worker handoff at median 0.079 s, the 1.33–2.02 s worker startup, and the model-load and
   warm-up costs;
 - **the hook's own wall cost** — 0.063–0.219 s, median 0.086 s, already separately qualified by the
@@ -92,7 +101,17 @@ Both are facts about **latency**, and none of them depends on which file a playe
    quarantining the other reclaimer's *live* lock. **The worst case was 3 owners, not 2** — 2 is the
    number this document's own closing condition predicts, under *What I could not measure*. The replacement
    is a `symlink`ed generation record, superseded rather than removed: **0/400 wrong** (spec §10.5
-   clause 2, §13 row 21). **§2's `mkdir`-under-contention result is untouched** — 8 hooks → 1 owner is a
+   clause 2, §13 row 21) — **and that figure must not be quoted bare, because the path this replacement
+   exists to provide is trace-confirmed on 1 trial of 100.** All **100** reclamation trials — S3 (20),
+   S4 (20), S6 (60) — staged their dead incumbent by a **clock**, and the defect is asymmetric: a
+   mis-staged trial yields exactly the `1 owner` a genuine pass yields, so a clean cell cannot by itself
+   separate *"survived a stale-observation reclamation"* from *"never saw one"*. One of the hundred has a
+   committed per-trial trace and it settles that trial — `lock-S3_aba-proposed-r1.tsv`, both racers
+   classifying the incumbent `pid_dead` and one publishing `gen=1 superseded=0` and taking ownership —
+   so the count is **1 confirmed, 99 unconfirmed**, not zero. **0/400 wrong is therefore true**
+   (mis-staging can hide a failure, never invent one) **and is evidence for the reclamation path on a
+   sample of one rather than on none**; row 21 stays ship-blocking on that arm (spec §13 row 21(b)).
+   **§2's `mkdir`-under-contention result is untouched** — 8 hooks → 1 owner is a
    result about exclusive create under contention, and the replacement still elects by exclusive create.
 
 **What the trials CONFIRMED, because it is the other half of the record.** The **claim-time kill of §1b
@@ -295,7 +314,9 @@ synthesis completes. One `stat()` of `speak/job` between `create()` returning an
 newer job is waiting, **discard the finished wav and never play it.** The window in which a badly-timed
 arrival still produces audible stale speech shrinks from the whole of `create()` — **0.49–4.23 s** on
 the rows measured here — to the gap between that `stat()` and the spawn, which is the measured spawn
-cost, **6–38 ms, median 8.9 ms** (n = 38). That narrows the race by two to three orders of magnitude.
+cost, **6–38 ms, median 9.15 ms** (n = 38 — the 39th row is the offline concurrency probe, excluded
+from every aggregate in this document by name, and **8.9 ms** is what its inclusion gives). That
+narrows the race by two to three orders of magnitude.
 It does not close it, and saying otherwise would repeat the mistake this subsection exists to correct.
 
 > **This clause SURVIVED the trials; only its status changed** (*SUPERSEDED* at the top). The spec keeps
@@ -519,7 +540,15 @@ supposed to survive the adversarial case rather than the lucky one.
 > lock. **And the worst case was 3 owners, not the 2 this document predicts.** The replacement is
 > §3.1's shape applied here: a record that is created and never mutated, with ownership carried by a name
 > — a `symlink`ed `worker.lock.<gen>` holding the owner's `<pid>.<starttime>`, superseded rather than
-> removed, **0/400 wrong**. **The generalisation, which is the part worth keeping:** where this document
+> removed, **0/400 wrong — a figure that is true and that does not certify the reclamation path on its
+> own.** All **100** of the replacement's reclamation trials — S3 (20), S4 (20), S6 (60) — staged their
+> dead incumbent by a **clock**, and a mis-staged trial yields exactly the `1 owner` a genuine pass
+> yields, so those cells cannot separate *"survived a stale-observation reclamation"* from *"never saw
+> one"*. **Exactly 1 of the 100 is trace-confirmed** — `lock-S3_aba-proposed-r1.tsv`, both racers
+> classifying the incumbent `pid_dead` and one superseding it — so it is **1 confirmed, 99 unconfirmed**,
+> which is not zero and is not a hundred. That is why §13 row 21 stays ship-blocking on arm (b) even
+> though the protocol this subsection's two clauses lost to is the one that ships (spec §13 row 21(b)).
+> **The generalisation, which is the part worth keeping:** where this document
 > guards a shared mutable path with an ordering rule, the ordering rule is the smell — and both clauses
 > below are ordering rules over one mutable path.
 
@@ -580,7 +609,7 @@ trigger. The review was right, and the gap is three orders of magnitude.** Read 
   != "true" ]; then ... emit_empty; else pass_through; fi`, and both of those `exit 0`. **[repo]**
 - **The rewrite is published only from the final invocation**, after reconstruction (`rewrite.sh:134`),
   after the prose-length gate, and — decisively — **after `llm_complete` returns** (`rewrite.sh:192`),
-  whose default budget is `CLAUDISH_TIMEOUT=45` seconds (`rewrite.sh:66`). **[repo]**
+  whose default budget is `CLAUDISH_TIMEOUT=45` seconds (`rewrite.sh:65`). **[repo]**
 - **There is in fact no `speak/` publish in `rewrite.sh` at all today.** `grep -n 'speak' rewrite.sh`
   returns nothing across all 245 lines. §3.1's publish is proposed spec, not shipped code — consistent
   with `speak.sh` not existing. **[repo]**
@@ -603,8 +632,8 @@ is a scheduling coin-flip. Every figure here is derivable from `residency-timing
 round-trip. A publish-point trigger would therefore start the worker *after* `Stop` has already fired,
 which is strictly worse than triggering on `Stop`.
 
-**Worse, on short turns the publish point never fires at all.** `rewrite.sh:145-155` gates on
-`prose_len < MIN_CHARS` (default **200**, `rewrite.sh:64`) and returns without producing a rewrite.
+**Worse, on short turns the publish point never fires at all.** `rewrite.sh:147-156` gates on
+`prose_len < MIN_CHARS` (default **200**, `rewrite.sh:63`) and returns without producing a rewrite.
 A fifty-character reply produces no publish, ever — so a publish-point trigger provides exactly zero
 warm-up on precisely the turns that need it most. **[repo]**
 
@@ -661,11 +690,15 @@ Drive the same fresh session with a reply of fifty characters and the lead disap
 The earlier draft recorded this as *unexplained*. **It is no longer unexplained, and §4a is the
 explanation.** The expectation it violated was that `MessageDisplay` precedes `Stop` by seconds — but
 that is only true of the *non-final* invocations. The final invocation is concurrent with `Stop`
-(median 7.5 ms across sixteen turns, sign not guaranteed), and a fifty-character reply streams in a
-single chunk, so its only invocation *is* the final one. On turn 31 all three of its invocations landed
-after `Stop`'s clock read, and all three found no worker and spawned one — the election then discarded
-two. There is nothing left to explain about hook dispatch ordering; the ordering is a consequence of
-chunk count, which is a consequence of message length.
+(median 7.5 ms across sixteen turns, sign not guaranteed), and a very short reply streams in few enough
+chunks that none of them leads the end of the turn. **Read that carefully against the data, because two
+routes to the same outcome were being described as one.** On turns 37–40 the short reply produced
+`n_md = 1`, so its only invocation *is* the final one, which is the concurrent one. **On turn 31 there
+were three** — `n_md = 3`, not 1 — and all three landed after `Stop`'s clock read, all three found no
+worker and spawned one, and the election discarded two. So more than one chunk is **not** sufficient:
+turn 31 satisfies the first half of the stated limit below and fails the second, because its first chunk
+did not lead the end of the turn at all. There is nothing left to explain about hook dispatch ordering;
+the ordering is a consequence of when the chunks arrive, which is a consequence of message length.
 
 The practical rule is unchanged and should go in the spec as a stated limit:
 
@@ -689,13 +722,22 @@ columns, and `set`, which names the rows behind each published aggregate:
 | `set` | rows | reproduces |
 | --- | --- | --- |
 | `cold7` | 7 | cold: median 3.161 s, range 2.657–5.496 s, 3/7 under 3 s |
-| `warm30` | 30 | warm: median 1.216 s, range 0.573–4.014 s, 28/30 under 3 s |
+| `warm30` **plus** `warm30+mdwarm5` | 25 + 5 = 30 | warm: median 1.216 s, range 0.573–4.014 s, 28/30 under 3 s |
+| `warm30` alone | 25 | warm and *not* warmed-during-turn: median 1.085 s, 24/25 under 3 s |
 | `warm30+mdwarm5` | 5 | warmed-during-turn: median 1.710 s, range 1.373–3.829 s, 4/5 under 3 s |
 | `concurrency-probe`, `slow-cold-outlier` | 1 each | excluded from every aggregate above, by name |
 
+**The label `warm30` selects 25 rows, not 30, and the row above used to say 30** — the warm aggregate is
+the union of the two labels, because the five warmed-during-turn rows are warm rows as well. A reader who
+filtered on `set == "warm30"` and expected the published 30 got 25 and a median of 1.085 s, which is the
+subset caveat at the top of this document arriving as a reproducibility defect rather than as a reading
+hazard.
+
 `ready_lead_s` is `t_stop − t_worker_ready`: **positive means the worker was resident before `Stop`
 fired**, which is the mechanism working. It is positive exactly on the five `mdwarm5` turns
-(3.051–4.619 s) and negative on every cold turn (−1.382 to −1.734 s), which is the mechanism's whole
+(3.051–4.619 s) and negative on **every cold turn that carries the column — five of the seven**
+(−1.382 to −1.734 s); turns 1 and 7 predate the `t_worker_ready` instrumentation and the cell is empty
+there, so *"every cold turn"* is a claim about 5 rows and not about 7. That is the mechanism's whole
 claim in one column.
 
 ### 5. The worker does a warm-up synthesis at startup
@@ -707,14 +749,43 @@ and says why (**[repo]**).
 markedly slower than the steady state: the same item (`r01`, 88 chars spoken) took **2.13 s** as a
 worker's first synthesis versus **1.41 s** on a worker that had already spoken. The warm-up costs
 **0.78–1.12 s** of startup, which pushes exec→ready from 0.80–1.30 s to **1.33–2.02 s** and therefore
-lengthens the streaming lead the mechanism needs. Net: **a win when there is lead time, a wash when
-there is not.** Recommended, with the trade named.
+lengthens the streaming lead the mechanism needs.
+
+> **The verdict this subsection closed with is WITHDRAWN, and the data that withdrew it is the table in
+> *Cold* below — this document's own.** It read *"Net: a win when there is lead time, a wash when there
+> is not. Recommended, with the trade named."* **Both halves are gone.** The `cold7` set holds a
+> near-controlled pair with **no** lead on either side and the **same** item `r01` — 268 chars in, 88
+> spoken, 5.06 s of audio — named in `residency-timings.tsv`'s `run` column: `E-md-warmup`, no
+> startup warm-up, TTFA **4.489 s** at RTF 0.595, against `G-short-cold`, warm-up present, TTFA
+> **2.657–3.161 s** at RTF **0.241–0.280**. So it is **a win even with no lead at all** — the
+> hook-to-worker interval on a cold start is itself **1.38–1.73 s**, enough to absorb the warm-up — and
+> the difference is between failing the 3 s line and sitting just under it, not a wash. The honest limit
+> of the comparison is **n = 1 on the `E` side** and the two runs differ in their run label as well as
+> in the warm-up, so it settles the *direction* and is not an effect size **[hook]**. And the spec has
+> **STRENGTHENED the clause from *recommended* to REQUIRED** on that reading: §10.5 is LOCKED and §13
+> row 2 lists the startup warm-up as part of the *selected* mechanism, so leaving it advisory handed the
+> implementer a decision the lock claims is already made (spec §10.5 clause 5).
 
 ### 6. Idle exit at 30 minutes
 
 Matching `rewrite.sh:117`'s existing sweep window, so a worker never outlives the directory it
 depends on. **Not measured** — the runs here are minutes long. Stated as a design choice, and it does
 re-introduce a cold start after half an hour of silence, which is the honest cost.
+
+> **The interval, the reason and the clock are all superseded, and the reason was measured FALSE.** The
+> spec's clause 6 is **20 minutes**, and *"matching `rewrite.sh:117`'s sweep"* is precisely the reasoning
+> it rejected, because **equal timeouts do not order two events**. Worse, *"a worker never outlives the
+> directory it depends on"* is the claim a measurement then falsified: `find -mmin` is **wall clock**
+> while the spec's clause 6 went on to mandate `time.monotonic()`, which on Darwin does not advance
+> across sleep,
+> so one unplanned 40-minute idle sleep put **38 min 44 s** of divergence against a 10-minute margin and
+> `:117`'s verbatim predicate selects a directory whose worker's own timer reads **12.51 min**. The
+> repair is to read idleness off the speak directory's own mtime against `time.time()`; the residual is
+> a forward clock jump, bounded by the 1 s poll rather than by however long the machine slept. **That
+> measurement is not this document's** — nothing here has slept a machine — and it moved **§13 row 24
+> into the ship-blocking set**, where the deterministic cost is that the first turn after any sleep over
+> thirty minutes is served **cold** (spec §10.5 clause 6, §13 row 24). The *"not measured"* above stays
+> true of this arm and is no longer true of the clause.
 
 ---
 
@@ -725,7 +796,7 @@ re-introduce a cold start after half an hour of silence, which is the honest cos
 | **fresh interpreter per turn** | rejected | already rejected by the spec on #6's 3.93 s; this run's cold rows (2.66–5.50 s from a hook) agree and are worse |
 | **HTTP server on a port** | rejected | #5 declined it on measured evidence; independently, a file drop answers every question a port raises without opening one |
 | **Unix domain socket** | rejected | **[obs]** `bind()` fails at the real path depth — 116 bytes against a 104-byte `sun_path`. The relative-path workaround works but needs `nc -U` in the hook and buys nothing |
-| **`launchd` user agent** | rejected, **not measured** | it would be permanently resident and would survive machine sleep, which is genuinely better on latency. It loses on three other counts: it installs a background daemon for a feature that is **off by default** (§11), it is outside `rewrite.sh:117`'s sweep so nothing reclaims it, and it has no per-session scoping, which makes §10.6's per-session pid file meaningless. **This is a judgement, not a measurement**, and it is the alternative a reviewer should push back on if they think the latency is worth the footprint |
+| **`launchd` user agent** | rejected, **not measured** | it would be permanently resident and would survive machine sleep, which is genuinely better on latency. It loses on three other counts: it installs a background daemon for a feature that is **off by default** (§11), it is outside `rewrite.sh:117`'s sweep so nothing reclaims it, and it has no per-session scoping, which makes §10.6's per-session player records meaningless — *pid file* was the name when this row was written, and one shared `speak/pid` is exactly what the trials removed (*SUPERSEDED* at the top); the judgement is unaffected, because it turns on per-session scoping and not on the record's shape. **This is a judgement, not a measurement**, and it is the alternative a reviewer should push back on if they think the latency is worth the footprint |
 | **worker started by `Stop` only** | rejected | measured: median cold **3.16 s**, 3/7 under the line. This is the mechanism the spec's shape implies today, and it is the one that fails |
 
 ---
@@ -748,8 +819,16 @@ process except the single row marked `offline` (the eight-way concurrency race).
 | 40 | short-cold | **2.657 s** ✅ | 1.383 s | 0.547 s | 1262 ms | 0.250 | 3.45 |
 | | | **median 3.161 s** | | | | | **3/7 pass** |
 
-Turns 37–40 pay a startup warm-up synthesis that turns 1, 7 and 31 do not; that is why their
-`hook→worker` is longer and their `synth` far shorter. It roughly cancels.
+Turns 37–40 pay a startup warm-up synthesis that turns 1, 7 and 31 do not; that is why their `synth` is
+far shorter. **The rest of that sentence used to read *"that is why their `hook→worker` is longer … it
+roughly cancels"*, and neither half survives its own column.** `hook→worker` on turns 37–40 is
+**1.383–1.734 s** against 1.196 s, 1.699 s and 1.465 s on turns 1, 7 and 31 — overlapping, not longer:
+turn 40's 1.383 s is shorter than turn 7's 1.699 s. And it does not cancel. Turn 31 and turns 37–40 are
+the near-controlled pair — both have the clause-4 ensure hook live, both get no lead, all five
+synthesise `r01` — and the warm-up arm lands at **2.657–3.161 s** against **4.489 s**, RTF 0.241–0.280
+against 0.595. The **1.38–1.73 s** hook-to-worker interval absorbs the warm-up rather than paying for
+it, which is why §5's *"a wash when there is no lead"* is withdrawn above and why the spec makes the
+warm-up REQUIRED (spec §10.5 clause 5).
 
 **The honest reading: cold from a hook straddles the 3 s line and does not clear it.** On a quiet
 machine it lands at 2.7–3.2 s; on a busy one it goes to 5.5 s. #6's cold figure of **3.93 s** sits
@@ -860,7 +939,10 @@ other blockers; a single integration pass folds this in. This is the proposed co
 **proposal as it stood on 2026-08-25** and is kept as the record of what was proposed off what was
 measured. **Clause 2's stale-lock recovery and clause 7's three preemption hooks are the two that did not
 survive** — see *SUPERSEDED* at the top for what replaced each and what the measurements behind them
-still establish. Clauses 1, 3, 4 and 5 are the spec's. **Clause 6 is the spec's only after TWO
+still establish. Clauses 1, 3 and 4 are the spec's. **Clause 5 is the spec's only after a
+STRENGTHENING and a withdrawal**: *recommended* became **REQUIRED**, and the *"a win when there is lead
+time, a wash when there is not"* it closed with is contradicted by this document's own `cold7` pair and
+withdrawn (§5 above, spec §10.5 clause 5). **Clause 6 is the spec's only after TWO
 corrections, not one, and the interval is the one this sentence used to leave out**: its *window* went
 from the 30 minutes below to **20** in review — so *"matching `rewrite.sh:117`'s sweep"*, which is the
 reason clause 6 gives for its number, is precisely the reasoning the spec rejected, because equal
@@ -869,7 +951,9 @@ clock by a measurement that is not this document's (spec §10.5 clause 6, §13 r
 
 ### §10.5 — the OPEN heading comes off, with the limits attached
 
-The mechanism, in six clauses, each measured above:
+The mechanism, in seven clauses — **and *"each measured above"*, which this line used to claim, is false
+of clause 7, whose own text says its hooks are all `[inferred]` and none measured.** Clauses 1–6 are
+measured above; clause 7 is reasoned from §1b:
 
 1. **Address**: a job file at `$BUF_ROOT/<session_id>/speak/job`, written to a temp name and `mv`d
    into place. **Not a socket** — the path is 116 bytes against Darwin's 104-byte `sun_path` and
@@ -1045,7 +1129,13 @@ cheap: the mechanism already has a warm-up trigger and a wake handler would reus
 ## What I could not measure, and why
 
 - **Sleep/wake.** Requires actually sleeping the machine, which was out of scope and disruptive to
-  four live sessions. #5's ~4.9 s stands unmeasured-here. §13 row 12 unchanged.
+  four live sessions. #5's ~4.9 s stands unmeasured-here. §13 row 12 unchanged. **A machine has since
+  slept — unplanned, on 2026-08-26 — and it settled a DIFFERENT question, so this bullet is still owed
+  rather than discharged**: no worker was resident across that sleep (`speak.sh` does not exist), so
+  what it measured is the platform's clock behaviour and it falsified §10.5 clause 6's idle-exit/sweep
+  separation, moving §13 row 24 into the ship-blocking set. Row 12's listening call — a *warm* worker
+  across a wake — is untouched by it, which is why row 12 is *"unchanged"* here rather than closed
+  (spec §13 rows 12 and 24, §10.5 clause 6, and §6 above).
 - **The settled #13 sanitizer combination**, because §13 row 1 has not shipped it. `base` was used;
   the sanitize phase is 0.2–9.2 ms and does not move the result.
 - **The shipped hook in bash.** The probe is `zsh -f`, for the clock. The hook's measured wall cost
@@ -1092,12 +1182,21 @@ cheap: the mechanism already has a warm-up trigger and a wake handler would reus
   §13 row 21. **The design of the experiment below is exactly what was done** — a worker stalled before
   its pid write, N racers, count the owners — and the prediction attached to it was wrong in both
   directions: the probe's protocol produced **121/400** wrong outcomes and the two corrected clauses
-  **61/400**, and **the worst case was 3 owners, not the 2 this sentence predicts.** Both clauses are
-  **[inferred]**. Provoking the real
-  window means pausing a winning worker between its `mkdir` and its pid write, which again needs an
-  instrumented worker. Worth doing in the same run as the preemption experiment: **start N workers
-  against a lock held by a worker deliberately stalled before its pid write, and count how many end up
-  believing they own the session.** The current protocol should produce 2; the corrected one, 1.
+  **61/400**, and **the worst case was 3 owners, not the 2 this bullet's closing sentence predicts.**
+  **Read the rest of this bullet as the plan that was owed, not one still owing — and read its two
+  clauses as measured false, not as `[inferred]`, which is what they were when it was written.**
+  HISTORICALLY: *provoking the real window means pausing a winning worker between its `mkdir` and its
+  pid write, which again needs an instrumented worker. Worth doing in the same run as the preemption
+  experiment: start N workers against a lock held by a worker deliberately stalled before its pid write,
+  and count how many end up believing they own the session. The current protocol should produce 2; the
+  corrected one, 1.* **That is exactly the rig that ran — `lockrace.py`, N racers against a stalled
+  incumbent — and the closing prediction is disproved in both halves:** the worst case was **3** owners
+  for both protocols, and the corrected protocol did not produce one owner throughout but a wrong count
+  in **61 of 400** trials. **What is still owed here is not this experiment but two arms of its
+  successor**, and they belong to the replacement rather than to these clauses: the generation
+  **unlink** and its ordering against the election sweep, which `lockrace.py` never ran, and a
+  barrier-staged re-run of the reclamation scenarios, of which exactly 1 of 100 is trace-confirmed
+  (spec §13 row 21(a) and 21(b)).
 - **Whether any of this holds on hardware that is not an M3.** Nothing here is portable evidence.
 
 ### One thing that cannot be measured here, and does not need to be
@@ -1115,7 +1214,7 @@ State the consequence precisely, because it is what makes this acceptable rather
   are **optimistic by an unmeasured margin.** That phrasing belongs wherever a cold figure is quoted,
   not only in this section.
 - **It cannot flip any verdict the spec depends on.** Cold TTFA already exceeds the 3 s budget without
-  any page-cache penalty — 3 of 7 cold hook turns are over the line. A larger cold number makes an
+  any page-cache penalty — 4 of 7 cold hook turns are over the line. A larger cold number makes an
   already-failing case fail harder. There is no decision in §10.5, §10.6 or §13 whose outcome turns on
   the size of the margin, which is precisely why an unmeasured quantity is acceptable here rather than
   blocking.

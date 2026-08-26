@@ -992,14 +992,15 @@ inside budget.
 > 7 turns without any page-cache penalty**, and a larger number makes an already-failing case fail
 > harder.
 >
-> > **One arithmetic correction to the source document, made here because the data is committed and
-> > checkable.** `worker-residency.md` states this as *"3 of 7 cold hook turns are over the line"*. Its
-> > own table and [`residency-timings.tsv`](residency-timings.tsv) say otherwise: the `cold7` rows are
-> > **5.441, 5.496, 4.489, 3.161, 2.954, 2.951, 2.657** s, so **4 are over 3 s and 3 are under**
-> > **[measured-here]**. The pass count (3/7) and the fail count (4/7) were transposed in the prose.
-> > **It changes nothing** — the conclusion is that cold fails the line either way — but the figure
-> > used throughout this spec is **4 of 7 over**, and the source document's sentence should be
-> > corrected when someone next touches it. **It is also the reason every cold-failure count in this
+> > **One arithmetic correction to the source document, raised here because the data is committed and
+> > checkable — and SINCE APPLIED there.** `worker-residency.md` stated this as *"3 of 7 cold hook turns
+> > are over the line"*. Its own table and [`residency-timings.tsv`](residency-timings.tsv) said
+> > otherwise: the `cold7` rows are **5.441, 5.496, 4.489, 3.161, 2.954, 2.951, 2.657** s, so **4 are
+> > over 3 s and 3 are under** **[measured-here]**. The pass count (3/7) and the fail count (4/7) had
+> > been transposed in its prose; that sentence now reads **4 of 7**, so this paragraph records a
+> > repair rather than an outstanding one. **It changed nothing** — the conclusion is that cold fails
+> > the line either way — and the figure used throughout this spec is **4 of 7 over**. **It is also the
+> > reason every cold-failure count in this
 > > document has to be read against the data rather than against its neighbours: this file states the
 > > pass count in one place (§10.5's alternatives table, "3 of 7 under the line") and the fail count in
 > > five others, and both phrasings are correct.**
@@ -3370,6 +3371,39 @@ on. So #11 can lock and #23 can start — with two more blockers than it had yes
 > **A `[trials]` coverage claim over a mechanism no trial ran is a tag-honesty defect**, and it is the
 > fifth in the same class rather than a new one: the defect was in an evidence document, and this table
 > counts defects in **this** document's LOCKED text. **The total is unchanged at thirty-three.**
+>
+> **A SIXTH of that class landed on 2026-08-26 and is likewise not a row — and the fact that there is a
+> sixth is the finding, not any one of its sites.** Three rounds have now re-qualified
+> [`worker-residency.md`](worker-residency.md) against this document — the large one recorded in the
+> FOURTH note above and two smaller ones after it — and **this round corrected 19 more sites in it**, in
+> the same shapes. The two that matter: **`0/400 wrong` was quoted twice with no staging caveat**, so
+> the evidence document credited the replacement lock protocol's *reclamation* path — the very path it
+> exists to provide — at 400 trials when **row 21(b) trace-confirms 1 of 100** and the other 99 were
+> clock-staged into cells a genuine pass and a mis-staged one produce alike; and its *What I could not
+> measure* entry for that same protocol described the experiment as **completed in its update and still
+> owed in the retained text below it**, marking both clauses `[inferred]`, instructing the reader to
+> build the rig, and predicting **2 owners** where the run found **3**. The rest are one shape each and
+> all re-derived from committed data: the warm and warmed-during-the-turn rows presented as three arms
+> when the second is a **subset** of the first (its *Reproducing the leads* table promised 30 rows under
+> a label that selects **25**, whose median is **1.085 s**, not 1.216); *"3 of 7 cold hook turns are over
+> the line"*, which the blockquote in §4 had asked to be corrected and which is now **4 of 7**;
+> §5's *"a win when there is lead time, a wash when there is not"*, withdrawn in this document and still
+> standing there beside *"Recommended"* where clause 5 is **REQUIRED**; §6's *"a worker never outlives
+> the directory it depends on"*, which is what row 24 measured false; *"the mechanism, in six clauses,
+> each measured above"* over a list of **seven** whose seventh says it was not measured; a superseded
+> *"per-session pid file"* in its alternatives table; a spawn median hand-carried from the n = 39 set
+> into an n = 38 sentence; *"negative on every cold turn"* over a column empty on 2 of the 7; a
+> single-chunk narration of a turn its own data records at three; and three `rewrite.sh` line citations
+> — two off by one, one off by two — against the same lines this document cites correctly.
+> **The count stays at thirty-three for
+> the reason the notes above give**, and the reason is worth restating now that the class has six
+> entries: the table counts defects in this document's LOCKED text, and an
+> evidence document's re-qualification is a defect in a *record of what was measured*, not in a
+> specification. **What the six entries do say, and it is why they are tracked here rather than
+> discarded, is that the rate at which this class recurs has not fallen** — every round that has looked
+> has found more, and the shapes repeat: a ratio quoted without the caveat its source attaches, an
+> *"all"* or *"every"* over a set the data does not cover, and a repair applied to one of two parallel
+> sites.
 >
 > **The same pass re-derived the total and found §15's tally still reading NINE
 > reads and THIRTY-ONE over a twelve-item list** while this note and the rest of §15 had moved to
