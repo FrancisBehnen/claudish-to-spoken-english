@@ -887,7 +887,16 @@ lengthens the streaming lead the mechanism needs.
 > startup warm-up, TTFA **4.489 s** at RTF 0.595, against `G-short-cold`, warm-up present, TTFA
 > **2.657–3.161 s** at RTF **0.241–0.280**. So it is **a win even with no lead at all** — the
 > hook-to-worker interval on a cold start is itself **1.38–1.73 s**, enough to absorb the warm-up — and
-> the difference is between failing the 3 s line and sitting just under it, not a wash. The honest limit
+> the win is **1.328–1.832 s of TTFA on every one of the four `G` rows**, with synthesis at
+> **0.41–0.47×** of `E`'s (1218–1414 ms against 3007 ms) and the two RTF ranges not overlapping at all.
+> **That is not a wash. It is also not a pass/fail flip, and this blockquote said it was until review
+> round eleven**: it read *"the difference is between failing the 3 s line and sitting just under it"*,
+> and the top of its own quoted range is the run that fails the line. `G-short-cold` is **3 of 4 under
+> #9's 3 s line, not 4 of 4** — turn 37 is at **3.161 s ❌** in the table below, missing by **161 ms**
+> where `E` misses by **1.489 s**. So the honest comparison is one failing run against an arm where
+> three pass and the fourth nearly does, which still carries the direction; what it cannot carry is a
+> pass, and *"cold from a hook straddles the 3 s line and does not clear it"* in *Cold* below is this
+> document's position on that. The honest limit
 > of the comparison is **n = 1 on the `E` side** and the two runs differ in their run label as well as
 > in the warm-up, so it settles the *direction* and is not an effect size **[hook]**. And the spec has
 > **STRENGTHENED the clause from *recommended* to REQUIRED** on that reading: §10.5 is LOCKED and §13

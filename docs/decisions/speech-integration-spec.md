@@ -2480,8 +2480,17 @@ from 0.80–1.30 s to **1.33–2.02 s**, and therefore **lengthens the streaming
 
 - **So the warm-up is a win even with no lead at all**, because the hook-to-worker interval on a cold
   start is itself **1.38–1.73 s** — enough to absorb the warm-up — which converts the *user-visible*
-  synthesis from a cold first `create()` into a warm one and roughly halves it. **It is not a wash; it
-  is the difference between failing the 3 s line and sitting just under it.**
+  synthesis from a cold first `create()` into a warm one and roughly halves it: **1218–1414 ms against
+  3007 ms, 0.41–0.47×**. **It is not a wash — every one of the four `G` rows beats `E` by 1.328–1.832 s
+  of TTFA, and the two RTF ranges do not overlap.**
+- **It is not a pass/fail flip either, and this clause claimed it was until round eleven.** It read
+  *"it is the difference between failing the 3 s line and sitting just under it"* — and the top of the
+  **2.657–3.161 s** range quoted in the table above is the run that **fails** the line: turn 37 at
+  3.161 s, over by **161 ms** where `E` is over by **1.489 s**. `G-short-cold` is **3 of 4 under the
+  line, not 4 of 4**, and §10.5's own cold figure fails it at **4 of 7** turns, which this clause cannot
+  be the exception to. **What the pair settles is the direction and the size of the gap, not a pass**
+  **[hook]** — and that is enough for *required*, because the choice the clause makes is warm-up against
+  no warm-up, not cold against the tolerance.
 - **The honest limit of that comparison: n = 1 on the `E` side**, and the two runs differ in their run
   label as well as in the warm-up, so this is **suggestive rather than controlled**. It is enough to
   settle *required versus recommended* — the direction is unambiguous and large — and not enough to
@@ -3339,10 +3348,10 @@ not be met by the choice, so the row says so. So #11 can lock and **#23 can star
 — but #23 finishes at row 17, not at "the hook runs". **An implementer who builds `speak.sh` and does
 not measure the wait has not finished the ship blocker, they have moved it.**
 
-**RE-EXAMINED FOURTEEN TIMES AND MEASURED TWICE — sixteen occasions across the fifteen round labels in the table below, `#28` standing for two of them — and the measurements are still the ones that matter.** The
-answer above was written before anyone had read this revision back. **Twelve reads of this document, two review
+**RE-EXAMINED FIFTEEN TIMES AND MEASURED TWICE — seventeen occasions across the sixteen round labels in the table below, `#28` standing for two of them — and the measurements are still the ones that matter.** The
+answer above was written before anyone had read this revision back. **Thirteen reads of this document, two review
 rounds of its sibling carried across, and two experiments** have since gone over it, and between them they
-found **thirty-six correctness defects in text this revision marked LOCKED** — with the second round finding
+found **thirty-seven correctness defects in text this revision marked LOCKED** — with the second round finding
 defects **in the first round's repairs**, the first experiment finding that **two of the first round's repairs were
 themselves wrong**, the fourth round finding **five more, in four different sections, none of them
 in a repair**, the fifth round finding **four, of which two are defects in round three's and round
@@ -3399,7 +3408,13 @@ condition. **That is the discipline this table asks for and it is worth naming: 
 LOCKED decision does not by itself license changing the decision.** The second is §10.6 restating one
 removal outcome as the outcome for all four clauses it rests on, false for clause 7(v) — `C7_noreap`
 produces a kill site that cannot fail rather than a stale utterance — which is row 9's shape again, a
-per-hook role restated as one role for every hook. **Two of the sixteen occasions are not reads of this document at all** — they are review rounds
+per-hook role restated as one role for every hook. **The eleventh round found one, and it is the mildest
+shape in the table**: §10.5 clause 5 quoted `G-short-cold` at 2.657–3.161 s and then called that *"sitting
+just under"* the 3 s line, when the top of the range is the run that fails it — 3 of 4 under, not 4 of 4,
+against a section whose own cold figure fails at 4 of 7. **It is the first row whose repair leaves the
+decision alone**: the warm-up stays REQUIRED because the pair it rests on is warm-up against no warm-up
+(1.328–1.832 s on every `G` row, non-overlapping RTF ranges), and the 3 s line was never what that choice
+turned on. **Two of the seventeen occasions are not reads of this document at all** — they are review rounds
 24 and 25 of [`preemption-and-lock-protocol.md`](preemption-and-lock-protocol.md), whose findings landed here
 because the two documents specify one mechanism and this one had the defect.
 
@@ -3441,15 +3456,18 @@ because the two documents specify one mechanism and this one had the defect.
 | **9** | **the repair that withdrew that measurement OVERCLAIMED IN THE OPPOSITE DIRECTION, and the overclaim reached four LOCKED sites.** §10.3 introduced *“the range is a **lower bound** on the hook as now specified”* when clause 2's `ps` fork landed, and **round eight propagated that framing to §3.5.1, §6 and §10.6 rather than questioning it** — and **an old observed range bounds a changed hook body in neither direction**. *Adding operations increases work* holds only **under otherwise identical conditions**; two wall-time samples taken on two implementations under different scheduling, load and cache state are not that comparison, so a 0.063 s floor is a fact about forty-seven processes that ran rather than a law about processes that have not. **The correct statement is a HISTORICAL BASELINE plus an UNMEASURED current cost**, with only the *direction* of the change **[inferred]**. **At §10.6 the qualifier was also the wrong direction for its own sentence**: that bullet needs a **ceiling** on how long a stale player keeps playing (*“dies within the hook's own wall cost”*) and the caveat attached to it was a **floor**, which licenses no ceiling at all — a qualifier that reads as a bound smuggled back exactly the currency the withdrawal removed. **Not a new shape but the SECOND instance of `M2′`'s** — a defect in a repair one round old, breaking the opposite way to the defect it fixed — and it is counted for row 8's own reason: §3.5.1, §6, §10.3 and §10.6 are **this** document's LOCKED text. The two evidence documents carried it too and that half is **not** a row, per the EIGHTH note below | §10.3, §6, §3.5.1, §10.6, §10.5 cl. 4, §15 |
 | **10** | **§3.2's identical-text exception was ACCEPTED ON A FALSE PREMISE, and the premise stood in LOCKED text across SEVEN SECTIONS — §3.1, §3.2, §3.5, §3.5.1, §5.1, §10.2 and §10.3.** The exception licensed the collision because *“the buffered rewrite is a rewrite of that same text and the utterance is correct anyway”* — same text, therefore same correct rewrite. **The rewrite is not a function of the text alone**: `rewrite.sh:183-188` splices the transcript's last user message into the system prompt **[repo]**, so a generation is a function of **(assistant text, last user message)** while `H` names only the first half — two generations under two different questions at one path, which is the mixed generation §3.1 draft 3 says *“cannot be named”*, one layer below the layer that argument works at. **And §3.5.1's own ordering does not merely permit the stale generation, it selects it**: this turn's publish lands seconds later, so a `rw.<H>` present at the consumer's first look is always an earlier turn's, which makes §3.5's **hit** row that case and nothing else. Sites: §3.1 clauses 3 and 4, §3.2, §3.5's table, §3.5.1 clause 1, §5.1, §10.3 step 10. **The key is NOT changed** — the residual is a rewrite of the right text conditioned on the wrong question, a quality defect with a correctness tail, never the wrong-turn utterance §3.2 exists to prevent — so the acceptance is re-argued from what the rewrite is, marked `[inferred]`, and given row 28 with a measurement-first closing condition | §3.1, §3.2, §3.5, §3.5.1, §5.1, §10.2, §10.3, row 28 |
 | **10** | **§10.6 restated ONE removal outcome as the outcome for all four clauses it rests on, and the arms score clause 7(v) differently.** *“Cancellation is latency only, not correctness”* was guarded by *“with any one of them removed an arm of the run produces a stale utterance that plays to completion”* — true of (iii) (`C4_noclaimkill` 12/12 at 2.50 s), of (i) (`C13a` 12/12 at 2.50 s) and of (iv) (`C11b`, `C12c` 12/12 at full length), and **false of (v)**: `C7_noreap` produces **no surviving utterance**, it produces a kill site that cannot fail — every later site reporting success against an unreaped zombie on all 12 trials where `C2` reports `ESRCH` **[trials]** — which is clause 7(v)'s own claim, two subsections above, and is about EVIDENCE rather than audio. **A `[trials]` claim asserted over an arm that scored something else is a tag-honesty defect**, and it is the same shape as row 9's: a per-hook role restated as one role for every hook. Found while sweeping the evidence document for the `(ii)`-is-required claim of the NINTH note below, which is why the two are one round | §10.6 |
+| **11** | **Clause 5 turned a measured GAP into a claimed PASS, and the range it quoted was bounded above by its own failing run.** *"It is the difference between failing the 3 s line and sitting just under it"* stood one line under a table quoting `G-short-cold` at **2.657–3.161 s** — whose top row, turn 37 at 3.161 s, is **over** the line by 161 ms. The arm is **3 of 4** under it, not 4 of 4, and §10.5's own cold figure fails at **4 of 7**, so the clause was the one place in the section that claimed cold clears the tolerance. **The decision is unaffected and the REQUIRED strengthening stands**: every `G` row beats `E` by **1.328–1.832 s**, synthesis runs at **0.41–0.47×**, and the RTF ranges (**0.241–0.280** against **0.595**) do not overlap — the comparison is warm-up against no warm-up, and the 3 s line is not what it turns on. **Same shape as row 9** — a claim repaired in the right direction and pushed one notch past its evidence — and the first row whose repair corrects a *result* without disturbing the decision the result supports | §10.5 cl. 5 |
 
 **The lock still holds on its own test, and the test is worth restating rather than assumed:** *every
 section is either LOCKED with the evidence that decided it, or OPEN with a closing condition that does
-not require re-deciding anything.* **All thirty-six defects were repairable without a new decision from
+not require re-deciding anything.* **All thirty-seven defects were repairable without a new decision from
 the listener — and round ten's first row is the closest the table has come to an exception, which is why it
 is scored rather than asserted.** Its repair removed a false premise and disclosed a residual; the decision
 the residual might force is *conditional on a measurement nobody has taken*, and row 28's closing condition
-puts the measurement first for exactly that reason. **The thirty-six split two ways rather than one, which the old *"all six"* framing hid:**
-**thirty-two were repairable from evidence already in the document or in the committed rig**, and **the four marked M and M2 were
+puts the measurement first for exactly that reason. **Round eleven's row is the opposite pole of the same
+axis and worth naming beside it**: an overstated *result* under a decision the remaining evidence still
+carries, repaired by weakening the sentence and leaving the clause REQUIRED. **The thirty-seven split two ways rather than one, which the old *"all six"* framing hid:**
+**thirty-three were repairable from evidence already in the document or in the committed rig**, and **the four marked M and M2 were
 falsified by the run that found them and repaired from that same run's evidence**, which is a stronger
 position rather than a weaker one. The judgements between competing repairs are recorded with their
 costs — clause 6's separation, clause 5's required-versus-recommended, round four's choice to
@@ -3477,13 +3495,18 @@ on. So #11 can lock and #23 can start — with two more blockers than it had yes
 > two, three in the first measurement round, two in round three, five in round four, four in round
 > five, four in round six, two carried across from #28, one in the sleep measurement, one in the
 > review of that measurement's own repair, two in round seven, one in the recount of 2026-08-26, two in
-> round eight, one in round nine, two in round ten — thirty-six.**
+> round eight, one in round nine, two in round ten, one in round eleven — thirty-seven.**
 > Re-derived from the table on each revision rather than incremented, which is the only way this note
 > stays true of itself. **Round eight's total was derived by counting the table's own rows with `awk`
 > and grouping them by label**, not by adding two to thirty-one: at round eight that produced
 > `4+2+3+2+5+4+4+2+1+1+2+1+2 = 33` over thirteen labels, at round nine
-> `4+2+3+2+5+4+4+2+1+1+2+1+2+1 = 34` over fourteen, and at round ten
-> `4+2+3+2+5+4+4+2+1+1+2+1+2+1+2 = 36` over **fifteen**, `#28` standing for two occasions.
+> `4+2+3+2+5+4+4+2+1+1+2+1+2+1 = 34` over fourteen, at round ten
+> `4+2+3+2+5+4+4+2+1+1+2+1+2+1+2 = 36` over fifteen, and at round eleven
+> `4+2+3+2+5+4+4+2+1+1+2+1+2+1+2+1 = 37` over **sixteen**, `#28` standing for two occasions.
+> **One trap in that recount is worth recording, because it silently changes the derived read count**:
+> BWK `awk` — the `awk` on this machine — evaluates `"M2′" == "M2"` as **true**, so a script that
+> partitions the labels by name collapses `M2′` into `M2` and reports twelve reads where the table has
+> thirteen. Compare on `length` as well, or grep the labels out and count them by eye.
 >
 > **This total was carried as a FLOOR of twenty-three until 2026-08-26, and the floor is now SETTLED
 > rather than restated.** The table had no row for round six, none for the two rounds of #28 whose
@@ -3553,10 +3576,13 @@ on. So #11 can lock and #23 can start — with two more blockers than it had yes
 > single-chunk narration of a turn its own data records at three; and three `rewrite.sh` line citations
 > — two off by one, one off by two — against the same lines this document cites correctly.
 > **The count is unchanged by it, for
-> the reason the notes above give**, and the reason is worth restating now that the class has **nine**
-> entries, counting the three recorded below: the table counts defects in this document's LOCKED text, and an
+> the reason the notes above give**, and the reason is worth restating now that the class has **ten**
+> entries, counting the four recorded below: the table counts defects in this document's LOCKED text, and an
 > evidence document's re-qualification is a defect in a *record of what was measured*, not in a
-> specification. **What the eight entries do say, and it is why they are tracked here rather than
+> specification. **This sentence said *"nine"* here and *"the eight entries"* two sentences down until
+> round eleven** — one number stale in two places, which is the miscount class §0's note and this one
+> both decline to give a row, corrected in place on the round-four *"all six defects"* precedent.
+> **What the ten entries do say, and it is why they are tracked here rather than
 > discarded, is that the rate at which this class recurs has not fallen** — every round that has looked
 > has found more, and the shapes repeat: a ratio quoted without the caveat its source attaches, an
 > *"all"* or *"every"* over a set the data does not cover, and a repair applied to one of two parallel
@@ -3642,6 +3668,25 @@ on. So #11 can lock and #23 can start — with two more blockers than it had yes
 > evidential scope does not"* — does not reach. **The residual is widened accordingly: a re-check has
 > to read the qualifier's direction and the reasoning's premises, not only whether a number is still
 > quoted.**
+>
+> **A TENTH of that class landed on 2026-08-26, and it is the first time the spec half and the record
+> half are the SAME SENTENCE.** [`worker-residency.md`](worker-residency.md)'s §5 blockquote and §10.5
+> clause 5 both closed the `E`/`G` warm-up comparison with *"the difference is between failing the 3 s
+> line and sitting just under it"* — a sentence sitting on top of its own counter-example, because the
+> **2.657–3.161 s** range it quotes is bounded above by turn 37, which the next table in that document
+> marks ❌. `G-short-cold` is **3 of 4** under the line and misses by 161 ms on the fourth, against
+> `E`'s 1.489 s. **The spec half IS a row — row 11 — and the record half is not**, for the reason the
+> notes above give; what makes this the cleanest case of the split yet is that there is no second
+> framing to argue about, only one sentence copied into a specification and a record. **And it is the
+> first entry in the class that corrected a result without disturbing the decision the result
+> supports**: the direction is untouched — 1.328–1.832 s on every `G` row, synthesis at 0.41–0.47×,
+> RTF ranges that do not overlap — so clause 5 stays REQUIRED. **The shape is new to this class as
+> well.** Every previous entry was a claim that outran its *scope* — a number cited for a quantity it
+> does not measure, an *"all"* over a set the data does not cover. This one is a claim that outran its
+> *threshold*: the arithmetic is right, the comparison is right, and the acceptance line it invoked to
+> dramatise the comparison is one the arm does not clear. **The residual is widened again: a re-check
+> has to read the qualifier's direction, the reasoning's premises, and any acceptance threshold a
+> sentence borrows to characterise a margin.**
 >
 > **The same pass re-derived the total and found §15's tally still reading NINE
 > reads and THIRTY-ONE over a twelve-item list** while this note and the rest of §15 had moved to
@@ -4074,15 +4119,15 @@ Stated so a reviewer can attack the right parts.
     finding out what it did not know. **Ten is the number to be uncomfortable about only if the
     alternative reading is that eight was ever the true one**; it was not, and the two entries round
     five added were false before it wrote them down.
-- **TWELVE reads of this document, TWO review rounds of its sibling carried across, and TWO measurement
-  rounds have now found THIRTY-SIX
+- **THIRTEEN reads of this document, TWO review rounds of its sibling carried across, and TWO measurement
+  rounds have now found THIRTY-SEVEN
   correctness defects in text this revision itself marked LOCKED, and the rate — not any one defect — is
   the weakness.** Counted so the number is checkable, off §13's table rather than off this sentence:
   **four in round one, two in round two, three in the first measurement round,
   two in round three, five in round four, four in round five, four in round six, two carried across
   from #28's rounds 24 and 25, one in the sleep measurement, one in the review of that measurement's
   own repair, two in round seven, one in the recount that settled these numbers, two in round
-  eight, one in round nine and two in round ten** — fifteen labels, `4+2+3+2+5+4+4+2+1+1+2+1+2+1+2 = 36`, derived by counting the table's own rows
+  eight, one in round nine, two in round ten and one in round eleven** — sixteen labels, `4+2+3+2+5+4+4+2+1+1+2+1+2+1+2+1 = 37`, derived by counting the table's own rows
   and grouping them by label rather than by adding to the previous total. **This bullet said NINE reads
   and THIRTY-ONE, over a twelve-item tally, until 2026-08-26**, when round eight's two rows had been
   added to §13 and its note re-derived and this sentence had not: a miscount rather than
@@ -4219,11 +4264,11 @@ Stated so a reviewer can attack the right parts.
   shape appeared, §13 rows 20 and 21 were pointed at it, and the run confirmed the smell** — both of
   its ordering rules failed, and the repair that held is §3.1's repair again: a record that is created
   and never mutated, with ownership carried by a name.
-- **All thirty-six are repaired in place, none needed a new decision from the listener, and that is why
+- **All thirty-seven are repaired in place, none needed a new decision from the listener, and that is why
   §13 still answers *"can #11 lock?"* with yes — with one qualification round ten added, that row 28's
-  closing condition is a measurement whose *result* could put a choice in front of the listener.** But twelve reads of this document, two reads of its
+  closing condition is a measurement whose *result* could put a choice in front of the listener.** But thirteen reads of this document, two reads of its
   sibling and two experiments on the
-  same text found thirty-six real defects; the second read found defects **in the first read's repairs**;
+  same text found thirty-seven real defects; the second read found defects **in the first read's repairs**;
   the experiment found that **two of the first read's repairs were themselves wrong**; the fourth
   read — the only one to find nothing wrong in anybody's repair — still found **five**, in four
   sections, every one of them in text that had been read at least twice already; the fifth read
@@ -4237,15 +4282,20 @@ Stated so a reviewer can attack the right parts.
   list; **and the eighth read found two, both of them a repair that landed at one of two parallel sites**
   — the `unverifiable` branch added to clause 2 and §10.3 step 6 and to neither of the two sites that
   inherit from them, which is
-  the only one of the ten rounds' findings whose stale copy still **signals a process**, and the
+  the only one of the eleven rounds' findings whose stale copy still **signals a process**, and the
   hook's withdrawn 0.063–0.219 s range still quoted as measured two sections away; **and the ninth read
   found one — that round eight's own withdrawal had overclaimed the other way**, restating an unusable
   measurement as a *lower bound* at four LOCKED sites; **and the tenth read found two, the first of
-  which is the only finding in ten rounds to reach a KEY** — §3.2's identical-text exception resting on
+  which is the only finding in eleven rounds to reach a KEY** — §3.2's identical-text exception resting on
   *same text, therefore same correct rewrite* when `rewrite.sh:183-188` makes the rewrite a function of
   the text **and the last user message** — **and the key still did not move**, because the residual is a
   rewrite of the right text under the wrong question rather than the wrong-turn utterance §3.2 exists to
-  prevent, so the acceptance was re-argued and row 28 opened instead.
+  prevent, so the acceptance was re-argued and row 28 opened instead;
+  **and the eleventh read found one, the mildest in the table and the only one whose repair touched no
+  decision at all** — §10.5 clause 5 characterising a **2.657–3.161 s** arm as *"sitting just under"* the
+  3 s line when the top of that range is the run that fails it, 3 of 4 rather than 4 of 4. The warm-up
+  stays REQUIRED, because what the pair compares is warm-up against no warm-up and not cold against the
+  tolerance.
   **The rate is not falling, and round four's clean sheet on repairs did not hold as a trend.**
   **Round six is the sharpest datum on that**: two of its four are defects in round five's repairs and
   the other two are LOCKED bookkeeping that had drifted from the tables it summarised, so not one of the
