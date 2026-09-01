@@ -73,7 +73,7 @@ ENABLED="${CLAUDISH_ENABLED:-1}"
 
 # ---- step 2: runtime mute.  Not the whole mute promise -- the child ------
 # re-checks this file before every synthesis and every play, because this stat
-# can be the whole bounded wait (50 s at the defaults) older than the sound.
+# can be the whole bounded wait (123 s at the defaults) older than the sound.
 SPEAK_OFF_FILE="${CLAUDISH_SPEAK_OFF_FILE:-$HOME/.claude/claudish-speak-off}"
 [ -f "$SPEAK_OFF_FILE" ] && exit 0
 
@@ -264,14 +264,23 @@ dbg "classify mode=$mode hit=$hit prose_len=$prose_len hash=$H"
 
 # ---- step 12: install the job by rename, fork detached, exit 0 -----------
 # The wait deadline is DERIVED, not a new knob (§10.1, §3.5.1 clause 3):
-#   min( CLAUDISH_TIMEOUT + 2, MD_TIMEOUT ) + 3   ==  50 s at the defaults
+#   min( CLAUDISH_TIMEOUT + 2, MD_TIMEOUT ) + 3   ==  123 s at the defaults
 # MD_TIMEOUT is hooks/hooks.json's declared MessageDisplay timeout: a rewrite
-# the harness stops at 60 s publishes nothing at all, so raising
-# CLAUDISH_TIMEOUT past 58 buys the wait nothing.  Read from the SAME env var
-# rewrite.sh:65 reads, so both hooks see the same frozen number.
-LLM_TIMEOUT="${CLAUDISH_TIMEOUT:-45}"
-case "$LLM_TIMEOUT" in ''|*[!0-9]*) LLM_TIMEOUT=45 ;; esac
-MD_TIMEOUT=60
+# the harness stops at MD_TIMEOUT publishes nothing at all, so raising
+# CLAUDISH_TIMEOUT past MD_TIMEOUT - 2 buys the wait nothing.  Read from the
+# SAME env var rewrite.sh reads, so both hooks see the same frozen number.
+#
+# THE FORMULA IS UNCHANGED BY #14; ONLY ITS [repo] INPUTS MOVED.  hooks.json's
+# MessageDisplay timeout went 60 -> 120 and CLAUDISH_TIMEOUT's default 45 -> 120,
+# so both constants below are re-read from the repo rather than the clause being
+# amended.  Had MD_TIMEOUT been left at 60 while hooks.json said 120, every
+# rewrite landing between 63 s and 120 s would be DISPLAYED and never SPOKEN --
+# the exact undocumented-interaction-between-two-numbers failure this project
+# keeps hitting.  tests/config-test.sh pins MD_TIMEOUT to hooks.json's declared
+# value, so the two can no longer drift silently.
+LLM_TIMEOUT="${CLAUDISH_TIMEOUT:-120}"
+case "$LLM_TIMEOUT" in ''|*[!0-9]*) LLM_TIMEOUT=120 ;; esac
+MD_TIMEOUT=120
 WAIT=$((LLM_TIMEOUT + 2))
 [ "$WAIT" -gt "$MD_TIMEOUT" ] && WAIT="$MD_TIMEOUT"
 WAIT=$((WAIT + 3))

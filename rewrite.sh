@@ -45,7 +45,11 @@
 #                                           (prose, code stripped) (default 200)
 #   CLAUDISH_STUB      1|0            deterministic stub instead of the LLM
 #                                           (for display-mechanics testing)
-#   CLAUDISH_TIMEOUT   <seconds>      LLM client timeout (default 45)
+#   CLAUDISH_TIMEOUT   <seconds>      LLM client timeout (default 120). MUST stay
+#                                           at or below hooks/hooks.json's
+#                                           MessageDisplay `timeout` (120), which
+#                                           bounds this whole PROCESS and so is
+#                                           the real ceiling.
 #   CLAUDISH_DEBUG     1|0            write a debug log (default 0)
 #   CLAUDISH_NOTICE    1|0            once-per-session on-screen notice when the
 #                                           rewrite is skipped because the
@@ -62,7 +66,11 @@ ENABLED="${CLAUDISH_ENABLED:-1}"
 MODE="${CLAUDISH_MODE:-append}"
 MIN_CHARS="${CLAUDISH_MIN_CHARS:-200}"
 STUB="${CLAUDISH_STUB:-0}"
-LLM_TIMEOUT="${CLAUDISH_TIMEOUT:-45}"
+# 120, raised from 45 for #14.  Two numbers, not one: hooks/hooks.json bounds
+# THIS PROCESS, so raising only this one is inert -- the harness would kill the
+# hook at the declared hook timeout and the rewrite would publish nothing.  Both
+# moved together to 120; speak.sh:MD_TIMEOUT tracks the hooks.json half.
+LLM_TIMEOUT="${CLAUDISH_TIMEOUT:-120}"
 DEBUG="${CLAUDISH_DEBUG:-0}"
 NOTICE="${CLAUDISH_NOTICE:-1}"
 
@@ -256,7 +264,12 @@ if [ -z "$rewrite" ]; then
   # wrong then. The notice only APPENDS one line to the original; it never
   # suppresses content, so the fail-open contract still holds.
   notified="$BUF_ROOT/$sid.notified"
-  TIMEOUT_HINT="raise CLAUDISH_TIMEOUT or set CLAUDISH_MODEL to a smaller model"
+  # Names the hooks.json ceiling and the provider switch, like
+  # rewrite-md.sh:197 already did.  Raising CLAUDISH_TIMEOUT ALONE is inert
+  # once it reaches the MessageDisplay hook timeout, so advice that mentions
+  # only CLAUDISH_TIMEOUT is advice that does nothing (#14 step 3,
+  # docs/decisions/provider-switch-traps.md section 2).
+  TIMEOUT_HINT="switch CLAUDISH_PROVIDER, or raise CLAUDISH_TIMEOUT *and* the MessageDisplay hook timeout in hooks.json, or set CLAUDISH_MODEL to a faster model"
   llm_notice_why
   if [ "$NOTICE" = "1" ] && [ ! -e "$notified" ] && [ -n "$NOTICE_WHY" ]; then
     : > "$notified" 2>/dev/null || true

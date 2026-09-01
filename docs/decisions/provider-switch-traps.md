@@ -27,6 +27,15 @@ and is settled in section 5 — from logs, with no second call. Trap 1 being con
 settles the *provider/model resolution* and says nothing about the latency curve — the two are not
 the same finding and are kept apart on purpose.
 
+> **UPDATE, 2026-09-01 — #14 was implemented, and three of this document's open items are now
+> closed.** `claude-cli` is the DEFAULT provider, the display pair went 45/60 → 120/120, and the
+> `speak.sh` constant that tracks `hooks.json` moved with it. Everything above is preserved as the
+> 2026-08-25 snapshot it was, **including the sentence that says no hook was modified — that was true
+> when written and is no longer true of the repo.** Section 7 below records what changed, which
+> unverified items it settled, and which of this document's own conclusions it overturns. Read the
+> line numbers above as historical: `rewrite.sh:65` is now `:72`, `rewrite.sh:211` is now `:271`,
+> `providers.sh:61` is now `:79`, `providers.sh:92` is now `:110`.
+
 ## The source these line numbers refer to
 
 The running plugin is the marketplace cache copy, **not** this checkout:
@@ -588,3 +597,139 @@ Listed so nobody mistakes an unchecked thing for a checked one.
 5. **The ollama failure itself.** The ~1,200–1,400 word threshold in #14 is #14's reported figure and
    was not reproduced here — reproducing it would mean deliberately timing out a local model, which
    costs a minute of GPU and proves a number already reported by the person who hit it.
+
+---
+
+## 7. What #14's implementation changed, and what that settled
+
+**Added 2026-09-01**, when #14 was implemented rather than analysed. Everything above this line is
+the 2026-08-25 snapshot and is left alone; this section is the delta.
+
+### What changed in the repo
+
+| file | before | after |
+| --- | --- | --- |
+| `providers.sh:79` | `PROVIDER="${CLAUDISH_PROVIDER:-ollama}"` | `...:-claude-cli}"` |
+| `providers.sh:129-135` | *(did not exist)* | `MODEL_IGNORED` — the trap-1 guard |
+| `rewrite.sh:72` | `LLM_TIMEOUT="${CLAUDISH_TIMEOUT:-45}"` | `...:-120}"` |
+| `rewrite.sh:271` | *"raise `CLAUDISH_TIMEOUT` or set `CLAUDISH_MODEL` to a smaller model"* | *"switch `CLAUDISH_PROVIDER`, or raise `CLAUDISH_TIMEOUT` **and** the MessageDisplay hook timeout in hooks.json, or set `CLAUDISH_MODEL` to a faster model"* |
+| `hooks/hooks.json:9` | `"timeout": 60` | `"timeout": 120` |
+| `speak.sh:283` | `MD_TIMEOUT=60` | `MD_TIMEOUT=120` |
+
+**The reason the change is worth making is NOT the reason #14 gives.** #14's body argued that
+`claude-cli` latency is flat and so clears the long-message timeout; section 4 above measured that
+and **refuted it** (52.50 s at 1,328 words), and #14's own recommendation was *"close as refuted"*.
+That refutation stands and nothing here disturbs it. The change ships on a **different and
+independently reported** problem: with several concurrent Claude Code sessions, ollama serves
+requests **serially** (`llama-server … -np 1`, `OLLAMA_NUM_PARALLEL` unset), so the sessions queue
+behind one another — 8 × `curl_rc=28` against 10 successful rewrites in 30 minutes on four sessions.
+`docs/research/ollama-concurrency.md` says why parallelising ollama is not the fix. **Concurrency is
+a queueing problem, not a latency-curve problem**, and `claude-cli` fixes it by not having the queue.
+The 45 → 120 timeout raise is what carries the *long-message* case, and it would have been the right
+fix on ollama too; it needed the hook timeout raised with it to be anything but inert.
+
+### Item 2 — "that `claude --model <ollama-id>` fails, and how" — SETTLED, and then guarded
+
+Run 2026-09-01, one call, no rewrite produced:
+
+```
+$ printf 'Say OK.' | claude -p --model 'qwen3:4b-instruct-2507-q4_K_M' \
+    --strict-mcp-config --no-session-persistence --output-format text
+rc=1
+stdout: There's an issue with the selected model (qwen3:4b-instruct-2507-q4_K_M). It may not
+        exist or you may not have access to it. Run --model to pick a different model.
+stderr: "qwen3:4b-instruct-2507-q4_K_M" is not a model this version of Claude Code
+        recognizes, so auto-compact will keep this session within 200k tokens ...
+        [claude-code:unrecognized_model] {"model":"qwen3:4b-instruct-2507-q4_K_M",...}
+```
+
+**Trap 1's consequence is confirmed: "breaks every rewrite" is exact** **[obs]**. Three details the
+inference did not predict:
+
+1. **It fails FAST and spends nothing.** No generation happens, so a machine left in this state
+   burns no quota — it just never rewrites anything.
+2. **The real message is on `stdout`, and the useless one is on `stderr`.** `providers.sh` prefers
+   `stderr` for diagnostics on a failed run (deliberately — on a failure stdout is not a rewrite),
+   so the once-per-session notice would have read *"the claude CLI failed: "qwen3:…" is not a model
+   this version of Claude Code recognizes, so auto-compact will keep this session within 200k
+   tokens"* — a first line about auto-compact, not about the model. Diagnosable, but badly.
+3. So the notice machinery does **not** make this trap safe enough to leave armed once `claude-cli`
+   is the **default**. Section 1 above judged the trap acceptable, and it was — for an **opt-in**
+   provider, where the user typed the switch and could be told to unset the variable in the same
+   breath. **Nobody opts into a default.**
+
+`providers.sh:129-135` therefore ignores a `CLAUDISH_MODEL` that cannot possibly be a Claude model.
+The test is narrow on purpose: `name:tag` **and** no `claude`/`anthropic`/`haiku`/`sonnet`/`opus`
+anywhere in the string. A bare colon would not do — Bedrock and Vertex ids carry one
+(`us.anthropic.claude-haiku-4-5-20251001-v1:0`) and `claude-cli` honours them. A colon-free string is
+passed through untouched, so a typo in a real model name still fails loudly instead of being papered
+over. `tests/config-test.sh` pins all four of those cases.
+
+### Item 3 — "whether Claude Code imposes any absolute hook-timeout ceiling" — HALF SETTLED
+
+Section 2 said this was not established and that its conclusion did not need it. **Raising
+`hooks.json:9` past 60 does need it**, so it was established. Two observations on `claude` **2.1.252**:
+
+- **The config schema does not cap it** **[obs]**. The command-hook entry types the field as
+  `timeout: number().positive().optional()`, described *"Timeout in seconds for this specific
+  command"*. No `.max()`.
+- **The runner does not clamp it** **[obs]**. It computes `nn = e.timeout ? e.timeout*1000 : <default>`
+  and passes `nn` straight into a `setTimeout` that TERMs the child. There is no `Math.min`,
+  `Math.max`, floor or ceiling anywhere on that path, and no per-event branch — **one function serves
+  every command-hook event**.
+- **A declared 90 was honoured at runtime** **[obs]**. A command hook declaring `"timeout": 90`,
+  whose script logs a heartbeat every 0.5 s for 75 s, ran to completion and exited on its own — 152
+  log lines, last heartbeat at t+82.85 s wall, never TERMed.
+
+Section 2's *"a `strings` search of the installed CLI binary (2.1.245) found no hook-timeout
+ceiling — every match was bundled test-runner text"* was **right in its conclusion and stopped one
+step early**: the matches for the *phrase* are test-runner text, but the relevant code carries no such
+phrase. Searching for the schema field and for the runner's arithmetic finds it immediately.
+
+**What is still [inferred], stated so nobody upgrades it by reading fast:**
+
+- That the harness actually **kills** at the declared deadline. The code says
+  `setTimeout(kill, timeout*1000)`; the probe finished early, so no kill was watched. This is the
+  benign direction — if the deadline is not enforced, everything downstream is merely conservative.
+- That `MessageDisplay` behaves like the probed event. The runner is event-agnostic in the source
+  read above, and `hooks.json` has shipped `"timeout": 180` on `PostToolUse` against a 150 s
+  `CLAUDISH_MD_TIMEOUT` since that hook existed — but the probe itself was `SessionStart`.
+
+### Item 4 — "the exact overhead between the hook budget and the LLM call" — still unmeasured
+
+Handled by construction instead of by measurement: `CLAUDISH_TIMEOUT`'s default and
+`hooks.json:9` are now the **same number** (120), so the LLM budget can never exceed the process
+budget, and the overhead comes out of the LLM call's own slack rather than out of the hook's. That is
+strictly safer than the old 45-under-60 arrangement and needs no number nobody has.
+
+### The interaction that had to be handled, and was nearly missed
+
+`speak.sh`'s wait deadline is the spec's §3.5.1 clause 3 derivation
+`min( CLAUDISH_TIMEOUT + 2, MD_TIMEOUT ) + 3`, and `MD_TIMEOUT` is a **constant in `speak.sh` that
+copies `hooks.json:9`**. Raising `hooks.json` alone would have left it at 60 and put the wait's
+deadline at **63 s** while the display budget ran to 120 — so every rewrite landing in between,
+**including the 52.50 s one measured in section 4**, would have been put on screen and **never
+spoken**, with `wait deadline passed -> silent` in the debug log and nothing at all on screen to say
+why. The derivation is locked, and it was not touched: what moved is the `[repo]` value it reads, by
+the clause's own definition of `MD_TIMEOUT`. `tests/config-test.sh` now asserts
+`speak.sh:MD_TIMEOUT == hooks.json`'s declared MessageDisplay timeout, and a deliberate mutation back
+to 60 makes it fail with the band named:
+
+```
+FAIL  speak.sh MD_TIMEOUT=60 but hooks.json declares 120 -- a rewrite landing between 63s
+      and 120s would be DISPLAYED and never SPOKEN (spec 3.5.1 clause 3)
+FAIL  derived wait 63s is short of the 120s display budget: rewrites in between are silent
+```
+
+### What the user must change on this machine
+
+`~/.claude/settings.json`'s `env` block still sets `CLAUDISH_MODEL=qwen3:4b-instruct-2507-q4_K_M`,
+which exists for the ollama path. The guard makes leaving it **safe** rather than **correct**:
+
+- **Remove the `CLAUDISH_MODEL` key** (or set it to `haiku`). Then nothing is being ignored and the
+  debug log stops saying so.
+- **Keep it only if you also set `CLAUDISH_PROVIDER=ollama`**, in which case the pair is consistent
+  and no guard fires.
+
+Env vars are frozen at session launch (section 3), so either way it takes a new session.
+

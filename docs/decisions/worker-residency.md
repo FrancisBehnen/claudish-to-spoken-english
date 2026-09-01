@@ -725,7 +725,9 @@ trigger. The review was right, and the gap is three orders of magnitude.** Read 
   != "true" ]; then ... emit_empty; else pass_through; fi`, and both of those `exit 0`. **[repo]**
 - **The rewrite is published only from the final invocation**, after reconstruction (`rewrite.sh:134`),
   after the prose-length gate, and — decisively — **after `llm_complete` returns** (`rewrite.sh:192`),
-  whose default budget is `CLAUDISH_TIMEOUT=45` seconds (`rewrite.sh:65`). **[repo]**
+  whose default budget is `CLAUDISH_TIMEOUT=120` seconds (`rewrite.sh:72`) **[repo]** — 45 s at
+  `rewrite.sh:65` when this was written, raised for #14 together with the `MessageDisplay` hook
+  timeout that bounds the process spending it.
 - **There is in fact no `speak/` publish in `rewrite.sh` at all today.** `grep -n 'speak' rewrite.sh`
   returns nothing across all 245 lines. §3.1's publish is proposed spec, not shipped code — consistent
   with `speak.sh` not existing. **[repo]**

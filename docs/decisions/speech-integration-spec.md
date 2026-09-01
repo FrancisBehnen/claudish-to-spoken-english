@@ -928,21 +928,34 @@ one. Not adopted.
 3. **The ceiling is derived from the thing it is waiting for — from BOTH of that thing's budgets — and
    no new knob ships.** The publish is bounded twice over, and an earlier draft of this clause read
    only the first bound:
-   - **The LLM budget.** `LLM_TIMEOUT="${CLAUDISH_TIMEOUT:-45}"` (`rewrite.sh:65`), enforced by
+   - **The LLM budget.** `LLM_TIMEOUT="${CLAUDISH_TIMEOUT:-120}"` (`rewrite.sh:72`, was `:65` and 45
+     before #14), enforced by
      `_llm_run_bounded`'s TERM → `sleep 2` → KILL (`providers.sh:146-172`) and by `curl --max-time`
      on the HTTP providers **[repo]**. **A publish that will ever arrive arrives within about
      `CLAUDISH_TIMEOUT + 2` s of the final chunk**, plus the sanitize-and-emit tail.
    - **The publisher's own hook budget.** The publisher is `rewrite.sh` on `MessageDisplay`, and
-     `hooks/hooks.json:9` declares that hook a **60 s** timeout **[repo]**. §3.1's publication point is
-     *after* the LLM call and inside that hook process, so **a `rewrite.sh` the harness stops at 60 s
+     `hooks/hooks.json:9` declares that hook a **120 s** timeout **[repo]**. §3.1's publication point is
+     *after* the LLM call and inside that hook process, so **a `rewrite.sh` the harness stops at 120 s
      publishes nothing at all** — there is no code path on which a publish arrives later than the
      process that performs it.
 
    **Deadline: the job's fire time plus `min( CLAUDISH_TIMEOUT + 2, MD_TIMEOUT ) + 3` seconds**, where
-   `MD_TIMEOUT` is `hooks/hooks.json:9`'s declared **60** **[repo]** and the `+ 3` is the
-   sanitize-and-emit tail plus the dispatch gap. **50 s at the defaults** — `min( 47, 60 ) + 3` — which
-   is the same number the old `CLAUDISH_TIMEOUT + 5` gave, because at the default the LLM budget is the
-   binding one and the correction is invisible there.
+   `MD_TIMEOUT` is `hooks/hooks.json:9`'s declared **120** **[repo]** and the `+ 3` is the
+   sanitize-and-emit tail plus the dispatch gap. **123 s at the defaults** — `min( 122, 120 ) + 3`.
+
+   > **The two [repo] inputs moved in #14; the clause did not.** `hooks/hooks.json:9` went **60 → 120**
+   > and `CLAUDISH_TIMEOUT`'s default went **45 → 120**, so the numbers this clause reads out of the
+   > repo are re-read rather than the derivation being amended. `min( CLAUDISH_TIMEOUT + 2, MD_TIMEOUT )
+   > + 3` is byte-for-byte what it was; `MD_TIMEOUT` is *defined* here as the declared MessageDisplay
+   > timeout, so tracking it to 120 is obedience to the clause, not an exception to it. **The
+   > alternative was the failure this clause exists to prevent, with the sign flipped:** had
+   > `speak.sh`'s constant stayed at 60 while the hook declared 120, the wait would have expired at
+   > **63 s** on publishes that remain possible out to 120 s — displayed, never spoken, `wait deadline
+   > passed -> silent` and no error anywhere. `tests/config-test.sh` now asserts
+   > `speak.sh:MD_TIMEOUT == hooks.json`'s declared value, so the pair cannot drift unnoticed again.
+   > At the pre-#14 defaults the same clause gave **50 s** — `min( 47, 60 ) + 3` — the same number the
+   > even older `CLAUDISH_TIMEOUT + 5` gave, because there the LLM budget was the binding one and the
+   > correction was invisible.
 
    > **CORRECTED in review round four, and the old form was `CLAUDISH_TIMEOUT + 5`.** It derived the
    > ceiling from the LLM budget alone and ignored the budget of the process that does the publishing —
@@ -950,7 +963,8 @@ one. Not adopted.
    > ceiling"* for this exact variable. **At `CLAUDISH_TIMEOUT=120` the worker waited 125 s for a
    > publish that became impossible at 60**: a resident worker blocked for a full minute on a file that
    > cannot appear, then silent, with nothing on screen to say why. **Whenever `CLAUDISH_TIMEOUT + 2`
-   > exceeds `MD_TIMEOUT` — that is, whenever `CLAUDISH_TIMEOUT` is 58 or more — the publisher's hook
+   > exceeds `MD_TIMEOUT` — that is, whenever `CLAUDISH_TIMEOUT` is `MD_TIMEOUT - 2` (118 post-#14, 58
+   > when this was written) or more — the publisher's hook
    > timeout is the binding constraint**, and raising `CLAUDISH_TIMEOUT` past it buys the rewrite
    > nothing and the wait nothing. It is the **timeout-hint trap** §10.1 already records against
    > `rewrite.sh`, arriving one section earlier and inside the speech path.
@@ -967,7 +981,7 @@ one. Not adopted.
      `fire time + MD_TIMEOUT` is at or after the moment the publisher runs out of budget, and the
      `+ 3` s covers the worst gap ever seen with an order of magnitude to spare.
    - **What the `MD_TIMEOUT` half rests on, stated rather than assumed.** That `hooks.json:9` declares
-     60 is **[repo]**; that the harness **enforces** a declared hook timeout by stopping the hook is
+     120 is **[repo]**; that the harness **enforces** a declared hook timeout by stopping the hook is
      **[inferred]** — nothing in this project has watched a `MessageDisplay` hook be killed, and
      [`turn-finality-and-the-stop-hook.md`](turn-finality-and-the-stop-hook.md) is careful that declared
      numbers are *"not evidence about a runtime ceiling in either direction"* (§13 row 15 is the
@@ -980,13 +994,37 @@ one. Not adopted.
      silent under this one. **That case needs a non-default `CLAUDISH_TIMEOUT` of 58 or more**, and its
      cost is silence rather than a wrong utterance, which is the direction §3.2's posture already
      chooses. **§13 row 26** decides which world this is, and it closes with one probe rather than with
-     a build.
-   - **The one long rewrite anybody has timed is not a counterexample to this ceiling.** 52.50 s for
-     ~1,300 words ([`provider-switch-traps.md`](provider-switch-traps.md)) was measured with
-     `LLM_TIMEOUT=120` in a standalone script, **not through the hook**. At the default 45 that same
-     call is TERMed and the rewrite **fails open and publishes nothing** — which is precisely the
-     branch where the wait is *supposed* to give up. It is an example of the timeout branch, not a
-     missed publish.
+     a build. **That case now needs `CLAUDISH_TIMEOUT` of 118 or more, and the default is 120** — so
+     post-#14 the default configuration sits *at* the boundary rather than 13 s below it, and the `min`
+     is doing live work rather than being invisible.
+
+     > **Half of row 26 was answered in #14, on the ACCEPTANCE side of the declared value.** Two
+     > observations, neither of which is a `MessageDisplay` kill: (a) the CLI's own hook-config schema
+     > types `timeout` as `number().positive().optional()` — *"Timeout in seconds for this specific
+     > command"* — with **no `.max()`**, and the command-hook runner computes its watchdog as
+     > `e.timeout ? e.timeout*1000 : <default>` and passes it straight into a `setTimeout` that kills
+     > the child, with no `Math.min`, clamp, floor or ceiling anywhere on the path (read out of the
+     > bundled JS of `claude` **2.1.252**) **[obs]**; and (b) a command hook declaring `"timeout": 90`
+     > was run and **survived 75 s of work and exited on its own**, never TERMed **[obs]**. So a
+     > declared value above 60 is **accepted and honoured** — which is what raising `hooks.json:9` to
+     > 120 needed. What is still **[inferred]** is the other direction, that the harness actually
+     > *kills* at the declared deadline: the code says `setTimeout(kill, timeout*1000)`, and the probe
+     > finished early so it never watched a kill land. That inference is also the safe one for this
+     > clause: if the deadline is not enforced, the `min` is conservative and the only cost is silence.
+     > The probe was `SessionStart`, not `MessageDisplay`; the runner that reads `e.timeout` is one
+     > function shared by every command-hook event with no per-event branch, so carrying it to
+     > `MessageDisplay` is **[inferred]** — and `hooks.json` has shipped `"timeout": 180` on
+     > `PostToolUse` against a 150 s `CLAUDISH_MD_TIMEOUT` for as long as that hook has existed.
+   - **The one long rewrite anybody has timed is no longer an example of the timeout branch — it is
+     now inside budget.** 52.50 s for ~1,300 words
+     ([`provider-switch-traps.md`](provider-switch-traps.md)) was measured with `LLM_TIMEOUT=120` in a
+     standalone script, **not through the hook**. At the pre-#14 default of 45 that same call was
+     TERMed and the rewrite **failed open and published nothing** — precisely the branch the wait is
+     supposed to give up on. At the post-#14 defaults of 120/120 it publishes at 52.50 s and the
+     123 s wait is still open, so it is **spoken**. That is the whole point of the #14 change, and it
+     is the reason `MD_TIMEOUT` had to move with `hooks.json` rather than being left at 60: a stale 60
+     would have put the wait's deadline at 63 s, only 10 s past this measurement, with nothing between
+     it and silence.
 4. **On the deadline: give up, stay silent, exit 0. Nothing is announced, nothing reaches the screen.**
    Fail-open and silent is this project's existing posture on every other failure row (§10.7), and the
    reason is the one §3.2 gives: **a wrong utterance is worse than none.** Under `CLAUDISH_DEBUG=1` the
@@ -1007,7 +1045,7 @@ one. Not adopted.
    `stat` `claudish-off` and `claudish-speak-off` in the **hook**, before the job is enqueued — and
    §10.1's whole argument for having flag files at all is that `CLAUDISH_*` is frozen at session
    launch, **so only a file can stop a session that is already running**. Under clause 4 the worker
-   then waits up to clause 3's whole deadline — **50 s at the defaults** — between that check and the
+   then waits up to clause 3's whole deadline — **123 s at the defaults** — between that check and the
    sound. **Without this clause, touching either file inside that window still results in speech** —
    which is precisely the promise `claudish-speak-off` is documented to make (§10.8: *"stops speech
    and keeps rewriting"*). So: **the worker `stat`s both files again immediately before `create()` and again
@@ -1916,8 +1954,8 @@ precisely this reason).
 | `CLAUDISH_DEBUG` | `0` | LOCKED | reuse `rewrite.sh:73`'s var and its `$BUF_ROOT/debug.log` sink. Do not add a second debug flag. |
 
 **No variable is added for §3.5.1's bounded wait, and that is deliberate.** The wait's deadline is
-`min( CLAUDISH_TIMEOUT + 2, MD_TIMEOUT ) + 3` seconds — **50 s at the defaults** — built from the
-**same** env var `rewrite.sh:65` reads for the LLM call it is waiting on and the **same** declared hook
+`min( CLAUDISH_TIMEOUT + 2, MD_TIMEOUT ) + 3` seconds — **123 s at the defaults** — built from the
+**same** env var `rewrite.sh:72` reads for the LLM call it is waiting on and the **same** declared hook
 timeout `hooks/hooks.json:9` already carries for the hook that does the publishing. A
 `CLAUDISH_SPEAK_WAIT` of its own could be set to a value that disagrees with either budget, at which
 point the wait either gives up on a publish that was still coming or waits for one that can no longer
@@ -1980,7 +2018,7 @@ Specified as an order because the cheap rejections must precede everything, for 
 1. `CLAUDISH_SPEAK` is `1`, else `exit 0`. **Before reading stdin.**
 2. `CLAUDISH_SPEAK_OFF_FILE` does not exist, else `exit 0`. **This check does not carry the whole mute
    promise on its own** — the worker re-checks both off-files at the point of synthesis, because the
-   hook's `stat` can be up to the wait's whole deadline — 50 s at the defaults — older than the sound
+   hook's `stat` can be up to the wait's whole deadline — 123 s at the defaults — older than the sound
    (§3.5.1 clause 7).
 3. `jq` present, else `exit 0`.
 4. Read the payload; `exit 0` if empty.
@@ -3166,7 +3204,7 @@ prompt input to the model).
 | speech disabled, or off-file present | `exit 0` before reading stdin |
 | `jq` missing, payload unparseable, `last_assistant_message` absent | `exit 0` |
 | no rewrite buffered and the message is above the threshold | the hook drops a **`buffered` job and exits 0**; the worker waits, and stays silent if the deadline passes (§3.5.1) |
-| the bounded wait reaches its deadline — `min( CLAUDISH_TIMEOUT + 2, MD_TIMEOUT ) + 3` s, 50 s at the defaults — with no matching publish | worker discards the job, **silent**. This is the fail-open ban's own path: a rewrite was due and did not arrive (§3.5, §3.5.1 clause 4) |
+| the bounded wait reaches its deadline — `min( CLAUDISH_TIMEOUT + 2, MD_TIMEOUT ) + 3` s, 123 s at the defaults — with no matching publish | worker discards the job, **silent**. This is the fail-open ban's own path: a rewrite was due and did not arrive (§3.5, §3.5.1 clause 4) |
 | buffered rewrite does not match this turn | never spoken. On the raw rows, `exit 0`; on the buffered row the worker keeps waiting until the deadline. **Silence beats a confident wrong utterance** |
 | the worker is **not ready** when the job lands, or is slow to become ready | the job file **outlives the hook**, so the utterance is **late, not lost** — measured at 23.3 s late against a 10 s declared hook timeout, turn ended normally, nothing on screen **[hook]** |
 | the job lands while the worker is **retiring** at its 20-minute idle mark | **late, not lost — but only because of a protocol, and that protocol is [inferred].** The naive exit strands the job outright; §10.5 clause 6's announce-then-re-check is what turns it into a cold start instead. §13 row 25 |
@@ -3213,8 +3251,8 @@ The plugin documents its configuration in depth, so the surface above lands in `
   user-visible behaviour a reader would otherwise file as a bug: the answer appears on screen, then a few
   seconds later it is spoken. Say why (the spoken text *is* the rewrite, and the rewrite takes an LLM
   call), and say that it gives up silently once a deadline derived from **both** `CLAUDISH_TIMEOUT` and
-  the display hook's own declared timeout has passed — 50 s at the defaults — and that raising
-  `CLAUDISH_TIMEOUT` above 58 does **not** extend it, because the publisher's hook budget binds first
+  the display hook's own declared timeout has passed — 123 s at the defaults — and that raising
+  `CLAUDISH_TIMEOUT` above 118 does **not** extend it, because the publisher's hook budget binds first
   (§3.5.1 clause 3).
 - **that a background Python worker stays resident per session and exits after 20 minutes idle**
   (§10.5). A user who sees a `python` process holding a few hundred MB should find out here that it is
