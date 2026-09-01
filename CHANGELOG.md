@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **`claude-cli` is now the default provider, and it spends subscription
+  quota.** Rewrites run on your own Claude Code login instead of a local
+  ollama. This is a real tradeoff and the README states it plainly under
+  [Why `claude-cli` is the default](README.md#why-claude-cli-is-the-default-and-what-it-costs):
+  every turn in every session now draws on the same 5-hour and 7-day windows as
+  your real work. Undo it with `CLAUDISH_PROVIDER=ollama`; pause everything with
+  `touch ~/.claude/claudish-off`.
+
+  The reason is **concurrency, not speed.** A local ollama serves completions
+  serially (`llama-server … -np 1`, `OLLAMA_NUM_PARALLEL` unset), so concurrent
+  Claude Code sessions queue behind one another and blow the display hook's
+  budget — 8 timeouts against 10 successful rewrites in 30 minutes across four
+  sessions. `docs/research/ollama-concurrency.md` explains why turning ollama
+  parallel is not the fix. (#14's own premise — that `claude-cli` latency is
+  flat in message size — was measured and **refuted** at 52.50 s for 1,328
+  words; that is not why this changed.)
+- **The display timeouts went 45/60 → 120/120 seconds.** `CLAUDISH_TIMEOUT`'s
+  default *and* the `MessageDisplay` hook's own `timeout` in `hooks/hooks.json`,
+  which are two numbers that only work when moved together: the hook timeout
+  bounds the process that makes the LLM call, so raising `CLAUDISH_TIMEOUT`
+  alone was inert. A declared hook timeout above 60 is honoured — measured, and
+  the CLI's hook-config schema puts no maximum on the field.
+- **`speak.sh`'s `MD_TIMEOUT` tracked that raise, so long rewrites are still
+  spoken.** The speech wait is the spec's derivation
+  `min(CLAUDISH_TIMEOUT + 2, MD_TIMEOUT) + 3`, and `MD_TIMEOUT` is a copy of the
+  hooks.json number. Left at 60 it would have capped speech at **63 s** while
+  the screen got 120 s — every rewrite in between displayed and never spoken,
+  with no error anywhere. The derivation itself is untouched; only the value it
+  reads moved. `tests/config-test.sh` now asserts the two stay equal.
+- **The display hook's timeout notice names the hooks.json ceiling and the
+  provider switch**, instead of advising a `CLAUDISH_TIMEOUT` raise that does
+  nothing on its own. The Markdown hook's notice already got this right.
+
+### Added
+- **`tests/config-test.sh`** — 11 free assertions (no model call, no audio, no
+  tokens) over the config facts no runtime test reaches: the provider default,
+  the `CLAUDISH_MODEL` guard, and the coupling between `CLAUDISH_TIMEOUT`,
+  `hooks.json`'s MessageDisplay timeout and `speak.sh`'s `MD_TIMEOUT`.
+- **A stale `CLAUDISH_MODEL` no longer breaks every rewrite on the new
+  default.** `CLAUDISH_MODEL` is not namespaced per provider, so an ollama tag
+  left in a settings `env` block reached the CLI as `--model` verbatim and
+  failed every rewrite (measured: exit 1, *"is not a model this version of
+  Claude Code recognizes"*, no quota spent). On `claude-cli` an unmistakably
+  foreign `name:tag` — a colon and no `claude`/`anthropic`/`haiku`/`sonnet`/
+  `opus` — is now ignored in favour of `haiku`, logged under `CLAUDISH_DEBUG=1`.
+  Bedrock/Vertex ids (which also carry a colon) and colon-free names are
+  untouched, so a typo in a real model name still fails loudly.
+
 ### Fixed
 - **A silent turn no longer cuts off the previous answer.** `speak.sh`'s
   preemption ran above every gate that can exit without speaking, so a turn
