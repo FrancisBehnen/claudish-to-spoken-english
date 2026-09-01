@@ -20,10 +20,22 @@
 # docs/decisions/speak-cold-path.md rather than only here:
 #   * §10.5's lazy self-electing per-session RESIDENT WORKER is NOT built.  No
 #     generation election, no kqueue wake, no owner records, no retirement, no
-#     20-minute idle exit.  This hook forks a fresh speaker per turn.  Measured
-#     cold time-to-first-audio on this machine is 2.27/2.29/2.81 s, already
-#     under the spec's own 3 s line, and residency is the direct cause of four
+#     20-minute idle exit.  This hook forks a fresh speaker per turn.  The
+#     deferral rests on what residency would BUY, not on a latency comparison.
+#     At the spec's own endpoints -- `Stop` fire -> AUDIO -- this branch's only
+#     measurements are 6.54 s and 20.34 s (two live turns, n=2), so it does NOT
+#     clear the spec's 3 s line; but the dominant term is rewrite.sh's LLM
+#     call, which residency does not touch.  Residency removes import and model
+#     load and nothing else: 0.79 s of that 6.54 s, and that term is flat.  The
+#     payoff is therefore bounded UNDER A SECOND on a six-second path, and that
+#     is what the deferral rests on.  Residency is also the direct cause of four
 #     of the spec's five ship-blocking defects (§13 rows 20, 21, 24, 27).
+#     (This comment used to read "2.27/2.29/2.81 s, already under the spec's
+#     own 3 s line".  That was a `python process start -> wav written` interval
+#     read against a `hook fire -> audio` line -- different endpoints, invalid
+#     comparison -- and docs/decisions/speak-cold-path.md WITHDREW the
+#     conclusion by name.  Every interval in this project is quoted with both
+#     its endpoints or not at all; that document's table is where they live.)
 #   * §10.6's anchored player-record preemption protocol is NOT built.  Step 6
 #     below is a best-effort barge-in instead, and it also runs LATER than
 #     §10.3 orders it; see its comment for both.
@@ -211,8 +223,11 @@ preempt
 #     benefit: of #10's sixteen real sub-threshold items, ZERO carried a
 #     disqualifying class.  The gate silenced nothing anyone has measured.
 #   * §3.5's "below MIN_CHARS the wait must never run" is gone too.  Below the
-#     threshold there is now something to wait FOR, and it lands in
-#     milliseconds because rewrite.sh's short path makes no LLM call.
+#     threshold there is now something to wait FOR, and it lands with no LLM in
+#     its path at all, because rewrite.sh's short path publishes the raw text
+#     instead of calling a provider.  (No interval is claimed for it: that
+#     endpoint pair -- rewrite.sh publish -> this hook's first look -- has not
+#     been measured, and speak-cold-path.md's table is where measured ones go.)
 #
 # One row is left, and it is §3.5's last one: wait for speak/rw.<H>, speak it
 # if it lands, be silent at the deadline (§3.5.1).

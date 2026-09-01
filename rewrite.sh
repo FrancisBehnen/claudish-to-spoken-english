@@ -144,12 +144,37 @@ publish_speech() {
   [ "$SPEAK_KEY_DEFINED" = "1" ] && _sh="$(speak_key "$full")"
   _sd="$BUF_ROOT/$sid/speak"
   if [ -n "$_sh" ] && mkdir -p "$_sd" 2>/dev/null; then
+    # `2>/dev/null` comes BEFORE the `>` on both writes below, deliberately.
+    # Redirections are applied left to right, and it is the SHELL, not printf,
+    # that reports a failure to OPEN the target -- so with the order reversed an
+    # unwritable speak dir puts "Permission denied" on this hook's stderr.
     _st="$_sd/.rw.$$.$RANDOM"
-    { printf '%s' "$1" > "$_st" 2>/dev/null \
-      && mv -f "$_st" "$_sd/rw.$_sh" 2>/dev/null; } || rm -f "$_st" 2>/dev/null
-    printf '%s' "$(printf '%s' "$payload" | jq -r '.prompt_id // empty' 2>/dev/null)" \
-      > "$_sd/prompt_id" 2>/dev/null
-    dbg "speak: published rw.$_sh (${#1} bytes)"
+    if { printf '%s' "$1" 2>/dev/null > "$_st" \
+      && mv -f "$_st" "$_sd/rw.$_sh" 2>/dev/null; }; then
+      # speak/prompt_id is DIAGNOSTIC ONLY and it is saying so here because
+      # NOTHING READS IT, on any path: speak.sh, speak-child.py, the probes
+      # under docs/decisions/, bench/ and corpus/ contain no reader, and the
+      # only other mentions in the repo are fixture fields and prose.  It is
+      # not dead, though -- spec §10.2's file table mandates it ("rewrite.sh
+      # writes, same gates") and §3.2 is why it can never become more than a
+      # diagnostic: prompt_id identifies a TURN while rewrite.sh publishes per
+      # MESSAGE, so in a multi-message turn one value cannot name which
+      # message's rewrite this is.  The hash can, and the hash is the key.
+      # "Same gates" is taken literally: this used to be the one write in the
+      # block that was neither atomic nor conditional, so a reader arriving
+      # mid-write could see a torn value and a failed rw.<H> still left a
+      # prompt_id behind describing a publish that did not happen.  Now it is
+      # temp-write-plus-rename like its neighbour, and it only lands once the
+      # generation it annotates is actually on disk.
+      _pt="$_sd/.pid.$$.$RANDOM"
+      { printf '%s' "$(printf '%s' "$payload" | jq -r '.prompt_id // empty' 2>/dev/null)" \
+        2>/dev/null > "$_pt" \
+        && mv -f "$_pt" "$_sd/prompt_id" 2>/dev/null; } || rm -f "$_pt" 2>/dev/null
+      dbg "speak: published rw.$_sh (${#1} bytes)"
+    else
+      rm -f "$_st" 2>/dev/null
+      dbg "speak: no publish (write failed)"
+    fi
   else
     dbg "speak: no publish (no key)"
   fi

@@ -659,10 +659,18 @@ arrives, speech gives up silently at the derived deadline above.
 
 Two consequences worth knowing:
 
-- **Only the rewrite is ever spoken**, never Claude's raw markdown — with one exception: a
-  message too short to be rewritten at all is spoken raw, and only if it carries none of eight
-  disqualifying constructs (code fences, URLs, and paths, whose spoken form drops information
-  a rewrite would have said in words).
+- **What gets spoken is the published text, which is usually the rewrite.** A message too
+  short to be rewritten at all (below `CLAUDISH_MIN_CHARS`) is published raw and spoken
+  anyway: **speech has no length floor of its own**, because such a message was skipped
+  precisely for being plain already. Either way the text goes through the sanitizer before
+  it is spoken, so markdown syntax is never read out verbatim — but the sanitizer is lossy
+  by design: `speak.sh:131` is heard as "speak dot sh:131", `/Users/f/Code/foo/bar.py` as
+  "foo/bar dot py", a GitHub URL as "github dot com", and a fenced block as "Code block, two
+  lines." **No gate silences a short message for carrying a path, a URL or a code fence.** An
+  earlier design had one; it was deleted on 2026-09-01 because of the sixteen real
+  sub-threshold messages that had been measured, **zero** carried such a construct — the gate
+  silenced nothing anyone has observed. `docs/decisions/speak-cold-path.md` records the
+  deletion and its cost.
 - **Subagents never speak.** The `Stop` event does not fire for them, and the plugin ships no
   `SubagentStop` hook. A turn that ends while a background task is still running stays silent
   too.
@@ -670,9 +678,10 @@ Two consequences worth knowing:
 ### Trying it without Claude Code
 
 ```sh
-tests/speak-selftest.sh        # six cases, real audio
-tests/speak-selftest.sh -q     # same, silent
-tests/speak-key-test.sh        # pin the rewrite→speech handoff key
+tests/speak-selftest.sh        # ten cases, 33 assertions, real audio (~4 min)
+tests/speak-selftest.sh -q     # same ten cases and assertions, silent
+tests/speak-key-test.sh        # pin the rewrite→speech handoff key (16 cases)
+tests/config-test.sh           # the two timeouts and the derived deadline (11)
 ```
 
 [`docs/decisions/speak-cold-path.md`](docs/decisions/speak-cold-path.md) is what was built,

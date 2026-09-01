@@ -1,10 +1,11 @@
 """The speech-content modules, at the plugin root and on the runtime path.
 
 This package holds the two things the speech path needs to turn a rewrite into
-sentences that Kokoro can say, and it is the OWNER of both. `bench/` imports
-from here; nothing here imports from `bench/`.
+sentences that Kokoro can say -- a sanitizer and a sentence splitter -- and it
+is the OWNER of both. `bench/` imports from here; nothing here imports from
+`bench/`.
 
-The runtime interface is two functions and NO knobs:
+The runtime interface is three functions and NO knobs:
 
     sanitize(text)                  -> the settled set, composed
     first_sentence(text, min_chars) -> sentence one

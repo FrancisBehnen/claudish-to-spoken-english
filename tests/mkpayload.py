@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 """Build a hook payload fixture from a text file.
 
-  mkpayload.py display <file> <message_id>   -> a MessageDisplay final-chunk payload
-  mkpayload.py stop    <file> [session_id]   -> a Stop payload
+  mkpayload.py display <file> [session_id] [message_id]  -> a MessageDisplay
+                                                            final-chunk payload
+  mkpayload.py stop    <file> [session_id]                -> a Stop payload
+
+Both kinds read `session_id` from argv[3]; only `display` reads a `message_id`,
+from argv[4]. So `display <file> X` sets the SESSION id to `X` and leaves
+`message_id` at its default -- pass both to set both, as
+`tests/speak-selftest.sh` does.
 
 The Stop shape is the ELEVEN fields observed on 2.1.245 (spec §2).
 `stop_reason` and `model` are absent on purpose: they appear in the docs and
