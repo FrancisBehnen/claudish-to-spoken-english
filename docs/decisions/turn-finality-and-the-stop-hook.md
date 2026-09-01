@@ -423,10 +423,18 @@ a global cap.
 ### The 60 in this repo is a declared value, not a cap
 
 **There is no *harness* 60 s cap to contrast a default against, and nothing in this document should
-be read as doing so.** The 60 is this plugin's own declared value: `hooks/hooks.json:9` sets
-`"timeout": 60` on `MessageDisplay` (also recorded in `README.md:457`), and `CLAUDISH_TIMEOUT`
-(default 45) is deliberately kept under it. The same file declares **180** at `hooks/hooks.json:21`
-for `PostToolUse`.
+be read as doing so.** The 60 was this plugin's own declared value: `hooks/hooks.json:9` set
+`"timeout": 60` on `MessageDisplay`, and `CLAUDISH_TIMEOUT` (default 45) was deliberately kept under
+it. The same file declares **180** at `hooks/hooks.json:21` for `PostToolUse`.
+
+> **UPDATE 2026-09-01 (#14): both display numbers are now 120**, and this paragraph's central claim —
+> that the 60 was never a harness limit — is the reason that was possible. The suspicion the next
+> paragraph reserves judgement on has since been tested rather than reasoned about: the command-hook
+> runner in `claude` 2.1.252 computes `e.timeout * 1000` and hands it straight to the `setTimeout`
+> that kills the child, with no clamp on the path, and a hook declaring `"timeout": 90` was observed
+> running 75 s to completion without being TERMed. See
+> [`provider-switch-traps.md`](provider-switch-traps.md) section 7. What is still unwatched is a kill
+> actually landing at a declared deadline.
 
 **That 180 is not evidence about a ceiling, and an earlier revision wrongly said it "disproves" one.**
 A value the config schema accepts proves only that the schema accepts it — `timeout` is `positive()`
@@ -441,10 +449,11 @@ default is 10 s and this plugin declares 60; `Stop`'s harness default is 600 s a
 `Stop` would declare its own value** rather than inherit that. Cite `hooks/hooks.json` for the
 declared numbers.
 
-(Separately, `rewrite.sh:211`'s timeout hint has a real defect — it advises raising a timeout without
-naming its own `hooks.json` ceiling, where `rewrite-md.sh:197` does. That asymmetry is
-[#14](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/14)'s and is documented on
-`task/provider-switch-traps`; it is not a cap conflict and not this document's.)
+(Separately, `rewrite.sh:211`'s timeout hint had a real defect — it advised raising a timeout without
+naming its own `hooks.json` ceiling, where `rewrite-md.sh:197` does. That asymmetry was
+[#14](https://github.com/FrancisBehnen/claudish-to-spoken-english/issues/14)'s; it is **fixed** as of
+2026-09-01 at `rewrite.sh:271`, which now names both the hooks.json ceiling and the provider switch.
+It was never a cap conflict and never this document's.)
 
 For a speech hook on `Stop`, no timeout is the real constraint. The constraint is that a blocking hook
 holds the turn: the prompt does not come back until the hook returns. Kokoro's measured worst case in

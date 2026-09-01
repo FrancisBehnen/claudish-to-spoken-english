@@ -21,7 +21,8 @@
 # silent — an empty completion with no transport error).
 #
 # Providers (CLAUDISH_PROVIDER):
-#   ollama     (default) local ollama at CLAUDISH_OLLAMA
+#   ollama     local ollama at CLAUDISH_OLLAMA. Was the default until #14;
+#              still the only provider on which nothing leaves the machine.
 #   anthropic  Anthropic Messages API; key from CLAUDISH_ANTHROPIC_KEY or
 #              ANTHROPIC_API_KEY; base URL from CLAUDISH_ANTHROPIC_URL
 #   openai     any OpenAI-compatible /chat/completions endpoint (OpenAI,
@@ -29,9 +30,10 @@
 #              from CLAUDISH_OPENAI_URL, key from CLAUDISH_OPENAI_KEY or
 #              OPENAI_API_KEY. A key is only required for the default
 #              api.openai.com URL — local servers work keyless.
-#   claude-cli the local `claude` CLI in print mode, so rewrites run on this
-#              machine's Claude Code SUBSCRIPTION instead of a metered API
-#              key. No key, no local model. Binary from CLAUDISH_CLAUDE_BIN
+#   claude-cli (DEFAULT since #14) the local `claude` CLI in print mode, so
+#              rewrites run on this machine's Claude Code SUBSCRIPTION instead
+#              of a metered API key.
+#              No key, no local model. Binary from CLAUDISH_CLAUDE_BIN
 #              (default `claude`). This is the one provider that is a
 #              subprocess rather than an HTTP call, so it has no HTTP status
 #              and needs its own timeout — see _llm_run_bounded.
@@ -39,7 +41,13 @@
 #              windows as your real Claude Code work.
 #
 # Extra config:
-#   CLAUDISH_MODEL          overrides the per-provider default model
+#   CLAUDISH_MODEL          overrides the per-provider default model. NOT
+#                           namespaced per provider, so a value left over from
+#                           ollama travels to whichever provider is selected.
+#                           On claude-cli an unmistakably foreign `name:tag` is
+#                           ignored rather than obeyed — see the MODEL_IGNORED
+#                           block below for why that exception exists and why it
+#                           is narrow.
 #   CLAUDISH_MAX_TOKENS     completion cap for the anthropic provider (default
 #                           4096; the Messages API requires an explicit cap)
 #   CLAUDISH_OPENAI_EFFORT  reasoning_effort for the openai provider. Unset
@@ -58,7 +66,17 @@
 # comes back as an empty $rewrite, never an exit.
 # ---------------------------------------------------------------------------
 
-PROVIDER="${CLAUDISH_PROVIDER:-ollama}"
+# DEFAULT: claude-cli, not ollama.  Changed for #14.  ollama's model server is
+# serial here (`llama-server ... -np 1`, OLLAMA_NUM_PARALLEL unset), so several
+# concurrent Claude Code sessions queue behind one another and blow the display
+# hook's budget -- 8 x curl_rc=28 against 10 successful rewrites in 30 minutes
+# on four sessions.  docs/research/ollama-concurrency.md says why parallelising
+# ollama is not the answer.  claude-cli has no such queue.
+#
+# It COSTS SUBSCRIPTION QUOTA -- the same 5-hour and 7-day windows as the user's
+# real Claude Code work (README "The claude-cli provider").  Escape hatches:
+# CLAUDISH_PROVIDER=ollama, or touch ~/.claude/claudish-off.
+PROVIDER="${CLAUDISH_PROVIDER:-claude-cli}"
 OLLAMA="${CLAUDISH_OLLAMA:-http://localhost:11434}"
 ANTHROPIC_KEY="${CLAUDISH_ANTHROPIC_KEY:-${ANTHROPIC_API_KEY:-}}"
 OPENAI_KEY="${CLAUDISH_OPENAI_KEY:-${OPENAI_API_KEY:-}}"
@@ -92,6 +110,29 @@ case "$PROVIDER" in
   claude-cli) MODEL="${CLAUDISH_MODEL:-haiku}" ;;
   *)          MODEL="${CLAUDISH_MODEL:-gemma4:26b-mlx}" ;;
 esac
+
+# CLAUDISH_MODEL is not namespaced per provider, so an ollama tag left in a
+# settings `env` block reaches the CLI as `--model` verbatim and fails EVERY
+# rewrite -- trap 1 in docs/decisions/provider-switch-traps.md, and MEASURED:
+# `claude -p --model qwen3:4b-instruct-2507-q4_K_M` exits 1 with "is not a model
+# this version of Claude Code recognizes" and no rewrite.  That was a fair price
+# while claude-cli was opt-in.  It is not fair now that claude-cli is the
+# DEFAULT: nobody opted in, so a name that cannot possibly be a Claude model is
+# ignored rather than obeyed.
+#
+# The test is deliberately narrow -- `name:tag` with no Anthropic marker.  A
+# colon alone would not do: Bedrock and Vertex ids carry one
+# (us.anthropic.claude-haiku-4-5-20251001-v1:0) and MUST survive, since
+# claude-cli honours them.  Anything without a colon is passed through
+# untouched, so a typo in a real model name still fails loudly rather than being
+# silently rewritten to haiku.
+MODEL_IGNORED=""
+if [ "$PROVIDER" = "claude-cli" ]; then
+  case "$MODEL" in
+    *claude*|*anthropic*|*haiku*|*sonnet*|*opus*) ;;
+    *:*) MODEL_IGNORED="$MODEL"; MODEL="haiku" ;;
+  esac
+fi
 
 # Opt-in, and EMPTY by default. A rewrite needs no tools, so blocking them
 # looks free — but `--disallowed-tools` validates every name against the CLI's
@@ -321,6 +362,9 @@ llm_complete() {
     esac
   fi
 
+  # MODEL_IGNORED is resolved at SOURCE time, where dbg() may not exist yet
+  # (the contract only promises it before llm_complete), so it is reported here.
+  [ -n "$MODEL_IGNORED" ] && dbg "ignored CLAUDISH_MODEL='$MODEL_IGNORED': not a Claude model name, and claude-cli would fail every rewrite with it; using '$MODEL'"
   dbg "$PROVIDER model=$MODEL curl_rc=$curl_rc http=${http:-none} resp_bytes=${#resp} rewrite_bytes=${#rewrite} truncated=$truncated err=${err:-none}"
   return 0
 }

@@ -7,7 +7,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **`claude-cli` is now the default provider, and it spends subscription
+  quota.** Rewrites run on your own Claude Code login instead of a local
+  ollama. This is a real tradeoff and the README states it plainly under
+  [Why `claude-cli` is the default](README.md#why-claude-cli-is-the-default-and-what-it-costs):
+  every turn in every session now draws on the same 5-hour and 7-day windows as
+  your real work. Undo it with `CLAUDISH_PROVIDER=ollama`; pause everything with
+  `touch ~/.claude/claudish-off`.
+
+  The reason is **concurrency, not speed.** A local ollama serves completions
+  serially (`llama-server … -np 1`, `OLLAMA_NUM_PARALLEL` unset), so concurrent
+  Claude Code sessions queue behind one another and blow the display hook's
+  budget — 8 timeouts against 10 successful rewrites in 30 minutes across four
+  sessions. `docs/research/ollama-concurrency.md` explains why turning ollama
+  parallel is not the fix. (#14's own premise — that `claude-cli` latency is
+  flat in message size — was measured and **refuted** at 52.50 s for 1,328
+  words; that is not why this changed.)
+- **The display timeouts went 45/60 → 120/120 seconds.** `CLAUDISH_TIMEOUT`'s
+  default *and* the `MessageDisplay` hook's own `timeout` in `hooks/hooks.json`,
+  which are two numbers that only work when moved together: the hook timeout
+  bounds the process that makes the LLM call, so raising `CLAUDISH_TIMEOUT`
+  alone was inert. A declared hook timeout above 60 is honoured — measured, and
+  the CLI's hook-config schema puts no maximum on the field.
+- **`speak.sh`'s `MD_TIMEOUT` tracked that raise, so long rewrites are still
+  spoken.** The speech wait is the spec's derivation
+  `min(CLAUDISH_TIMEOUT + 2, MD_TIMEOUT) + 3`, and `MD_TIMEOUT` is a copy of the
+  hooks.json number. Left at 60 it would have capped speech at **63 s** while
+  the screen got 120 s — every rewrite in between displayed and never spoken,
+  with no error anywhere. The derivation itself is untouched; only the value it
+  reads moved. `tests/config-test.sh` now asserts the two stay equal.
+- **The display hook's timeout notice names the hooks.json ceiling and the
+  provider switch**, instead of advising a `CLAUDISH_TIMEOUT` raise that does
+  nothing on its own. The Markdown hook's notice already got this right.
+
 ### Added
+- **`tests/config-test.sh`** — 11 free assertions (no model call, no audio, no
+  tokens) over the config facts no runtime test reaches: the provider default,
+  the `CLAUDISH_MODEL` guard, and the coupling between `CLAUDISH_TIMEOUT`,
+  `hooks.json`'s MessageDisplay timeout and `speak.sh`'s `MD_TIMEOUT`.
+- **A stale `CLAUDISH_MODEL` no longer breaks every rewrite on the new
+  default.** `CLAUDISH_MODEL` is not namespaced per provider, so an ollama tag
+  left in a settings `env` block reached the CLI as `--model` verbatim and
+  failed every rewrite (measured: exit 1, *"is not a model this version of
+  Claude Code recognizes"*, no quota spent). On `claude-cli` an unmistakably
+  foreign `name:tag` — a colon and no `claude`/`anthropic`/`haiku`/`sonnet`/
+  `opus` — is now ignored in favour of `haiku`, logged under `CLAUDISH_DEBUG=1`.
+  Bedrock/Vertex ids (which also carry a colon) and colon-free names are
+  untouched, so a typo in a real model name still fails loudly.
+
+### Fixed
+- **A silent turn no longer cuts off the previous answer.** `speak.sh`'s
+  preemption ran above every gate that can exit without speaking, so a turn
+  that was never going to speak still TERMed the previous speaker's process
+  group: a long answer playing, a one-line question asked, and the long answer
+  cut off mid-sentence with nothing in its place. The kill now runs below the
+  content gates and above the fork, so a turn that *does* speak still leaves
+  exactly one speaker. `tests/speak-selftest.sh` cases 7 and 8.
+
+### Changed
+- **Speech has no length floor of its own.** Below `CLAUDISH_MIN_CHARS`
+  `rewrite.sh` published nothing, so short answers were spoken from a separate
+  raw path in `speak.sh` or — if they carried one of eight hazard classes —
+  not at all. Now `rewrite.sh` publishes on the short path too, carrying the
+  **raw** text under the same key, and `speak.sh` reads `CLAUDISH_MIN_CHARS`
+  on no path: `MIN_CHARS` decides what is *rewritten*, never what is spoken.
+  That drops the eight-class hazard gate, which had measured zero effect on all
+  sixteen real sub-threshold items. `tests/speak-selftest.sh` case 9.
+
+### Added
+- **Speech, off by default.** With `CLAUDISH_SPEAK=1` the plugin speaks each
+  turn's plain-English rewrite aloud through a local Kokoro voice (`bf_emma`).
+  A new `Stop` hook, `speak.sh`, gates, classifies, drops a job and forks a
+  detached speaker in ~0.11 s; the speaker waits for the rewrite to be
+  published, sanitizes it with the settled rule set, splits it into sentences
+  and plays sentence one while sentence two is still being synthesised.
+  Measured hook-invocation-to-wav: 2.08–2.68 s. `touch
+  ~/.claude/claudish-speak-off` mutes it mid-utterance;
+  `~/.claude/claudish-off` still stops both speech and rewriting. New vars:
+  `CLAUDISH_SPEAK`, `CLAUDISH_SPEAK_OFF_FILE`, `CLAUDISH_VOICE`,
+  `CLAUDISH_PLAYER`, `CLAUDISH_SPEAK_TIMEOUT`, `KOKORO_ROOT`
+  (FrancisBehnen/claudish-to-spoken-english#23). This is the **cold path**: the
+  spec's resident worker and its preemption protocol are deliberately not
+  built — see [`docs/decisions/speak-cold-path.md`](docs/decisions/speak-cold-path.md).
+- `speak-key.sh`: the one definition of the rewrite→speech handoff key,
+  `sha256( trim( text ) )`, sourced by `rewrite.sh` and `speak.sh` alike so the
+  publisher and the consumer cannot compute different paths and leave the
+  plugin silently mute. Pinned by `tests/speak-key-cases.tsv` against an
+  independent Python implementation, under both hooks' shell regimes.
+- `tests/`: a `Stop` payload fixture and two scripts that exercise the speech
+  hook with no Claude Code session involved.
 - `claude-cli` provider: rewrites can run through the local `claude` binary in
   print mode, on your existing Claude Code subscription instead of a metered API
   key or a local model (~8–12 s per message on an M3, versus ~15–25 s for a
@@ -23,6 +112,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   answer and break the fail-open contract.
 - `ratelimited` is now part of the `llm_complete` contract, so a subscription
   quota refusal gets its own once-per-session notice rather than a generic one.
+
+### Changed
+- `bench/sanitizers.py` moved to `speech/sanitizers.py`, and
+  `bench/first-sentence.py`'s `_SENT_END` / `first_sentence` moved to
+  `speech/split.py`. Both are now at the plugin root so the shipped `Stop` hook
+  imports the same code the bench harness measures, rather than reaching into
+  `bench/` by path. The registry, `run()`, and every rule are unchanged; the
+  bench scripts are now callers rather than owners.
 
 ## [0.3.0] - 2026-08-13
 

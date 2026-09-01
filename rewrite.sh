@@ -45,7 +45,11 @@
 #                                           (prose, code stripped) (default 200)
 #   CLAUDISH_STUB      1|0            deterministic stub instead of the LLM
 #                                           (for display-mechanics testing)
-#   CLAUDISH_TIMEOUT   <seconds>      LLM client timeout (default 45)
+#   CLAUDISH_TIMEOUT   <seconds>      LLM client timeout (default 120). MUST stay
+#                                           at or below hooks/hooks.json's
+#                                           MessageDisplay `timeout` (120), which
+#                                           bounds this whole PROCESS and so is
+#                                           the real ceiling.
 #   CLAUDISH_DEBUG     1|0            write a debug log (default 0)
 #   CLAUDISH_NOTICE    1|0            once-per-session on-screen notice when the
 #                                           rewrite is skipped because the
@@ -62,7 +66,11 @@ ENABLED="${CLAUDISH_ENABLED:-1}"
 MODE="${CLAUDISH_MODE:-append}"
 MIN_CHARS="${CLAUDISH_MIN_CHARS:-200}"
 STUB="${CLAUDISH_STUB:-0}"
-LLM_TIMEOUT="${CLAUDISH_TIMEOUT:-45}"
+# 120, raised from 45 for #14.  Two numbers, not one: hooks/hooks.json bounds
+# THIS PROCESS, so raising only this one is inert -- the harness would kill the
+# hook at the declared hook timeout and the rewrite would publish nothing.  Both
+# moved together to 120; speak.sh:MD_TIMEOUT tracks the hooks.json half.
+LLM_TIMEOUT="${CLAUDISH_TIMEOUT:-120}"
 DEBUG="${CLAUDISH_DEBUG:-0}"
 NOTICE="${CLAUDISH_NOTICE:-1}"
 
@@ -95,6 +103,82 @@ emit() {
 emit_empty() {
   jq -n '{hookSpecificOutput:{hookEventName:"MessageDisplay",displayContent:""}}' 2>/dev/null || pass_through
   exit 0
+}
+
+# ---- publish text for speak.sh (speech handoff) --------------------------
+# Content-addressed: the path is sha256( trim( the SOURCE text ) ) — always
+# "$full", never "$1" — so the path is the proof that what we publish belongs
+# to the message Claude actually produced, and it is the same key speak.sh
+# computes from its own copy of that message. "$1" is what gets SPOKEN, and it
+# is not always a rewrite:
+#
+#   publish_speech "$rewrite"   the normal path, above MIN_CHARS
+#   publish_speech "$full"      the short path, below MIN_CHARS, where there
+#                               is no rewrite to hand over — the message was
+#                               skipped precisely because it is already plain.
+#                               Speech has no length floor of its own (the
+#                               user's decision, 2026-09-01), so the raw text
+#                               is what there is to speak, and starving the
+#                               short path was the silence this replaced.
+#
+# Guarded throughout — temp-write + rename (atomic), every step's failure
+# swallowed — so a full disk, an unreadable speak-key.sh, or anything else can
+# never change this hook's exit path or one byte of what it displays. The
+# display hook's fail-open contract outranks the speech feature absolutely.
+# Gated on CLAUDISH_SPEAK, so with speech off a call is one variable test and a
+# return. speak-key.sh holds the ONE definition of the key and speak.sh sources
+# the same file, so the two sides cannot drift apart; a missing or unreadable
+# speak-key.sh just means no publish — and "no publish" is asserted with
+# speak-key.sh's `SPEAK_KEY_DEFINED` sentinel rather than `command -v
+# speak_key`, which would also be satisfied by a stray `speak_key` on PATH or
+# one exported into the environment. Calling that stray would hand this hook a
+# key derived by code that is not the one definition (speak.sh, sourcing the
+# real file, would then wait on a different path and nothing would ever be
+# heard) and would run code we did not intend to run. The sentinel is zeroed
+# first so an inherited variable cannot satisfy it.
+publish_speech() {
+  [ "${CLAUDISH_SPEAK:-0}" = "1" ] || return 0
+  SPEAK_KEY_DEFINED=0
+  . "$(cd "$(dirname "$0")" 2>/dev/null && pwd)/speak-key.sh" 2>/dev/null
+  _sh=""
+  [ "$SPEAK_KEY_DEFINED" = "1" ] && _sh="$(speak_key "$full")"
+  _sd="$BUF_ROOT/$sid/speak"
+  if [ -n "$_sh" ] && mkdir -p "$_sd" 2>/dev/null; then
+    # `2>/dev/null` comes BEFORE the `>` on both writes below, deliberately.
+    # Redirections are applied left to right, and it is the SHELL, not printf,
+    # that reports a failure to OPEN the target -- so with the order reversed an
+    # unwritable speak dir puts "Permission denied" on this hook's stderr.
+    _st="$_sd/.rw.$$.$RANDOM"
+    if { printf '%s' "$1" 2>/dev/null > "$_st" \
+      && mv -f "$_st" "$_sd/rw.$_sh" 2>/dev/null; }; then
+      # speak/prompt_id is DIAGNOSTIC ONLY and it is saying so here because
+      # NOTHING READS IT, on any path: speak.sh, speak-child.py, the probes
+      # under docs/decisions/, bench/ and corpus/ contain no reader, and the
+      # only other mentions in the repo are fixture fields and prose.  It is
+      # not dead, though -- spec §10.2's file table mandates it ("rewrite.sh
+      # writes, same gates") and §3.2 is why it can never become more than a
+      # diagnostic: prompt_id identifies a TURN while rewrite.sh publishes per
+      # MESSAGE, so in a multi-message turn one value cannot name which
+      # message's rewrite this is.  The hash can, and the hash is the key.
+      # "Same gates" is taken literally: this used to be the one write in the
+      # block that was neither atomic nor conditional, so a reader arriving
+      # mid-write could see a torn value and a failed rw.<H> still left a
+      # prompt_id behind describing a publish that did not happen.  Now it is
+      # temp-write-plus-rename like its neighbour, and it only lands once the
+      # generation it annotates is actually on disk.
+      _pt="$_sd/.pid.$$.$RANDOM"
+      { printf '%s' "$(printf '%s' "$payload" | jq -r '.prompt_id // empty' 2>/dev/null)" \
+        2>/dev/null > "$_pt" \
+        && mv -f "$_pt" "$_sd/prompt_id" 2>/dev/null; } || rm -f "$_pt" 2>/dev/null
+      dbg "speak: published rw.$_sh (${#1} bytes)"
+    else
+      rm -f "$_st" 2>/dev/null
+      dbg "speak: no publish (write failed)"
+    fi
+  else
+    dbg "speak: no publish (no key)"
+  fi
+  return 0
 }
 
 [ "$ENABLED" = "1" ] || pass_through
@@ -146,6 +230,11 @@ cleanup() { rm -rf "$mdir" 2>/dev/null || true; }
 # Below threshold -> do not rewrite.
 if [ "${prose_len:-0}" -lt "$MIN_CHARS" ]; then
   dbg "skip: below min_chars"
+  # No rewrite will ever exist for this message — and speech no longer has a
+  # floor of its own, so hand speak.sh the RAW text under the same key rather
+  # than leaving the turn silent. Nothing below this line changes: the publish
+  # cannot alter what is displayed or how this hook exits.
+  publish_speech "$full"
   cleanup
   # replace mode already blanked the intermediate chunks, so it MUST re-show
   # the full original here; append mode already streamed it.
@@ -208,7 +297,12 @@ if [ -z "$rewrite" ]; then
   # wrong then. The notice only APPENDS one line to the original; it never
   # suppresses content, so the fail-open contract still holds.
   notified="$BUF_ROOT/$sid.notified"
-  TIMEOUT_HINT="raise CLAUDISH_TIMEOUT or set CLAUDISH_MODEL to a smaller model"
+  # Names the hooks.json ceiling and the provider switch, like
+  # rewrite-md.sh:197 already did.  Raising CLAUDISH_TIMEOUT ALONE is inert
+  # once it reaches the MessageDisplay hook timeout, so advice that mentions
+  # only CLAUDISH_TIMEOUT is advice that does nothing (#14 step 3,
+  # docs/decisions/provider-switch-traps.md section 2).
+  TIMEOUT_HINT="switch CLAUDISH_PROVIDER, or raise CLAUDISH_TIMEOUT *and* the MessageDisplay hook timeout in hooks.json, or set CLAUDISH_MODEL to a faster model"
   llm_notice_why
   if [ "$NOTICE" = "1" ] && [ ! -e "$notified" ] && [ -n "$NOTICE_WHY" ]; then
     : > "$notified" 2>/dev/null || true
@@ -230,6 +324,9 @@ if [ -z "$rewrite" ]; then
   fi
   pass_through
 fi
+
+# ---- publish the rewrite for speak.sh (speech handoff) -------------------
+publish_speech "$rewrite"
 
 # ---- build displayContent for the final chunk ----------------------------
 out="$BUF_ROOT/$sid.$mid.out"
