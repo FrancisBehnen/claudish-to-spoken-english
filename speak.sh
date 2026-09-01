@@ -233,8 +233,22 @@ case "$prose_len" in ''|*[!0-9]*) prose_len=0 ;; esac
 # single thing that decides whether the user hears this turn's rewrite or
 # nothing at all.  Sourced AFTER step 6, so a key that cannot be computed still
 # preempts: this turn was going to speak.
+#
+# The gate is speak-key.sh's own `SPEAK_KEY_DEFINED` sentinel, NOT
+# `command -v speak_key`: `command -v` resolves executables on PATH and
+# functions exported into the environment with `export -f`, so on a run where
+# the source failed -- absent file, unreadable file, truncated file -- a stray
+# `speak_key` anywhere on PATH would answer it and then be CALLED, from a Stop
+# hook, on the text of the turn.  Two costs, and the first is the one that
+# breaks the feature: the key would come from code that is not the one
+# definition, so rewrite.sh (which sources the file successfully) publishes to
+# one path while this hook waits on another and the user hears nothing, on
+# every turn, with nothing reporting an error.  The second is that it is
+# arbitrary code we did not intend to run.  Sourcing to completion is the only
+# thing that proves the function is ours, and the sentinel is that proof.
+SPEAK_KEY_DEFINED=0
 . "$SELF_DIR/speak-key.sh" 2>/dev/null
-command -v speak_key >/dev/null 2>&1 || { rm -f "$msg" 2>/dev/null; exit 0; }
+[ "$SPEAK_KEY_DEFINED" = "1" ] || { dbg "speak-key.sh did not source -> silent"; rm -f "$msg" 2>/dev/null; exit 0; }
 H="$(speak_key "$(cat "$msg" 2>/dev/null)")"
 case "$H" in
   '') rm -f "$msg" 2>/dev/null; exit 0 ;;

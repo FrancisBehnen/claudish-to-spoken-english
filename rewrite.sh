@@ -120,12 +120,20 @@ emit_empty() {
 # Gated on CLAUDISH_SPEAK, so with speech off a call is one variable test and a
 # return. speak-key.sh holds the ONE definition of the key and speak.sh sources
 # the same file, so the two sides cannot drift apart; a missing or unreadable
-# speak-key.sh just means no publish.
+# speak-key.sh just means no publish — and "no publish" is asserted with
+# speak-key.sh's `SPEAK_KEY_DEFINED` sentinel rather than `command -v
+# speak_key`, which would also be satisfied by a stray `speak_key` on PATH or
+# one exported into the environment. Calling that stray would hand this hook a
+# key derived by code that is not the one definition (speak.sh, sourcing the
+# real file, would then wait on a different path and nothing would ever be
+# heard) and would run code we did not intend to run. The sentinel is zeroed
+# first so an inherited variable cannot satisfy it.
 publish_speech() {
   [ "${CLAUDISH_SPEAK:-0}" = "1" ] || return 0
+  SPEAK_KEY_DEFINED=0
   . "$(cd "$(dirname "$0")" 2>/dev/null && pwd)/speak-key.sh" 2>/dev/null
   _sh=""
-  command -v speak_key >/dev/null 2>&1 && _sh="$(speak_key "$full")"
+  [ "$SPEAK_KEY_DEFINED" = "1" ] && _sh="$(speak_key "$full")"
   _sd="$BUF_ROOT/$sid/speak"
   if [ -n "$_sh" ] && mkdir -p "$_sd" 2>/dev/null; then
     _st="$_sd/.rw.$$.$RANDOM"

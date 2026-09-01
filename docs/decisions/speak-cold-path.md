@@ -148,14 +148,15 @@ tests/speak-selftest.sh -q
 tests/speak-selftest.sh /path/to/some-rewrite.txt
 ```
 
-Nine cases: speech off leaves zero side effects; a buffered hit speaks and reports
+Ten cases: speech off leaves zero side effects; a buffered hit speaks and reports
 hook-invocation-to-wav; a rewrite published 3 s *after* the hook is still heard (the bounded
 wait); `touch`ing the off-file kills audio already sounding; a publish that never comes is silent
 at the deadline; a second turn during the first leaves exactly one speaker; a turn that exits at a
 content gate leaves the live speaker **alone**; a turn that speaks preempts it and the survivor is
-the **new** speaker; and a message well under `CLAUDISH_MIN_CHARS` is published by `rewrite.sh` and
-spoken — the case that used to be silent. `-q` swaps the real player for a fake one: synthesis
-still runs for real, only playback is faked.
+the **new** speaker; a message well under `CLAUDISH_MIN_CHARS` is published by `rewrite.sh` and
+spoken — the case that used to be silent; and a `speak.sh` with no `speak-key.sh` beside it goes
+silent instead of calling a `speak_key` off `PATH`. `-q` swaps the real player for a fake one:
+synthesis still runs for real, only playback is faked.
 
 ```sh
 # The handoff key, cross-checked against python hashlib under BOTH shell regimes:
