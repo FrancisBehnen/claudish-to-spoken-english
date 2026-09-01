@@ -9,6 +9,11 @@
 # Everything runs inside a scratch TMPDIR and a scratch mute file, so your real
 # ~/.claude/claudish-speak-off and your real session buffers are never touched.
 #
+# NO CASE HERE SPENDS TOKENS OR QUOTA.  Case 9 is the only one that drives
+# rewrite.sh, and the LLM is pinned out of it (see the CLAUDISH_STUB block
+# below) -- necessary since #14 made claude-cli, which bills the user's own
+# subscription, the default provider.
+#
 # Cases:
 #   1  speech OFF (CLAUDISH_SPEAK unset)  -> exit 0, zero side effects
 #   2  buffered HIT                       -> audio, time-to-wav reported
@@ -92,6 +97,34 @@ export CLAUDISH_DEBUG=1
 # that file would watch every case here fail with no hint why.  Case 9 drives
 # rewrite.sh, which reads the same file.
 export CLAUDISH_OFF_FILE="$WORK/claudish-off"
+
+# ---- no case here may spend the user's Claude subscription quota ---------
+# Case 9 drives rewrite.sh for real, and since #14 the DEFAULT provider is
+# claude-cli, which bills the SAME 5-hour and 7-day windows as the user's real
+# Claude Code work.  Case 9 is safe today only by accident of its fixture: 48
+# prose chars, under CLAUDISH_MIN_CHARS, so rewrite.sh returns at the
+# below-threshold gate and never reaches llm_complete.  That is a property of
+# the FIXTURE, not of the suite, and speech no longer has a length floor of its
+# own keeping it true -- so anyone who lengthens that fixture would silently
+# bill the user.  Pinned here in two independent layers instead:
+#
+#   CLAUDISH_STUB=1   rewrite.sh takes its deterministic stub branch, and that
+#                     branch is the `if` whose `else` holds the ONLY
+#                     llm_complete call in the file -- so no provider is
+#                     invoked at any fixture length.  This is the real guard.
+#   CLAUDISH_PROVIDER ollama at a closed scratch port, so if the stub branch is
+#   CLAUDISH_OLLAMA   ever removed the call lands on a refused local socket
+#                     rather than on a metered provider.  Belt to the braces.
+#
+# Set here rather than on the case-9 line so a case added later inherits them,
+# and as assignments that beat the user's exported environment.  A lengthened
+# fixture now FAILS LOUDLY -- the stub text hashes to a different handoff key
+# than the raw text case 9 asserts -- instead of quietly spending quota.
+# tests/config-test.sh is where the provider DEFAULT is pinned; this is only
+# about never exercising it.  The speech path reads none of these three.
+export CLAUDISH_STUB=1
+export CLAUDISH_PROVIDER=ollama
+export CLAUDISH_OLLAMA="http://127.0.0.1:1"
 
 PAYLOAD="$WORK/stop.json"
 python3 "$ROOT/tests/mkpayload.py" stop "$TEXT" "$SID" > "$PAYLOAD" || exit 1
