@@ -3,8 +3,9 @@
 # Stop hook: speak the turn's plain-English rewrite aloud.  COLD PATH.
 #
 # This is the hook half of docs/decisions/speech-integration-spec.md.  It does
-# the ordered steps of §10.3, drops a job, forks a DETACHED speaker, and exits
-# 0.  It never waits for synthesis, playback, or the rewrite.
+# the steps of §10.3 -- in §10.3's order except for step 6, which runs later
+# than the spec puts it and says why -- drops a job, forks a DETACHED speaker,
+# and exits 0.  It never waits for synthesis, playback, or the rewrite.
 #
 # NO `set` OPTIONS, DELIBERATELY (§5).  On a Stop hook exit code 2 is not a
 # failure report, it is a request to BLOCK the turn, and it costs nine
@@ -24,10 +25,15 @@
 #     under the spec's own 3 s line, and residency is the direct cause of four
 #     of the spec's five ship-blocking defects (§13 rows 20, 21, 24, 27).
 #   * §10.6's anchored player-record preemption protocol is NOT built.  Step 6
-#     below is a best-effort barge-in instead; see its comment.
+#     below is a best-effort barge-in instead, and it also runs LATER than
+#     §10.3 orders it; see its comment for both.
 #   * §3.5.1's bounded wait lives in the DETACHED CHILD, never here, because
 #     there is no worker to put it in.  §6's non-blocking guarantee is the
 #     reason it cannot live in this process.
+#   * §3.3, §3.4, and three of §3.5's four table rows are GONE, by the user's
+#     decision of 2026-09-01: speech has no length floor of its own.  There is
+#     no raw path in this hook any more, and therefore no eight-class hazard
+#     gate on one.  Step 10 says what that costs.
 #
 # Config (§10.1).  CLAUDISH_SPEAK_MIN_CHARS and CLAUDISH_TTS_URL are LOCKED
 # ABSENT by §9 and #5 and are deliberately not implemented anywhere:
@@ -44,7 +50,9 @@
 #   CLAUDISH_DEBUG           1|0     reuse rewrite.sh's flag and its
 #                                    $BUF_ROOT/debug.log sink; never stderr
 # and, read from rewrite.sh's own variables so the two hooks cannot disagree:
-#   CLAUDISH_ENABLED, CLAUDISH_OFF_FILE, CLAUDISH_MIN_CHARS, CLAUDISH_TIMEOUT
+#   CLAUDISH_ENABLED, CLAUDISH_OFF_FILE, CLAUDISH_TIMEOUT
+# CLAUDISH_MIN_CHARS was on that list and is NOT read here any more, on any
+# path: it gates the REWRITE, and speech no longer has a length gate at all.
 # ---------------------------------------------------------------------------
 
 # ---- step 0a: DERIVE ENABLED, exactly as rewrite.sh:57 derives it. --------
@@ -100,11 +108,44 @@ sid="$(printf '%s' "$payload" | jq -r '.session_id // empty' 2>/dev/null)"
 case "$sid" in */*|..|.) exit 0 ;; esac
 SPEAK_DIR="$BUF_ROOT/$sid/speak"
 
-# ---- step 6: PREEMPTION, before any content-based exit -------------------
-# §10.3's ordering is load-bearing and it is kept: a newer turn that is
-# deliberately silent (a running background task, a disqualifying hazard, a
-# deadline that will pass) must still cut the previous turn's audio, because
-# nothing else will.  Every path below this line has executed this step.
+# ---- step 7: NOT a stop_hook_active check -------------------------------
+# §5.1: that flag is read for no behaviour.  Dedup is the child's, on the
+# resolved text, at the moment it goes to synthesis (§3.5.1 clause 6).
+
+# ---- step 8: a running background task suppresses the announcement (§8) --
+bg="$(printf '%s' "$payload" \
+  | jq -r '[.background_tasks[]? | select(.status=="running")] | length' 2>/dev/null)"
+case "$bg" in ''|*[!0-9]*) bg=0 ;; esac
+[ "$bg" -eq 0 ] 2>/dev/null || { dbg "background task running -> silent"; exit 0; }
+
+# ---- step 9: last_assistant_message, absent-by-default (§2) -------------
+# Read from the Stop payload, NEVER from transcript_path.  The payload has
+# exactly eleven fields; stop_reason and model are ABSENT despite the docs, so
+# nothing here references them.
+mkdir -p "$SPEAK_DIR" 2>/dev/null || exit 0
+msg="$SPEAK_DIR/.msg.$$"
+printf '%s' "$payload" | jq -j '.last_assistant_message // ""' > "$msg" 2>/dev/null \
+  || { rm -f "$msg" 2>/dev/null; exit 0; }
+[ -s "$msg" ] || { rm -f "$msg" 2>/dev/null; exit 0; }
+
+# ---- step 6: PREEMPTION -- DELIBERATELY LATER THAN §10.3 ORDERS IT -------
+# §10.3 puts this above every content-based exit, reasoning that a newer turn
+# which is deliberately silent must still cut the previous turn's audio
+# because nothing else will.  THAT REASONING WAS OBSERVED WRONG.  A long
+# answer was playing, the user asked a one-line question, the reply to it
+# never reached synthesis -- and the previous answer was cut off mid-sentence
+# with nothing in its place.  Two turns in one live log would have done it
+# (prose_len 53 and 54).  Silence where speech was is not preemption, it is a
+# lost utterance.
+#
+# So the kill runs HERE: below every gate that exits WITHOUT speaking (step
+# 8's running background task, step 9's absent last_assistant_message) and
+# above the fork, so a turn that DOES speak still leaves exactly one speaker.
+# What is still below this line is FAILURE, never silence by design -- an
+# unreadable speak-key.sh, a key that will not compute, an unwritable job, a
+# missing Kokoro venv -- and preempting on a failure is deliberate: that turn
+# was going to speak.  (The venv row is vacuous anyway: with no interpreter
+# nothing ever became a speaker to preempt.)
 #
 # DEFERRED: this is NOT §10.6's anchored player-record protocol.  There is no
 # playerdir/, no per-player <pid>.<nonce> record matched on an anchored
@@ -146,32 +187,42 @@ preempt() {
 }
 preempt
 
-# ---- step 7: NOT a stop_hook_active check -------------------------------
-# §5.1: that flag is read for no behaviour.  Dedup is the child's, on the
-# resolved text, at the moment it goes to synthesis (§3.5.1 clause 6).
-
-# ---- step 8: a running background task suppresses the announcement (§8) --
-bg="$(printf '%s' "$payload" \
-  | jq -r '[.background_tasks[]? | select(.status=="running")] | length' 2>/dev/null)"
-case "$bg" in ''|*[!0-9]*) bg=0 ;; esac
-[ "$bg" -eq 0 ] 2>/dev/null || { dbg "background task running -> silent"; exit 0; }
-
-# ---- step 9: last_assistant_message, absent-by-default (§2) -------------
-# Read from the Stop payload, NEVER from transcript_path.  The payload has
-# exactly eleven fields; stop_reason and model are ABSENT despite the docs, so
-# nothing here references them.
-mkdir -p "$SPEAK_DIR" 2>/dev/null || exit 0
-msg="$SPEAK_DIR/.msg.$$"
-printf '%s' "$payload" | jq -j '.last_assistant_message // ""' > "$msg" 2>/dev/null \
-  || { rm -f "$msg" 2>/dev/null; exit 0; }
-[ -s "$msg" ] || { rm -f "$msg" 2>/dev/null; exit 0; }
-
-# ---- step 10: classify via §3.5's decision table ------------------------
-# prose_len by rewrite.sh:139-142's own formula (strip fenced blocks, delete
-# whitespace, wc -c), so the two hooks agree about the threshold without
-# coordinating.  It is 200 BYTES of non-whitespace, not 200 characters.
-MIN_CHARS="${CLAUDISH_MIN_CHARS:-200}"
-case "$MIN_CHARS" in ''|*[!0-9]*) MIN_CHARS=200 ;; esac
+# ---- step 10: classify -- ONE row now, and no length floor -------------
+# §3.5's decision table had four rows.  Three of them turned on
+# CLAUDISH_MIN_CHARS and all three are GONE, by the user's decision of
+# 2026-09-01: speech gets no length floor of its own, because rewrite.sh
+# already decides what is worth rewriting.
+#
+# What the floor rested on here was §3.3's premise 2 -- "below the threshold
+# there is no rewrite to hand over" -- and that premise is now FALSE:
+# rewrite.sh publishes on its short path too, carrying the RAW text under the
+# SAME key (speak-key.sh, one definition, both hooks).  With the premise gone:
+#
+#   * the RAW mode is gone.  Short text now arrives the way long text does,
+#     through speak/rw.<H>, so there is nothing left for this hook to speak
+#     out of the job payload and no wait=0 row to speak it on.
+#   * §3.4's EIGHT-CLASS HAZARD GATE went with it, and that is a spec change,
+#     not a cleanup.  The gate guarded RAW speech FROM THIS HOOK, and this
+#     hook no longer speaks raw -- but §3.4 is LOCKED, so state the cost:
+#     short text carrying a disqualifying class (a path, a URL, a fence) is
+#     now spoken, sanitized, which means a path loses its leading segments and
+#     a fence becomes "Code block, N lines."  What makes that tolerable is
+#     §3.4's own measurement, and it is a measurement of no-op rather than of
+#     benefit: of #10's sixteen real sub-threshold items, ZERO carried a
+#     disqualifying class.  The gate silenced nothing anyone has measured.
+#   * §3.5's "below MIN_CHARS the wait must never run" is gone too.  Below the
+#     threshold there is now something to wait FOR, and it lands in
+#     milliseconds because rewrite.sh's short path makes no LLM call.
+#
+# One row is left, and it is §3.5's last one: wait for speak/rw.<H>, speak it
+# if it lands, be silent at the deadline (§3.5.1).
+#
+# prose_len is still computed and it is now PURELY DIAGNOSTIC -- nothing
+# compares it to anything.  It is kept because it is the number that named the
+# bug step 6 fixes (two live turns at 53 and 54) and it is what to grep for in
+# debug.log.  Same formula as rewrite.sh:139-142 (strip fenced blocks, delete
+# whitespace, wc -c), so the two logs stay comparable: BYTES of non-whitespace,
+# not characters.
 prose_len="$(awk 'BEGIN{f=0} /^```/{f=!f; next} f==0{print}' "$msg" 2>/dev/null \
   | tr -d '[:space:]' | wc -c | tr -d ' ')"
 case "$prose_len" in ''|*[!0-9]*) prose_len=0 ;; esac
@@ -180,7 +231,8 @@ case "$prose_len" in ''|*[!0-9]*) prose_len=0 ;; esac
 # definition of the handoff key, sourced by this hook and by rewrite.sh's
 # publish so the two cannot drift.  Getting this identical on both sides is the
 # single thing that decides whether the user hears this turn's rewrite or
-# nothing at all.  Sourced AFTER step 6, so a missing file still preempts.
+# nothing at all.  Sourced AFTER step 6, so a key that cannot be computed still
+# preempts: this turn was going to speak.
 . "$SELF_DIR/speak-key.sh" 2>/dev/null
 command -v speak_key >/dev/null 2>&1 || { rm -f "$msg" 2>/dev/null; exit 0; }
 H="$(speak_key "$(cat "$msg" 2>/dev/null)")"
@@ -194,52 +246,16 @@ esac
 # generation: it was probably installed by an earlier turn (§3.2's repeated-
 # text collision, §13 row 28), and on the tail of turns where this turn's own
 # publish landed first it is the current one.
-mode=""
-if [ -f "$SPEAK_DIR/rw.$H" ]; then
-  mode="buffered"
-elif [ "$prose_len" -lt "$MIN_CHARS" ]; then
-  # §3.3: below the threshold rewrite.sh publishes NOTHING, ever, so waiting
-  # here could only wait for something that will not come.  Speak the raw text
-  # -- sanitized -- unless it carries one of §3.4's eight disqualifying hazard
-  # classes.  The eight expressions are lifted VERBATIM from
-  # corpus/bin/detect-hazards.sh (:42 :47-52 :93 :71 :72 :73 :74 :94) so the
-  # runtime gate and the checked reference cannot drift.  Eight greps, no
-  # pipeline whose status can escape, and detect-hazards.sh itself is NEVER
-  # shelled out to: it takes file arguments, spawns ~60 greps, and sets
-  # `set -uo pipefail`, which is forbidden here.
-  haz=""
-  grep -q '```' "$msg" 2>/dev/null && haz="MD-FENCE"
-  # MD-FENCE-MULTI is a strict subset of MD-FENCE, so it can add nothing; it is
-  # written out anyway because §3.4 names it as one of the eight.
-  if [ -z "$haz" ]; then
-    awk '
-      /^[ \t]*```/ { if (inb) { if (n >= 2) found = 1; inb = 0; n = 0 }
-                     else { inb = 1; n = 0 } ; next }
-      inb && NF > 0 { n++ }
-      END { exit(found ? 0 : 1) }
-    ' "$msg" 2>/dev/null && haz="MD-FENCE-MULTI"
-  fi
-  [ -z "$haz" ] && grep -qE 'https?://'                       "$msg" 2>/dev/null && haz="URL"
-  [ -z "$haz" ] && grep -qE '[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+' "$msg" 2>/dev/null && haz="PATH-SLASH"
-  [ -z "$haz" ] && grep -qE '(^| )/[A-Za-z]'                  "$msg" 2>/dev/null && haz="PATH-ABS"
-  [ -z "$haz" ] && grep -qE '~/'                              "$msg" 2>/dev/null && haz="PATH-TILDE"
-  [ -z "$haz" ] && grep -qE '(^| )\.[A-Za-z][A-Za-z0-9_-]*/'  "$msg" 2>/dev/null && haz="PATH-DOTDIR"
-  [ -z "$haz" ] && grep -qE '[✅⚠️💬✦]'                         "$msg" 2>/dev/null && haz="EMOJI"
-  if [ -n "$haz" ]; then
-    dbg "raw path disqualified by $haz -> silent"
-    rm -f "$msg" 2>/dev/null
-    exit 0
-  fi
-  mode="raw"
-else
-  # Above the threshold with no publish yet: this is the common case, not the
-  # exception.  Stop is dispatched a median 6.7 ms BEFORE the final
-  # MessageDisplay chunk and the buffer was stale 29 of 30 times, so a hook
-  # that gave up here would be silent on nearly every turn.  The child waits.
-  mode="buffered"
-fi
+#
+# It selects nothing any more -- there is one mode -- and it is NOT dropped for
+# that reason: speak-child.py re-tests the same path on the first turn of its
+# wait, so a hit resolves there, and this test is the only place §3.2's
+# repeated-text collision is observable at all.  A label for the log.
+hit="no"
+[ -f "$SPEAK_DIR/rw.$H" ] && hit="yes"
+mode="buffered"
 
-dbg "classify mode=$mode prose_len=$prose_len hash=$H"
+dbg "classify mode=$mode hit=$hit prose_len=$prose_len hash=$H"
 
 # ---- step 11: dedup -- NOT here.  §3.5.1 clause 6 puts it in the child, ---
 # at the moment text goes to synthesis, because on the waiting row the
@@ -259,7 +275,6 @@ MD_TIMEOUT=60
 WAIT=$((LLM_TIMEOUT + 2))
 [ "$WAIT" -gt "$MD_TIMEOUT" ] && WAIT="$MD_TIMEOUT"
 WAIT=$((WAIT + 3))
-[ "$mode" = "raw" ] && WAIT=0
 
 SPEAK_TIMEOUT="${CLAUDISH_SPEAK_TIMEOUT:-30}"
 case "$SPEAK_TIMEOUT" in ''|*[!0-9]*) SPEAK_TIMEOUT=30 ;; esac

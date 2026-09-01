@@ -21,6 +21,21 @@
 #                                            speaking leaves exactly one
 #                                            speaker, never two talking over
 #                                            each other (§3.5.1 cl. 5, §5.1)
+#   7  a SILENT turn does NOT preempt     -> a turn that exits at a content
+#                                            gate (empty last_assistant_message,
+#                                            or a running background task)
+#                                            leaves the live speaker alone.
+#                                            §10.3 ordered the kill above those
+#                                            gates and it cut a playing answer
+#                                            off with nothing in its place
+#   8  a SPEAKING turn DOES preempt       -> the old speaker is gone, exactly
+#                                            one survives, and the survivor is
+#                                            the NEW one
+#   9  SHORT message is SPOKEN            -> well under CLAUDISH_MIN_CHARS:
+#                                            rewrite.sh publishes the RAW text
+#                                            under the same key and it is
+#                                            spoken.  There is no audio floor.
+#                                            This case was silent before
 # ---------------------------------------------------------------------------
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -63,7 +78,11 @@ export TMPDIR="$WORK"
 export CLAUDISH_SPEAK_OFF_FILE="$OFF"
 export CLAUDISH_PLAYER="$WORK/player"
 export CLAUDISH_DEBUG=1
-unset CLAUDISH_OFF_FILE
+# Point the GLOBAL off-file at a scratch path that does not exist, rather than
+# unsetting it: unset means the real ~/.claude/claudish-off, and a user who has
+# that file would watch every case here fail with no hint why.  Case 9 drives
+# rewrite.sh, which reads the same file.
+export CLAUDISH_OFF_FILE="$WORK/claudish-off"
 
 PAYLOAD="$WORK/stop.json"
 python3 "$ROOT/tests/mkpayload.py" stop "$TEXT" "$SID" > "$PAYLOAD" || exit 1
@@ -90,6 +109,11 @@ wait_wav() {  # $1 = seconds to wait; echoes the first wav seen, or nothing
 # macOS pgrep has no -a, so count from ps: our speakers carry the session id
 # in their argv (the job path).
 speakers() { ps -Ao command= 2>/dev/null | grep 'speak-child\.py' | grep -c "$SID"; }
+# The same set, as pids: cases 7 and 8 are about WHICH speaker survives, which
+# a count cannot tell apart from a replacement.
+speaker_pids() {
+  ps -Ao pid=,command= 2>/dev/null | grep 'speak-child\.py' | grep "$SID" | awk '{print $1}'
+}
 quiesce() { _n=0; while [ "$_n" -lt 400 ] && pgrep -f "$SID" >/dev/null 2>&1; do sleep 0.1; _n=$((_n+1)); done; }
 
 pass=0; fail=0
@@ -216,6 +240,108 @@ else
   # Only the newer turn's wavs should have been played after the switch.
   ok "player log: $(cat "$PLAYLOG" 2>/dev/null | wc -l | tr -d ' ') plays across both turns"
 fi
+echo
+
+
+# --- 7: a silent turn must not kill the live speaker ----------------------
+# Change 1.  §10.3 put step 6's kill above every content-based exit, so a turn
+# that was never going to speak still TERMed the previous speaker's process
+# group: a long answer playing, a one-line question asked, the answer to it
+# gated out, and the previous answer cut off mid-sentence with nothing in its
+# place.  Both content gates are exercised, because the kill sat above both.
+echo "7  a SILENT turn must NOT kill the live speaker"
+reset; publish
+CLAUDISH_SPEAK=1 bash "$ROOT/speak.sh" < "$PAYLOAD"
+wav="$(wait_wav 250)"
+if [ -z "$wav" ]; then
+  bad "first speaker never started -- nothing to protect"
+else
+  pid1="$(speaker_pids | sed -n 1p)"
+  if [ -n "$pid1" ]; then ok "speaker running, pid $pid1"; else bad "no speaker pid"; fi
+  # step 9's gate: last_assistant_message present and empty.
+  : > "$WORK/empty.txt"
+  python3 "$ROOT/tests/mkpayload.py" stop "$WORK/empty.txt" "$SID" > "$WORK/stop-empty.json"
+  CLAUDISH_SPEAK=1 bash "$ROOT/speak.sh" < "$WORK/stop-empty.json"
+  sleep 1
+  if kill -0 "$pid1" 2>/dev/null; then ok "empty last_assistant_message left the speaker alive"
+  else bad "the empty-message turn killed the speaker"; fi
+  # step 8's gate: a running background task.
+  python3 -c 'import json,sys; p=json.load(open(sys.argv[1])); p["background_tasks"]=[{"status":"running"}]; print(json.dumps(p))' \
+    "$PAYLOAD" > "$WORK/stop-bg.json"
+  CLAUDISH_SPEAK=1 bash "$ROOT/speak.sh" < "$WORK/stop-bg.json"
+  sleep 1
+  if kill -0 "$pid1" 2>/dev/null; then ok "a running background task left the speaker alive"
+  else bad "the background-task turn killed the speaker"; fi
+  n="$(speakers)"
+  if [ "$n" -eq 1 ]; then ok "still exactly one speaker, and it is the original"
+  else bad "$n speakers running, expected 1"; fi
+fi
+quiesce
+echo
+
+# --- 8: a speaking turn still preempts ------------------------------------
+# The other half of change 1, and the part that is load-bearing: moving the
+# kill must not lose it.  Case 6 counts speakers; this one names them, because
+# "one speaker" is also what a failure to start the newcomer looks like.
+echo "8  a turn that SPEAKS still preempts -- and the survivor is the NEW one"
+reset; publish
+CLAUDISH_SPEAK=1 bash "$ROOT/speak.sh" < "$PAYLOAD"
+wav="$(wait_wav 250)"
+if [ -z "$wav" ]; then
+  bad "first speaker never started"
+else
+  pid1="$(speaker_pids | sed -n 1p)"
+  { cat "$TEXT"; printf ' A different closing sentence, so this turn is not a repeat.'; } > "$WORK/textC.txt"
+  python3 "$ROOT/tests/mkpayload.py" stop "$WORK/textC.txt" "$SID" > "$WORK/stopC.json"
+  HC="$(speak_key "$(cat "$WORK/textC.txt")")"
+  printf '%s' "$(cat "$WORK/textC.txt")" > "$SPEAK_DIR/.tc"
+  mv -f "$SPEAK_DIR/.tc" "$SPEAK_DIR/rw.$HC"
+  CLAUDISH_SPEAK=1 bash "$ROOT/speak.sh" < "$WORK/stopC.json"
+  _n=0
+  while [ "$_n" -lt 60 ] && kill -0 "$pid1" 2>/dev/null; do sleep 0.1; _n=$((_n + 1)); done
+  if kill -0 "$pid1" 2>/dev/null; then bad "old speaker $pid1 survived a speaking turn -- preemption lost"
+  else ok "old speaker $pid1 was preempted"; fi
+  sleep 2
+  n2="$(speakers)"
+  if [ "$n2" -eq 1 ]; then ok "exactly one speaker survives"
+  else bad "$n2 speakers running, expected 1"; fi
+  pid2="$(speaker_pids | sed -n 1p)"
+  if [ -n "$pid2" ] && [ "$pid2" != "$pid1" ]; then ok "the survivor is the new speaker, pid $pid2"
+  else bad "survivor pid '$pid2' against old '$pid1' -- the newcomer never took over"; fi
+fi
+quiesce
+echo
+
+# --- 9: a short message is spoken -----------------------------------------
+# Change 2.  Below CLAUDISH_MIN_CHARS rewrite.sh used to publish NOTHING, so
+# speak.sh's own sub-threshold row spoke the raw text out of the job -- or, if
+# it carried one of §3.4's eight hazard classes, went silent.  Now the short
+# path publishes the raw text under the same key and there is no floor on the
+# speech side at all.  This drives BOTH hooks, in live order: Stop is
+# dispatched a median 6.7 ms BEFORE the final MessageDisplay chunk.
+echo "9  SHORT message -- no floor: rewrite.sh publishes RAW, speak.sh speaks it"
+reset
+SHORT="$WORK/short.txt"
+printf 'Yes, that is done. The tests pass and nothing else changed.' > "$SHORT"
+plen="$(tr -d '[:space:]' < "$SHORT" | wc -c | tr -d ' ')"
+python3 "$ROOT/tests/mkpayload.py" stop    "$SHORT" "$SID"             > "$WORK/stop-short.json"
+python3 "$ROOT/tests/mkpayload.py" display "$SHORT" "$SID" "msg-short" > "$WORK/disp-short.json"
+HS="$(speak_key "$(cat "$SHORT")")"
+t0="$(now)"
+CLAUDISH_SPEAK=1 bash "$ROOT/speak.sh" < "$WORK/stop-short.json"; rc=$?
+if [ "$rc" -eq 0 ]; then ok "hook exit 0 on a $plen-byte message (well under 200)"
+else bad "hook exit $rc"; fi
+CLAUDISH_SPEAK=1 bash "$ROOT/rewrite.sh" < "$WORK/disp-short.json" > "$WORK/rw-out.json"
+if [ -f "$SPEAK_DIR/rw.$HS" ]; then ok "rewrite.sh published rw.<key> below MIN_CHARS"
+else bad "rewrite.sh published nothing below MIN_CHARS"; fi
+if [ ! -s "$WORK/rw-out.json" ]; then ok "rewrite.sh stayed fail-open: nothing on stdout"
+else bad "rewrite.sh emitted displayContent on the short path: $(cat "$WORK/rw-out.json")"; fi
+wav="$(wait_wav 250)"
+if [ -n "$wav" ]; then ok "wav at $(elapsed "$t0" "$(now)")s -- the short answer was SPOKEN"
+else bad "no wav: the short answer is still silent"; fi
+quiesce
+if [ -s "$PLAYLOG" ]; then ok "player invoked for the short answer"
+else bad "player never invoked for the short answer"; fi
 echo
 
 echo "--- debug log ---"

@@ -97,6 +97,49 @@ emit_empty() {
   exit 0
 }
 
+# ---- publish text for speak.sh (speech handoff) --------------------------
+# Content-addressed: the path is sha256( trim( the SOURCE text ) ) — always
+# "$full", never "$1" — so the path is the proof that what we publish belongs
+# to the message Claude actually produced, and it is the same key speak.sh
+# computes from its own copy of that message. "$1" is what gets SPOKEN, and it
+# is not always a rewrite:
+#
+#   publish_speech "$rewrite"   the normal path, above MIN_CHARS
+#   publish_speech "$full"      the short path, below MIN_CHARS, where there
+#                               is no rewrite to hand over — the message was
+#                               skipped precisely because it is already plain.
+#                               Speech has no length floor of its own (the
+#                               user's decision, 2026-09-01), so the raw text
+#                               is what there is to speak, and starving the
+#                               short path was the silence this replaced.
+#
+# Guarded throughout — temp-write + rename (atomic), every step's failure
+# swallowed — so a full disk, an unreadable speak-key.sh, or anything else can
+# never change this hook's exit path or one byte of what it displays. The
+# display hook's fail-open contract outranks the speech feature absolutely.
+# Gated on CLAUDISH_SPEAK, so with speech off a call is one variable test and a
+# return. speak-key.sh holds the ONE definition of the key and speak.sh sources
+# the same file, so the two sides cannot drift apart; a missing or unreadable
+# speak-key.sh just means no publish.
+publish_speech() {
+  [ "${CLAUDISH_SPEAK:-0}" = "1" ] || return 0
+  . "$(cd "$(dirname "$0")" 2>/dev/null && pwd)/speak-key.sh" 2>/dev/null
+  _sh=""
+  command -v speak_key >/dev/null 2>&1 && _sh="$(speak_key "$full")"
+  _sd="$BUF_ROOT/$sid/speak"
+  if [ -n "$_sh" ] && mkdir -p "$_sd" 2>/dev/null; then
+    _st="$_sd/.rw.$$.$RANDOM"
+    { printf '%s' "$1" > "$_st" 2>/dev/null \
+      && mv -f "$_st" "$_sd/rw.$_sh" 2>/dev/null; } || rm -f "$_st" 2>/dev/null
+    printf '%s' "$(printf '%s' "$payload" | jq -r '.prompt_id // empty' 2>/dev/null)" \
+      > "$_sd/prompt_id" 2>/dev/null
+    dbg "speak: published rw.$_sh (${#1} bytes)"
+  else
+    dbg "speak: no publish (no key)"
+  fi
+  return 0
+}
+
 [ "$ENABLED" = "1" ] || pass_through
 command -v jq  >/dev/null 2>&1 || pass_through
 command -v curl >/dev/null 2>&1 || pass_through
@@ -146,6 +189,11 @@ cleanup() { rm -rf "$mdir" 2>/dev/null || true; }
 # Below threshold -> do not rewrite.
 if [ "${prose_len:-0}" -lt "$MIN_CHARS" ]; then
   dbg "skip: below min_chars"
+  # No rewrite will ever exist for this message — and speech no longer has a
+  # floor of its own, so hand speak.sh the RAW text under the same key rather
+  # than leaving the turn silent. Nothing below this line changes: the publish
+  # cannot alter what is displayed or how this hook exits.
+  publish_speech "$full"
   cleanup
   # replace mode already blanked the intermediate chunks, so it MUST re-show
   # the full original here; append mode already streamed it.
@@ -232,29 +280,7 @@ if [ -z "$rewrite" ]; then
 fi
 
 # ---- publish the rewrite for speak.sh (speech handoff) -------------------
-# Content-addressed: the path is sha256( trim( the text we just rewrote ) ), so
-# it is the proof that this rewrite belongs to that source text. Installed by
-# temp-write + rename inside the speak dir (atomic), and guarded throughout so
-# a full disk can never change this hook's exit path — the display hook's
-# fail-open contract outranks the speech feature absolutely. Gated on
-# CLAUDISH_SPEAK, so with speech off this block is one variable test and
-# nothing else. speak-key.sh holds the ONE definition of the key and speak.sh
-# sources the same file, so the two sides cannot drift apart; a missing or
-# unreadable speak-key.sh just means no publish.
-if [ "${CLAUDISH_SPEAK:-0}" = "1" ]; then
-  . "$(cd "$(dirname "$0")" 2>/dev/null && pwd)/speak-key.sh" 2>/dev/null
-  _sh=""
-  command -v speak_key >/dev/null 2>&1 && _sh="$(speak_key "$full")"
-  _sd="$BUF_ROOT/$sid/speak"
-  if [ -n "$_sh" ] && mkdir -p "$_sd" 2>/dev/null; then
-    _st="$_sd/.rw.$$.$RANDOM"
-    { printf '%s' "$rewrite" > "$_st" 2>/dev/null \
-      && mv -f "$_st" "$_sd/rw.$_sh" 2>/dev/null; } || rm -f "$_st" 2>/dev/null
-    printf '%s' "$(printf '%s' "$payload" | jq -r '.prompt_id // empty' 2>/dev/null)" \
-      > "$_sd/prompt_id" 2>/dev/null
-  fi
-  dbg "speak: published rw.$_sh"
-fi
+publish_speech "$rewrite"
 
 # ---- build displayContent for the final chunk ----------------------------
 out="$BUF_ROOT/$sid.$mid.out"

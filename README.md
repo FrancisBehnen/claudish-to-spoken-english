@@ -503,9 +503,11 @@ see — much slower for identical output quality on this simple task. Keep it of
 
 ## Speech (optional third hook) — hear the rewrite spoken aloud
 
-**Off by default.** With `CLAUDISH_SPEAK=1` the plugin speaks the plain-English rewrite of
-each turn's final message through [Kokoro](https://github.com/thewh1teagle/kokoro-onnx), a
-local neural TTS. Nothing is sent anywhere; synthesis runs on your machine.
+**Off by default.** With `CLAUDISH_SPEAK=1` the plugin speaks each turn's final message through
+[Kokoro](https://github.com/thewh1teagle/kokoro-onnx), a local neural TTS — the plain-English
+rewrite where there is one, and the message itself where it was too short to be rewritten.
+**Speech has no length floor of its own**; `CLAUDISH_MIN_CHARS` decides what gets *rewritten*,
+never what gets spoken. Nothing is sent anywhere; synthesis runs on your machine.
 
 ```bash
 export CLAUDISH_SPEAK=1        # in your shell profile, or "env" in ~/.claude/settings.json
@@ -543,7 +545,7 @@ hook has no way to write to the screen. `CLAUDISH_DEBUG=1` and
 | `CLAUDISH_SPEAK_TIMEOUT` | `30` | bounds **synthesis**, not the hook. |
 | `KOKORO_ROOT` | `~/.local/share/kokoro` | the same name the bench harness uses; there is no second one. |
 | `CLAUDISH_DEBUG` | `0` | reuses the rewrite hook's flag and its log file. There is no separate speech debug flag. |
-| `CLAUDISH_SPEAK_MIN_CHARS` | — | **deliberately does not exist.** A separate length gate for speech was considered and declined: the existing `CLAUDISH_MIN_CHARS` already decides whether a message is rewritten, and below it a short clean message is spoken raw rather than skipped. A knob nobody has justified does not ship. |
+| `CLAUDISH_SPEAK_MIN_CHARS` | — | **deliberately does not exist**, and neither does any other floor on speech. `CLAUDISH_MIN_CHARS` decides whether a message is *rewritten*; below it the raw message is published and spoken, because it was skipped precisely for being plain already. A knob nobody has justified does not ship. |
 | `CLAUDISH_TTS_URL` | — | **deliberately does not exist.** The HTTP-server branch was measured and declined; there is no endpoint to point at. Synthesis is in-process. |
 
 The wait for the rewrite has **no knob of its own**, on purpose: it is derived as

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **A silent turn no longer cuts off the previous answer.** `speak.sh`'s
+  preemption ran above every gate that can exit without speaking, so a turn
+  that was never going to speak still TERMed the previous speaker's process
+  group: a long answer playing, a one-line question asked, and the long answer
+  cut off mid-sentence with nothing in its place. The kill now runs below the
+  content gates and above the fork, so a turn that *does* speak still leaves
+  exactly one speaker. `tests/speak-selftest.sh` cases 7 and 8.
+
+### Changed
+- **Speech has no length floor of its own.** Below `CLAUDISH_MIN_CHARS`
+  `rewrite.sh` published nothing, so short answers were spoken from a separate
+  raw path in `speak.sh` or — if they carried one of eight hazard classes —
+  not at all. Now `rewrite.sh` publishes on the short path too, carrying the
+  **raw** text under the same key, and `speak.sh` reads `CLAUDISH_MIN_CHARS`
+  on no path: `MIN_CHARS` decides what is *rewritten*, never what is spoken.
+  That drops the eight-class hazard gate, which had measured zero effect on all
+  sixteen real sub-threshold items. `tests/speak-selftest.sh` case 9.
+
 ### Added
 - **Speech, off by default.** With `CLAUDISH_SPEAK=1` the plugin speaks each
   turn's plain-English rewrite aloud through a local Kokoro voice (`bf_emma`).
