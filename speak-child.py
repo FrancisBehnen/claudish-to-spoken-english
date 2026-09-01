@@ -259,7 +259,19 @@ def claim(speak_dir: str, buf_root: str) -> bool:
             dbg(buf_root, "cannot create consumer lock: %r" % (exc,))
             return False
         else:
-            atomic_write(owner, record)
+            # The mkdir is the claim; the owner record is what lets the NEXT
+            # turn tell a live incumbent from a corpse. If it never lands, the
+            # "lock with no owner record" branch below is no longer a
+            # two-syscall window -- it is permanent: the next speaker waits
+            # OWNER_GRACE, breaks a lock we are still holding, and both of us
+            # speak the session. Two voices, which is the one failure this
+            # whole function exists to prevent. So an unwritable owner record
+            # gives the lock back and loses the turn instead: the safe
+            # direction, and the one CLAIM_DEADLINE already chooses below.
+            if not atomic_write(owner, record):
+                dbg(buf_root, "cannot write consumer owner record -> silent")
+                break_lock(lockdir, owner)
+                return False
             return True
 
         rec = parse_record(read_file(owner))

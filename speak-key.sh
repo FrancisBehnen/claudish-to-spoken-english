@@ -37,6 +37,25 @@
 # The fixture table that pins this down is `tests/speak-key-cases.tsv`, checked
 # by `tests/speak-key-test.sh`.  Change the derivation and that table fails --
 # which is the point, because a silent change here is a silently mute plugin.
+#
+# HOW A CALLER PROVES IT GOT *THIS* DEFINITION: test `SPEAK_KEY_DEFINED`, which
+# the last line of this file assigns.  `command -v speak_key` is NOT that
+# proof -- it resolves shell functions, builtins AND executables on `PATH`, so
+# on a run where sourcing this file failed (absent, unreadable, truncated) a
+# stray `speak_key` on `PATH`, or one exported into the environment with
+# `export -f`, answers `command -v` just as well and then gets CALLED.  That
+# breaks the one-definition guarantee in the only way that matters: the two
+# hooks would derive the handoff key with code that is not this file, possibly
+# different code on each side, and the user hears nothing on every turn with
+# no error anywhere.  Callers therefore zero the sentinel, source, and test it:
+#
+#   SPEAK_KEY_DEFINED=0
+#   . "<dir>/speak-key.sh" 2>/dev/null
+#   [ "$SPEAK_KEY_DEFINED" = "1" ] || <give up quietly>
+#
+# Zeroing it first is what makes the test meaningful -- it cannot be satisfied
+# by an inherited environment variable -- and assigning before reading is also
+# what keeps it safe under `rewrite.sh`'s `set -u`.
 # ---------------------------------------------------------------------------
 
 speak_key() {
@@ -50,3 +69,7 @@ speak_key() {
     *) printf '%s' "$_sk_out" ;;
   esac
 }
+
+# LAST LINE ON PURPOSE.  Reaching it is the whole assertion: the definition
+# above ran, in this shell, out of this file.  Nothing may be added below it.
+SPEAK_KEY_DEFINED=1

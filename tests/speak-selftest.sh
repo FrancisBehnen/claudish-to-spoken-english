@@ -36,6 +36,15 @@
 #                                            under the same key and it is
 #                                            spoken.  There is no audio floor.
 #                                            This case was silent before
+#  10 an UNSOURCEABLE speak-key.sh is       -> with no speak-key.sh beside it,
+#     silent, and does NOT fall back to        speak.sh must go silent rather
+#     PATH                                     than call whatever `speak_key`
+#                                            PATH or the environment happens
+#                                            to offer.  `command -v speak_key`
+#                                            answered for a stray and the
+#                                            handoff key would then come from
+#                                            code that is not the one
+#                                            definition
 # ---------------------------------------------------------------------------
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -342,6 +351,47 @@ else bad "no wav: the short answer is still silent"; fi
 quiesce
 if [ -s "$PLAYLOG" ]; then ok "player invoked for the short answer"
 else bad "player never invoked for the short answer"; fi
+echo
+
+# --- 10: an unsourceable speak-key.sh must not fall through to PATH -------
+# The handoff key has ONE definition and both hooks source it.  The guard used
+# to be `command -v speak_key`, which resolves executables on PATH and
+# functions exported with `export -f` as readily as the function the source
+# defines -- so on a run where the source failed, a stray `speak_key` answered
+# the guard and was then CALLED, from a Stop hook, on the text of the turn.
+# The key would have come from code that is not the one definition, so
+# rewrite.sh would publish to one path while the hook waited on another: no
+# audio, on every turn, with nothing reporting an error.
+#
+# This drives a copy of speak.sh in a directory with NO speak-key.sh beside it
+# and a stray `speak_key` first on PATH that leaves a marker if it is invoked.
+echo "10  unsourceable speak-key.sh -- silent, and no PATH fallback"
+reset
+mkdir -p "$WORK/nokey" "$WORK/straybin" 2>/dev/null
+cp "$ROOT/speak.sh" "$WORK/nokey/speak.sh"
+cp "$ROOT/speak-child.py" "$WORK/nokey/speak-child.py"
+STRAY_MARK="$WORK/stray-was-called"
+cat > "$WORK/straybin/speak_key" <<'SEOF'
+#!/bin/sh
+: > "$STRAY_MARK_PATH"
+printf 'deadbeef'
+SEOF
+chmod +x "$WORK/straybin/speak_key"
+rc=0
+( export STRAY_MARK_PATH="$STRAY_MARK"
+  PATH="$WORK/straybin:$PATH" CLAUDISH_SPEAK=1 \
+    bash "$WORK/nokey/speak.sh" < "$PAYLOAD" ) || rc=$?
+if [ "$rc" -eq 0 ]; then ok "hook exit 0 with no speak-key.sh beside it"
+else bad "hook exit $rc, expected 0"; fi
+if [ -e "$STRAY_MARK" ]; then
+  bad "the stray speak_key on PATH was CALLED -- command -v fell through"
+else ok "the stray speak_key on PATH was never called"; fi
+if [ -n "$(ls "$SPEAK_DIR"/job.* 2>/dev/null)" ]; then
+  bad "a job was installed on a run that could not compute the key"
+else ok "no job installed: the hook went silent at the key"; fi
+if [ "$(speakers)" -eq 0 ]; then ok "no speaker forked"
+else bad "$(speakers) speaker(s) forked without a key"; fi
+quiesce
 echo
 
 echo "--- debug log ---"
