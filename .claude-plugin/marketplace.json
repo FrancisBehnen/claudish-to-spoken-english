@@ -9,7 +9,7 @@
     {
       "name": "claudish-to-english",
       "source": "./",
-      "description": "Shows a plain-English rewrite of each Claude Code assistant message, produced by a local LLM (ollama, default), the Anthropic API, or any OpenAI-compatible API. Display-only.",
+      "description": "Shows a plain-English rewrite of each Claude Code assistant message, produced by your Claude Code subscription via the local claude CLI (the default, which sends message text to Anthropic), a local LLM via ollama, the Anthropic API, or any OpenAI-compatible API. ollama is the only provider under which nothing leaves your machine. Display-only.",
       "category": "productivity"
     }
   ]

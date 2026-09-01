@@ -35,10 +35,12 @@
 #                                          (whole prompt, not merged; empty or
 #                                          unreadable -> built-in default)
 #   CLAUDISH_PROVIDER  ollama|anthropic|openai|claude-cli
-#                                          which LLM serves rewrites
-#                                           (default ollama; keys, base URLs,
-#                                           and per-provider model defaults
-#                                           are documented in providers.sh)
+#                                          which LLM serves rewrites (default
+#                                           claude-cli, which sends the message
+#                                           to Anthropic; ollama is the only one
+#                                           with no egress. Keys, base URLs, and
+#                                           per-provider model defaults are
+#                                           documented in providers.sh)
 #   CLAUDISH_MODEL     <model>         overrides the provider's default model
 #   CLAUDISH_OLLAMA    <base url>      (default http://localhost:11434)
 #   CLAUDISH_MIN_CHARS <n>            skip messages shorter than this

@@ -5,6 +5,27 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-09-01
+
+### Fixed
+- **The plugin's own description said rewrites came from a local LLM.** Both
+  `plugin.json` and the marketplace entry still advertised "produced by a local
+  LLM (ollama, default)" after 0.4.0 made `claude-cli` the default, so the card
+  a reader sees in the marketplace and in `/plugin list` implied conversation
+  content stayed on the machine while the opposite had become true. Both
+  descriptions now name `claude-cli` as the default that sends message text to
+  Anthropic, and `ollama` as the only provider under which nothing leaves the
+  machine — matching what the README and the 0.4.0 notes already said. The two
+  hook headers (`rewrite.sh`, `rewrite-md.sh`) still documented
+  `CLAUDISH_PROVIDER`'s default as `ollama`; corrected there too, including the
+  Markdown hook's own summary, which sends *file contents* to the provider.
+
+  Behaviour is unchanged: this release is metadata only. It carries a version
+  bump because an installed copy keeps its own `plugin.json`, and
+  `claude plugin update` only re-fetches when the version string moves — a
+  correction that never reaches the people who already installed on the strength
+  of the wrong claim is not a correction.
+
 ## [0.4.0] - 2026-09-01
 
 The release that speaks. With `CLAUDISH_SPEAK=1` your assistant's replies are
@@ -190,6 +211,7 @@ now has two minutes to arrive instead of giving up.
 - Optional `PostToolUse` Markdown-file rewrite hook (`rewrite-md.sh`), opt-in by
   directory (`CLAUDISH_MD_DIR`), with `sibling` and `overwrite` modes.
 
+[0.4.1]: https://github.com/FrancisBehnen/claudish-to-spoken-english/releases/tag/claudish-to-english--v0.4.1
 [0.4.0]: https://github.com/FrancisBehnen/claudish-to-spoken-english/releases/tag/claudish-to-english--v0.4.0
 [0.3.0]: https://github.com/gvzdv/claudish-to-english/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/gvzdv/claudish-to-english/compare/v0.1.1...v0.2.0

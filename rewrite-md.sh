@@ -3,9 +3,11 @@
 # PostToolUse Markdown rewrite hook  (opt-in by directory, fail-open)
 #
 # Fires after a Write/Edit and, IF the written file is a Markdown file that
-# lives under CLAUDISH_MD_DIR, rewrites its prose into plain English using a
-# local LLM (ollama). PostToolUse.updatedToolOutput only changes what Claude
-# SEES, not the bytes on disk, so this hook does the file write itself.
+# lives under CLAUDISH_MD_DIR, rewrites its prose into plain English through
+# the configured provider (default claude-cli, which sends the file's contents
+# to Anthropic; ollama is the only provider that sends nothing off the
+# machine). PostToolUse.updatedToolOutput only changes what Claude SEES, not
+# the bytes on disk, so this hook does the file write itself.
 #
 # OPT-IN: does nothing unless CLAUDISH_MD_DIR is set. Only *.md files whose
 # resolved path is inside that directory are touched. Everything else passes
@@ -37,8 +39,9 @@
 #                                     (whole prompt, not merged; empty or
 #                                     unreadable -> built-in default)
 #   CLAUDISH_PROVIDER  ollama|anthropic|openai|claude-cli  which LLM serves rewrites (default
-#                                     ollama; keys, base URLs, and per-provider model
-#                                     defaults are documented in providers.sh)
+#                                     claude-cli, which sends file contents to Anthropic;
+#                                     ollama is the only one with no egress. Keys, base URLs,
+#                                     and per-provider model defaults: see providers.sh)
 #   CLAUDISH_MODEL     <model>        overrides the provider's default model
 #   CLAUDISH_OLLAMA    <base url>     (default http://localhost:11434)
 #   CLAUDISH_MIN_CHARS <n>            skip files whose prose (code stripped) is shorter (default 200)
